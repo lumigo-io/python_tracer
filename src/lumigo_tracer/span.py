@@ -1,5 +1,5 @@
 from lumigo_tracer import reporter
-from .parsers.parser import get_parser
+from lumigo_tracer.parsers.parser import get_parser
 import time
 
 
