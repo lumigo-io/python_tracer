@@ -1,10 +1,17 @@
 version: 2.1
 defaults: &defaults
-  working_directory: ~/lumigo_tracer
+  working_directory: ~/python_tracer
   docker:
   - image: circleci/python:3.7
 
 commands:
+  checkout_credentials:
+    description: "Checkout credentials"
+    steps:
+      - run:
+          command: |
+            cd ..
+            git clone git@github.com:lumigo-io/common-resources.git
   checkout_code:
     description: "Checkout code and test it"
     steps:
@@ -27,16 +34,16 @@ commands:
       # Download and cache dependencies
       - restore_cache:
           keys:
-            - v2-dependencies-{{ checksum "setup.py" }}
+            - v1-dependencies-{{ checksum "requirements.txt" }}
             # fallback to using the latest cache if no exact match is found
-            - v2-dependencies-
+            - v1-dependencies-
 
       - run:
           name: install dependencies
           command: |
             python3 -m venv venv
             . venv/bin/activate
-            pip install .
+            pip install -r requirements.txt
 
       # https://discuss.circleci.com/t/activate-python-virtualenv-for-whole-job/14434
       - run: echo "source venv/bin/activate" >> $BASH_ENV
@@ -44,11 +51,14 @@ commands:
       - run: pip install pytest-cov
       - run: pip install pre-commit
       - run: pre-commit install
+      - run: curl -sL https://deb.nodesource.com/setup_8.x | sudo bash -
+      - run: sudo apt install nodejs
+      - run: sudo npm install -g serverless
 
       - save_cache:
           paths:
             - ./venv
-          key: v2-dependencies-{{ checksum "setup.py" }}
+          key: v1-dependencies-{{ checksum "requirements.txt" }}
 
 workflows:
   test-deploy:
@@ -66,7 +76,10 @@ jobs:
     <<: *defaults
     steps:
       - checkout_code
+      - checkout_credentials
       # run tests!
+      - run: sudo pip install awscli
+      - run: ./scripts/ci_deploy.sh
       - run: pytest --cov=./
       - run: ./scripts/checks.sh
       - run: bash <(curl -s https://codecov.io/bash)
@@ -76,4 +89,6 @@ jobs:
     <<: *defaults
     steps:
       - checkout_code
+      - checkout_credentials
+      - run: sudo pip install awscli
       - run: ./scripts/bd_to_prod.sh
