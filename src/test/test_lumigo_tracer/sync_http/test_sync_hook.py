@@ -1,6 +1,6 @@
 import pytest
 
-from lumigo_tracer import lumigo_lambda
+from lumigo_tracer.sync_http.sync_hook import lumigo_lambda
 import json
 import boto3
 import http.client
