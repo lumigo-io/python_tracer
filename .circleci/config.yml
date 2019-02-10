@@ -44,6 +44,7 @@ commands:
             python3 -m venv venv
             . venv/bin/activate
             pip install -r requirements.txt
+            python setup.py install
 
       # https://discuss.circleci.com/t/activate-python-virtualenv-for-whole-job/14434
       - run: echo "source venv/bin/activate" >> $BASH_ENV

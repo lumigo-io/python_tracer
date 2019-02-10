@@ -11,7 +11,7 @@ echo "|    |___|  |  /  Y Y  \  / /_/  >  <_> )   |  (  <_> )";
 echo "|_______ \____/|__|_|  /__\___  / \____/ /\ |__|\____/ ";
 echo "        \/           \/  /_____/         \/            ";
 echo
-echo "${bold}Tracer ingestion deployment${normal}"
+echo "${bold}Python Tracer Deployment${normal}"
 function usage() {
     cat <<EOM
     Usage:
