@@ -1,6 +1,6 @@
 version: 2.1
 defaults: &defaults
-  working_directory: ~/python_tracer
+  working_directory: ~/lumigo_tracer
   docker:
   - image: circleci/python:3.7
 
