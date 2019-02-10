@@ -14,6 +14,6 @@ setuptools.setup(
     url="https://github.com/lumigo-io/lumigo_tracer.git",
     package_dir={"": "src"},
     packages=["lumigo_tracer"],
-    install_requires=["aioboto3", "aiohttp", "boto3"],
+    install_requires=["aiohttp", "boto3"],
     classifiers=["Programming Language :: Python :: 3", "Operating System :: OS Independent"],
 )
