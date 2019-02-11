@@ -2,4 +2,4 @@
 set -eo pipefail
 
 pre-commit run -a
-python -m pytest src/test
+python -m pytest src/test --all

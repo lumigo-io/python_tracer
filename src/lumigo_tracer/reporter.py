@@ -26,6 +26,7 @@ def get_connection() -> http.client.HTTPConnection:
 
 def report_json(msg: dict) -> None:
     if SHOULD_REPORT:
+        # TODO - decide on a real API
         get_connection().request("GET", "/", json.dumps(msg))
     else:
         print(msg)
