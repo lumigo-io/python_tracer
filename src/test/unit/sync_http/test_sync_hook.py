@@ -60,8 +60,7 @@ def test_lambda_wrapper_boto(reporter_mock):
     @lumigo_lambda
     def lambda_test_function():
         boto3.client("sns").publish(
-            TargetArn="arn:aws:sns:us-east-2:723663554526:test",
-            Message=json.dumps({"test": "test"}),
+            TopicArn="arn:aws:sns:us-east-2:723663554526:test", Message=json.dumps({"test": "test"})
         )
 
     lambda_test_function()
