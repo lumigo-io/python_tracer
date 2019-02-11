@@ -9,6 +9,7 @@ _connection = None
 
 
 def config(host=None, should_report=False):
+    # TODO - decide on a real way to config the lambda
     if host:
         global HOST
         HOST = host

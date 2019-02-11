@@ -14,6 +14,7 @@ class Span(object):
     def __init__(self, span_name):
         self.span_name = span_name
         self.events = []
+        # TODO - the first event should contain more details - cold/hot, etc.
         self.events.append({"name": span_name, "start_time": time.time()})
 
     def add_event(self, url: str, headers, body: bytes, event_type: EventType) -> None:
@@ -34,6 +35,7 @@ class Span(object):
 
     def end(self) -> None:
         self.events.append({"end_time": time.time()})
+        # TODO - should we aggregate all the events together, and send it in one piece?
         for event in self.events:
             reporter.report_json(event)
 
