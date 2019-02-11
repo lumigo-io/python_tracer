@@ -31,10 +31,3 @@ fi
 echo "export USER=int-${branch_name}-${user_name}" >> $BASH_ENV
 echo "Branch: $branch_name"
 echo "User: $user_name"
-echo "Installing common resources"
-pushd ../common-resources > /dev/null
-./scripts/deploy.sh --encrypted-file credentials_integration.enc --env int-${branch_name}-${user_name} --region ${aws_region}
-popd > /dev/null
-echo "Installing the rest"
-./scripts/deploy.sh --encrypted-file credentials_integration.enc --env int-${branch_name}-${user_name} --region ${aws_region}
-

@@ -54,9 +54,6 @@ commands:
       - run: pip install pytest-cov
       - run: pip install pre-commit
       - run: pre-commit install
-      - run: curl -sL https://deb.nodesource.com/setup_8.x | sudo bash -
-      - run: sudo apt install nodejs
-      - run: sudo npm install -g serverless
 
       - save_cache:
           paths:
