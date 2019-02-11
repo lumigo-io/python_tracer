@@ -1,8 +1,4 @@
-import pytest
-
 from lumigo_tracer.sync_http.sync_hook import lumigo_lambda
-import json
-import boto3
 import http.client
 
 
@@ -53,20 +49,3 @@ def test_lambda_wrapper_http(reporter_mock):
     events = events_by_mock(reporter_mock)
     assert len(events) == 3
     assert events[1].get("url") == "www.google.com"
-
-
-@pytest.mark.slow
-def test_lambda_wrapper_boto(reporter_mock):
-    @lumigo_lambda
-    def lambda_test_function():
-        boto3.client("sns").publish(
-            TopicArn="arn:aws:sns:us-west-2:723663554526:test", Message=json.dumps({"test": "test"})
-        )
-
-    lambda_test_function()
-    events = events_by_mock(reporter_mock)
-    assert len(events) == 4
-    assert events[1].get("url") == "sns.us-west-2.amazonaws.com"
-    assert events[1].get("service") == "sns"
-    assert events[1].get("region") == "us-east-1"
-    assert events[2].get("messageId") is not None

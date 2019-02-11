@@ -8,6 +8,15 @@ SHOULD_REPORT = False
 _connection = None
 
 
+def config(host=None, should_report=False):
+    if host:
+        global HOST
+        HOST = host
+    if should_report:
+        global SHOULD_REPORT
+        SHOULD_REPORT = should_report
+
+
 def get_connection() -> http.client.HTTPConnection:
     global _connection
     if not _connection:
