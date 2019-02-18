@@ -19,10 +19,10 @@ class Parser:
     """
 
     def parse_request(self, url: str, headers, body: bytes) -> dict:
-        return {"type": "request", "url": url, "timestamp": time.time()}
+        return {"type": "http", "url": url, "timestamp": time.time()}
 
     def parse_response(self, url: str, headers, body: bytes) -> dict:
-        return {"type": "response", "url": url, "timestamp": time.time()}
+        return {"type": "http", "url": url, "timestamp": time.time()}
 
 
 class ServerlessAWSParser(Parser):

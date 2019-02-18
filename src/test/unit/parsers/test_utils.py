@@ -53,3 +53,17 @@ def test_key_from_xml(input_params, expected_output):
 )
 def test_key_from_query(input_params, expected_output):
     assert utils.key_from_query(*input_params) == expected_output
+
+
+@pytest.mark.parametrize(
+    ("trace_id", "result"),
+    [
+        ("Root=1-2-3;Parent=34;Sampled=0", ("1-2-3", "3")),  # happy flow
+        ("Root=1-2-3", ("1-2-3", "3")),
+        ("Root=1-2", ("1-2", "")),
+        ("a;1", ("", "")),
+        ("123", ("", "")),
+    ],
+)
+def test_parse_trace_id(trace_id, result):
+    assert utils.parse_trace_id(trace_id) == result

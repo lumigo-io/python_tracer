@@ -53,7 +53,7 @@ def test_dynamo_db(ddb_resource, reporter_mock, region):
     assert events[1].get("url") == f"dynamodb.{region}.amazonaws.com"
     assert events[1].get("service") == "dynamodb"
     assert "id" in events[2]
-    assert "end_time" in events[3]
+    assert "ended" in events[3]
 
 
 @pytest.mark.slow
@@ -68,24 +68,20 @@ def test_sns(sns_resource, reporter_mock, region):
     assert events[1].get("url") == f"sns.{region}.amazonaws.com"
     assert events[1].get("service") == "sns"
     assert events[1].get("region") == region
-    assert events[2].get("messageId") is not None
+    # assert events[2].get("messageId") is not None  # this is valid only when we read the body
 
 
-# TODO: doesnt work
-# @pytest.mark.slow
-# def test_lambda(lambda_resource, reporter_mock, region):
-#     @lumigo_lambda
-#     def lambda_test_function():
-#         boto3.client("lambda").invoke(
-#             FunctionName=lambda_resource,
-#             InvocationType='Event',
-#             Payload=b'null',
-#         )
-#
-#     lambda_test_function()
-#     events = events_by_mock(reporter_mock)
-#     assert len(events) == 4
-#     assert events[1].get("url") == f"sns.{region}.amazonaws.com"
-#     assert events[1].get("service") == "sns"
-#     assert events[1].get("region") == region
-#     assert events[2].get("messageId") is not None
+@pytest.mark.slow
+def test_lambda(lambda_resource, reporter_mock, region):
+    @lumigo_lambda
+    def lambda_test_function():
+        boto3.client("lambda").invoke(
+            FunctionName=lambda_resource, InvocationType="Event", Payload=b"null"
+        )
+
+    lambda_test_function()
+    events = events_by_mock(reporter_mock)
+    assert len(events) == 4
+    assert events[1].get("url") == f"lambda.{region}.amazonaws.com"
+    assert events[1].get("service") == "lambda"
+    assert events[1].get("region") == region

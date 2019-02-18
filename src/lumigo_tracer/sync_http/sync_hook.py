@@ -23,10 +23,24 @@ def _request_wrapper(func, instance, args, kwargs):
 
 
 def _response_wrapper(func, instance, args, kwargs):
-    ret_val = func(*args, **kwargs)
+    try:
+        ret_val = func(*args, **kwargs)
+    except Exception:
+        #  TODO what should we do here? This maybe a legit error (see urllib.connectionpool:370)
+        raise
     headers = ret_val.headers
-    body = ret_val.peek()
+    # we should call to the peek only if they already got the data (otherwise it's changes the behavior)
+    body = ""  # ret_val.peek()
     Span.get_span().add_event(instance.host, headers, body, EventType.RESPONSE)
+    return ret_val
+
+
+def _read_wrapper(func, instance, args, kwargs):
+    try:
+        ret_val = func(*args, **kwargs)
+    except Exception:
+        raise
+    Span.get_span().update_event(instance.headers, ret_val)
     return ret_val
 
 
@@ -37,7 +51,7 @@ def lumigo_lambda(func):
     """
 
     def lambda_wrapper(*args, **kwargs):
-        Span.create_span(func.__name__)
+        Span.create_span(args[1] if args and len(args) > 1 else None)
         try:
             ret_val = func(*args, **kwargs)
         except Exception as e:
@@ -52,3 +66,4 @@ def lumigo_lambda(func):
 
 wrap_function_wrapper("http.client", "HTTPConnection.send", _request_wrapper)
 wrap_function_wrapper("http.client", "HTTPConnection.getresponse", _response_wrapper)
+wrap_function_wrapper("http.client", "HTTPResponse.read", _read_wrapper)

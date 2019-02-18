@@ -18,9 +18,8 @@ def test_lambda_wrapper_basic_events(reporter_mock):
     lambda_test_function()
     events = events_by_mock(reporter_mock)
     assert len(events) == 2
-    assert events[0].get("name") == "lambda_test_function"
-    assert "start_time" in events[0]
-    assert "end_time" in events[1]
+    assert "started" in events[0]
+    assert "ended" in events[1]
 
 
 def test_lambda_wrapper_exception(reporter_mock):

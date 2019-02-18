@@ -36,7 +36,6 @@ def lumigo_async_lambda(func):
     """
 
     async def lambda_wrapper(*args, **kwargs):
-        Span.create_span(func.__name__)
         ret_val = await func(*args, **kwargs)
         Span.get_span().end()
         return ret_val

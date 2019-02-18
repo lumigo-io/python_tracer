@@ -1,5 +1,7 @@
 import json
+import re
 import urllib.parse
+from typing import Tuple
 
 from lumigo_tracer.libs import xmltodict
 import functools
@@ -58,11 +60,21 @@ def key_from_query(body: bytes, key: str, default=None):
     * values separated with '&'
     * each item is <key>=<value>
     """
-    # TODO this is an ugly code with possible bugs
-    for entity in urllib.parse.unquote(body.decode()).split("&"):
-        parts = entity.split("=", 1)
-        if len(parts) == 2:
-            entity_key, entity_value = parts
-            if entity_key == key:
-                return entity_value
-    return default
+    return dict(re.findall(r"([^&]+)=([^&]*)", urllib.parse.unquote(body.decode()))).get(
+        key, default
+    )
+
+
+def parse_trace_id(trace_id_str: str) -> Tuple[str, str]:
+    """
+    This function parses the trace_id, and result dictionary the describes the data.
+    We assume the following format:
+    * values separated with ';'
+    * each item is <key>=<value>
+
+    :param trace_id_str: The string that came from the environment variables.
+    :return: root,
+    """
+    trace_id_parameters = dict(re.findall(r"([^;]+)=([^;]*)", trace_id_str))
+    root = trace_id_parameters.get("Root", "")
+    return root, safe_split_get(root, "-", 2, default="")

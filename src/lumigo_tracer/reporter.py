@@ -1,33 +1,33 @@
 import json
-import http.client
+import urllib.request
 
-
-HOST = "1.execute-api.eu-west-1.amazonaws.com"
+EDGE_HOST = "{region}.tracer-edge.golumigo.com"
 SHOULD_REPORT = False
 
 _connection = None
+_HOST: str = ""
+_TOKEN = None
 
 
-def config(host=None, should_report=False):
+def config(edge_host: str = "", should_report: bool = False, token: str = None) -> None:
     # TODO - decide on a real way to config the lambda
-    if host:
-        global HOST
-        HOST = host
+    global _HOST, SHOULD_REPORT, _TOKEN
+    if edge_host:
+        _HOST = edge_host
     if should_report:
-        global SHOULD_REPORT
         SHOULD_REPORT = should_report
-
-
-def get_connection() -> http.client.HTTPConnection:
-    global _connection
-    if not _connection:
-        _connection = http.client.HTTPConnection(HOST)
-    return _connection
+    if token:
+        _TOKEN = token
 
 
 def report_json(msg: dict) -> None:
+    msg["token"] = _TOKEN
     if SHOULD_REPORT:
-        # TODO - decide on a real API
-        get_connection().request("GET", "/", json.dumps(msg))
+        # TODO - validate final API
+        urllib.request.urlopen(
+            urllib.request.Request(
+                _HOST, json.dumps(msg).encode(), headers={"Content-Type": "application/json"}
+            )
+        )
     else:
         print(msg)
