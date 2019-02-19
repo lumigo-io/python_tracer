@@ -6,7 +6,7 @@ SHOULD_REPORT = False
 
 _connection = None
 _HOST: str = ""
-_TOKEN = None
+_TOKEN = "t_b8a1fcfe9b4d092b50b0"
 
 
 def config(edge_host: str = "", should_report: bool = False, token: str = None) -> None:
@@ -23,7 +23,7 @@ def config(edge_host: str = "", should_report: bool = False, token: str = None) 
 def report_json(msg: dict) -> None:
     msg["token"] = _TOKEN
     if SHOULD_REPORT:
-        # TODO - validate final API
+        # TODO - validate final API - create e2e tests
         urllib.request.urlopen(
             urllib.request.Request(
                 _HOST, json.dumps(msg).encode(), headers={"Content-Type": "application/json"}

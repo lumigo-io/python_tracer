@@ -26,7 +26,6 @@ def _response_wrapper(func, instance, args, kwargs):
     try:
         ret_val = func(*args, **kwargs)
     except Exception:
-        #  TODO what should we do here? This maybe a legit error (see urllib.connectionpool:370)
         raise
     headers = ret_val.headers
     # we should call to the peek only if they already got the data (otherwise it's changes the behavior)

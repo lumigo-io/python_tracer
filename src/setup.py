@@ -3,7 +3,7 @@ import setuptools
 
 setuptools.setup(
     name="lumigo_tracer",
-    version=open(os.path.join("lumigo_tracer", "VERSION"), "r").read(),
+    version=open(os.path.join(os.path.dirname(__file__), "VERSION"), "r").read(),
     author="saart",
     author_email="saart@lumigo.io",
     description="Troubleshoot your lambda using lumigo",
@@ -12,5 +12,5 @@ setuptools.setup(
     packages=setuptools.find_packages(exclude="test"),
     install_requires=[],
     classifiers=["Programming Language :: Python :: 3", "Operating System :: OS Independent"],
-    data_files=[("", ["lumigo_tracer/VERSION"])],
+    data_files=[("", ["VERSION"])],
 )

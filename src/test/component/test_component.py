@@ -43,7 +43,7 @@ def lambda_resource():
 def test_dynamo_db(ddb_resource, reporter_mock, region):
     @lumigo_lambda
     def lambda_test_function():
-        boto3.resource("dynamodb", region_name=region).Table(ddb_resource).put_item(
+        boto3.resource("dynamodb", region_name="eu-west-1").Table("test").put_item(
             Item={"key": "1"}
         )
 
