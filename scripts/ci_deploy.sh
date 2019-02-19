@@ -29,7 +29,7 @@ function deploy() {
     echo "1"
     npm i > /dev/null 2>&1
     echo "2"
-    sls deploy --force --env $env --region $region
+    sls deploy
     echo "3"
 }
 
