@@ -78,6 +78,10 @@ jobs:
       - checkout_code
       - checkout_credentials
       # run tests!
+      - run: pre-commit install
+      - run: curl -sL https://deb.nodesource.com/setup_8.x | sudo bash -
+      - run: sudo apt install nodejs
+      - run: sudo npm install -g serverless
       - run: sudo pip install awscli
       - run: ./scripts/ci_deploy.sh
       - run: pytest --cov=./
