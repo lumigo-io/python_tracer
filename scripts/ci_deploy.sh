@@ -31,3 +31,13 @@ fi
 echo "export USER=int-${branch_name}-${user_name}" >> $BASH_ENV
 echo "Branch: $branch_name"
 echo "User: $user_name"
+
+function deploy() {
+    directory = "./src/test"
+    echo "${bold}Deploying ${directory}${normal}"
+    pushd $directory > /dev/null
+    npm i > /dev/null 2>&1
+    sls deploy --force --env $env --region $region
+}
+
+deploy()
