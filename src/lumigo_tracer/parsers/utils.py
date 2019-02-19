@@ -15,7 +15,7 @@ def safe_get(l: list, index: int, default=None):
     return l[index] if len(l) > index else default
 
 
-def safe_split_get(string: str, sep: str, index: int, default=None):
+def safe_split_get(string: str, sep: str, index: int, default=None) -> str:
     """
     This function splits the given string using the sep, and returns the organ in the `index` place.
     If such index doesn't exist, returns default.
@@ -25,7 +25,7 @@ def safe_split_get(string: str, sep: str, index: int, default=None):
     return safe_get(string.split(sep), index, default)
 
 
-def key_from_json(json_str: bytes, key: object, default=None):
+def key_from_json(json_str: bytes, key: object, default=None) -> str:
     """
     This function tries to read the given str as json, and returns the value of the desired key.
     If the key doesn't found or the input string is not a valid json, returns the default.
@@ -52,7 +52,7 @@ def key_from_xml(xml_str: bytes, key: str, default=None):
         return default
 
 
-def key_from_query(body: bytes, key: str, default=None):
+def key_from_query(body: bytes, key: str, default=None) -> str:
     """
     This function assumes that the first row in the body is the url arguments.
     We assume that the structure of the parameters is as follow:

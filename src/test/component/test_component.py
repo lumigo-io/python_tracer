@@ -9,7 +9,7 @@ from lumigo_tracer.sync_http.sync_hook import lumigo_lambda
 
 def events_by_mock(reporter_mock):
     # TODO - stop using mock. the reporter should send the events to some http server, and we should read from there.
-    return [event[0][0] for event in reporter_mock.call_args_list]
+    return reporter_mock.call_args[1]["msgs"]
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -43,17 +43,17 @@ def lambda_resource():
 def test_dynamo_db(ddb_resource, reporter_mock, region):
     @lumigo_lambda
     def lambda_test_function():
-        boto3.resource("dynamodb", region_name="eu-west-1").Table("test").put_item(
+        boto3.resource("dynamodb", region_name=region).Table(ddb_resource).put_item(
             Item={"key": "1"}
         )
 
     lambda_test_function()
     events = events_by_mock(reporter_mock)
-    assert len(events) == 4
+    assert len(events) == 3
     assert events[1].get("url") == f"dynamodb.{region}.amazonaws.com"
     assert events[1].get("service") == "dynamodb"
     assert "id" in events[2]
-    assert "ended" in events[3]
+    assert "ended" in events[0]
 
 
 @pytest.mark.slow
@@ -64,7 +64,7 @@ def test_sns(sns_resource, reporter_mock, region):
 
     lambda_test_function()
     events = events_by_mock(reporter_mock)
-    assert len(events) == 4
+    assert len(events) == 3
     assert events[1].get("url") == f"sns.{region}.amazonaws.com"
     assert events[1].get("service") == "sns"
     assert events[1].get("region") == region
@@ -81,7 +81,7 @@ def test_lambda(lambda_resource, reporter_mock, region):
 
     lambda_test_function()
     events = events_by_mock(reporter_mock)
-    assert len(events) == 4
+    assert len(events) == 3
     assert events[1].get("url") == f"lambda.{region}.amazonaws.com"
     assert events[1].get("service") == "lambda"
     assert events[1].get("region") == region

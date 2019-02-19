@@ -6,7 +6,7 @@ from lumigo_tracer.parsers.utils import safe_split_get, key_from_json, key_from_
 
 class Parser:
     """
-    This parser class in the root parser of all the specific parser.
+    This parser class is the root parser of all the specific parser.
     We parse our messages using the following hierarchical structure:
 
     --- Parser --\

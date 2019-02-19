@@ -10,4 +10,5 @@
 * Run `pre-commit install` in your repository to install pre-commits hooks.
 
 # Testing
-* Run `pytest` in the root folder.
+* Run `py.test` in the root folder.
+* To run the component tests, move to the test root folder, and run `py.test --all`

@@ -3,6 +3,12 @@ from aiohttp.client import URL
 from lumigo_tracer.span import Span, EventType
 
 
+"""
+This file contains the hooking to the asynchronous lambdas.
+This is not relevant for now, because it is not part of the MVP - it should work but it was pass all the checks.
+"""
+
+
 async def request_wrapper(func, instance, args, kwargs):
     body = kwargs.get("data", "")
     if isinstance(body, str):
@@ -36,6 +42,7 @@ def lumigo_async_lambda(func):
     """
 
     async def lambda_wrapper(*args, **kwargs):
+        Span.create_span(args[1] if args and len(args) > 1 else None)
         ret_val = await func(*args, **kwargs)
         Span.get_span().end()
         return ret_val

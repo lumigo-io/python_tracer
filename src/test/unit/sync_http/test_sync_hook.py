@@ -3,7 +3,7 @@ import http.client
 
 
 def events_by_mock(reporter_mock):
-    return [event[0][0] for event in reporter_mock.call_args_list]
+    return reporter_mock.call_args[1]["msgs"]
 
 
 def test_lambda_wrapper_basic_events(reporter_mock):
@@ -17,9 +17,9 @@ def test_lambda_wrapper_basic_events(reporter_mock):
 
     lambda_test_function()
     events = events_by_mock(reporter_mock)
-    assert len(events) == 2
+    assert len(events) == 1
     assert "started" in events[0]
-    assert "ended" in events[1]
+    assert "ended" in events[0]
 
 
 def test_lambda_wrapper_exception(reporter_mock):
@@ -35,7 +35,7 @@ def test_lambda_wrapper_exception(reporter_mock):
         assert False
 
     events = events_by_mock(reporter_mock)
-    assert len(events) == 3
+    assert len(events) == 2
     assert events[1].get("exception_name") == "ValueError"
 
 
@@ -46,5 +46,5 @@ def test_lambda_wrapper_http(reporter_mock):
 
     lambda_test_function()
     events = events_by_mock(reporter_mock)
-    assert len(events) == 3
+    assert len(events) == 2
     assert events[1].get("url") == "www.google.com"

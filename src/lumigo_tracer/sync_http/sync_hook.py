@@ -9,6 +9,10 @@ _FLAGS_HEADER_SPLITTER = b"\r\n"
 
 
 def _request_wrapper(func, instance, args, kwargs):
+    """
+    This is the wrapper of the requests. it parses the http's message to conclude the url, headers, and body.
+    Finally, it add an event to the span, and run the wrapped function (http.client.HTTPConnection.send).
+    """
     if args and _BODY_HEADER_SPLITTER in args[0]:
         headers, body = args[0].split(_BODY_HEADER_SPLITTER, 1)
         if _FLAGS_HEADER_SPLITTER in headers:
@@ -23,22 +27,21 @@ def _request_wrapper(func, instance, args, kwargs):
 
 
 def _response_wrapper(func, instance, args, kwargs):
-    try:
-        ret_val = func(*args, **kwargs)
-    except Exception:
-        raise
+    """
+    This is the wrapper of the function that called after that the http request was sent.
+    Note that we don't examine the response data because it may change the original behaviour (ret_val.peek()).
+    """
+    ret_val = func(*args, **kwargs)
     headers = ret_val.headers
-    # we should call to the peek only if they already got the data (otherwise it's changes the behavior)
-    body = ""  # ret_val.peek()
-    Span.get_span().add_event(instance.host, headers, body, EventType.RESPONSE)
+    Span.get_span().add_event(instance.host, headers, "", EventType.RESPONSE)
     return ret_val
 
 
 def _read_wrapper(func, instance, args, kwargs):
-    try:
-        ret_val = func(*args, **kwargs)
-    except Exception:
-        raise
+    """
+    This is the wrapper to he function that reads the response data, and update the previous event.
+    """
+    ret_val = func(*args, **kwargs)
     Span.get_span().update_event(instance.headers, ret_val)
     return ret_val
 

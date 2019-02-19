@@ -14,7 +14,7 @@ class EventType:
     REQUEST = 2
 
 
-class Span(object):
+class Span:
     _span = None
 
     def __init__(
@@ -23,7 +23,7 @@ class Span(object):
         started: int = None,
         region: str = None,
         runtime: str = None,
-        memory_allocated: int = None,
+        memory_allocated: str = None,
         log_stream_name: str = None,
         log_group_name: str = None,
         trace_root: str = None,
@@ -34,7 +34,8 @@ class Span(object):
         self.name = name
         self.events: List[Dict[str, Union[Dict, None, str, int]]] = []
         version = open(_VERSION_PATH, "r").read() if os.path.exists(_VERSION_PATH) else "unknown"
-        # TODO - we omitted details - cold/hold etc.
+        self.region = region
+        # TODO - we omitted details - cold/warm etc.
         self.base_msg = {
             "started": started,
             "transactionId": transaction_id,
@@ -80,8 +81,7 @@ class Span(object):
 
     def end(self) -> None:
         self.events[0].update({"ended": int(time.time() * 1000)})
-        for event in self.events[:]:
-            reporter.report_json(event)
+        reporter.report_json(region=self.region, msgs=self.events[:])
 
     @classmethod
     def get_span(cls):
@@ -90,7 +90,10 @@ class Span(object):
         return cls._span
 
     @classmethod
-    def create_span(cls, context):
+    def create_span(cls, context) -> None:
+        """
+        This function creates a span out of a given AWS context.
+        """
         trace_root, transaction_id = parse_trace_id(os.environ.get("_X_AMZN_TRACE_ID", ""))
         cls._span = Span(
             started=int(time.time() * 1000),
