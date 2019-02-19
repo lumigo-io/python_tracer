@@ -31,4 +31,3 @@ fi
 echo "export USER=int-${branch_name}-${user_name}" >> $BASH_ENV
 echo "Branch: $branch_name"
 echo "User: $user_name"
-

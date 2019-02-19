@@ -65,18 +65,15 @@ function subscribe_to_log_shipping() {
 }
 
 function deploy() {
-    for directory in ./create_aws_resources/* ; do
-        if [[ -d "$directory" ]]; then
-            echo "${bold}Deploying ${directory}${normal}"
-            pushd $directory > /dev/null
-            npm i > /dev/null 2>&1
-            sls deploy --force --env $env --region $region
-            if [[ ${env} != int* ]] ; then
-                subscribe_to_log_shipping
-            fi
-            popd > /dev/null 2>&1
-        fi
-    done
+    directory = "./src/test"
+    echo "${bold}Deploying ${directory}${normal}"
+    pushd $directory > /dev/null
+    npm i > /dev/null 2>&1
+    sls deploy --force --env $env --region $region
+    if [[ ${env} != int* ]] ; then
+        subscribe_to_log_shipping
+    fi
+    popd > /dev/null 2>&1
 
     if [[ ! -z "$termination_protection" ]]
     then
