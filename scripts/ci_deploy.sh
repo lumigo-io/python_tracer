@@ -32,6 +32,15 @@ echo "export USER=int-${branch_name}-${user_name}" >> $BASH_ENV
 echo "Branch: $branch_name"
 echo "User: $user_name"
 
+pushd ..
+git clone git@github.com:lumigo-io/lumigo-api.git
+git clone git@github.com:lumigo-io/lumigo-tracer.git
+popd
+
+pushd ../lumigo-api
+./scripts/deploy.sh --encrypted-file credentials_integration.enc --stage integrationIt --region ${region}
+popd
+
 function deploy() {
     echo "${bold}Deploying ../src/test${normal}"
     pushd ./src/test > /dev/null
