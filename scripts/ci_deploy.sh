@@ -17,7 +17,7 @@ export USER=integration
 region=us-east-1
 pushd ..
 git clone git@github.com:lumigo-io/lumigo-api.git
-git clone git@github.com:lumigo-io/python-tracer.git
+git clone git@github.com:lumigo-io/python_tracer.git
 popd
 
 pushd ../lumigo-api
