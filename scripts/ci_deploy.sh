@@ -13,7 +13,7 @@ echo "Deploy to integration environment"
 
 branch_name=$(echo ${CIRCLE_BRANCH} | cut -c1-8 | awk '{print tolower($0)}')
 user_name=$(echo ${CIRCLE_USERNAME} | cut -c1-3 | awk '{print tolower($0)}')
-aws_region=us-west-2
+aws_region=us-east-1
 # For CircleCI
 echo "export AWS_DEFAULT_REGION=${aws_region}" >> $BASH_ENV
 if [[ "$branch_name" == "master" ]]; then
