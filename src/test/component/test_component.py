@@ -31,7 +31,7 @@ def ddb_resource(region):
 def sns_resource(region):
     account_id = boto3.client("sts").get_caller_identity().get("Account")
     region = boto3.session.Session().region_name
-    return f"arn:aws:sns:{region}:{account_id}:component_test"
+    return f"arn:aws:sns:{region}:{account_id}:component-test"
 
 
 @pytest.fixture
