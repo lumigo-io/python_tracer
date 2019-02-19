@@ -33,11 +33,10 @@ echo "Branch: $branch_name"
 echo "User: $user_name"
 
 function deploy() {
-    directory = "./src/test"
-    echo "${bold}Deploying ${directory}${normal}"
-    pushd $directory > /dev/null
+    echo "${bold}Deploying ../src/test${normal}"
+    pushd ../src/test > /dev/null
     npm i > /dev/null 2>&1
     sls deploy --force --env $env --region $region
 }
 
-deploy()
+deploy
