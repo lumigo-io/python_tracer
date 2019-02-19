@@ -53,9 +53,8 @@ function subscribe_to_log_shipping() {
 }
 
 function deploy() {
-    directory = "./src/test"
-    echo "${bold}Deploying ${directory}${normal}"
-    pushd $directory > /dev/null
+    echo "${bold}Deploying ./src/test${normal}"
+    pushd ./src/test > /dev/null
     npm i > /dev/null 2>&1
     sls deploy --force --env $env --region $region
     if [[ ${env} != int* ]] ; then
@@ -67,8 +66,8 @@ function deploy() {
     then
         echo "Updating termination protection"
         for directory in ./create_aws_resources/* ; do
-            if [[ -d "$directory" ]]; then
-                pushd $directory > /dev/null
+            if [[ -d "./src/test" ]]; then
+                pushd ./src/test > /dev/null
                 stack_name=$(sls info --env $env --region $region|grep stack:|awk '{print $2}')
                 aws cloudformation update-termination-protection --region $region --enable-termination-protection --stack-name ${stack_name}
                 popd > /dev/null 2>&1
