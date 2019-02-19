@@ -41,12 +41,13 @@ commands:
       - run:
           name: install dependencies
           command: |
+            cd python_tracer
             python3 -m venv venv
-            source venv/bin/activate
+            . venv/bin/activate
             pip install -r requirements.txt
             cd src/
             python setup.py install
-            cd ..
+            cd ../..
 
       # https://discuss.circleci.com/t/activate-python-virtualenv-for-whole-job/14434
       - run: echo "source venv/bin/activate" >> $BASH_ENV
