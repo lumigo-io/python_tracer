@@ -30,7 +30,6 @@ function subscribe_to_log_shipping() {
     old_ifs=${IFS}
     IFS=
 
-    timestamp=`date +%s`
     # Getting the list of functions which were just deployed
     functions_list=`sls deploy list functions --env ${env}| grep "Serverless: ${env}" | sed -e 's/.*Serverless: \(.*\): .*/\1/'`
     account_id=`aws sts get-caller-identity --region ${region} --output text --query 'Account'`
@@ -39,27 +38,16 @@ function subscribe_to_log_shipping() {
 
     IFS=${old_ifs}
 
+    # Creating a subscription for each of the function's log groups to invoke the log shipper function
     for function_name in ${functions_list};
     do
-        # In order to create a subscription, each function's log group needs permission to invoke the shipper function
-        # Each "statement-id" parameter has to be unique, therefore the "timestamp" addition
-        aws lambda add-permission \
-        --region ${region} \
-        --function-name "${shipper_function_arn}" \
-        --statement-id "${function_name}_${timestamp}" \
-        --principal "logs.${region}.amazonaws.com" \
-        --action "lambda:InvokeFunction" \
-        --source-arn "arn:aws:logs:${region}:${account_id}:log-group:/aws/lambda/${function_name}:*" \
-        --source-account "${account_id}" > /dev/null
-        echo "Successfully added permission for ${function_name} to invoke ${shipper_function_name}"
-
-        # Creating a subscription for the log group to invoke the log shipper function
         aws logs put-subscription-filter \
         --region ${region} \
         --log-group-name "/aws/lambda/${function_name}" \
         --filter-name "cloudwatch" \
         --filter-pattern "" \
         --destination-arn "${shipper_function_arn}"
+
         echo "Successfully subscribed ${function_name} to ${shipper_function_name}"
     done
 }
