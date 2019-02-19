@@ -34,7 +34,7 @@ echo "User: $user_name"
 
 function deploy() {
     echo "${bold}Deploying ../src/test${normal}"
-    pushd ../src/test > /dev/null
+    pushd ./src/test > /dev/null
     npm i > /dev/null 2>&1
     sls deploy --force --env $env --region $region
 }
