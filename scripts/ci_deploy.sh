@@ -23,7 +23,7 @@ pushd ../lumigo-api
 ./scripts/deploy.sh --encrypted-file credentials_integration.enc --stage integrationIt --region ${region}
 popd
 
-pushd ../python_tracer
+pushd ./python_tracer
 python setup.py install
 popd
 
