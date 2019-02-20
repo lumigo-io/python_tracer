@@ -6,6 +6,7 @@ from lumigo_tracer.span import Span, EventType
 
 _BODY_HEADER_SPLITTER = b"\r\n\r\n"
 _FLAGS_HEADER_SPLITTER = b"\r\n"
+already_wrapped = False
 
 
 def _request_wrapper(func, instance, args, kwargs):
@@ -26,14 +27,13 @@ def _request_wrapper(func, instance, args, kwargs):
     return func(*args, **kwargs)
 
 
-def _response_wrapper(func, instance, args, kwargs):
+def _putheader_wrapper(func, instance, args, kwargs):
     """
     This is the wrapper of the function that called after that the http request was sent.
     Note that we don't examine the response data because it may change the original behaviour (ret_val.peek()).
     """
+    kwargs["headers"]["X-Amzn-Trace-Id"] = Span.get_span().get_patched_root()
     ret_val = func(*args, **kwargs)
-    headers = ret_val.headers
-    Span.get_span().add_event(instance.host, headers, "", EventType.RESPONSE)
     return ret_val
 
 
@@ -53,6 +53,7 @@ def lumigo_lambda(func):
     """
 
     def lambda_wrapper(*args, **kwargs):
+        wrap_http_calls()
         Span.create_span(args[1] if args and len(args) > 1 else None)
         try:
             ret_val = func(*args, **kwargs)
@@ -66,6 +67,10 @@ def lumigo_lambda(func):
     return lambda_wrapper
 
 
-wrap_function_wrapper("http.client", "HTTPConnection.send", _request_wrapper)
-wrap_function_wrapper("http.client", "HTTPConnection.getresponse", _response_wrapper)
-wrap_function_wrapper("http.client", "HTTPResponse.read", _read_wrapper)
+def wrap_http_calls():
+    global already_wrapped
+    if not already_wrapped:
+        wrap_function_wrapper("http.client", "HTTPConnection.send", _request_wrapper)
+        wrap_function_wrapper("botocore.awsrequest", "AWSRequest.__init__", _putheader_wrapper)
+        wrap_function_wrapper("http.client", "HTTPResponse.read", _read_wrapper)
+        already_wrapped = True

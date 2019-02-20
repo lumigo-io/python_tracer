@@ -65,7 +65,7 @@ def key_from_query(body: bytes, key: str, default=None) -> str:
     )
 
 
-def parse_trace_id(trace_id_str: str) -> Tuple[str, str]:
+def parse_trace_id(trace_id_str: str) -> Tuple[str, str, str]:
     """
     This function parses the trace_id, and result dictionary the describes the data.
     We assume the following format:
@@ -73,8 +73,8 @@ def parse_trace_id(trace_id_str: str) -> Tuple[str, str]:
     * each item is <key>=<value>
 
     :param trace_id_str: The string that came from the environment variables.
-    :return: root,
     """
     trace_id_parameters = dict(re.findall(r"([^;]+)=([^;]*)", trace_id_str))
     root = trace_id_parameters.get("Root", "")
-    return root, safe_split_get(root, "-", 2, default="")
+    root_end_index = trace_id_str.find(";")
+    return root, safe_split_get(root, "-", 2, default=""), trace_id_str[root_end_index:]
