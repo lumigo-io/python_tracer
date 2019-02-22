@@ -84,7 +84,7 @@ class Span:
         parser = get_parser(host)()
         if self.events:
             self.events.append(
-                recursive_json_join(self.events.pop(), parser.parse_response(host, headers, b""))
+                recursive_json_join(parser.parse_response(host, headers, b""), self.events.pop())
             )
 
     def add_exception_event(self, exception: Exception) -> None:
