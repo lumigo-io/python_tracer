@@ -58,12 +58,25 @@ def test_key_from_query(input_params, expected_output):
 @pytest.mark.parametrize(
     ("trace_id", "result"),
     [
-        ("Root=1-2-3;Parent=34;Sampled=0", ("1-2-3", "3")),  # happy flow
-        ("Root=1-2-3", ("1-2-3", "3")),
-        ("Root=1-2", ("1-2", "")),
-        ("a;1", ("", "")),
-        ("123", ("", "")),
+        ("Root=1-2-3;Parent=34;Sampled=0", ("1-2-3", "3", ";Parent=34;Sampled=0")),  # happy flow
+        ("Root=1-2-3;", ("1-2-3", "3", ";")),
+        ("Root=1-2;", ("1-2", "", ";")),
+        ("a;1", ("", "", ";1")),
+        ("123", ("", "", "123")),
     ],
 )
 def test_parse_trace_id(trace_id, result):
     assert utils.parse_trace_id(trace_id) == result
+
+
+@pytest.mark.parametrize(
+    ("d1", "d2", "result"),
+    [
+        ({1: 2}, {3: 4}, {1: 2, 3: 4}),  # happy flow
+        ({1: 2}, {1: 3}, {1: 2}),  # same key twice
+        ({1: {2: 3}}, {4: 5}, {1: {2: 3}, 4: 5}),  # dictionary in d1 and nothing in d2
+        ({1: {2: 3}}, {1: {4: 5}}, {1: {2: 3, 4: 5}}),  # merge two inner dictionaries
+    ],
+)
+def test_recursive_json_join(d1, d2, result):
+    assert utils.recursive_json_join(d1, d2) == result

@@ -45,5 +45,4 @@ def report_json(region: Union[None, str], msgs: List[dict]) -> None:
                 headers={"Content-Type": "application/json"},
             )
         )
-    else:
-        print(msgs)
+    print(msgs)

@@ -5,6 +5,7 @@ from typing import Tuple
 
 from lumigo_tracer.libs import xmltodict
 import functools
+import itertools
 
 
 def safe_get(l: list, index: int, default=None):
@@ -77,4 +78,23 @@ def parse_trace_id(trace_id_str: str) -> Tuple[str, str, str]:
     trace_id_parameters = dict(re.findall(r"([^;]+)=([^;]*)", trace_id_str))
     root = trace_id_parameters.get("Root", "")
     root_end_index = trace_id_str.find(";")
-    return root, safe_split_get(root, "-", 2, default=""), trace_id_str[root_end_index:]
+    suffix = trace_id_str[root_end_index:] if ";" in trace_id_str else trace_id_str
+    return root, safe_split_get(root, "-", 2, default=""), suffix
+
+
+def recursive_json_join(d1: dict, d2: dict):
+    """
+    This function return the recursive joint dictionary, which means that for every (item, key) in the result
+     dictionary it holds that:
+    * if key in d1 and is not dictionary, then the value is d1[key]
+    * if key in d2 and is not dictionary, then the value is d2[key]
+    * otherwise, join d1[key] and d2[key]
+    """
+    d = {}
+    for key in itertools.chain(d1.keys(), d2.keys()):
+        value = d1.get(key, d2.get(key))
+        if isinstance(value, dict):
+            d[key] = recursive_json_join(d1.get(key, {}), d2.get(key, {}))
+        else:
+            d[key] = value
+    return d

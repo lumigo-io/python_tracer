@@ -35,8 +35,8 @@ def test_lambda_wrapper_exception(reporter_mock):
         assert False
 
     events = events_by_mock(reporter_mock)
-    assert len(events) == 2
-    assert events[1].get("exception_name") == "ValueError"
+    assert len(events) == 1
+    assert events[0].get("error", "").startswith("ValueError")
 
 
 def test_lambda_wrapper_http(reporter_mock):
@@ -47,4 +47,4 @@ def test_lambda_wrapper_http(reporter_mock):
     lambda_test_function()
     events = events_by_mock(reporter_mock)
     assert len(events) == 2
-    assert events[1].get("url") == "www.google.com"
+    assert events[1].get("info", {}).get("httpInfo", {}).get("host") == "www.google.com"

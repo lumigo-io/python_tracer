@@ -27,6 +27,17 @@ def _request_wrapper(func, instance, args, kwargs):
     return func(*args, **kwargs)
 
 
+def _response_wrapper(func, instance, args, kwargs):
+    """
+    This is the wrapper of the function that called after that the http request was sent.
+    Note that we don't examine the response data because it may change the original behaviour (ret_val.peek()).
+    """
+    ret_val = func(*args, **kwargs)
+    headers = ret_val.headers
+    Span.get_span().update_event_headers(instance.host, headers)
+    return ret_val
+
+
 def _putheader_wrapper(func, instance, args, kwargs):
     """
     This is the wrapper of the function that called after that the http request was sent.
@@ -42,7 +53,7 @@ def _read_wrapper(func, instance, args, kwargs):
     This is the wrapper to he function that reads the response data, and update the previous event.
     """
     ret_val = func(*args, **kwargs)
-    Span.get_span().update_event(instance.headers, ret_val)
+    Span.get_span().update_event_body(ret_val)
     return ret_val
 
 
@@ -72,5 +83,6 @@ def wrap_http_calls():
     if not already_wrapped:
         wrap_function_wrapper("http.client", "HTTPConnection.send", _request_wrapper)
         wrap_function_wrapper("botocore.awsrequest", "AWSRequest.__init__", _putheader_wrapper)
+        wrap_function_wrapper("http.client", "HTTPConnection.getresponse", _response_wrapper)
         wrap_function_wrapper("http.client", "HTTPResponse.read", _read_wrapper)
         already_wrapped = True

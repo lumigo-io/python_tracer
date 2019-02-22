@@ -2,7 +2,7 @@ from typing import List, Dict, Union
 
 from lumigo_tracer import reporter
 from lumigo_tracer.parsers.parser import get_parser
-from lumigo_tracer.parsers.utils import parse_trace_id, safe_split_get
+from lumigo_tracer.parsers.utils import parse_trace_id, safe_split_get, recursive_json_join
 import time
 import os
 
@@ -38,6 +38,7 @@ class Span:
         self.region = region
         self.trace_root = trace_root
         self.trace_id_suffix = trace_id_suffix
+        self.transaction_id = transaction_id
         # TODO - we omitted details - cold/warm etc.
         self.base_msg = {
             "started": started,
@@ -45,20 +46,19 @@ class Span:
             "account": account,
             "region": region,
             "id": request_id,
+            "parentId": request_id,
             "info": {"tracer": {"version": version}, "traceId": {"Root": trace_root}},
         }
-        start_msg = {
-            **self.base_msg,
-            **{
+        start_msg = recursive_json_join(
+            self.base_msg,
+            {
                 "type": "function",
                 "name": name,
                 "runtime": runtime,
                 "memoryAllocated": memory_allocated,
                 "readiness": "warm",
+                "info": {"logStreamName": log_stream_name, "logGroupName": log_group_name},
             },
-        }
-        start_msg["info"].update(  # type: ignore
-            {"logStreamName": log_stream_name, "logGroupName": log_group_name}
         )
         self.events.append(start_msg)
 
@@ -71,11 +71,21 @@ class Span:
             msg = parser.parse_request(url, headers, body)
         else:
             msg = parser.parse_response(url, headers, body)
-        self.events.append({**self.base_msg, **msg})
+        self.events.append(recursive_json_join(self.base_msg, msg))
 
-    def update_event(self, headers, body: str):
+    def update_event_body(self, body: str) -> None:
         # TODO connect it to the response event
         pass
+
+    def update_event_headers(self, host: str, headers) -> None:
+        """
+        This function assumes synchronous execution - we update the last http event.
+        """
+        parser = get_parser(host)()
+        if self.events:
+            self.events.append(
+                recursive_json_join(self.events.pop(), parser.parse_response(host, headers, b""))
+            )
 
     def add_exception_event(self, exception: Exception) -> None:
         if self.events:
@@ -86,8 +96,8 @@ class Span:
         reporter.report_json(region=self.region, msgs=self.events[:])
 
     def get_patched_root(self):
-        parts = self.trace_root.split("-", 2)
-        return f"Root={parts[0]}-0000{os.urandom(2).hex()}-{parts[2]}{self.trace_id_suffix}"
+        root = safe_split_get(self.trace_root, "-", 0)
+        return f"Root={root}-0000{os.urandom(2).hex()}-{self.transaction_id}{self.trace_id_suffix}"
 
     @classmethod
     def get_span(cls):
