@@ -24,7 +24,7 @@ def test_safe_split_get(input_params, expected_output):
     ],
 )
 def test_key_from_json(input_params, expected_output):
-    assert utils.key_from_json(*input_params) == expected_output
+    assert utils.safe_key_from_json(*input_params) == expected_output
 
 
 @pytest.mark.parametrize(
@@ -38,7 +38,7 @@ def test_key_from_json(input_params, expected_output):
     ],
 )
 def test_key_from_xml(input_params, expected_output):
-    assert utils.key_from_xml(*input_params) == expected_output
+    assert utils.safe_key_from_xml(*input_params) == expected_output
 
 
 @pytest.mark.parametrize(
@@ -52,7 +52,7 @@ def test_key_from_xml(input_params, expected_output):
     ],
 )
 def test_key_from_query(input_params, expected_output):
-    assert utils.key_from_query(*input_params) == expected_output
+    assert utils.safe_key_from_query(*input_params) == expected_output
 
 
 @pytest.mark.parametrize(

@@ -26,7 +26,7 @@ def safe_split_get(string: str, sep: str, index: int, default=None) -> str:
     return safe_get(string.split(sep), index, default)
 
 
-def key_from_json(json_str: bytes, key: object, default=None) -> str:
+def safe_key_from_json(json_str: bytes, key: object, default=None) -> str:
     """
     This function tries to read the given str as json, and returns the value of the desired key.
     If the key doesn't found or the input string is not a valid json, returns the default.
@@ -37,7 +37,7 @@ def key_from_json(json_str: bytes, key: object, default=None) -> str:
         return default
 
 
-def key_from_xml(xml_str: bytes, key: str, default=None):
+def safe_key_from_xml(xml_str: bytes, key: str, default=None):
     """
     This function tries to read the given str as XML, and returns the value of the desired key.
     If the key doesn't found or the input string is not a valid XML, returns the default.
@@ -53,13 +53,16 @@ def key_from_xml(xml_str: bytes, key: str, default=None):
         return default
 
 
-def key_from_query(body: bytes, key: str, default=None) -> str:
+def safe_key_from_query(body: bytes, key: str, default=None) -> str:
     """
     This function assumes that the first row in the body is the url arguments.
     We assume that the structure of the parameters is as follow:
     * character-escaped using urllib.quote
     * values separated with '&'
     * each item is <key>=<value>
+
+    Note: This function decode the given body, therefore duplicate it's size. Be aware to use only in resources
+            with restricted body length.
     """
     return dict(re.findall(r"([^&]+)=([^&]*)", urllib.parse.unquote(body.decode()))).get(
         key, default
@@ -75,6 +78,8 @@ def parse_trace_id(trace_id_str: str) -> Tuple[str, str, str]:
 
     :param trace_id_str: The string that came from the environment variables.
     """
+    if not isinstance(trace_id_str, str):
+        return "", "", ""
     trace_id_parameters = dict(re.findall(r"([^;]+)=([^;]*)", trace_id_str))
     root = trace_id_parameters.get("Root", "")
     root_end_index = trace_id_str.find(";")

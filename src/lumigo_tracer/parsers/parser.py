@@ -3,9 +3,9 @@ import time
 
 from lumigo_tracer.parsers.utils import (
     safe_split_get,
-    key_from_json,
-    key_from_xml,
-    key_from_query,
+    safe_key_from_json,
+    safe_key_from_xml,
+    safe_key_from_query,
     recursive_json_join,
 )
 
@@ -52,7 +52,7 @@ class DynamoParser(ServerlessAWSParser):
         return recursive_json_join(
             super().parse_request(url, headers, body),
             {
-                "name": key_from_json(body, "TableName"),
+                "name": safe_key_from_json(body, "TableName"),
                 "dynamodbMethod": safe_split_get(headers.get("x-amz-target", ""), ".", 1),
             },
         )
@@ -63,15 +63,15 @@ class SnsParser(ServerlessAWSParser):
         return recursive_json_join(
             super().parse_request(url, headers, body),
             {
-                "name": key_from_query(body, "TargetArn"),
-                "targetArn": key_from_query(body, "TargetArn"),
+                "name": safe_key_from_query(body, "TargetArn"),
+                "targetArn": safe_key_from_query(body, "TargetArn"),
             },
         )
 
     def parse_response(self, url: str, headers, body: bytes) -> dict:
         return recursive_json_join(
             super().parse_response(url, headers, body),
-            {"messageId": key_from_xml(body, "PublishResponse/PublishResult/MessageId")},
+            {"messageId": safe_key_from_xml(body, "PublishResponse/PublishResult/MessageId")},
         )
 
 

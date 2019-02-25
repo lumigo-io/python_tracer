@@ -1,6 +1,6 @@
 from typing import List, Dict, Union
 
-from lumigo_tracer import reporter
+from lumigo_tracer import utils
 from lumigo_tracer.parsers.parser import get_parser
 from lumigo_tracer.parsers.utils import parse_trace_id, safe_split_get, recursive_json_join
 import time
@@ -14,7 +14,7 @@ class EventType:
     REQUEST = 2
 
 
-class Span:
+class SpansContainer:
     _span = None
 
     def __init__(
@@ -73,10 +73,6 @@ class Span:
             msg = parser.parse_response(url, headers, body)
         self.events.append(recursive_json_join(self.base_msg, msg))
 
-    def update_event_body(self, body: str) -> None:
-        # TODO connect it to the response event
-        pass
-
     def update_event_headers(self, host: str, headers) -> None:
         """
         This function assumes synchronous execution - we update the last http event.
@@ -93,7 +89,7 @@ class Span:
 
     def end(self) -> None:
         self.events[0].update({"ended": int(time.time() * 1000)})
-        reporter.report_json(region=self.region, msgs=self.events[:])
+        utils.report_json(region=self.region, msgs=self.events[:])
 
     def get_patched_root(self):
         root = safe_split_get(self.trace_root, "-", 0)
@@ -113,7 +109,7 @@ class Span:
         if cls._span and not force:
             return
         trace_root, transaction_id, suffix = parse_trace_id(os.environ.get("_X_AMZN_TRACE_ID", ""))
-        cls._span = Span(
+        cls._span = SpansContainer(
             started=int(time.time() * 1000),
             name=os.environ.get("AWS_LAMBDA_FUNCTION_NAME"),
             runtime=os.environ.get("AWS_EXECUTION_ENV"),
