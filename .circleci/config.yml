@@ -85,7 +85,7 @@ jobs:
       - run: sudo pip install awscli
       - run: ./scripts/ci_deploy.sh
       - run: cd src/test
-      - run: pytest --all --cov=./
+      - run: py.test --all --cov=./
       - run: cd ../..
       - run: ./scripts/checks.sh
       - run: bash <(curl -s https://codecov.io/bash)
