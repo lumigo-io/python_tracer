@@ -40,12 +40,6 @@ class Parser:
 
 
 class ServerlessAWSParser(Parser):
-    def parse_request(self, url: str, headers, body: bytes) -> dict:
-        return recursive_json_join(
-            super().parse_request(url, headers, body),
-            {"service": safe_split_get(url, ".", 0), "region": safe_split_get(url, ".", 1)},
-        )
-
     def parse_response(self, url: str, headers, body: bytes) -> dict:
         return recursive_json_join(
             super().parse_response(url, headers, body),
