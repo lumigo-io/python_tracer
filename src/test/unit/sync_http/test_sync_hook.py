@@ -56,7 +56,7 @@ def test_lambda_wrapper_http(reporter_mock):
 
 
 def test_kill_switch(monkeypatch):
-    monkeypatch.setattr(os, "environ", {"LUMIGO_SWITCH_OFF": 1})
+    monkeypatch.setattr(os, "environ", {"LUMIGO_SWITCH_OFF": "true"})
 
     @lumigo_tracer
     def lambda_test_function():
@@ -78,8 +78,6 @@ def test_wrapping_exception(monkeypatch):
 
 
 def test_wrapping_with_parameters(monkeypatch):
-    monkeypatch.setattr(SpansContainer, "create_span", lambda x: 1 / 0)
-
     @lumigo_tracer(should_report="123")
     def lambda_test_function():
         return 1
