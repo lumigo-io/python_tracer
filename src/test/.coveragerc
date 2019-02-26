@@ -1,3 +1,4 @@
 [run]
-omit = ../src/lumigo_tracer/libs/*
-omit = ../venv/*
+omit =
+    ../src/lumigo_tracer/libs/*
+    ../venv/*
