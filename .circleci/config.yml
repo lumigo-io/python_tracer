@@ -84,9 +84,6 @@ jobs:
       - run: sudo npm install -g serverless
       - run: sudo pip install awscli
       - run: ./scripts/ci_deploy.sh
-      - run: cd src/test
-      - run: py.test --cov=../ --cov-config .coveragerc
-      - run: cd ../..
       - run: ./scripts/checks.sh
       - run: bash <(curl -s https://codecov.io/bash)
 
