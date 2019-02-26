@@ -5,8 +5,14 @@
 # How To Use
 * install with `pip install lumigo_tracer`
 * import using `from lumigo_tracer import lumigo_tracer`
-* wrap you lambda function using `@lumigo_tracer` or `@lumigo_tracer(token='XXX')`
+* wrap you lambda function using `@lumigo_tracer` or `@lumigo_tracer(token='XXX')`. As an example, your lambda should look like: 
+```
+@lumigo_tracer(token='XXX')
+def my_lambda(event, context):
+    print('I cant finally trubleshoot!')
+```
 * you can find more examples in the examples directory 
+* In case of need, there is a kill switch, that stops all the interventions of lumigo immediately, without changing the code. Simply add an environment variable `LUMIGO_SWITCH_OFF=1`.
 
 
 # How To Contribute
