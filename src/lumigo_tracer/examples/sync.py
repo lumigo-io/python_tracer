@@ -1,11 +1,11 @@
 import json
 
-from lumigo_tracer.sync_http.sync_hook import lumigo_lambda
 import boto3
 import urllib.request
+from lumigo_tracer import lumigo_tracer
 
 
-@lumigo_lambda
+@lumigo_tracer(token="123")
 def my_lambda(arg1, arg2):
     boto3.resource("dynamodb", region_name="us-east-2").Table("test").put_item(
         Item={"a": 1, "key": 2}

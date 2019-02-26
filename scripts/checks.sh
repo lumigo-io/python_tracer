@@ -3,5 +3,5 @@ set -eo pipefail
 
 pre-commit run -a
 cd src/test
-python -m pytest --all
+python -m pytest --all --cov=../ --cov-config .coveragerc
 cd ../..

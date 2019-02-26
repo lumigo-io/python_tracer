@@ -19,7 +19,7 @@ echo "        \/           \/  /_____/         \/            ";
 echo
 echo "Deploy to integration environment"
 
-branch_name=$(echo ${CIRCLE_BRANCH} | cut -c1-8 | awk '{print tolower($0)}')
+branch_name=$(echo ${CIRCLE_BRANCH//\//-} | cut -c1-8 | awk '{print tolower($0)}')
 user_name=$(echo ${CIRCLE_USERNAME} | cut -c1-3 | awk '{print tolower($0)}')
 aws_region=us-west-2
 # For CircleCI

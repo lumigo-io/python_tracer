@@ -1,4 +1,6 @@
 import json
+import logging
+import os
 import urllib.request
 from typing import Union, List
 
@@ -8,6 +10,7 @@ SHOULD_REPORT = False
 _connection = None
 _HOST: str = ""
 _TOKEN = "t_b8a1fcfe9b4d092b50b0"
+_logger = None
 
 
 def config(edge_host: str = "", should_report: Union[bool, None] = None, token: str = None) -> None:
@@ -45,5 +48,24 @@ def report_json(region: Union[None, str], msgs: List[dict]) -> None:
                 headers={"Content-Type": "application/json"},
             )
         )
-    else:
-        print(msgs)
+
+
+def get_logger():
+    """
+    This function returns lumigo's logger.
+    The logger streams the logs to the stderr in format the explicitly say that those are lumigo's logs.
+
+    This logger is off by default.
+    Add the environment variable `LUMIGO_DEBUG=true` to activate it.
+    """
+    global _logger
+    if not _logger:
+        _logger = logging.getLogger("lumigo")
+        handler = logging.StreamHandler()
+        handler.setFormatter(
+            logging.Formatter("#LUMIGO# - %(asctime)s - %(levelname)s - %(message)s")
+        )
+        if os.environ.get("LUMIGO_DEBUG", "").lower() == "true":
+            _logger.addHandler(handler)
+            _logger.setLevel(logging.INFO)
+    return _logger

@@ -1,11 +1,17 @@
 from lumigo_tracer.libs.wrapt import wrap_function_wrapper
+from lumigo_tracer.utils import config, get_logger
 import http.client
 from io import BytesIO
-from lumigo_tracer.span import Span, EventType
+import os
+import types
+from functools import wraps
+from lumigo_tracer.spans_container import SpansContainer, EventType
 
 
 _BODY_HEADER_SPLITTER = b"\r\n\r\n"
 _FLAGS_HEADER_SPLITTER = b"\r\n"
+_KILL_SWITCH = "LUMIGO_SWITCH_OFF"
+already_wrapped = False
 
 
 def _request_wrapper(func, instance, args, kwargs):
@@ -19,10 +25,10 @@ def _request_wrapper(func, instance, args, kwargs):
             _, headers = headers.split(_FLAGS_HEADER_SPLITTER, 1)
             headers = http.client.parse_headers(BytesIO(headers))
             url = headers.get("Host")
-            Span.get_span().add_event(url, headers, body, EventType.REQUEST)
+            SpansContainer.get_span().add_event(url, headers, body, EventType.REQUEST)
             return func(*args, **kwargs)
 
-    Span.get_span().add_event(None, None, args[0], EventType.REQUEST)
+    SpansContainer.get_span().add_event(None, None, args[0], EventType.REQUEST)
     return func(*args, **kwargs)
 
 
@@ -33,39 +39,73 @@ def _response_wrapper(func, instance, args, kwargs):
     """
     ret_val = func(*args, **kwargs)
     headers = ret_val.headers
-    Span.get_span().add_event(instance.host, headers, "", EventType.RESPONSE)
+    SpansContainer.get_span().update_event_headers(instance.host, headers)
     return ret_val
 
 
-def _read_wrapper(func, instance, args, kwargs):
+def _putheader_wrapper(func, instance, args, kwargs):
     """
-    This is the wrapper to he function that reads the response data, and update the previous event.
+    This is the wrapper of the function that called after that the http request was sent.
+    Note that we don't examine the response data because it may change the original behaviour (ret_val.peek()).
     """
+    kwargs["headers"]["X-Amzn-Trace-Id"] = SpansContainer.get_span().get_patched_root()
     ret_val = func(*args, **kwargs)
-    Span.get_span().update_event(instance.headers, ret_val)
     return ret_val
 
 
-def lumigo_lambda(func):
-    """
-    This function should be used as wrapper to your lambda function.
-    It will trace your HTTP calls and send it to our backend, which will help you understand it better.
-    """
-
+def _lumigo_tracer(func):
+    @wraps(func)
     def lambda_wrapper(*args, **kwargs):
-        Span.create_span(args[1] if args and len(args) > 1 else None)
+        if str(os.environ.get(_KILL_SWITCH, "")).lower() == "true":
+            return func(*args, **kwargs)
+
+        executed = False
+
         try:
-            ret_val = func(*args, **kwargs)
-        except Exception as e:
-            Span.get_span().add_exception_event(e)
-            raise
-        finally:
-            Span.get_span().end()
-        return ret_val
+            wrap_http_calls()
+            SpansContainer.create_span(args[1] if args and len(args) > 1 else None)
+            try:
+                executed = True
+                ret_val = func(*args, **kwargs)
+            except Exception as e:
+                # The case where the lambda raised an exception
+                SpansContainer.get_span().add_exception_event(e)
+                raise
+            finally:
+                SpansContainer.get_span().end()
+            return ret_val
+        except Exception:
+            get_logger().exception("exception in the wrapper", exc_info=True)
+            # The case where our wrapping raised an exception
+            if not executed:
+                return func(*args, **kwargs)
+            else:
+                raise
 
     return lambda_wrapper
 
 
-wrap_function_wrapper("http.client", "HTTPConnection.send", _request_wrapper)
-wrap_function_wrapper("http.client", "HTTPConnection.getresponse", _response_wrapper)
-wrap_function_wrapper("http.client", "HTTPResponse.read", _read_wrapper)
+def lumigo_tracer(*args, **kwargs):
+    """
+    This function should be used as wrapper to your lambda function.
+    It will trace your HTTP calls and send it to our backend, which will help you understand it better.
+
+    If the kill switch is activated (env variable `LUMIGO_SWITCH_OFF` set to 1), this function does nothing.
+
+    You can pass to this decorator more configurations to configure the interface to lumigo,
+        See `lumigo_tracer.reporter.config` for more details on the available configuration.
+    """
+    if args and isinstance(args[0], types.FunctionType):
+        return _lumigo_tracer(args[0])
+    config(*args, **kwargs)
+    return _lumigo_tracer
+
+
+def wrap_http_calls():
+    global already_wrapped
+    if not already_wrapped:
+        get_logger().debug("wrapping the http request")
+        wrap_function_wrapper("http.client", "HTTPConnection.send", _request_wrapper)
+        wrap_function_wrapper("botocore.awsrequest", "AWSRequest.__init__", _putheader_wrapper)
+        wrap_function_wrapper("http.client", "HTTPConnection.getresponse", _response_wrapper)
+        already_wrapped = True
