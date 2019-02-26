@@ -1,5 +1,6 @@
 import json
 import logging
+import os
 import urllib.request
 from typing import Union, List
 
@@ -53,6 +54,9 @@ def get_logger():
     """
     This function returns lumigo's logger.
     The logger streams the logs to the stderr in format the explicitly say that those are lumigo's logs.
+
+    This logger is off by default.
+    Add the environment variable `LUMIGO_DEBUG=true` to activate it.
     """
     global _logger
     if not _logger:
@@ -61,6 +65,7 @@ def get_logger():
         handler.setFormatter(
             logging.Formatter("#LUMIGO# - %(asctime)s - %(levelname)s - %(message)s")
         )
-        _logger.addHandler(handler)
-        _logger.setLevel(logging.ERROR)
+        if os.environ.get("LUMIGO_DEBUG", "").lower() == "true":
+            _logger.addHandler(handler)
+            _logger.setLevel(logging.INFO)
     return _logger

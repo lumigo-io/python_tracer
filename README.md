@@ -12,7 +12,8 @@ def my_lambda(event, context):
     print('I cant finally trubleshoot!')
 ```
 * you can find more examples in the examples directory 
-* In case of need, there is a kill switch, that stops all the interventions of lumigo immediately, without changing the code. Simply add an environment variable `LUMIGO_SWITCH_OFF=1`.
+* In case of need, there is a kill switch, that stops all the interventions of lumigo immediately, without changing the code. Simply add an environment variable `LUMIGO_SWITCH_OFF=true`.
+* You can turn on the debug logs by setting the environment variable `LUMIGO_DEBUG=true`
 
 
 # How To Contribute

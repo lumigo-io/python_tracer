@@ -56,7 +56,7 @@ def _putheader_wrapper(func, instance, args, kwargs):
 def _lumigo_tracer(func):
     @wraps(func)
     def lambda_wrapper(*args, **kwargs):
-        if os.environ.get(_KILL_SWITCH):
+        if os.environ.get(_KILL_SWITCH, "").lower() == "true":
             return func(*args, **kwargs)
 
         executed = False

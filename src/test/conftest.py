@@ -4,6 +4,7 @@ from lumigo_tracer import utils
 from lumigo_tracer.spans_container import SpansContainer
 import mock
 import pytest
+import os
 
 
 @pytest.fixture(autouse=True)
@@ -27,6 +28,7 @@ def verbose_logger():
     """
     This fixture make sure that we will see all the log in the tests.
     """
+    os.environ["LUMIGO_DEBUG"] = "true"
     utils.get_logger().setLevel(logging.DEBUG)
 
 
