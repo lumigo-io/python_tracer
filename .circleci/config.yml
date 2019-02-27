@@ -92,4 +92,4 @@ jobs:
     <<: *defaults
     steps:
       - checkout_code
-      - checkout_credentials
+      - run: ./scripts/bd_to_prod.sh
