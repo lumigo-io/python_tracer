@@ -4,7 +4,7 @@ import os
 import urllib.request
 from typing import Union, List
 
-EDGE_HOST = "{region}.tracer-edge.golumigo.com"
+EDGE_HOST = "{region}.lumigo-tracer-edge.golumigo.com"
 LOG_FORMAT = "#LUMIGO# - %(asctime)s - %(levelname)s - %(message)s"
 SHOULD_REPORT = False
 
