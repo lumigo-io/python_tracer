@@ -63,7 +63,7 @@ def _lumigo_tracer(func):
 
         try:
             wrap_http_calls()
-            SpansContainer.create_span(args[1] if args and len(args) > 1 else None)
+            SpansContainer.create_span(args[1] if args and len(args) > 1 else None, force=True)
             try:
                 executed = True
                 ret_val = func(*args, **kwargs)
@@ -75,9 +75,9 @@ def _lumigo_tracer(func):
                 SpansContainer.get_span().end()
             return ret_val
         except Exception:
-            get_logger().exception("exception in the wrapper", exc_info=True)
             # The case where our wrapping raised an exception
             if not executed:
+                get_logger().exception("exception in the wrapper", exc_info=True)
                 return func(*args, **kwargs)
             else:
                 raise

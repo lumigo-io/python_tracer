@@ -59,8 +59,8 @@ def test_sns(sns_resource, region):
 
     lambda_test_function()
     events = SpansContainer.get_span().events
-    assert len(events) == 3
-    assert events[2]["info"]["httpInfo"]["host"] == f"sns.{region}.amazonaws.com"
+    assert len(events) == 2
+    assert events[1]["info"]["httpInfo"]["host"] == f"sns.{region}.amazonaws.com"
     # assert events[2].get("messageId") is not None  # this is valid only when we read the body
 
 

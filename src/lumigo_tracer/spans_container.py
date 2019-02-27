@@ -35,6 +35,7 @@ class SpansContainer:
         self.name = name
         self.events: List[Dict[str, Union[Dict, None, str, int]]] = []
         version = open(_VERSION_PATH, "r").read() if os.path.exists(_VERSION_PATH) else "unknown"
+        version = version.strip()
         self.region = region
         self.trace_root = trace_root
         self.trace_id_suffix = trace_id_suffix
@@ -45,13 +46,13 @@ class SpansContainer:
             "transactionId": transaction_id,
             "account": account,
             "region": region,
-            "id": request_id,
             "parentId": request_id,
             "info": {"tracer": {"version": version}, "traceId": {"Root": trace_root}},
         }
         start_msg = recursive_json_join(
             self.base_msg,
             {
+                "id": request_id,
                 "type": "function",
                 "name": name,
                 "runtime": runtime,
@@ -105,6 +106,9 @@ class SpansContainer:
     def create_span(cls, context, force=False) -> None:
         """
         This function creates a span out of a given AWS context.
+        The force flag delete any existing span-container (to handle with warm execution of lambdas).
+        Note that if lambda will be executed directly (regular pythonic function call and not invoked),
+            it will override the container.
         """
         if cls._span and not force:
             return

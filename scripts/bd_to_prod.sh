@@ -31,11 +31,13 @@ bumpversion patch --message "{current_version} → {new_version}. Changes: ${cha
 
 echo "Uploading to gemfury"
 echo "Setup"
+pushd ./src > /dev/null
 python setup.py sdist
 
 echo "Upload"
 upload_file=$(ls ./dist/*.gz)
 curl -F package=@${upload_file} https://${FURY_AUTH}@push.fury.io/lumigo/
+popd > /dev/null 2>&1
 
 echo "Create release tag"
 push_tags
