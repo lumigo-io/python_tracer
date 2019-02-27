@@ -1,3 +1,4 @@
+import uuid
 from typing import Type
 import time
 
@@ -26,6 +27,7 @@ class Parser:
 
     def parse_request(self, url: str, headers, body: bytes) -> dict:
         return {
+            "id": str(uuid.uuid1()),
             "type": "http",
             "info": {"httpInfo": {"host": url}},
             "timestamp": int(time.time() * 1000),
