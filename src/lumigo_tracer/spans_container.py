@@ -35,6 +35,7 @@ class SpansContainer:
         self.name = name
         self.events: List[Dict[str, Union[Dict, None, str, int]]] = []
         version = open(_VERSION_PATH, "r").read() if os.path.exists(_VERSION_PATH) else "unknown"
+        version = version.strip()
         self.region = region
         self.trace_root = trace_root
         self.trace_id_suffix = trace_id_suffix
