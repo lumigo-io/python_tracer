@@ -53,6 +53,8 @@ def test_lambda_wrapper_http(reporter_mock):
     events = events_by_mock(reporter_mock)
     assert len(events) == 2
     assert events[1].get("info", {}).get("httpInfo", {}).get("host") == "www.google.com"
+    assert "started" in events[1]
+    assert "ended" in events[1]
 
 
 def test_kill_switch(monkeypatch):
