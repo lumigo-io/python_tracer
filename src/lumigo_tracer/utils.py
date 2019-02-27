@@ -40,6 +40,7 @@ def report_json(region: Union[None, str], msgs: List[dict]) -> None:
     """
     for msg in msgs:
         msg["token"] = _TOKEN
+    get_logger().info(f"reporting the messages: {msgs}")
     if SHOULD_REPORT:
         urllib.request.urlopen(
             urllib.request.Request(
