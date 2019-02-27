@@ -75,9 +75,9 @@ def _lumigo_tracer(func):
                 SpansContainer.get_span().end()
             return ret_val
         except Exception:
-            get_logger().exception("exception in the wrapper", exc_info=True)
             # The case where our wrapping raised an exception
             if not executed:
+                get_logger().exception("exception in the wrapper", exc_info=True)
                 return func(*args, **kwargs)
             else:
                 raise

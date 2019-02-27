@@ -69,8 +69,8 @@ def get_logger():
         handler = logging.StreamHandler()
         handler.setFormatter(logging.Formatter(LOG_FORMAT))
         if os.environ.get("LUMIGO_DEBUG", "").lower() == "true":
-            handler.setLevel(logging.INFO)
+            _logger.setLevel(logging.DEBUG)
         else:
-            handler.setLevel(logging.CRITICAL)
+            _logger.setLevel(logging.CRITICAL)
         _logger.addHandler(handler)
     return _logger
