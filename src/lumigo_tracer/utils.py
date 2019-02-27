@@ -41,14 +41,17 @@ def report_json(region: Union[None, str], msgs: List[dict]) -> None:
     for msg in msgs:
         msg["token"] = _TOKEN
     get_logger().info(f"reporting the messages: {msgs}")
+    host = _HOST or EDGE_HOST.format(region=region)
     if SHOULD_REPORT:
-        urllib.request.urlopen(
-            urllib.request.Request(
-                _HOST or EDGE_HOST.format(region=region),
-                json.dumps(msgs).encode(),
-                headers={"Content-Type": "application/json"},
+        try:
+            response = urllib.request.urlopen(
+                urllib.request.Request(
+                    host, json.dumps(msgs).encode(), headers={"Content-Type": "application/json"}
+                )
             )
-        )
+            get_logger().info(f"successful reporting, code: {getattr(response, 'code', 'unknown')}")
+        except Exception as e:
+            get_logger().exception(f"could not report json to {host}", exc_info=e)
 
 
 def get_logger():
