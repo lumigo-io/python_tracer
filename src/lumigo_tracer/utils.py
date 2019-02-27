@@ -5,6 +5,7 @@ import urllib.request
 from typing import Union, List
 
 EDGE_HOST = "{region}.tracer-edge.golumigo.com"
+LOG_FORMAT = "#LUMIGO# - %(asctime)s - %(levelname)s - %(message)s"
 SHOULD_REPORT = False
 
 _connection = None
@@ -66,10 +67,10 @@ def get_logger():
     if not _logger:
         _logger = logging.getLogger("lumigo")
         handler = logging.StreamHandler()
-        handler.setFormatter(
-            logging.Formatter("#LUMIGO# - %(asctime)s - %(levelname)s - %(message)s")
-        )
+        handler.setFormatter(logging.Formatter(LOG_FORMAT))
+        _logger.addHandler(handler)
         if os.environ.get("LUMIGO_DEBUG", "").lower() == "true":
-            _logger.addHandler(handler)
             _logger.setLevel(logging.INFO)
+        else:
+            _logger.setLevel(logging.CRITICAL)
     return _logger
