@@ -26,7 +26,9 @@ def _request_wrapper(func, instance, args, kwargs):
             headers = http.client.parse_headers(BytesIO(headers))
             url = headers.get("Host")
             SpansContainer.get_span().add_event(url, headers, body, EventType.REQUEST)
-            return func(*args, **kwargs)
+            ret_val = func(*args, **kwargs)
+            SpansContainer.get_span().update_event_end_time()
+            return ret_val
 
     SpansContainer.get_span().add_event(None, None, args[0], EventType.REQUEST)
     return func(*args, **kwargs)

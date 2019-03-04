@@ -84,6 +84,13 @@ class SpansContainer:
             msg = parser.parse_response(url, headers, body)
         self.events.append(recursive_json_join(self.base_msg, msg))
 
+    def update_event_end_time(self) -> None:
+        """
+        This function assumes synchronous execution - we update the last http event.
+        """
+        if self.events:
+            self.events[-1]["ended"] = int(time.time() * 1000)
+
     def update_event_headers(self, host: str, headers) -> None:
         """
         This function assumes synchronous execution - we update the last http event.
