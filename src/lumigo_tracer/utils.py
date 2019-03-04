@@ -2,11 +2,13 @@ import json
 import logging
 import os
 import urllib.request
+from urllib.error import URLError
 from typing import Union, List
 
 EDGE_HOST = "{region}.tracer-edge.golumigo.com"
 LOG_FORMAT = "#LUMIGO# - %(asctime)s - %(levelname)s - %(message)s"
 SHOULD_REPORT = False
+SECONDS_TO_TIMEOUT = 0.2
 
 _connection = None
 _HOST: str = ""
@@ -48,9 +50,12 @@ def report_json(region: Union[None, str], msgs: List[dict]) -> None:
             response = urllib.request.urlopen(
                 urllib.request.Request(
                     host, json.dumps(msgs).encode(), headers={"Content-Type": "application/json"}
-                )
+                ),
+                timeout=SECONDS_TO_TIMEOUT,
             )
             get_logger().info(f"successful reporting, code: {getattr(response, 'code', 'unknown')}")
+        except URLError as e:
+            get_logger().exception(f"Timeout when reporting to {host}", exc_info=e)
         except Exception as e:
             get_logger().exception(f"could not report json to {host}", exc_info=e)
 
