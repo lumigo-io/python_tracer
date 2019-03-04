@@ -80,3 +80,18 @@ def test_parse_trace_id(trace_id, result):
 )
 def test_recursive_json_join(d1, d2, result):
     assert utils.recursive_json_join(d1, d2) == result
+
+
+@pytest.mark.parametrize(
+    ("event", "output"),
+    [
+        (  # apigw example trigger
+            {"httpMethod": "GET", "headers": {"Host": "www.google.com"}},
+            {"triggeredBy": "apigw", "httpMethod": "GET", "api": "www.google.com"},
+        ),
+        ({"bla": "bla2"}, {"triggeredBy": "unknown"}),  # unknown trigger
+        (None, None),
+    ],
+)
+def test_parse_triggered_by(event, output):
+    assert utils.parse_triggered_by(event) == output

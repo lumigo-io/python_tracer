@@ -26,7 +26,9 @@ def _request_wrapper(func, instance, args, kwargs):
             headers = http.client.parse_headers(BytesIO(headers))
             url = headers.get("Host")
             SpansContainer.get_span().add_event(url, headers, body, EventType.REQUEST)
-            return func(*args, **kwargs)
+            ret_val = func(*args, **kwargs)
+            SpansContainer.get_span().update_event_end_time()
+            return ret_val
 
     SpansContainer.get_span().add_event(None, None, args[0], EventType.REQUEST)
     return func(*args, **kwargs)
@@ -63,7 +65,7 @@ def _lumigo_tracer(func):
 
         try:
             wrap_http_calls()
-            SpansContainer.create_span(args[1] if args and len(args) > 1 else None, force=True)
+            SpansContainer.create_span(*args, force=True)
             try:
                 executed = True
                 ret_val = func(*args, **kwargs)

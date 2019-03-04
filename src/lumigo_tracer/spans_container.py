@@ -2,7 +2,12 @@ from typing import List, Dict, Union
 
 from lumigo_tracer import utils
 from lumigo_tracer.parsers.parser import get_parser
-from lumigo_tracer.parsers.utils import parse_trace_id, safe_split_get, recursive_json_join
+from lumigo_tracer.parsers.utils import (
+    parse_trace_id,
+    safe_split_get,
+    recursive_json_join,
+    parse_triggered_by,
+)
 import time
 import os
 
@@ -31,6 +36,7 @@ class SpansContainer:
         request_id: str = None,
         account: str = None,
         trace_id_suffix: str = None,
+        trigger_by: dict = None,
     ):
         self.name = name
         self.events: List[Dict[str, Union[Dict, None, str, int]]] = []
@@ -58,7 +64,11 @@ class SpansContainer:
                 "runtime": runtime,
                 "memoryAllocated": memory_allocated,
                 "readiness": "warm",
-                "info": {"logStreamName": log_stream_name, "logGroupName": log_group_name},
+                "info": {
+                    "logStreamName": log_stream_name,
+                    "logGroupName": log_group_name,
+                    **(trigger_by or {}),
+                },
             },
         )
         self.events.append(start_msg)
@@ -73,6 +83,13 @@ class SpansContainer:
         else:
             msg = parser.parse_response(url, headers, body)
         self.events.append(recursive_json_join(self.base_msg, msg))
+
+    def update_event_end_time(self) -> None:
+        """
+        This function assumes synchronous execution - we update the last http event.
+        """
+        if self.events:
+            self.events[-1]["ended"] = int(time.time() * 1000)
 
     def update_event_headers(self, host: str, headers) -> None:
         """
@@ -99,11 +116,11 @@ class SpansContainer:
     @classmethod
     def get_span(cls):
         if not cls._span:
-            cls.create_span(None)
+            cls.create_span()
         return cls._span
 
     @classmethod
-    def create_span(cls, context, force=False) -> None:
+    def create_span(cls, event=None, context=None, force=False) -> None:
         """
         This function creates a span out of a given AWS context.
         The force flag delete any existing span-container (to handle with warm execution of lambdas).
@@ -126,4 +143,5 @@ class SpansContainer:
             trace_id_suffix=suffix,
             request_id=getattr(context, "aws_request_id", ""),
             account=safe_split_get(getattr(context, "invoked_function_arn", ""), ":", 4, ""),
+            trigger_by=parse_triggered_by(event),
         )

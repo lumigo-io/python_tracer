@@ -103,3 +103,23 @@ def recursive_json_join(d1: dict, d2: dict):
         else:
             d[key] = value
     return d
+
+
+def parse_triggered_by(event: dict):
+    """
+    This function parses the event and build the dictionary that describes the given event.
+
+    The current possible values are:
+    * {triggeredBy: unknown}
+    * {triggeredBy: apigw, api: <host>, resource: <>, httpMethod: <>, stage: <>, identity: <>, referer: <>}
+    """
+    if not isinstance(event, dict):
+        return None
+    result = {"triggeredBy": "unknown"}
+    if "httpMethod" in event:
+        # This is an API-GW
+        result["triggeredBy"] = "apigw"
+        result["httpMethod"] = event.get("httpMethod", "")
+        if isinstance(event.get("headers"), dict):
+            result["api"] = event.get("headers", {}).get("Host", "unknown.unknown.unknown")
+    return result
