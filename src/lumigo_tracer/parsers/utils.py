@@ -120,5 +120,6 @@ def parse_triggered_by(event: dict):
         # This is an API-GW
         result["triggeredBy"] = "apigw"
         result["httpMethod"] = event.get("httpMethod", "")
-        result["api"] = event.get("headers", {}).get("Host", "unknown.unknown.unknown")
+        if isinstance(event.get("headers"), dict):
+            result["api"] = event.get("headers", {}).get("Host", "unknown.unknown.unknown")
     return result

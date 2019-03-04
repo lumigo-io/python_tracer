@@ -8,7 +8,7 @@ from typing import Union, List
 EDGE_HOST = "{region}.lumigo-tracer-edge.golumigo.com"
 LOG_FORMAT = "#LUMIGO# - %(asctime)s - %(levelname)s - %(message)s"
 SHOULD_REPORT = False
-SECONDS_TO_TIMEOUT = 0.2
+SECONDS_TO_TIMEOUT = 0.3
 
 _connection = None
 _HOST: str = ""

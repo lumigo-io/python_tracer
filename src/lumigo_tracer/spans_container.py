@@ -120,7 +120,7 @@ class SpansContainer:
         return cls._span
 
     @classmethod
-    def create_span(cls, context=None, event=None, force=False) -> None:
+    def create_span(cls, event=None, context=None, force=False) -> None:
         """
         This function creates a span out of a given AWS context.
         The force flag delete any existing span-container (to handle with warm execution of lambdas).
