@@ -5,7 +5,7 @@ import urllib.request
 from urllib.error import URLError
 from typing import Union, List
 
-EDGE_HOST = "{region}.lumigo-tracer-edge.golumigo.com"
+EDGE_HOST = "https://{region}.lumigo-tracer-edge.golumigo.com/api/spans"
 LOG_FORMAT = "#LUMIGO# - %(asctime)s - %(levelname)s - %(message)s"
 SHOULD_REPORT = True
 SECONDS_TO_TIMEOUT = 0.3
