@@ -86,8 +86,19 @@ def test_recursive_json_join(d1, d2, result):
     ("event", "output"),
     [
         (  # apigw example trigger
-            {"httpMethod": "GET", "headers": {"Host": "www.google.com"}},
-            {"triggeredBy": "apigw", "httpMethod": "GET", "api": "www.google.com"},
+            {
+                "httpMethod": "GET",
+                "resource": "resource",
+                "headers": {"Host": "www.google.com"},
+                "requestContext": {"identity": "1"},
+            },
+            {
+                "triggeredBy": "apigw",
+                "httpMethod": "GET",
+                "api": "www.google.com",
+                "stage": "1",
+                "resource": "resource",
+            },
         ),
         ({"bla": "bla2"}, {"triggeredBy": "unknown"}),  # unknown trigger
         (None, None),
