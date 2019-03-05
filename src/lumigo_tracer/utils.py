@@ -7,7 +7,7 @@ from typing import Union, List
 
 EDGE_HOST = "{region}.lumigo-tracer-edge.golumigo.com"
 LOG_FORMAT = "#LUMIGO# - %(asctime)s - %(levelname)s - %(message)s"
-SHOULD_REPORT = False
+SHOULD_REPORT = True
 SECONDS_TO_TIMEOUT = 0.3
 
 _connection = None
@@ -24,7 +24,6 @@ def config(edge_host: str = "", should_report: Union[bool, None] = None, token: 
     :param should_report: Weather we should send the events. Change to True in the production.
     :param token: The token to use when sending back the events.
     """
-    # TODO - decide on a real way to config the lambda
     global _HOST, SHOULD_REPORT, _TOKEN
     if edge_host:
         _HOST = edge_host
