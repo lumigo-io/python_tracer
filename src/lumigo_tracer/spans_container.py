@@ -12,6 +12,7 @@ import time
 import os
 
 _VERSION_PATH = os.path.join(os.path.dirname(__file__), "..", "VERSION")
+MAX_LAMBDA_TIME = 15 * 60 * 1000
 
 
 class EventType:
@@ -37,6 +38,7 @@ class SpansContainer:
         account: str = None,
         trace_id_suffix: str = None,
         trigger_by: dict = None,
+        max_finish_time: int = None,
     ):
         self.name = name
         self.events: List[Dict[str, Union[Dict, None, str, int]]] = []
@@ -61,9 +63,11 @@ class SpansContainer:
                 "id": request_id,
                 "type": "function",
                 "name": name,
+                "service": "lambda",
                 "runtime": runtime,
                 "memoryAllocated": memory_allocated,
                 "readiness": "warm",
+                "maxFinishTime": max_finish_time,
                 "info": {
                     "logStreamName": log_stream_name,
                     "logGroupName": log_group_name,
@@ -72,6 +76,13 @@ class SpansContainer:
             },
         )
         self.events.append(start_msg)
+
+    def start(self):
+        if self.events:
+            to_send = self.events[0]
+            to_send["id"] = f"{to_send['id']}_started"
+            to_send["ended"] = to_send["started"]
+            utils.report_json(region=self.region, msgs=[to_send])
 
     def add_event(self, url: str, headers, body: bytes, event_type: EventType) -> None:
         """
@@ -130,6 +141,7 @@ class SpansContainer:
         if cls._span and not force:
             return
         trace_root, transaction_id, suffix = parse_trace_id(os.environ.get("_X_AMZN_TRACE_ID", ""))
+        remaining_time = getattr(context, "get_remaining_time_in_millis", lambda: MAX_LAMBDA_TIME)()
         cls._span = SpansContainer(
             started=int(time.time() * 1000),
             name=os.environ.get("AWS_LAMBDA_FUNCTION_NAME"),
@@ -144,4 +156,5 @@ class SpansContainer:
             request_id=getattr(context, "aws_request_id", ""),
             account=safe_split_get(getattr(context, "invoked_function_arn", ""), ":", 4, ""),
             trigger_by=parse_triggered_by(event),
+            max_finish_time=int(time.time() * 1000) + remaining_time,
         )
