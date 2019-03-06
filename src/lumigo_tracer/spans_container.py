@@ -79,7 +79,7 @@ class SpansContainer:
 
     def start(self):
         if self.events:
-            to_send = self.events[0]
+            to_send = self.events[0].copy()
             to_send["id"] = f"{to_send['id']}_started"
             to_send["ended"] = to_send["started"]
             utils.report_json(region=self.region, msgs=[to_send])

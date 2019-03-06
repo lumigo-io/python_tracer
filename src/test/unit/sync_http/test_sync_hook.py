@@ -42,6 +42,7 @@ def test_lambda_wrapper_exception():
     events = SpansContainer.get_span().events
     assert len(events) == 1
     assert events[0].get("error", "").startswith("ValueError")
+    assert not events[0]["id"].endswith("_started")
 
 
 def test_lambda_wrapper_http():
