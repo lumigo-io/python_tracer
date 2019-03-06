@@ -124,5 +124,5 @@ def parse_triggered_by(event: dict):
         if isinstance(event.get("headers"), dict):
             result["api"] = event["headers"].get("Host", "unknown.unknown.unknown")
         if isinstance(event.get("requestContext"), dict):
-            result["stage"] = event["requestContext"].get("identity", "unknown")
+            result["stage"] = event["requestContext"].get("stage", "unknown")
     return result

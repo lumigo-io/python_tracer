@@ -90,7 +90,7 @@ def test_recursive_json_join(d1, d2, result):
                 "httpMethod": "GET",
                 "resource": "resource",
                 "headers": {"Host": "www.google.com"},
-                "requestContext": {"identity": "1"},
+                "requestContext": {"stage": "1"},
             },
             {
                 "triggeredBy": "apigw",
