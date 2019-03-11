@@ -63,10 +63,11 @@ commands:
 workflows:
   test-deploy:
     jobs:
-    - test
+    - test:
+        filters:
+          branches:
+            ignore: master
     - deploy:
-        requires:
-        - test
         filters:
           branches:
             only: master
