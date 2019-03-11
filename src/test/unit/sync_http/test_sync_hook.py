@@ -25,6 +25,7 @@ def test_lambda_wrapper_basic_events(reporter_mock):
     first_send = reporter_mock.call_args_list[0][1]["msgs"]
     assert len(first_send) == 1
     assert first_send[0]["id"].endswith("_started")
+    assert first_send[0]["maxFinishTime"]
 
 
 def test_lambda_wrapper_exception():
@@ -43,6 +44,7 @@ def test_lambda_wrapper_exception():
     assert len(events) == 1
     assert events[0].get("error", "").startswith("ValueError")
     assert not events[0]["id"].endswith("_started")
+    assert "maxFinishTime" not in events[0]
 
 
 def test_lambda_wrapper_http():

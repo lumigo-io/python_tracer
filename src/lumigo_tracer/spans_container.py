@@ -49,6 +49,7 @@ class SpansContainer:
         self.trace_id_suffix = trace_id_suffix
         self.transaction_id = transaction_id
         # TODO - we omitted details - cold/warm etc.
+        self.max_finish_time = max_finish_time
         self.base_msg = {
             "started": started,
             "transactionId": transaction_id,
@@ -67,7 +68,6 @@ class SpansContainer:
                 "runtime": runtime,
                 "memoryAllocated": memory_allocated,
                 "readiness": "warm",
-                "maxFinishTime": max_finish_time,
                 "info": {
                     "logStreamName": log_stream_name,
                     "logGroupName": log_group_name,
@@ -82,6 +82,7 @@ class SpansContainer:
             to_send = self.events[0].copy()
             to_send["id"] = f"{to_send['id']}_started"
             to_send["ended"] = to_send["started"]
+            to_send["maxFinishTime"] = self.max_finish_time
             utils.report_json(region=self.region, msgs=[to_send])
 
     def add_event(self, url: str, headers, body: bytes, event_type: EventType) -> None:
