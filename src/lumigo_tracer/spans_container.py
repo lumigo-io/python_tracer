@@ -64,7 +64,6 @@ class SpansContainer:
                 "id": request_id,
                 "type": "function",
                 "name": name,
-                "service": "lambda",
                 "runtime": runtime,
                 "memoryAllocated": memory_allocated,
                 "readiness": "warm",
