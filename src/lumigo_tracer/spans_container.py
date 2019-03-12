@@ -58,7 +58,7 @@ class SpansContainer:
             "parentId": request_id,
             "info": {"tracer": {"version": version}, "traceId": {"Root": trace_root}},
         }
-        start_msg = recursive_json_join(
+        self.start_msg = recursive_json_join(
             self.base_msg,
             {
                 "id": request_id,
@@ -74,15 +74,14 @@ class SpansContainer:
                 },
             },
         )
-        self.events.append(start_msg)
 
     def start(self):
-        if self.events:
-            to_send = self.events[0].copy()
-            to_send["id"] = f"{to_send['id']}_started"
-            to_send["ended"] = to_send["started"]
-            to_send["maxFinishTime"] = self.max_finish_time
-            utils.report_json(region=self.region, msgs=[to_send])
+        to_send = self.start_msg.copy()
+        to_send["id"] = f"{to_send['id']}_started"
+        to_send["ended"] = to_send["started"]
+        to_send["maxFinishTime"] = self.max_finish_time
+        utils.report_json(region=self.region, msgs=[to_send])
+        self.events = [self.start_msg]
 
     def add_event(self, url: str, headers, body: bytes, event_type: EventType) -> None:
         """
