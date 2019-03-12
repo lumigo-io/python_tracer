@@ -64,8 +64,9 @@ def _lumigo_tracer(func):
         executed = False
 
         try:
-            wrap_http_calls()
             SpansContainer.create_span(*args, force=True)
+            SpansContainer.get_span().start()
+            wrap_http_calls()
             try:
                 executed = True
                 ret_val = func(*args, **kwargs)
