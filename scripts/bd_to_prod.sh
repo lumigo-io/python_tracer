@@ -40,6 +40,16 @@ curl -F package=@${upload_file} https://${FURY_AUTH}@push.fury.io/lumigo/
 popd > /dev/null 2>&1
 
 echo "Create Layer"
+enc_location=../common-resources/encrypted_files/credentials_integration.enc
+if [[ ! -f ${enc_location} ]]
+then
+    echo "$enc_location not found"
+    exit 1
+fi
+echo "Creating new credential files"
+mkdir -p ~/.aws
+echo ${KEY} | gpg --batch -d --passphrase-fd 0 ${enc_location} > ~/.aws/credentials
+
 cd src
 mkdir python
 cp -R lumigo_tracer.egg-info python/
