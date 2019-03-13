@@ -92,5 +92,6 @@ jobs:
   deploy:
     <<: *defaults
     steps:
+      - run: sudo pip install awscli
       - checkout_code
       - run: ./scripts/bd_to_prod.sh
