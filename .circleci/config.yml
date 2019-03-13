@@ -92,6 +92,7 @@ jobs:
   deploy:
     <<: *defaults
     steps:
-      - run: sudo pip install awscli
       - checkout_code
+      - checkout_credentials
+      - run: sudo pip install awscli
       - run: ./scripts/bd_to_prod.sh
