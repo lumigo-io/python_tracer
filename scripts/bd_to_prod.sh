@@ -39,9 +39,6 @@ upload_file=$(ls ./dist/*.gz)
 curl -F package=@${upload_file} https://${FURY_AUTH}@push.fury.io/lumigo/
 popd > /dev/null 2>&1
 
-echo "Create release tag"
-push_tags
-
 echo "Create Layer"
 mkdir python
 cp -R lumigo_tracer.egg-info python/
@@ -53,6 +50,10 @@ regions=("ap-northeast-1" "ap-northeast-2" "ap-south-1" "ap-southeast-1" "ap-sou
 for region in "${regions[@]}"; do
     version=$(aws lambda publish-layer-version --layer-name lumigo-python-tracer --description "Serverless Troubleshooting Make Simple" --license-info "Apache License Version 2.0" --zip-file fileb://lumigo_tracer.zip --compatible-runtimes python3.6 python3.7 --region ${region}| jq -r '.Version')
     aws lambda add-layer-version-permission --layer-name lumigo-python-tracer --statement-id engineering-org --principal "*" --action lambda:GetLayerVersion --version-number ${version} --region ${region}
+    echo "published version ${version} to region ${region}"
 done
+
+echo "Create release tag"
+push_tags
 
 echo "Done"
