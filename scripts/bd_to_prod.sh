@@ -40,6 +40,7 @@ curl -F package=@${upload_file} https://${FURY_AUTH}@push.fury.io/lumigo/
 popd > /dev/null 2>&1
 
 echo "Create Layer"
+cd src
 mkdir python
 cp -R lumigo_tracer.egg-info python/
 cp -R lumigo_tracer python/
