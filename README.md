@@ -14,6 +14,7 @@ def my_lambda(event, context):
 * you can find more examples in the examples directory 
 * In case of need, there is a kill switch, that stops all the interventions of lumigo immediately, without changing the code. Simply add an environment variable `LUMIGO_SWITCH_OFF=true`.
 * You can turn on the debug logs by setting the environment variable `LUMIGO_DEBUG=true`
+* You can change the timeout to send the trace information to the edge by setting `LUMIGO_EDGE_TIMEOUT=<seconds>`
 
 
 # How To Contribute
