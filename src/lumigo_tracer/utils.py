@@ -50,7 +50,7 @@ def report_json(region: Union[None, str], msgs: List[dict]) -> None:
                 urllib.request.Request(
                     host, json.dumps(msgs).encode(), headers={"Content-Type": "application/json"}
                 ),
-                timeout=int(os.environ.get("LUMIGO_EDGE_TIMEOUT", SECONDS_TO_TIMEOUT)),
+                timeout=float(os.environ.get("LUMIGO_EDGE_TIMEOUT", SECONDS_TO_TIMEOUT)),
             )
             get_logger().info(f"successful reporting, code: {getattr(response, 'code', 'unknown')}")
         except URLError as e:
