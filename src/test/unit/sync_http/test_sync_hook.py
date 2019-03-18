@@ -21,7 +21,6 @@ def test_lambda_wrapper_basic_events(reporter_mock):
     assert len(events) == 1
     assert "started" in events[0]
     assert "ended" in events[0]
-    assert events[0]["readiness"] == "cold"
     assert reporter_mock.call_count == 2
     first_send = reporter_mock.call_args_list[0][1]["msgs"]
     assert len(first_send) == 1
