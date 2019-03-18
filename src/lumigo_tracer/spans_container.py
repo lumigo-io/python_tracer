@@ -21,6 +21,7 @@ class EventType:
 
 
 class SpansContainer:
+    is_cold = True
     _span = None
 
     def __init__(
@@ -66,7 +67,7 @@ class SpansContainer:
                 "name": name,
                 "runtime": runtime,
                 "memoryAllocated": memory_allocated,
-                "readiness": "warm",
+                "readiness": "cold" if SpansContainer.is_cold else "warm",
                 "info": {
                     "logStreamName": log_stream_name,
                     "logGroupName": log_group_name,
@@ -74,6 +75,7 @@ class SpansContainer:
                 },
             },
         )
+        SpansContainer.is_cold = False
 
     def start(self):
         to_send = self.start_msg.copy()
