@@ -86,99 +86,85 @@ def test_recursive_json_join(d1, d2, result):
     ("event", "output"),
     [
         (  # apigw example trigger
-                {
-                    "httpMethod": "GET",
-                    "resource": "resource",
-                    "headers": {"Host": "www.google.com"},
-                    "requestContext": {"stage": "1"},
-                },
-                {
-                    "triggeredBy": "apigw",
-                    "httpMethod": "GET",
-                    "api": "www.google.com",
-                    "stage": "1",
-                    "resource": "resource",
-                },
+            {
+                "httpMethod": "GET",
+                "resource": "resource",
+                "headers": {"Host": "www.google.com"},
+                "requestContext": {"stage": "1"},
+            },
+            {
+                "triggeredBy": "apigw",
+                "httpMethod": "GET",
+                "api": "www.google.com",
+                "stage": "1",
+                "resource": "resource",
+            },
         ),
         (  # sns example trigger
-                {
-                    "Records": [{
+            {
+                "Records": [
+                    {
                         "EventSource": "aws:sns",
-                        "Sns": {
-                            "TopicArn": "arn:aws:sns:us-east-1:123456789:sns-topic-name"
-                        }
-                    }],
-                },
-                {
-                    "triggeredBy": "sns",
-                    "arn": "arn:aws:sns:us-east-1:123456789:sns-topic-name"
-                },
+                        "Sns": {"TopicArn": "arn:aws:sns:us-east-1:123456789:sns-topic-name"},
+                    }
+                ]
+            },
+            {"triggeredBy": "sns", "arn": "arn:aws:sns:us-east-1:123456789:sns-topic-name"},
         ),
         (  # s3 example trigger
-                {
-                    "Records": [
-                        {
-                            "s3": {
-                                "bucket": {
-                                    "arn": "arn:aws:s3:::s3-bucket-name"
-                                },
-
-                            },
-                            "awsRegion": "us-east-1",
-                            "eventName": "ObjectCreated:Put",
-                            "eventSource": "aws:s3"
-                        }
-                    ],
-                },
-                {
-                    "triggeredBy": "s3",
-                    "arn": "arn:aws:s3:::s3-bucket-name"
-                },
+            {
+                "Records": [
+                    {
+                        "s3": {"bucket": {"arn": "arn:aws:s3:::s3-bucket-name"}},
+                        "awsRegion": "us-east-1",
+                        "eventName": "ObjectCreated:Put",
+                        "eventSource": "aws:s3",
+                    }
+                ]
+            },
+            {"triggeredBy": "s3", "arn": "arn:aws:s3:::s3-bucket-name"},
         ),
         (  # kinesis example trigger
-                {
-                    "Records": [
-                        {
-                            "eventSourceARN": "arn:aws:kinesis:us-east-1:123456789:stream/kinesis-stream-name",
-                            "eventSource": "aws:kinesis"
-                        }
-                    ],
-                },
-                {
-                    "triggeredBy": "kinesis",
-                    "arn": "arn:aws:kinesis:us-east-1:123456789:stream/kinesis-stream-name"
-                },
+            {
+                "Records": [
+                    {
+                        "eventSourceARN": "arn:aws:kinesis:us-east-1:123456789:stream/kinesis-stream-name",
+                        "eventSource": "aws:kinesis",
+                    }
+                ]
+            },
+            {
+                "triggeredBy": "kinesis",
+                "arn": "arn:aws:kinesis:us-east-1:123456789:stream/kinesis-stream-name",
+            },
         ),
         (  # DynamoDB example trigger
-                {
-                    "Records": [
-                        {
-                            "eventSourceARN": "arn:aws:dynamodb:us-east-1:123456789:table/dynamodb-table-name",
-                            "eventSource": "aws:dynamodb"
-                        }
-                    ],
-                },
-                {
-                    "triggeredBy": "dynamodb",
-                    "arn": "arn:aws:dynamodb:us-east-1:123456789:table/dynamodb-table-name"
-                },
+            {
+                "Records": [
+                    {
+                        "eventSourceARN": "arn:aws:dynamodb:us-east-1:123456789:table/dynamodb-table-name",
+                        "eventSource": "aws:dynamodb",
+                    }
+                ]
+            },
+            {
+                "triggeredBy": "dynamodb",
+                "arn": "arn:aws:dynamodb:us-east-1:123456789:table/dynamodb-table-name",
+            },
         ),
         (  # SQS example trigger
-                {
-                    "Records": [
-                        {
-                            "eventSourceARN": "arn:aws:sqs:us-east-1:123456789:sqs-queue-name",
-                            "eventSource": "aws:sqs"
-                        }
-                    ],
-                },
-                {
-                    "triggeredBy": "sqs",
-                    "arn": "arn:aws:sqs:us-east-1:123456789:sqs-queue-name"
-                },
+            {
+                "Records": [
+                    {
+                        "eventSourceARN": "arn:aws:sqs:us-east-1:123456789:sqs-queue-name",
+                        "eventSource": "aws:sqs",
+                    }
+                ]
+            },
+            {"triggeredBy": "sqs", "arn": "arn:aws:sqs:us-east-1:123456789:sqs-queue-name"},
         ),
         ({"bla": "bla2"}, {"triggeredBy": "unknown"}),  # unknown trigger
-        (None, None)
+        (None, None),
     ],
 )
 def test_parse_triggered_by(event, output):

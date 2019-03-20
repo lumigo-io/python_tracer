@@ -153,12 +153,15 @@ class AwsApiGwEventParser(DefaultEventParser):
 
     @staticmethod
     def parse(event: dict):
-        result = {"triggeredBy": "apigw", "httpMethod": event.get("httpMethod", ""),
-                  "resource": event.get("resource", "")}
+        result = {
+            "triggeredBy": "apigw",
+            "httpMethod": event.get("httpMethod", ""),
+            "resource": event.get("resource", ""),
+        }
         if isinstance(event.get("headers"), dict):
-            result["api"] = event.get("headers").get("Host", "unknown.unknown.unknown")
+            result["api"] = event["headers"].get("Host", "unknown.unknown.unknown")
         if isinstance(event.get("requestContext"), dict):
-            result["stage"] = event.get("requestContext").get("stage", "unknown")
+            result["stage"] = event["requestContext"].get("stage", "unknown")
         return result
 
 
@@ -173,7 +176,7 @@ class AwsSnsEventParser(DefaultEventParser):
 
     @staticmethod
     def parse(event: dict):
-        return {"triggeredBy": "sns", "arn": event.get("Records")[0].get("Sns").get("TopicArn")}
+        return {"triggeredBy": "sns", "arn": event["Records"][0]["Sns"]["TopicArn"]}
 
 
 class AwsStreamEventParser(DefaultEventParser):
@@ -183,15 +186,20 @@ class AwsStreamEventParser(DefaultEventParser):
 
     @staticmethod
     def is_supported(event: dict):
-        return event.get("Records", [{}])[0].get("eventSource") in ["aws:sns", "aws:kinesis",
-                                                                    "aws:dynamodb", "aws:sqs", "aws:s3"]
+        return event.get("Records", [{}])[0].get("eventSource") in [
+            "aws:sns",
+            "aws:kinesis",
+            "aws:dynamodb",
+            "aws:sqs",
+            "aws:s3",
+        ]
 
     @staticmethod
     def parse(event: dict):
-        triggered_by = event.get("Records")[0].get("eventSource").split(":")[1]
+        triggered_by = event["Records"][0]["eventSource"].split(":")[1]
         result = {"triggeredBy": triggered_by}
         if triggered_by == "s3":
-            result["arn"] = event.get("Records")[0].get("s3").get("bucket").get("arn")
+            result["arn"] = event["Records"][0]["s3"]["bucket"]["arn"]
         else:
-            result["arn"] = event.get("Records")[0].get("eventSourceARN")
+            result["arn"] = event["Records"][0]["eventSourceARN"]
         return result
