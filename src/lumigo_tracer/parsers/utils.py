@@ -115,14 +115,83 @@ def parse_triggered_by(event: dict):
     """
     if not isinstance(event, dict):
         return None
-    result = {"triggeredBy": "unknown"}
-    if "httpMethod" in event:
-        # This is an API-GW
-        result["triggeredBy"] = "apigw"
-        result["httpMethod"] = event.get("httpMethod", "")
-        result["resource"] = event.get("resource", "")
+    if AwsApiGwEventParser.is_supported(event):
+        return AwsApiGwEventParser.parse(event)
+    elif AwsSnsEventParser.is_supported(event):
+        return AwsSnsEventParser.parse(event)
+    elif AwsStreamEventParser.is_supported(event):
+        return AwsStreamEventParser.parse(event)
+    else:
+        return DefaultEventParser.parse(event)
+
+
+class DefaultEventParser:
+    """
+    This parser class is the default parser of all the specific parser of all triggered by components (SNS, ApiGW,
+    SQS etc.)
+    """
+
+    @staticmethod
+    def is_supported(event: dict):
+        return True
+
+    @staticmethod
+    def parse(event: dict):
+        result = {"triggeredBy": "unknown"}
+        return result
+
+
+class AwsApiGwEventParser(DefaultEventParser):
+    """
+    This parser class is the default parser of all the specific parser of all triggered by components (SNS, ApiGW,
+    SQS etc.)
+    """
+
+    @staticmethod
+    def is_supported(event: dict):
+        return "httpMethod" in event
+
+    @staticmethod
+    def parse(event: dict):
+        result = {"triggeredBy": "apigw", "httpMethod": event.get("httpMethod", ""),
+                  "resource": event.get("resource", "")}
         if isinstance(event.get("headers"), dict):
-            result["api"] = event["headers"].get("Host", "unknown.unknown.unknown")
+            result["api"] = event.get("headers").get("Host", "unknown.unknown.unknown")
         if isinstance(event.get("requestContext"), dict):
-            result["stage"] = event["requestContext"].get("stage", "unknown")
-    return result
+            result["stage"] = event.get("requestContext").get("stage", "unknown")
+        return result
+
+
+class AwsSnsEventParser(DefaultEventParser):
+    """
+    This parser class is the AWS SNS parser
+    """
+
+    @staticmethod
+    def is_supported(event: dict):
+        return event.get("Records", [{}])[0].get("EventSource") == "aws:sns"
+
+    @staticmethod
+    def parse(event: dict):
+        return {"triggeredBy": "sns", "arn": event.get("Records")[0].get("Sns").get("TopicArn")}
+
+
+class AwsStreamEventParser(DefaultEventParser):
+    """
+    This parser class is the AWS stream parser which support the next components kinesis, dynamodb, sqs, s3
+    """
+
+    @staticmethod
+    def is_supported(event: dict):
+        return event.get("Records", [{}])[0].get("eventSource") in ["aws:sns", "aws:kinesis",
+                                                                    "aws:dynamodb", "aws:sqs", "aws:s3"]
+
+    @staticmethod
+    def parse(event: dict):
+        triggered_by = event.get("Records")[0].get("eventSource").split(":")[1]
+        result = {"triggeredBy": triggered_by}
+        if triggered_by == "s3":
+            result["arn"] = event.get("Records")[0].get("s3").get("bucket").get("arn")
+        else:
+            result["arn"] = event.get("Records")[0].get("eventSourceARN")
+        return result
