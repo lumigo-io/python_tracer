@@ -118,7 +118,8 @@ class SpansContainer:
 
     def add_exception_event(self, exception: Exception) -> None:
         if self.events:
-            self.events[0].update({"error": f"{exception.__class__.__name__}: {exception.args[0]}"})
+            msg = f"{exception.__class__.__name__}: {exception.args[0] if exception.args else None}"
+            self.events[0].update({"error": msg})
 
     def end(self) -> None:
         self.events[0].update({"ended": int(time.time() * 1000)})
