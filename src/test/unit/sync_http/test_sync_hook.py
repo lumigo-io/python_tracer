@@ -3,6 +3,7 @@ import os
 from lumigo_tracer import lumigo_tracer
 import http.client
 from lumigo_tracer import utils
+import pytest
 
 from lumigo_tracer.spans_container import SpansContainer
 
