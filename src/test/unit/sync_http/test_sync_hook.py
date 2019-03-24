@@ -3,6 +3,7 @@ import os
 from lumigo_tracer import lumigo_tracer
 import http.client
 from lumigo_tracer import utils
+import pytest
 
 from lumigo_tracer.spans_container import SpansContainer
 
@@ -28,10 +29,11 @@ def test_lambda_wrapper_basic_events(reporter_mock):
     assert first_send[0]["maxFinishTime"]
 
 
-def test_lambda_wrapper_exception():
+@pytest.mark.parametrize("exc", [ValueError("Oh no"), ValueError()])
+def test_lambda_wrapper_exception(exc):
     @lumigo_tracer
     def lambda_test_function():
-        raise ValueError("Oh no")
+        raise exc
 
     try:
         lambda_test_function()
