@@ -115,14 +115,60 @@ def parse_triggered_by(event: dict):
     """
     if not isinstance(event, dict):
         return None
+    if _is_supported_http_method(event):
+        return parse_http_method(event)
+    elif _is_supported_sns(event):
+        return _parse_sns(event)
+    elif _is_supported_streams(event):
+        return _parse_streams(event)
+    else:
+        return _parse_unknown(event)
+
+
+def _parse_unknown(event: dict):
     result = {"triggeredBy": "unknown"}
-    if "httpMethod" in event:
-        # This is an API-GW
-        result["triggeredBy"] = "apigw"
-        result["httpMethod"] = event.get("httpMethod", "")
-        result["resource"] = event.get("resource", "")
-        if isinstance(event.get("headers"), dict):
-            result["api"] = event["headers"].get("Host", "unknown.unknown.unknown")
-        if isinstance(event.get("requestContext"), dict):
-            result["stage"] = event["requestContext"].get("stage", "unknown")
+    return result
+
+
+def _is_supported_http_method(event: dict):
+    return "httpMethod" in event
+
+
+def parse_http_method(event: dict):
+    result = {
+        "triggeredBy": "apigw",
+        "httpMethod": event.get("httpMethod", ""),
+        "resource": event.get("resource", ""),
+    }
+    if isinstance(event.get("headers"), dict):
+        result["api"] = event["headers"].get("Host", "unknown.unknown.unknown")
+    if isinstance(event.get("requestContext"), dict):
+        result["stage"] = event["requestContext"].get("stage", "unknown")
+    return result
+
+
+def _is_supported_sns(event: dict):
+    return event.get("Records", [{}])[0].get("EventSource") == "aws:sns"
+
+
+def _parse_sns(event: dict):
+    return {"triggeredBy": "sns", "arn": event["Records"][0]["Sns"]["TopicArn"]}
+
+
+def _is_supported_streams(event: dict):
+    return event.get("Records", [{}])[0].get("eventSource") in [
+        "aws:kinesis",
+        "aws:dynamodb",
+        "aws:sqs",
+        "aws:s3",
+    ]
+
+
+def _parse_streams(event: dict):
+    triggered_by = event["Records"][0]["eventSource"].split(":")[1]
+    result = {"triggeredBy": triggered_by}
+    if triggered_by == "s3":
+        result["arn"] = event["Records"][0]["s3"]["bucket"]["arn"]
+    else:
+        result["arn"] = event["Records"][0]["eventSourceARN"]
     return result

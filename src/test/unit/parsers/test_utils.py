@@ -100,6 +100,69 @@ def test_recursive_json_join(d1, d2, result):
                 "resource": "resource",
             },
         ),
+        (  # sns example trigger
+            {
+                "Records": [
+                    {
+                        "EventSource": "aws:sns",
+                        "Sns": {"TopicArn": "arn:aws:sns:us-east-1:123456789:sns-topic-name"},
+                    }
+                ]
+            },
+            {"triggeredBy": "sns", "arn": "arn:aws:sns:us-east-1:123456789:sns-topic-name"},
+        ),
+        (  # s3 example trigger
+            {
+                "Records": [
+                    {
+                        "s3": {"bucket": {"arn": "arn:aws:s3:::s3-bucket-name"}},
+                        "awsRegion": "us-east-1",
+                        "eventName": "ObjectCreated:Put",
+                        "eventSource": "aws:s3",
+                    }
+                ]
+            },
+            {"triggeredBy": "s3", "arn": "arn:aws:s3:::s3-bucket-name"},
+        ),
+        (  # kinesis example trigger
+            {
+                "Records": [
+                    {
+                        "eventSourceARN": "arn:aws:kinesis:us-east-1:123456789:stream/kinesis-stream-name",
+                        "eventSource": "aws:kinesis",
+                    }
+                ]
+            },
+            {
+                "triggeredBy": "kinesis",
+                "arn": "arn:aws:kinesis:us-east-1:123456789:stream/kinesis-stream-name",
+            },
+        ),
+        (  # DynamoDB example trigger
+            {
+                "Records": [
+                    {
+                        "eventSourceARN": "arn:aws:dynamodb:us-east-1:123456789:table/dynamodb-table-name",
+                        "eventSource": "aws:dynamodb",
+                    }
+                ]
+            },
+            {
+                "triggeredBy": "dynamodb",
+                "arn": "arn:aws:dynamodb:us-east-1:123456789:table/dynamodb-table-name",
+            },
+        ),
+        (  # SQS example trigger
+            {
+                "Records": [
+                    {
+                        "eventSourceARN": "arn:aws:sqs:us-east-1:123456789:sqs-queue-name",
+                        "eventSource": "aws:sqs",
+                    }
+                ]
+            },
+            {"triggeredBy": "sqs", "arn": "arn:aws:sqs:us-east-1:123456789:sqs-queue-name"},
+        ),
         ({"bla": "bla2"}, {"triggeredBy": "unknown"}),  # unknown trigger
         (None, None),
     ],
