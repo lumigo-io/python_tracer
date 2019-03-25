@@ -14,7 +14,7 @@ def test_lambda_wrapper_basic_events(reporter_mock):
     This test checks that the basic events (start and end messages) has been sent.
     """
 
-    @lumigo_tracer
+    @lumigo_tracer(token="123")
     def lambda_test_function():
         pass
 
@@ -32,7 +32,7 @@ def test_lambda_wrapper_basic_events(reporter_mock):
 
 @pytest.mark.parametrize("exc", [ValueError("Oh no"), ValueError()])
 def test_lambda_wrapper_exception(exc):
-    @lumigo_tracer
+    @lumigo_tracer(token="123")
     def lambda_test_function():
         raise exc
 
@@ -51,7 +51,7 @@ def test_lambda_wrapper_exception(exc):
 
 
 def test_lambda_wrapper_http():
-    @lumigo_tracer
+    @lumigo_tracer(token="123")
     def lambda_test_function():
         http.client.HTTPConnection("www.google.com").request("POST", "/")
 
@@ -67,7 +67,7 @@ def test_lambda_wrapper_http():
 def test_kill_switch(monkeypatch):
     monkeypatch.setattr(os, "environ", {"LUMIGO_SWITCH_OFF": "true"})
 
-    @lumigo_tracer
+    @lumigo_tracer(token="123")
     def lambda_test_function():
         return 1
 
@@ -78,7 +78,7 @@ def test_kill_switch(monkeypatch):
 def test_wrapping_exception(monkeypatch):
     monkeypatch.setattr(SpansContainer, "create_span", lambda x: 1 / 0)
 
-    @lumigo_tracer
+    @lumigo_tracer(token="123")
     def lambda_test_function():
         return 1
 
@@ -98,7 +98,7 @@ def test_wrapping_with_parameters():
 def test_exception_in_parsers(monkeypatch, caplog):
     monkeypatch.setattr(Parser, "parse_request", Exception)
 
-    @lumigo_tracer
+    @lumigo_tracer(token="123")
     def lambda_test_function():
         return http.client.HTTPConnection(host="www.google.com").send(b"\r\n")
 

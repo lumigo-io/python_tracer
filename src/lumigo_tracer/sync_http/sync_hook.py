@@ -5,7 +5,6 @@ from lumigo_tracer.utils import config, get_logger, lumigo_safe_execute
 import http.client
 from io import BytesIO
 import os
-import types
 from functools import wraps
 from lumigo_tracer.spans_container import SpansContainer, EventType
 
@@ -104,8 +103,6 @@ def lumigo_tracer(*args, **kwargs):
     You can pass to this decorator more configurations to configure the interface to lumigo,
         See `lumigo_tracer.reporter.config` for more details on the available configuration.
     """
-    if args and isinstance(args[0], types.FunctionType):
-        return _lumigo_tracer(args[0])
     config(*args, **kwargs)
     return _lumigo_tracer
 
