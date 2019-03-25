@@ -46,7 +46,14 @@ class Parser:
         }
 
     def parse_response(self, url: str, headers, body: bytes) -> dict:
-        additional_info = dict() if not is_verbose() else {"headers": headers, "body": body}
+        if is_verbose():
+            additional_info = {
+                "headers": prepare_large_data(dict(headers.items())),
+                "body": prepare_large_data(body),
+            }
+        else:
+            additional_info = {}
+
         return {
             "type": "http",
             "info": {"httpInfo": {"host": url}},
