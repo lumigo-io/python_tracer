@@ -61,10 +61,7 @@ class SpansContainer:
             "account": account,
             "region": region,
             "parentId": request_id,
-            "info": {
-                "tracer": {"version": version, "language": "python"},
-                "traceId": {"Root": trace_root},
-            },
+            "info": {"tracer": {"version": version}, "traceId": {"Root": trace_root}},
             "event": event,
             "envs": envs,
         }
