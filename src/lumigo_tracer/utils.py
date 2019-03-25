@@ -9,30 +9,38 @@ from contextlib import contextmanager
 
 EDGE_HOST = "https://{region}.lumigo-tracer-edge.golumigo.com/api/spans"
 LOG_FORMAT = "#LUMIGO# - %(asctime)s - %(levelname)s - %(message)s"
-SHOULD_REPORT = True
+_SHOULD_REPORT = True
 SECONDS_TO_TIMEOUT = 0.3
 
-_connection = None
 _HOST: str = ""
-_TOKEN = "t_b8a1fcfe9b4d092b50b0"
-_logger = None
+_TOKEN: str = ""
+_VERBOSE: bool = False
+_logger: Union[logging.Logger, None] = None
 
 
-def config(edge_host: str = "", should_report: Union[bool, None] = None, token: str = None) -> None:
+def config(
+    edge_host: str = "",
+    should_report: Union[bool, None] = None,
+    token: str = None,
+    verbose: bool = None,
+) -> None:
     """
     This function configure the lumigo wrapper.
 
+    :param verbose: Whether the tracer should send all the possible information (debug mode)
     :param edge_host: The host to send the events. Leave empty for default.
     :param should_report: Weather we should send the events. Change to True in the production.
     :param token: The token to use when sending back the events.
     """
-    global _HOST, SHOULD_REPORT, _TOKEN
+    global _HOST, _SHOULD_REPORT, _TOKEN, _VERBOSE
     if edge_host:
         _HOST = edge_host
     if should_report is not None:
-        SHOULD_REPORT = should_report
+        _SHOULD_REPORT = should_report
     if token:
         _TOKEN = token
+    if verbose or os.environ.get("LUMIGO_VERBOSE"):
+        _VERBOSE = True
 
 
 def report_json(region: Union[None, str], msgs: List[dict]) -> None:
@@ -46,7 +54,7 @@ def report_json(region: Union[None, str], msgs: List[dict]) -> None:
         msg["token"] = _TOKEN
     get_logger().info(f"reporting the messages: {msgs}")
     host = _HOST or EDGE_HOST.format(region=region)
-    if SHOULD_REPORT:
+    if _SHOULD_REPORT:
         try:
             response = urllib.request.urlopen(
                 urllib.request.Request(
@@ -80,6 +88,10 @@ def get_logger():
             _logger.setLevel(logging.CRITICAL)
         _logger.addHandler(handler)
     return _logger
+
+
+def is_verbose():
+    return _VERBOSE
 
 
 @contextmanager

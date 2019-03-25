@@ -68,7 +68,7 @@ def _lumigo_tracer(func):
             return func(*args, **kwargs)
 
         executed = False
-
+        ret_val = None
         try:
             SpansContainer.create_span(*args, force=True)
             SpansContainer.get_span().start()
@@ -81,7 +81,7 @@ def _lumigo_tracer(func):
                 SpansContainer.get_span().add_exception_event(e)
                 raise
             finally:
-                SpansContainer.get_span().end()
+                SpansContainer.get_span().end(ret_val)
             return ret_val
         except Exception:
             # The case where our wrapping raised an exception

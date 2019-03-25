@@ -23,6 +23,7 @@ def test_lambda_wrapper_basic_events(reporter_mock):
     assert len(events) == 1
     assert "started" in events[0]
     assert "ended" in events[0]
+    assert "PATH" in events[0]["envs"]
     assert reporter_mock.call_count == 2
     first_send = reporter_mock.call_args_list[0][1]["msgs"]
     assert len(first_send) == 1
@@ -45,7 +46,7 @@ def test_lambda_wrapper_exception(exc):
 
     events = SpansContainer.get_span().events
     assert len(events) == 1
-    assert events[0].get("error", "").startswith("ValueError")
+    assert events[0].get("error", {}).get("type") == "ValueError"
     assert not events[0]["id"].endswith("_started")
     assert "maxFinishTime" not in events[0]
 
@@ -61,6 +62,7 @@ def test_lambda_wrapper_http():
     assert events[1].get("info", {}).get("httpInfo", {}).get("host") == "www.google.com"
     assert "started" in events[1]
     assert "ended" in events[1]
+    assert "Content-Length" in events[1]["headers"]
 
 
 def test_kill_switch(monkeypatch):
@@ -91,7 +93,7 @@ def test_wrapping_with_parameters():
         return 1
 
     assert lambda_test_function() == 1
-    assert utils.SHOULD_REPORT == "123"
+    assert utils._SHOULD_REPORT == "123"
 
 
 def test_exception_in_parsers(monkeypatch, caplog):
