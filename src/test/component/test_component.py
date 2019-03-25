@@ -37,7 +37,7 @@ def lambda_resource():
 
 @pytest.mark.slow
 def test_dynamo_db(ddb_resource, region):
-    @lumigo_tracer
+    @lumigo_tracer(token="123")
     def lambda_test_function():
         boto3.resource("dynamodb", region_name=region).Table(ddb_resource).put_item(
             Item={"key": "1"}
@@ -53,7 +53,7 @@ def test_dynamo_db(ddb_resource, region):
 
 @pytest.mark.slow
 def test_sns(sns_resource, region):
-    @lumigo_tracer
+    @lumigo_tracer(token="123")
     def lambda_test_function():
         boto3.resource("sns").Topic(sns_resource).publish(Message=json.dumps({"test": "test"}))
 
@@ -66,7 +66,7 @@ def test_sns(sns_resource, region):
 
 @pytest.mark.slow
 def test_lambda(lambda_resource, region):
-    @lumigo_tracer
+    @lumigo_tracer(token="123")
     def lambda_test_function():
         boto3.client("lambda").invoke(
             FunctionName=lambda_resource, InvocationType="Event", Payload=b"null"
