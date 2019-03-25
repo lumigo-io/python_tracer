@@ -4,6 +4,8 @@ import os
 import urllib.request
 from urllib.error import URLError
 from typing import Union, List
+from contextlib import contextmanager
+
 
 EDGE_HOST = "https://{region}.lumigo-tracer-edge.golumigo.com/api/spans"
 LOG_FORMAT = "#LUMIGO# - %(asctime)s - %(levelname)s - %(message)s"
@@ -78,3 +80,11 @@ def get_logger():
             _logger.setLevel(logging.CRITICAL)
         _logger.addHandler(handler)
     return _logger
+
+
+@contextmanager
+def lumigo_safe_execute(part_name=""):
+    try:
+        yield
+    except Exception as e:
+        get_logger().exception(f"An exception occurred in lumigo's code {part_name}", exc_info=e)

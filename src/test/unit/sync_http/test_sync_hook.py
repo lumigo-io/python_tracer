@@ -1,6 +1,7 @@
 import os
 
 from lumigo_tracer import lumigo_tracer
+from lumigo_tracer.parsers.parser import Parser
 import http.client
 from lumigo_tracer import utils
 import pytest
@@ -91,3 +92,14 @@ def test_wrapping_with_parameters():
 
     assert lambda_test_function() == 1
     assert utils.SHOULD_REPORT == "123"
+
+
+def test_exception_in_parsers(monkeypatch, caplog):
+    monkeypatch.setattr(Parser, "parse_request", Exception)
+
+    @lumigo_tracer
+    def lambda_test_function():
+        return http.client.HTTPConnection(host="www.google.com").send(b"\r\n")
+
+    lambda_test_function()
+    assert caplog.records[-1].msg == "An exception occurred in lumigo's code parse request"

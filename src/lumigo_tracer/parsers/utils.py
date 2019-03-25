@@ -6,6 +6,7 @@ from typing import Tuple
 from lumigo_tracer.libs import xmltodict
 import functools
 import itertools
+from collections.abc import Iterable
 
 
 def safe_get(l: list, index: int, default=None):
@@ -13,6 +14,8 @@ def safe_get(l: list, index: int, default=None):
     This function return the organ in the `index` place from the given list.
     If this values doesn't exist, return default.
     """
+    if not isinstance(l, Iterable):
+        return default
     return l[index] if len(l) > index else default
 
 
