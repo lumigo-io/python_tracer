@@ -1,6 +1,7 @@
 import os
 
 from lumigo_tracer import lumigo_tracer
+from lumigo_tracer.parsers.parser import Parser
 import http.client
 from lumigo_tracer import utils
 import pytest
@@ -13,7 +14,7 @@ def test_lambda_wrapper_basic_events(reporter_mock):
     This test checks that the basic events (start and end messages) has been sent.
     """
 
-    @lumigo_tracer
+    @lumigo_tracer(token="123")
     def lambda_test_function():
         pass
 
@@ -31,7 +32,7 @@ def test_lambda_wrapper_basic_events(reporter_mock):
 
 @pytest.mark.parametrize("exc", [ValueError("Oh no"), ValueError()])
 def test_lambda_wrapper_exception(exc):
-    @lumigo_tracer
+    @lumigo_tracer(token="123")
     def lambda_test_function():
         raise exc
 
@@ -44,13 +45,13 @@ def test_lambda_wrapper_exception(exc):
 
     events = SpansContainer.get_span().events
     assert len(events) == 1
-    assert events[0].get("error", "").startswith("ValueError")
+    assert events[0].get("error", {}).get("type") == "ValueError"
     assert not events[0]["id"].endswith("_started")
     assert "maxFinishTime" not in events[0]
 
 
 def test_lambda_wrapper_http():
-    @lumigo_tracer
+    @lumigo_tracer(token="123")
     def lambda_test_function():
         http.client.HTTPConnection("www.google.com").request("POST", "/")
 
@@ -60,12 +61,13 @@ def test_lambda_wrapper_http():
     assert events[1].get("info", {}).get("httpInfo", {}).get("host") == "www.google.com"
     assert "started" in events[1]
     assert "ended" in events[1]
+    assert "Content-Length" in events[1]["headers"]
 
 
 def test_kill_switch(monkeypatch):
     monkeypatch.setattr(os, "environ", {"LUMIGO_SWITCH_OFF": "true"})
 
-    @lumigo_tracer
+    @lumigo_tracer(token="123")
     def lambda_test_function():
         return 1
 
@@ -76,7 +78,7 @@ def test_kill_switch(monkeypatch):
 def test_wrapping_exception(monkeypatch):
     monkeypatch.setattr(SpansContainer, "create_span", lambda x: 1 / 0)
 
-    @lumigo_tracer
+    @lumigo_tracer(token="123")
     def lambda_test_function():
         return 1
 
@@ -90,4 +92,15 @@ def test_wrapping_with_parameters():
         return 1
 
     assert lambda_test_function() == 1
-    assert utils.SHOULD_REPORT == "123"
+    assert utils._SHOULD_REPORT == "123"
+
+
+def test_exception_in_parsers(monkeypatch, caplog):
+    monkeypatch.setattr(Parser, "parse_request", Exception)
+
+    @lumigo_tracer(token="123")
+    def lambda_test_function():
+        return http.client.HTTPConnection(host="www.google.com").send(b"\r\n")
+
+    lambda_test_function()
+    assert caplog.records[-1].msg == "An exception occurred in lumigo's code parse request"

@@ -1,6 +1,7 @@
 import uuid
 from typing import Type
 import time
+import http.client
 
 from lumigo_tracer.parsers.utils import (
     safe_split_get,
@@ -8,7 +9,9 @@ from lumigo_tracer.parsers.utils import (
     safe_key_from_xml,
     safe_key_from_query,
     recursive_json_join,
+    prepare_large_data,
 )
+from lumigo_tracer.utils import is_verbose
 
 
 class Parser:
@@ -25,19 +28,37 @@ class Parser:
                  |----- <FutureParser> ----\
     """
 
-    def parse_request(self, url: str, headers, body: bytes) -> dict:
+    def parse_request(self, url: str, headers: http.client.HTTPMessage, body: bytes) -> dict:
+        if is_verbose():
+            additional_info = {
+                "headers": prepare_large_data(dict(headers.items())),
+                "body": prepare_large_data(body),
+            }
+        else:
+            additional_info = {}
+
         return {
             "id": str(uuid.uuid1()),
             "type": "http",
             "info": {"httpInfo": {"host": url}},
             "started": int(time.time() * 1000),
+            **additional_info,
         }
 
     def parse_response(self, url: str, headers, body: bytes) -> dict:
+        if is_verbose():
+            additional_info = {
+                "headers": prepare_large_data(dict(headers.items())),
+                "body": prepare_large_data(body),
+            }
+        else:
+            additional_info = {}
+
         return {
             "type": "http",
             "info": {"httpInfo": {"host": url}},
             "ended": int(time.time() * 1000),
+            **additional_info,
         }
 
 

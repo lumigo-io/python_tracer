@@ -1,9 +1,10 @@
 from lumigo_tracer.libs.wrapt import wrap_function_wrapper
-from lumigo_tracer.utils import config, get_logger
+from lumigo_tracer.parsers.utils import safe_get
+from collections.abc import Iterable
+from lumigo_tracer.utils import config, get_logger, lumigo_safe_execute
 import http.client
 from io import BytesIO
 import os
-import types
 from functools import wraps
 from lumigo_tracer.spans_container import SpansContainer, EventType
 
@@ -19,18 +20,21 @@ def _request_wrapper(func, instance, args, kwargs):
     This is the wrapper of the requests. it parses the http's message to conclude the url, headers, and body.
     Finally, it add an event to the span, and run the wrapped function (http.client.HTTPConnection.send).
     """
-    if args and _BODY_HEADER_SPLITTER in args[0]:
+    if isinstance(safe_get(args, 0), Iterable) and _BODY_HEADER_SPLITTER in args[0]:
         headers, body = args[0].split(_BODY_HEADER_SPLITTER, 1)
         if _FLAGS_HEADER_SPLITTER in headers:
-            _, headers = headers.split(_FLAGS_HEADER_SPLITTER, 1)
-            headers = http.client.parse_headers(BytesIO(headers))
-            url = headers.get("Host")
-            SpansContainer.get_span().add_event(url, headers, body, EventType.REQUEST)
+            with lumigo_safe_execute("parse request"):
+                _, headers = headers.split(_FLAGS_HEADER_SPLITTER, 1)
+                headers = http.client.parse_headers(BytesIO(headers))
+                url = headers.get("Host")
+                SpansContainer.get_span().add_event(url, headers, body, EventType.REQUEST)
             ret_val = func(*args, **kwargs)
-            SpansContainer.get_span().update_event_end_time()
+            with lumigo_safe_execute("initial response"):
+                SpansContainer.get_span().update_event_end_time()
             return ret_val
 
-    SpansContainer.get_span().add_event(None, None, args[0], EventType.REQUEST)
+    with lumigo_safe_execute("parse request"):
+        SpansContainer.get_span().add_event(None, None, args[0], EventType.REQUEST)
     return func(*args, **kwargs)
 
 
@@ -40,8 +44,9 @@ def _response_wrapper(func, instance, args, kwargs):
     Note that we don't examine the response data because it may change the original behaviour (ret_val.peek()).
     """
     ret_val = func(*args, **kwargs)
-    headers = ret_val.headers
-    SpansContainer.get_span().update_event_headers(instance.host, headers)
+    with lumigo_safe_execute("parse response"):
+        headers = ret_val.headers
+        SpansContainer.get_span().update_event_headers(instance.host, headers)
     return ret_val
 
 
@@ -62,7 +67,7 @@ def _lumigo_tracer(func):
             return func(*args, **kwargs)
 
         executed = False
-
+        ret_val = None
         try:
             SpansContainer.create_span(*args, force=True)
             SpansContainer.get_span().start()
@@ -75,7 +80,7 @@ def _lumigo_tracer(func):
                 SpansContainer.get_span().add_exception_event(e)
                 raise
             finally:
-                SpansContainer.get_span().end()
+                SpansContainer.get_span().end(ret_val)
             return ret_val
         except Exception:
             # The case where our wrapping raised an exception
@@ -98,8 +103,6 @@ def lumigo_tracer(*args, **kwargs):
     You can pass to this decorator more configurations to configure the interface to lumigo,
         See `lumigo_tracer.reporter.config` for more details on the available configuration.
     """
-    if args and isinstance(args[0], types.FunctionType):
-        return _lumigo_tracer(args[0])
     config(*args, **kwargs)
     return _lumigo_tracer
 
@@ -107,8 +110,9 @@ def lumigo_tracer(*args, **kwargs):
 def wrap_http_calls():
     global already_wrapped
     if not already_wrapped:
-        get_logger().debug("wrapping the http request")
-        wrap_function_wrapper("http.client", "HTTPConnection.send", _request_wrapper)
-        wrap_function_wrapper("botocore.awsrequest", "AWSRequest.__init__", _putheader_wrapper)
-        wrap_function_wrapper("http.client", "HTTPConnection.getresponse", _response_wrapper)
-        already_wrapped = True
+        with lumigo_safe_execute("wrap http calls"):
+            get_logger().debug("wrapping the http request")
+            wrap_function_wrapper("http.client", "HTTPConnection.send", _request_wrapper)
+            wrap_function_wrapper("botocore.awsrequest", "AWSRequest.__init__", _putheader_wrapper)
+            wrap_function_wrapper("http.client", "HTTPConnection.getresponse", _response_wrapper)
+            already_wrapped = True

@@ -6,6 +6,9 @@ from typing import Tuple
 from lumigo_tracer.libs import xmltodict
 import functools
 import itertools
+from collections.abc import Iterable
+
+MAX_ENTRY_SIZE = 2000
 
 
 def safe_get(l: list, index: int, default=None):
@@ -13,6 +16,8 @@ def safe_get(l: list, index: int, default=None):
     This function return the organ in the `index` place from the given list.
     If this values doesn't exist, return default.
     """
+    if not isinstance(l, Iterable):
+        return default
     return l[index] if len(l) > index else default
 
 
@@ -172,3 +177,18 @@ def _parse_streams(event: dict):
     else:
         result["arn"] = event["Records"][0]["eventSourceARN"]
     return result
+
+
+def prepare_large_data(value, max_size=MAX_ENTRY_SIZE):
+    """
+    This function prepare the given value to send it to lumigo.
+    You should call to this function if there's a possibility that the value will be big.
+
+    Current logic:
+        If the data is larger than `max_size`, we truncate it.
+
+    :param value: The value we wish to send
+    :param max_size: The maximum size of the data that we will send
+    :return: The value that we will actually send
+    """
+    return str(value)[:max_size]

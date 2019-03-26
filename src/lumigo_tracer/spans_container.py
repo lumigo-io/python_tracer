@@ -1,4 +1,6 @@
+import traceback
 from typing import List, Dict, Union
+import http.client
 
 from lumigo_tracer import utils
 from lumigo_tracer.parsers.parser import get_parser
@@ -7,6 +9,7 @@ from lumigo_tracer.parsers.utils import (
     safe_split_get,
     recursive_json_join,
     parse_triggered_by,
+    prepare_large_data,
 )
 import time
 import os
@@ -40,6 +43,8 @@ class SpansContainer:
         trace_id_suffix: str = None,
         trigger_by: dict = None,
         max_finish_time: int = None,
+        event: dict = None,
+        envs: dict = None,
     ):
         self.name = name
         self.events: List[Dict[str, Union[Dict, None, str, int]]] = []
@@ -49,7 +54,6 @@ class SpansContainer:
         self.trace_root = trace_root
         self.trace_id_suffix = trace_id_suffix
         self.transaction_id = transaction_id
-        # TODO - we omitted details - cold/warm etc.
         self.max_finish_time = max_finish_time
         self.base_msg = {
             "started": started,
@@ -58,6 +62,8 @@ class SpansContainer:
             "region": region,
             "parentId": request_id,
             "info": {"tracer": {"version": version}, "traceId": {"Root": trace_root}},
+            "event": event,
+            "envs": envs,
         }
         self.start_msg = recursive_json_join(
             self.base_msg,
@@ -85,7 +91,9 @@ class SpansContainer:
         utils.report_json(region=self.region, msgs=[to_send])
         self.events = [self.start_msg]
 
-    def add_event(self, url: str, headers, body: bytes, event_type: EventType) -> None:
+    def add_event(
+        self, url: str, headers: http.client.HTTPMessage, body: bytes, event_type: EventType
+    ) -> None:
         """
         This function parses an input event and add it to the span.
         """
@@ -103,7 +111,7 @@ class SpansContainer:
         if self.events:
             self.events[-1]["ended"] = int(time.time() * 1000)
 
-    def update_event_headers(self, host: str, headers) -> None:
+    def update_event_headers(self, host: str, headers: http.client.HTTPMessage) -> None:
         """
         This function assumes synchronous execution - we update the last http event.
         """
@@ -115,11 +123,17 @@ class SpansContainer:
 
     def add_exception_event(self, exception: Exception) -> None:
         if self.events:
-            msg = f"{exception.__class__.__name__}: {exception.args[0] if exception.args else None}"
+            msg = {
+                "type": exception.__class__.__name__,
+                "message": exception.args[0] if exception.args else None,
+                "stacktrace": traceback.format_exc(),
+            }
             self.events[0].update({"error": msg})
 
-    def end(self) -> None:
+    def end(self, ret_val) -> None:
         self.events[0].update({"ended": int(time.time() * 1000)})
+        if utils.is_verbose():
+            self.events[0].update({"return_value": ret_val})
         utils.report_json(region=self.region, msgs=self.events[:])
 
     def get_patched_root(self):
@@ -142,6 +156,14 @@ class SpansContainer:
         """
         if cls._span and not force:
             return
+        if utils.is_verbose():
+            additional_info = {
+                "event": prepare_large_data(event),
+                "envs": prepare_large_data(dict(os.environ)),
+            }
+        else:
+            additional_info = {}
+
         trace_root, transaction_id, suffix = parse_trace_id(os.environ.get("_X_AMZN_TRACE_ID", ""))
         remaining_time = getattr(context, "get_remaining_time_in_millis", lambda: MAX_LAMBDA_TIME)()
         cls._span = SpansContainer(
@@ -159,4 +181,5 @@ class SpansContainer:
             account=safe_split_get(getattr(context, "invoked_function_arn", ""), ":", 4, ""),
             trigger_by=parse_triggered_by(event),
             max_finish_time=int(time.time() * 1000) + remaining_time,
+            **additional_info,
         )

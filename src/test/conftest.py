@@ -9,7 +9,7 @@ import os
 
 @pytest.fixture(autouse=True)
 def reporter_mock(monkeypatch):
-    utils.SHOULD_REPORT = False
+    utils._SHOULD_REPORT = False
     reporter_mock = mock.Mock(utils.report_json)
     monkeypatch.setattr(utils, "report_json", reporter_mock)
     return reporter_mock
@@ -31,6 +31,7 @@ def verbose_logger():
     """
     os.environ["LUMIGO_DEBUG"] = "true"
     utils.get_logger().setLevel(logging.DEBUG)
+    utils.config(should_report=False, verbose=True)
 
 
 def pytest_addoption(parser):
@@ -44,3 +45,8 @@ def pytest_collection_modifyitems(config, items):
     for item in items:
         if "slow" in item.keywords:
             item.add_marker(skip_slow)
+
+
+@pytest.fixture(autouse=True)
+def capture_all_logs(caplog):
+    caplog.set_level(logging.DEBUG, logger="lumigo")
