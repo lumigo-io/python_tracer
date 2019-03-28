@@ -193,5 +193,5 @@ def prepare_large_data(value, max_size=MAX_ENTRY_SIZE):
     """
     res = str(value)
     if len(res) > max_size:
-        return str(value)[:max_size] + "...[too long]"
+        return f"{str(value)[:max_size]}...[too long]"
     return str(value)[:max_size]
