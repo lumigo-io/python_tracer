@@ -169,3 +169,15 @@ def test_recursive_json_join(d1, d2, result):
 )
 def test_parse_triggered_by(event, output):
     assert utils.parse_triggered_by(event) == output
+
+
+@pytest.mark.parametrize(
+    ("value", "output"),
+    [
+        ("aa", "aa"),  # happy flow
+        (None, "None"),  # same key twice
+        ("aaaaaa", "aaaaa...[too long]"),  # merge two inner dictionaries
+    ],
+)
+def test_prepare_large_data(value, output):
+    assert utils.prepare_large_data(value, 5) == output

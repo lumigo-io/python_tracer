@@ -191,4 +191,7 @@ def prepare_large_data(value, max_size=MAX_ENTRY_SIZE):
     :param max_size: The maximum size of the data that we will send
     :return: The value that we will actually send
     """
+    res = str(value)
+    if len(res) > max_size:
+        return str(value)[:max_size] + "...[too long]"
     return str(value)[:max_size]
