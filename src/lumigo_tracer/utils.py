@@ -14,7 +14,7 @@ SECONDS_TO_TIMEOUT = 0.3
 
 _HOST: str = ""
 _TOKEN: str = ""
-_VERBOSE: bool = False
+_VERBOSE: bool = True
 _logger: Union[logging.Logger, None] = None
 
 
