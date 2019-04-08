@@ -22,7 +22,7 @@ def config(
     edge_host: str = "",
     should_report: Union[bool, None] = None,
     token: str = None,
-    verbose: bool = None,
+    verbose: bool = True,
 ) -> None:
     """
     This function configure the lumigo wrapper.
@@ -39,7 +39,9 @@ def config(
         _SHOULD_REPORT = should_report
     if token:
         _TOKEN = token
-    if verbose or os.environ.get("LUMIGO_VERBOSE"):
+    if not verbose or os.environ.get("LUMIGO_VERBOSE", "").lower() == "false":
+        _VERBOSE = False
+    else:
         _VERBOSE = True
 
 
