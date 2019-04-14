@@ -40,9 +40,8 @@ class Parser:
         return {
             "id": str(uuid.uuid1()),
             "type": "http",
-            "info": {"httpInfo": {"host": url}},
+            "info": {"httpInfo": {"host": url, "request": additional_info}},
             "started": int(time.time() * 1000),
-            **additional_info,
         }
 
     def parse_response(self, url: str, headers, body: bytes) -> dict:
@@ -56,9 +55,8 @@ class Parser:
 
         return {
             "type": "http",
-            "info": {"httpInfo": {"host": url}},
+            "info": {"httpInfo": {"host": url, "response": additional_info}},
             "ended": int(time.time() * 1000),
-            **additional_info,
         }
 
 
