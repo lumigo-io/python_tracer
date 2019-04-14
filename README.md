@@ -23,6 +23,7 @@ Prepare your machine
 * Create a virtualenv `virtualenv venv -p python3`
 * Activate the virtualenv by running `. venv/bin/activate`
 * Run `pip install -r requirements.txt` to install dependencies.
+* `cd src` and `python setup.py develop`.
 * If you use pycharm, make sure to change its virtualenv through the PyCharm -> Preferences -> Project -> Interpreter under the menu
 * Run `pre-commit install` in your repository to install pre-commits hooks.
 
