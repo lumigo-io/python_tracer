@@ -1,6 +1,9 @@
+import os
+
 import pytest
 
 from lumigo_tracer.parsers import utils
+from lumigo_tracer.utils import config, is_verbose
 
 
 @pytest.mark.parametrize(
@@ -181,3 +184,22 @@ def test_parse_triggered_by(event, output):
 )
 def test_prepare_large_data(value, output):
     assert utils.prepare_large_data(value, 5) == output
+
+
+def test_config_with_verbose_param_with_no_env_verbose_verbose_is_false():
+    config(verbose=False)
+
+    assert is_verbose() is False
+
+
+def test_config_no_verbose_param_and_no_env_verbose_is_true():
+    config()
+
+    assert is_verbose()
+
+
+def test_config_no_verbose_param_and_with_env_verbose_equals_to_false_verbose_is_false(monkeypatch):
+    monkeypatch.setattr(os, "environ", {"LUMIGO_VERBOSE": "FALSE"})
+    config()
+
+    assert is_verbose() is False

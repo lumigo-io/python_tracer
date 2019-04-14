@@ -1,4 +1,5 @@
 import os
+import urllib
 
 from lumigo_tracer import lumigo_tracer
 from lumigo_tracer.parsers.parser import Parser
@@ -93,6 +94,21 @@ def test_wrapping_with_parameters():
 
     assert lambda_test_function() == 1
     assert utils._SHOULD_REPORT == "123"
+
+
+def test_wrapping_json_request():
+    @lumigo_tracer()
+    def lambda_test_function():
+        urllib.request.urlopen(
+            urllib.request.Request(
+                "http://api.github.com", b"{}", headers={"Content-Type": "application/json"}
+            )
+        )
+        return 1
+
+    assert lambda_test_function() == 1
+    events = SpansContainer.get_span().events
+    assert any("'Content-Type': 'application/json'" in event.get("headers", "") for event in events)
 
 
 def test_exception_in_parsers(monkeypatch, caplog):

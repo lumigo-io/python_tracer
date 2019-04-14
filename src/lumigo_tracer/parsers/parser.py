@@ -31,7 +31,7 @@ class Parser:
     def parse_request(self, url: str, headers: http.client.HTTPMessage, body: bytes) -> dict:
         if is_verbose():
             additional_info = {
-                "headers": prepare_large_data(dict(headers.items())),
+                "headers": prepare_large_data(dict(headers.items() if headers else {})),
                 "body": prepare_large_data(body),
             }
         else:
@@ -48,7 +48,7 @@ class Parser:
     def parse_response(self, url: str, headers, body: bytes) -> dict:
         if is_verbose():
             additional_info = {
-                "headers": prepare_large_data(dict(headers.items())),
+                "headers": prepare_large_data(dict(headers.items() if headers else {})),
                 "body": prepare_large_data(body),
             }
         else:
