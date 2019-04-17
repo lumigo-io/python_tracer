@@ -133,7 +133,7 @@ class SpansContainer:
     def end(self, ret_val) -> None:
         self.events[0].update({"ended": int(time.time() * 1000)})
         if utils.is_verbose():
-            self.events[0].update({"return_value": ret_val})
+            self.events[0].update({"return_value": prepare_large_data(ret_val)})
         utils.report_json(region=self.region, msgs=self.events[:])
 
     def get_patched_root(self):
