@@ -8,7 +8,7 @@ import functools
 import itertools
 from collections.abc import Iterable
 
-MAX_ENTRY_SIZE = 2000
+MAX_ENTRY_SIZE = 1024
 
 
 def safe_get(l: list, index: int, default=None):
