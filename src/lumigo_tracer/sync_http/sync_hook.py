@@ -2,7 +2,7 @@ from lumigo_tracer.libs.wrapt import wrap_function_wrapper
 from lumigo_tracer.parsers.utils import safe_get
 from lumigo_tracer.utils import config, get_logger, lumigo_safe_execute
 import http.client
-from io import BytesIO, StringIO
+from io import BytesIO
 import os
 from functools import wraps
 from lumigo_tracer.spans_container import SpansContainer, EventType
@@ -22,14 +22,14 @@ def _request_wrapper(func, instance, args, kwargs):
     """
     data = safe_get(args, 0)
     with lumigo_safe_execute("parse requested streams"):
-        if isinstance(data, (BytesIO, StringIO)):
+        if isinstance(data, BytesIO):
             current_pos = data.tell()
             data = data.read(MAX_READ_SIZE)
             args[0].seek(current_pos)
 
     url, headers, body = getattr(instance, "host", None), None, None
     with lumigo_safe_execute("parse request"):
-        if isinstance(data, (str, bytes)) and _BODY_HEADER_SPLITTER in data:
+        if isinstance(data, bytes) and _BODY_HEADER_SPLITTER in data:
             headers, body = data.split(_BODY_HEADER_SPLITTER, 1)
             if _FLAGS_HEADER_SPLITTER in headers:
                 _, headers = headers.split(_FLAGS_HEADER_SPLITTER, 1)
