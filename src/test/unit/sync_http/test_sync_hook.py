@@ -1,5 +1,6 @@
 import os
 import urllib
+from io import BytesIO
 
 from lumigo_tracer import lumigo_tracer
 from lumigo_tracer.parsers.parser import Parser
@@ -65,6 +66,19 @@ def test_lambda_wrapper_http():
     assert "Content-Length" in events[1]["info"]["httpInfo"]["request"]["headers"]
 
 
+def test_lambda_wrapper_no_string():
+    @lumigo_tracer(token="123")
+    def lambda_test_function():
+        http.client.HTTPConnection("www.google.com").send(BytesIO(b"123"))
+
+    lambda_test_function()
+    events = SpansContainer.get_span().events
+    assert len(events) == 2
+    assert events[1].get("info", {}).get("httpInfo", {}).get("host") == "www.google.com"
+    assert "started" in events[1]
+    assert "ended" in events[1]
+
+
 def test_kill_switch(monkeypatch):
     monkeypatch.setattr(os, "environ", {"LUMIGO_SWITCH_OFF": "true"})
 
@@ -123,4 +137,4 @@ def test_exception_in_parsers(monkeypatch, caplog):
         return http.client.HTTPConnection(host="www.google.com").send(b"\r\n")
 
     lambda_test_function()
-    assert caplog.records[-1].msg == "An exception occurred in lumigo's code parse request"
+    assert caplog.records[-1].msg == "An exception occurred in lumigo's code add request event"

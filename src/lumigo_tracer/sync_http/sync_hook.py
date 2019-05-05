@@ -1,6 +1,5 @@
 from lumigo_tracer.libs.wrapt import wrap_function_wrapper
 from lumigo_tracer.parsers.utils import safe_get
-from collections.abc import Iterable
 from lumigo_tracer.utils import config, get_logger, lumigo_safe_execute
 import http.client
 from io import BytesIO
@@ -12,6 +11,7 @@ from lumigo_tracer.spans_container import SpansContainer, EventType
 _BODY_HEADER_SPLITTER = b"\r\n\r\n"
 _FLAGS_HEADER_SPLITTER = b"\r\n"
 _KILL_SWITCH = "LUMIGO_SWITCH_OFF"
+MAX_READ_SIZE = 1024
 already_wrapped = False
 
 
@@ -20,22 +20,29 @@ def _request_wrapper(func, instance, args, kwargs):
     This is the wrapper of the requests. it parses the http's message to conclude the url, headers, and body.
     Finally, it add an event to the span, and run the wrapped function (http.client.HTTPConnection.send).
     """
-    if isinstance(safe_get(args, 0), Iterable) and _BODY_HEADER_SPLITTER in args[0]:
-        headers, body = args[0].split(_BODY_HEADER_SPLITTER, 1)
-        if _FLAGS_HEADER_SPLITTER in headers:
-            with lumigo_safe_execute("parse request"):
+    data = safe_get(args, 0)
+    with lumigo_safe_execute("parse requested streams"):
+        if isinstance(data, BytesIO):
+            current_pos = data.tell()
+            data = data.read(MAX_READ_SIZE)
+            args[0].seek(current_pos)
+
+    url, headers, body = getattr(instance, "host", None), None, None
+    with lumigo_safe_execute("parse request"):
+        if isinstance(data, bytes) and _BODY_HEADER_SPLITTER in data:
+            headers, body = data.split(_BODY_HEADER_SPLITTER, 1)
+            if _FLAGS_HEADER_SPLITTER in headers:
                 _, headers = headers.split(_FLAGS_HEADER_SPLITTER, 1)
                 headers = http.client.parse_headers(BytesIO(headers))
-                url = headers.get("Host")
-                SpansContainer.get_span().add_event(url, headers, body, EventType.REQUEST)
-            ret_val = func(*args, **kwargs)
-            with lumigo_safe_execute("initial response"):
-                SpansContainer.get_span().update_event_end_time()
-            return ret_val
+                url = url or headers.get("Host")
 
-    with lumigo_safe_execute("parse request"):
-        SpansContainer.get_span().add_event(None, None, args[0], EventType.REQUEST)
-    return func(*args, **kwargs)
+    with lumigo_safe_execute("add request event"):
+        SpansContainer.get_span().add_event(url, headers, body, EventType.REQUEST)
+
+    ret_val = func(*args, **kwargs)
+    with lumigo_safe_execute("add response event"):
+        SpansContainer.get_span().update_event_end_time()
+    return ret_val
 
 
 def _response_wrapper(func, instance, args, kwargs):
