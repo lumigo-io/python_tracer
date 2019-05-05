@@ -79,6 +79,7 @@ jobs:
       - checkout_code
       - checkout_credentials
       # run tests!
+      - run: mkdir -p ~/.aws
       - run: echo ${KEY} | gpg --batch -d --passphrase-fd 0 ../common-resources/encrypted_files/credentials_integration.enc > ~/.aws/credentials
       - run: pre-commit install
       - run: curl -sL https://deb.nodesource.com/setup_8.x | sudo bash -
