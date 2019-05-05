@@ -37,6 +37,8 @@ def config(
         _HOST = edge_host
     if should_report is not None:
         _SHOULD_REPORT = should_report
+    elif not is_aws_environment():
+        _SHOULD_REPORT = False
     if token:
         _TOKEN = token
     if not verbose or os.environ.get("LUMIGO_VERBOSE", "").lower() == "false":
@@ -102,3 +104,10 @@ def lumigo_safe_execute(part_name=""):
         yield
     except Exception as e:
         get_logger().exception(f"An exception occurred in lumigo's code {part_name}", exc_info=e)
+
+
+def is_aws_environment():
+    """
+    :return: heuristically determine rather we're running on an aws environment.
+    """
+    return bool(os.environ.get("LAMBDA_RUNTIME_DIR"))
