@@ -21,10 +21,11 @@ def _request_wrapper(func, instance, args, kwargs):
     Finally, it add an event to the span, and run the wrapped function (http.client.HTTPConnection.send).
     """
     data = safe_get(args, 0)
-    if isinstance(data, (BytesIO, StringIO)):
-        current_pos = data.tell()
-        data = data.read(MAX_READ_SIZE)
-        args[0].seek(current_pos)
+    with lumigo_safe_execute("parse requested streams"):
+        if isinstance(data, (BytesIO, StringIO)):
+            current_pos = data.tell()
+            data = data.read(MAX_READ_SIZE)
+            args[0].seek(current_pos)
 
     url, headers, body = getattr(instance, "host", None), None, None
     with lumigo_safe_execute("parse request"):
