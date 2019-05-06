@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import time
 import urllib.request
 from urllib.error import URLError
 from typing import Union, List
@@ -37,6 +38,8 @@ def config(
         _HOST = edge_host
     if should_report is not None:
         _SHOULD_REPORT = should_report
+    elif not is_aws_environment():
+        _SHOULD_REPORT = False
     if token:
         _TOKEN = token
     if not verbose or os.environ.get("LUMIGO_VERBOSE", "").lower() == "false":
@@ -45,30 +48,35 @@ def config(
         _VERBOSE = True
 
 
-def report_json(region: Union[None, str], msgs: List[dict]) -> None:
+def report_json(region: Union[None, str], msgs: List[dict]) -> int:
     """
     This function sends the information back to the edge.
 
     :param region: The region to use as default if not configured otherwise.
     :param msgs: the message to send.
+    :return: The duration of reporting (in milliseconds),
+                or 0 if we didn't send (due to configuration or fail).
     """
     for msg in msgs:
         msg["token"] = _TOKEN
     get_logger().info(f"reporting the messages: {msgs}")
     host = _HOST or EDGE_HOST.format(region=region)
+    duration = 0
     if _SHOULD_REPORT:
         try:
+            to_send = json.dumps(msgs).encode()
+            start_time = time.time()
             response = urllib.request.urlopen(
-                urllib.request.Request(
-                    host, json.dumps(msgs).encode(), headers={"Content-Type": "application/json"}
-                ),
+                urllib.request.Request(host, to_send, headers={"Content-Type": "application/json"}),
                 timeout=float(os.environ.get("LUMIGO_EDGE_TIMEOUT", SECONDS_TO_TIMEOUT)),
             )
+            duration = int((time.time() - start_time) * 1000)
             get_logger().info(f"successful reporting, code: {getattr(response, 'code', 'unknown')}")
         except URLError as e:
             get_logger().exception(f"Timeout when reporting to {host}", exc_info=e)
         except Exception as e:
             get_logger().exception(f"could not report json to {host}", exc_info=e)
+    return duration
 
 
 def get_logger():
@@ -102,3 +110,10 @@ def lumigo_safe_execute(part_name=""):
         yield
     except Exception as e:
         get_logger().exception(f"An exception occurred in lumigo's code {part_name}", exc_info=e)
+
+
+def is_aws_environment():
+    """
+    :return: heuristically determine rather we're running on an aws environment.
+    """
+    return bool(os.environ.get("LAMBDA_RUNTIME_DIR"))

@@ -88,7 +88,8 @@ class SpansContainer:
         to_send["id"] = f"{to_send['id']}_started"
         to_send["ended"] = to_send["started"]
         to_send["maxFinishTime"] = self.max_finish_time
-        utils.report_json(region=self.region, msgs=[to_send])
+        report_duration = utils.report_json(region=self.region, msgs=[to_send])
+        self.start_msg["reporter_rtt"] = report_duration
         self.events = [self.start_msg]
 
     def add_event(

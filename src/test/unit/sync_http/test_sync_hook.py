@@ -49,6 +49,7 @@ def test_lambda_wrapper_exception(exc):
     assert len(events) == 1
     assert events[0].get("error", {}).get("type") == "ValueError"
     assert not events[0]["id"].endswith("_started")
+    assert "reporter_rtt" in events[0]
     assert "maxFinishTime" not in events[0]
 
 
