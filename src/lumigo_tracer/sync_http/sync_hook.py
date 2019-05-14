@@ -75,15 +75,14 @@ def _lumigo_tracer(func):
 
         executed = False
         ret_val = None
+        local_print = print
         try:
 
             if is_enhanced_print():
-                local_print = print
-
                 if len(args) >= 2:
                     request_id = getattr(args[1], "aws_request_id", "")
                     builtins.print = lambda *args, **kwargs: local_print(
-                        request_id, *args, **kwargs
+                        f"RequestId: {request_id}", *args, **kwargs
                     )
             SpansContainer.create_span(*args, force=True)
             SpansContainer.get_span().start()
@@ -97,6 +96,7 @@ def _lumigo_tracer(func):
                 raise
             finally:
                 SpansContainer.get_span().end(ret_val)
+                builtins.print = local_print
             return ret_val
         except Exception:
             # The case where our wrapping raised an exception
