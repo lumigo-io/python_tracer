@@ -40,7 +40,7 @@ def verbose_logger():
     This fixture make sure that we will see all the log in the tests.
     """
     utils.get_logger().setLevel(logging.DEBUG)
-    utils.config(should_report=False, verbose=True, enhance_print=False)
+    utils.config(should_report=False, verbose=True)
 
 
 def pytest_addoption(parser):
