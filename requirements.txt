@@ -5,4 +5,4 @@ pytest==4.2.0
 mock
 boto3
 pytest-cov==2.6.1
-
+capturer==2.4

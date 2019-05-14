@@ -1,12 +1,12 @@
 from lumigo_tracer.libs.wrapt import wrap_function_wrapper
 from lumigo_tracer.parsers.utils import safe_get
-from lumigo_tracer.utils import config, get_logger, lumigo_safe_execute
+from lumigo_tracer.utils import config, get_logger, lumigo_safe_execute, is_enhanced_print
 import http.client
 from io import BytesIO
 import os
 from functools import wraps
 from lumigo_tracer.spans_container import SpansContainer, EventType
-
+import builtins
 
 _BODY_HEADER_SPLITTER = b"\r\n\r\n"
 _FLAGS_HEADER_SPLITTER = b"\r\n"
@@ -76,6 +76,15 @@ def _lumigo_tracer(func):
         executed = False
         ret_val = None
         try:
+
+            if is_enhanced_print():
+                local_print = print
+
+                if len(args) >= 2:
+                    request_id = getattr(args[1], "aws_request_id", "")
+                    builtins.print = lambda *args, **kwargs: local_print(
+                        request_id, *args, **kwargs
+                    )
             SpansContainer.create_span(*args, force=True)
             SpansContainer.get_span().start()
             wrap_http_calls()
