@@ -1,3 +1,4 @@
+import builtins
 import logging
 
 from lumigo_tracer import utils
@@ -21,6 +22,16 @@ def restart_global_span():
     """
     yield
     SpansContainer._span = None
+
+
+@pytest.yield_fixture(autouse=True)
+def reset_print():
+    """
+    Resets print
+    """
+    local_print = print
+    yield
+    builtins.print = local_print
 
 
 @pytest.fixture(autouse=True)

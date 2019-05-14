@@ -16,6 +16,7 @@ SECONDS_TO_TIMEOUT = 0.3
 _HOST: str = ""
 _TOKEN: str = ""
 _VERBOSE: bool = True
+_ENHANCE_PRINT: bool = False
 _logger: Union[logging.Logger, None] = None
 
 
@@ -24,6 +25,7 @@ def config(
     should_report: Union[bool, None] = None,
     token: str = None,
     verbose: bool = True,
+    enhance_print: bool = False,
 ) -> None:
     """
     This function configure the lumigo wrapper.
@@ -33,7 +35,7 @@ def config(
     :param should_report: Weather we should send the events. Change to True in the production.
     :param token: The token to use when sending back the events.
     """
-    global _HOST, _SHOULD_REPORT, _TOKEN, _VERBOSE
+    global _HOST, _SHOULD_REPORT, _TOKEN, _VERBOSE, _ENHANCE_PRINT
     if edge_host:
         _HOST = edge_host
     if should_report is not None:
@@ -42,6 +44,7 @@ def config(
         _SHOULD_REPORT = False
     if token:
         _TOKEN = token
+    _ENHANCE_PRINT = enhance_print
     if not verbose or os.environ.get("LUMIGO_VERBOSE", "").lower() == "false":
         _VERBOSE = False
     else:
@@ -117,3 +120,7 @@ def is_aws_environment():
     :return: heuristically determine rather we're running on an aws environment.
     """
     return bool(os.environ.get("LAMBDA_RUNTIME_DIR"))
+
+
+def is_enhanced_print():
+    return _ENHANCE_PRINT

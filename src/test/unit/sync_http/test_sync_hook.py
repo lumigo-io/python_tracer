@@ -1,7 +1,9 @@
 import os
 import urllib
 from io import BytesIO
+from types import SimpleNamespace
 
+from capturer import CaptureOutput
 from lumigo_tracer import lumigo_tracer
 from lumigo_tracer.parsers.parser import Parser
 import http.client
@@ -109,6 +111,30 @@ def test_wrapping_with_parameters():
 
     assert lambda_test_function() == 1
     assert utils._SHOULD_REPORT == "123"
+
+
+def test_wrapping_with_print_override():
+    @lumigo_tracer(enhance_print=True)
+    def lambda_test_function(event, context):
+        print("hello")
+        return 1
+
+    with CaptureOutput() as capturer:
+        assert lambda_test_function({}, SimpleNamespace(aws_request_id="1234")) == 1
+        assert utils._ENHANCE_PRINT is True
+        assert any(line == "1234 hello" for line in capturer.get_lines())
+
+
+def test_wrapping_without_print_override():
+    @lumigo_tracer()
+    def lambda_test_function(event, context):
+        print("hello")
+        return 1
+
+    with CaptureOutput() as capturer:
+        assert lambda_test_function({}, SimpleNamespace(aws_request_id="1234")) == 1
+        assert utils._ENHANCE_PRINT is False
+        assert any(line == "hello" for line in capturer.get_lines())
 
 
 def test_wrapping_json_request():
