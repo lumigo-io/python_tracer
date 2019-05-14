@@ -125,6 +125,18 @@ def test_wrapping_with_print_override():
         assert capturer.get_lines()[0] == "1234 hello"
 
 
+def test_wrapping_without_print_override():
+    @lumigo_tracer()
+    def lambda_test_function(event, context):
+        print("hello")
+        return 1
+
+    with CaptureOutput() as capturer:
+        assert lambda_test_function({}, SimpleNamespace(aws_request_id="1234")) == 1
+        assert utils._ENHANCE_PRINT is False
+        assert capturer.get_lines()[0] == "hello"
+
+
 def test_wrapping_json_request():
     @lumigo_tracer()
     def lambda_test_function():

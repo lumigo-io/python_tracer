@@ -1,3 +1,4 @@
+import builtins
 import logging
 
 from lumigo_tracer import utils
@@ -23,13 +24,23 @@ def restart_global_span():
     SpansContainer._span = None
 
 
+@pytest.yield_fixture(autouse=True)
+def reset_print():
+    """
+    Resets print
+    """
+    local_print = print
+    yield
+    builtins.print = local_print
+
+
 @pytest.fixture(autouse=True)
 def verbose_logger():
     """
     This fixture make sure that we will see all the log in the tests.
     """
     utils.get_logger().setLevel(logging.DEBUG)
-    utils.config(should_report=False, verbose=True)
+    utils.config(should_report=False, verbose=True, enhance_print=False)
 
 
 def pytest_addoption(parser):
