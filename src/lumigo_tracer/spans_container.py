@@ -16,6 +16,7 @@ import os
 
 _VERSION_PATH = os.path.join(os.path.dirname(__file__), "..", "VERSION")
 MAX_LAMBDA_TIME = 15 * 60 * 1000
+MAX_BODY_SIZE = 1024
 
 
 class EventType:
@@ -122,7 +123,9 @@ class SpansContainer:
                     if "response" not in last_event["info"]["httpInfo"]:
                         self.events.pop()
                         prev_headers, prev_body = self.previous_request
-                        self.add_event(url, prev_headers, prev_body + body, EventType.REQUEST)
+                        self.add_event(
+                            url, prev_headers, (prev_body + body)[:MAX_BODY_SIZE], EventType.REQUEST
+                        )
                         return
         self.add_event(url, None, body, EventType.REQUEST)
 
