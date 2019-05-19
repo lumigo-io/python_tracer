@@ -80,6 +80,7 @@ def test_lambda_wrapper_http_splitted_send():
     events = SpansContainer.get_span().events
     assert len(events) == 2
     assert events[1]["info"]["httpInfo"]["request"]["body"] == "b'123456'"
+    assert "Content-Length" in events[1]["info"]["httpInfo"]["request"]["headers"]
 
 
 def test_lambda_wrapper_no_headers():
@@ -103,7 +104,7 @@ def test_lambda_wrapper_http_non_splitted_send():
 
     lambda_test_function()
     events = SpansContainer.get_span().events
-    assert len(events) == 3
+    assert len(events) == 3  # one for the function span, and another two http spans
 
 
 def test_kill_switch(monkeypatch):
