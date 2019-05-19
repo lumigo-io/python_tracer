@@ -1,5 +1,5 @@
 import uuid
-from typing import Type
+from typing import Type, Optional
 import time
 import http.client
 
@@ -12,6 +12,9 @@ from lumigo_tracer.parsers.utils import (
     prepare_large_data,
 )
 from lumigo_tracer.utils import is_verbose
+
+
+HTTP_TYPE = "http"
 
 
 class Parser:
@@ -28,7 +31,9 @@ class Parser:
                  |----- <FutureParser> ----\
     """
 
-    def parse_request(self, url: str, headers: http.client.HTTPMessage, body: bytes) -> dict:
+    def parse_request(
+        self, url: str, headers: Optional[http.client.HTTPMessage], body: bytes
+    ) -> dict:
         if is_verbose():
             additional_info = {
                 "headers": prepare_large_data(dict(headers.items() if headers else {})),
@@ -39,12 +44,14 @@ class Parser:
 
         return {
             "id": str(uuid.uuid1()),
-            "type": "http",
+            "type": HTTP_TYPE,
             "info": {"httpInfo": {"host": url, "request": additional_info}},
             "started": int(time.time() * 1000),
         }
 
-    def parse_response(self, url: str, headers, body: bytes) -> dict:
+    def parse_response(
+        self, url: str, headers: Optional[http.client.HTTPMessage], body: bytes
+    ) -> dict:
         if is_verbose():
             additional_info = {
                 "headers": prepare_large_data(dict(headers.items() if headers else {})),
@@ -54,7 +61,7 @@ class Parser:
             additional_info = {}
 
         return {
-            "type": "http",
+            "type": HTTP_TYPE,
             "info": {"httpInfo": {"host": url, "response": additional_info}},
             "ended": int(time.time() * 1000),
         }

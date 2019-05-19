@@ -69,7 +69,20 @@ def test_lambda_wrapper_http():
     assert "Content-Length" in events[1]["info"]["httpInfo"]["request"]["headers"]
 
 
-def test_lambda_wrapper_no_string():
+def test_lambda_wrapper_http_splitted_send():
+    @lumigo_tracer(token="123")
+    def lambda_test_function():
+        conn = http.client.HTTPConnection("www.google.com")
+        conn.request("POST", "/", b"123")
+        conn.send(BytesIO(b"456"))
+
+    lambda_test_function()
+    events = SpansContainer.get_span().events
+    assert len(events) == 2
+    assert events[1]["info"]["httpInfo"]["request"]["body"] == "b'123456'"
+
+
+def test_lambda_wrapper_no_headers():
     @lumigo_tracer(token="123")
     def lambda_test_function():
         http.client.HTTPConnection("www.google.com").send(BytesIO(b"123"))
@@ -80,6 +93,17 @@ def test_lambda_wrapper_no_string():
     assert events[1].get("info", {}).get("httpInfo", {}).get("host") == "www.google.com"
     assert "started" in events[1]
     assert "ended" in events[1]
+
+
+def test_lambda_wrapper_http_non_splitted_send():
+    @lumigo_tracer(token="123")
+    def lambda_test_function():
+        http.client.HTTPConnection("www.google.com").request("POST", "/")
+        http.client.HTTPConnection("www.github.com").send(BytesIO(b"123"))
+
+    lambda_test_function()
+    events = SpansContainer.get_span().events
+    assert len(events) == 3
 
 
 def test_kill_switch(monkeypatch):
