@@ -146,13 +146,14 @@ def test_wrapping_with_parameters():
 def test_wrapping_with_print_override():
     @lumigo_tracer(enhance_print=True)
     def lambda_test_function(event, context):
-        print("hello")
+        print("hello\nworld")
         return 1
 
     with CaptureOutput() as capturer:
         assert lambda_test_function({}, SimpleNamespace(aws_request_id="1234")) == 1
         assert utils._ENHANCE_PRINT is True
-        assert any(line == "RequestId: 1234 hello" for line in capturer.get_lines())
+        assert "RequestId: 1234 hello" in capturer.get_lines()
+        assert "RequestId: 1234 world" in capturer.get_lines()
 
 
 def test_wrapping_without_print_override():
