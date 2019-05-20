@@ -81,8 +81,9 @@ def _lumigo_tracer(func):
             if is_enhanced_print():
                 if len(args) >= 2:
                     request_id = getattr(args[1], "aws_request_id", "")
+                    prefix = f"RequestId: {request_id}"
                     builtins.print = lambda *args, **kwargs: local_print(
-                        f"RequestId: {request_id}", *args, **kwargs
+                        prefix, *[str(arg).replace("\n", f"\n{prefix} ") for arg in args], **kwargs
                     )
             SpansContainer.create_span(*args, force=True)
             SpansContainer.get_span().start()
