@@ -70,6 +70,11 @@ def test_lambda_wrapper_http():
 
 
 def test_lambda_wrapper_http_splitted_send():
+    """
+    This is a test for the specific case of requests, where they split the http requests into headers and body.
+    We didn't use directly the package requests in order to keep the dependencies small.
+    """
+
     @lumigo_tracer(token="123")
     def lambda_test_function():
         conn = http.client.HTTPConnection("www.google.com")
