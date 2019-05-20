@@ -1,9 +1,9 @@
 import traceback
-from typing import List, Dict, Union
+from typing import List, Dict, Tuple, Optional
 import http.client
 
 from lumigo_tracer import utils
-from lumigo_tracer.parsers.parser import get_parser
+from lumigo_tracer.parsers.parser import get_parser, HTTP_TYPE
 from lumigo_tracer.parsers.utils import (
     parse_trace_id,
     safe_split_get,
@@ -16,6 +16,7 @@ import os
 
 _VERSION_PATH = os.path.join(os.path.dirname(__file__), "..", "VERSION")
 MAX_LAMBDA_TIME = 15 * 60 * 1000
+MAX_BODY_SIZE = 1024
 
 
 class EventType:
@@ -47,7 +48,7 @@ class SpansContainer:
         envs: dict = None,
     ):
         self.name = name
-        self.events: List[Dict[str, Union[Dict, None, str, int]]] = []
+        self.events: List[Dict] = []
         version = open(_VERSION_PATH, "r").read() if os.path.exists(_VERSION_PATH) else "unknown"
         version = version.strip()
         self.region = region
@@ -81,6 +82,7 @@ class SpansContainer:
                 },
             },
         )
+        self.previous_request: Tuple[Optional[http.client.HTTPMessage], bytes] = (None, b"")
         SpansContainer.is_cold = False
 
     def start(self):
@@ -93,7 +95,7 @@ class SpansContainer:
         self.events = [self.start_msg]
 
     def add_event(
-        self, url: str, headers: http.client.HTTPMessage, body: bytes, event_type: EventType
+        self, url: str, headers: Optional[http.client.HTTPMessage], body: bytes, event_type
     ) -> None:
         """
         This function parses an input event and add it to the span.
@@ -101,9 +103,31 @@ class SpansContainer:
         parser = get_parser(url)()
         if event_type == EventType.REQUEST:
             msg = parser.parse_request(url, headers, body)
+            self.previous_request = headers, body
         else:
             msg = parser.parse_response(url, headers, body)
         self.events.append(recursive_json_join(self.base_msg, msg))
+
+    def add_unparsed_request(self, url: str, body: bytes):
+        """
+        This function handle the case where we got a request the is not fully formatted as we expected,
+        I.e. there isn't '\r\n' in the request data that <i>logically</i> splits the headers from the body.
+
+        In that case, we will consider it as a continuance of the previous request if they got the same url,
+            and we didn't get any answer yet.
+        """
+        if self.events:
+            last_event = self.events[-1]
+            if last_event and last_event.get("type") == HTTP_TYPE:
+                if last_event.get("info", {}).get("httpInfo", {}).get("host") == url:
+                    if "response" not in last_event["info"]["httpInfo"]:
+                        self.events.pop()
+                        prev_headers, prev_body = self.previous_request
+                        self.add_event(
+                            url, prev_headers, (prev_body + body)[:MAX_BODY_SIZE], EventType.REQUEST
+                        )
+                        return
+        self.add_event(url, None, body, EventType.REQUEST)
 
     def update_event_end_time(self) -> None:
         """
@@ -132,6 +156,7 @@ class SpansContainer:
             self.events[0].update({"error": msg})
 
     def end(self, ret_val) -> None:
+        self.previous_request = None, b""
         self.events[0].update({"ended": int(time.time() * 1000)})
         if utils.is_verbose():
             self.events[0].update({"return_value": prepare_large_data(ret_val)})

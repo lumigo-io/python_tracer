@@ -37,7 +37,10 @@ def _request_wrapper(func, instance, args, kwargs):
                 url = url or headers.get("Host")
 
     with lumigo_safe_execute("add request event"):
-        SpansContainer.get_span().add_event(url, headers, body, EventType.REQUEST)
+        if headers:
+            SpansContainer.get_span().add_event(url, headers, body, EventType.REQUEST)
+        else:
+            SpansContainer.get_span().add_unparsed_request(url, data)
 
     ret_val = func(*args, **kwargs)
     with lumigo_safe_execute("add response event"):
