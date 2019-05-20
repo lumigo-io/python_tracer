@@ -126,7 +126,6 @@ def test_wrapping_with_print_override():
         assert "RequestId: 1234 world" in capturer.get_lines()
 
 
-
 def test_wrapping_without_print_override():
     @lumigo_tracer()
     def lambda_test_function(event, context):
