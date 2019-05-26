@@ -144,6 +144,6 @@ def get_parser(url: str) -> Type[Parser]:
     elif service == "kinesis":
         return KinesisParser
     # SQS Legacy Endpoints: https://docs.aws.amazon.com/general/latest/gr/rande.html
-    elif service in ("sqs", "sqs-fips") or url.endswith("queue.amazonaws.com"):
+    elif service in ("sqs", "sqs-fips") or "queue.amazonaws.com" in url:
         return SqsParser
     return Parser

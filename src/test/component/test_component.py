@@ -19,14 +19,17 @@ def region():
 
 
 @pytest.fixture
+def account_id():
+    return boto3.client("sts").get_caller_identity().get("Account")
+
+
+@pytest.fixture
 def ddb_resource(region):
     return "component-test"
 
 
 @pytest.fixture
-def sns_resource(region):
-    account_id = boto3.client("sts").get_caller_identity().get("Account")
-    region = boto3.session.Session().region_name
+def sns_resource(region, account_id):
     return f"arn:aws:sns:{region}:{account_id}:component-test"
 
 
@@ -41,8 +44,7 @@ def kinesis_resource(region):
 
 
 @pytest.fixture
-def sqs_resource(region):
-    account_id = boto3.client("sts").get_caller_identity().get("Account")
+def sqs_resource(region, account_id):
     return f"https://sqs.{region}.amazonaws.com/{account_id}/component-test"
 
 
