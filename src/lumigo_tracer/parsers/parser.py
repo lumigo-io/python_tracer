@@ -13,7 +13,6 @@ from lumigo_tracer.parsers.utils import (
 )
 from lumigo_tracer.utils import is_verbose
 
-
 HTTP_TYPE = "http"
 
 
@@ -80,8 +79,10 @@ class DynamoParser(ServerlessAWSParser):
         return recursive_json_join(
             super().parse_request(url, headers, body),
             {
-                "name": safe_key_from_json(body, "TableName"),
-                "dynamodbMethod": safe_split_get(headers.get("x-amz-target", ""), ".", 1),
+                "info": {
+                    "resourceName": safe_key_from_json(body, "TableName"),
+                    "dynamodbMethod": safe_split_get(headers.get("x-amz-target", ""), ".", 1),
+                }
             },
         )
 
@@ -91,8 +92,10 @@ class SnsParser(ServerlessAWSParser):
         return recursive_json_join(
             super().parse_request(url, headers, body),
             {
-                "name": safe_key_from_query(body, "TargetArn"),
-                "targetArn": safe_key_from_query(body, "TargetArn"),
+                "info": {
+                    "resourceName": safe_key_from_query(body, "TopicArn"),
+                    "targetArn": safe_key_from_query(body, "TopicArn"),
+                }
             },
         )
 
@@ -114,6 +117,22 @@ class LambdaParser(ServerlessAWSParser):
         )
 
 
+class KinesisParser(ServerlessAWSParser):
+    def parse_request(self, url: str, headers, body: bytes) -> dict:
+        return recursive_json_join(
+            super().parse_request(url, headers, body),
+            {"info": {"resourceName": safe_key_from_json(body, "StreamName")}},
+        )
+
+
+class SqsParser(ServerlessAWSParser):
+    def parse_request(self, url: str, headers, body: bytes) -> dict:
+        return recursive_json_join(
+            super().parse_request(url, headers, body),
+            {"info": {"resourceName": safe_key_from_query(body, "QueueUrl")}},
+        )
+
+
 def get_parser(url: str) -> Type[Parser]:
     service = safe_split_get(url, ".", 0)
     if service == "dynamodb":
@@ -122,4 +141,9 @@ def get_parser(url: str) -> Type[Parser]:
         return SnsParser
     elif service == "lambda":
         return LambdaParser
+    elif service == "kinesis":
+        return KinesisParser
+    # SQS Legacy Endpoints: https://docs.aws.amazon.com/general/latest/gr/rande.html
+    elif service in ("sqs", "sqs-fips") or url.endswith("queue.amazonaws.com"):
+        return SqsParser
     return Parser
