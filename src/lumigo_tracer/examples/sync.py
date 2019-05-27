@@ -12,11 +12,7 @@ def my_lambda(arg1, arg2):
     )
 
     boto3.client("sns").publish(
-        TargetArn="arn:aws:sns:us-east-2:723663554526:test", Message=json.dumps({"test": "test"})
+        TargetArn="arn:aws:sns:us-east-2:account_id:test", Message=json.dumps({"test": "test"})
     )
 
     urllib.request.urlopen("http://www.google.com")
-
-
-if __name__ == "__main__":
-    my_lambda(1, 2)
