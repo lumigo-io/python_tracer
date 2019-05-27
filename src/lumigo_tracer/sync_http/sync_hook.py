@@ -127,6 +127,18 @@ def lumigo_tracer(*args, **kwargs):
     return _lumigo_tracer
 
 
+class LumigoChalice:
+    def __init__(self, app, *args, **kwargs):
+        self.original_app_attr_getter = app.__getattribute__
+        self.lumigo_app = lumigo_tracer(*args, **kwargs)(app)
+
+    def __getattr__(self, item):
+        return self.original_app_attr_getter(item)
+
+    def __call__(self, *args, **kwargs):
+        return self.lumigo_app.__call__(*args, **kwargs)
+
+
 def wrap_http_calls():
     global already_wrapped
     if not already_wrapped:

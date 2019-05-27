@@ -11,6 +11,13 @@
 def my_lambda(event, context):
     print('I cant finally trubleshoot!')
 ```
+* In chalice, you should add the following lines to the your file:
+```
+from lumigo_tracer import LumigoChalice
+...
+app = Chalice(app_name='chalice')
+app = LumigoChalice(app, token="XXX")
+```
 * you can find more examples in the examples directory 
 * In case of need, there is a kill switch, that stops all the interventions of lumigo immediately, without changing the code. Simply add an environment variable `LUMIGO_SWITCH_OFF=true`.
 * You can turn on the debug logs by setting the environment variable `LUMIGO_DEBUG=true`

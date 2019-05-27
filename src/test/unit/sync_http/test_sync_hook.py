@@ -4,7 +4,7 @@ from io import BytesIO
 from types import SimpleNamespace
 
 from capturer import CaptureOutput
-from lumigo_tracer import lumigo_tracer
+from lumigo_tracer import lumigo_tracer, LumigoChalice
 from lumigo_tracer.parsers.parser import Parser
 import http.client
 from lumigo_tracer import utils
@@ -196,3 +196,28 @@ def test_exception_in_parsers(monkeypatch, caplog):
 
     lambda_test_function()
     assert caplog.records[-1].msg == "An exception occurred in lumigo's code add request event"
+
+
+def test_lumigo_chalice():
+    class App:
+        @property
+        def a(self):
+            return "a"
+
+        def b(self):
+            return "b"
+
+        def __call__(self, *args, **kwargs):
+            return "c"
+
+    app = App()
+    app = LumigoChalice(app)
+
+    # should not use lumigo's wrapper
+    assert app.a == "a"
+    assert app.b() == "b"
+    assert not SpansContainer.get_span().events
+
+    # should create a new span (but return the original value)
+    assert app() == "c"
+    assert SpansContainer.get_span().events
