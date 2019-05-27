@@ -31,6 +31,7 @@ provider:
               - "iot:CreateThing"
               - "iot:DescribeEndpoint"
               - "iot:DeleteThing"
+              - "kinesis:PutRecord"
 
           Resource:
               - "*"
@@ -65,3 +66,12 @@ resources:
             - AttributeName: key
               KeyType: HASH
           BillingMode: PAY_PER_REQUEST
+    ComponentTestKinesis:
+      Type: AWS::Kinesis::Stream
+      Properties:
+        ShardCount: 1
+        Name: component-test
+    ComponentTestSqs:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: component-test
