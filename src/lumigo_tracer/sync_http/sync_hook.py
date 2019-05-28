@@ -5,7 +5,7 @@ import http.client
 from io import BytesIO
 import os
 from functools import wraps
-from lumigo_tracer.spans_container import SpansContainer, EventType
+from lumigo_tracer.spans_container import SpansContainer
 import builtins
 
 _BODY_HEADER_SPLITTER = b"\r\n\r\n"
@@ -27,7 +27,12 @@ def _request_wrapper(func, instance, args, kwargs):
             data = data.read(MAX_READ_SIZE)
             args[0].seek(current_pos)
 
-    url, headers, body = getattr(instance, "host", None), None, None
+    url, method, headers, body = (
+        getattr(instance, "host", None),
+        getattr(instance, "_method", None),
+        None,
+        None,
+    )
     with lumigo_safe_execute("parse request"):
         if isinstance(data, bytes) and _BODY_HEADER_SPLITTER in data:
             headers, body = data.split(_BODY_HEADER_SPLITTER, 1)
@@ -38,9 +43,9 @@ def _request_wrapper(func, instance, args, kwargs):
 
     with lumigo_safe_execute("add request event"):
         if headers:
-            SpansContainer.get_span().add_event(url, headers, body, EventType.REQUEST)
+            SpansContainer.get_span().add_request_event(url, method, headers, body)
         else:
-            SpansContainer.get_span().add_unparsed_request(url, data)
+            SpansContainer.get_span().add_unparsed_request(url, method, data)
 
     ret_val = func(*args, **kwargs)
     with lumigo_safe_execute("add response event"):

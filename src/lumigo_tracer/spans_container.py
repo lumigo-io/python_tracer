@@ -19,11 +19,6 @@ MAX_LAMBDA_TIME = 15 * 60 * 1000
 MAX_BODY_SIZE = 1024
 
 
-class EventType:
-    RESPONSE = 1
-    REQUEST = 2
-
-
 class SpansContainer:
     is_cold = True
     _span = None
@@ -94,21 +89,18 @@ class SpansContainer:
         self.start_msg["reporter_rtt"] = report_duration
         self.events = [self.start_msg]
 
-    def add_event(
-        self, url: str, headers: Optional[http.client.HTTPMessage], body: bytes, event_type
-    ) -> None:
+    def add_request_event(
+        self, url: str, method: str, headers: Optional[http.client.HTTPMessage], body: bytes
+    ):
         """
-        This function parses an input event and add it to the span.
+            This function parses an request event and add it to the span.
         """
         parser = get_parser(url)()
-        if event_type == EventType.REQUEST:
-            msg = parser.parse_request(url, headers, body)
-            self.previous_request = headers, body
-        else:
-            msg = parser.parse_response(url, headers, body)
+        msg = parser.parse_request(url, method, headers, body)
+        self.previous_request = headers, body
         self.events.append(recursive_json_join(self.base_msg, msg))
 
-    def add_unparsed_request(self, url: str, body: bytes):
+    def add_unparsed_request(self, url: str, method: str, body: bytes):
         """
         This function handle the case where we got a request the is not fully formatted as we expected,
         I.e. there isn't '\r\n' in the request data that <i>logically</i> splits the headers from the body.
@@ -123,11 +115,11 @@ class SpansContainer:
                     if "response" not in last_event["info"]["httpInfo"]:
                         self.events.pop()
                         prev_headers, prev_body = self.previous_request
-                        self.add_event(
-                            url, prev_headers, (prev_body + body)[:MAX_BODY_SIZE], EventType.REQUEST
+                        self.add_request_event(
+                            url, method, prev_headers, (prev_body + body)[:MAX_BODY_SIZE]
                         )
                         return
-        self.add_event(url, None, body, EventType.REQUEST)
+        self.add_request_event(url, method, None, body)
 
     def update_event_end_time(self) -> None:
         """
