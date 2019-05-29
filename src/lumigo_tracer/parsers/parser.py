@@ -31,7 +31,12 @@ class Parser:
     """
 
     def parse_request(
-        self, url: str, method: str, headers: Optional[http.client.HTTPMessage], body: bytes
+        self,
+        host: str,
+        method: str,
+        uri: str,
+        headers: Optional[http.client.HTTPMessage],
+        body: bytes,
     ) -> dict:
         if is_verbose():
             additional_info = {
@@ -45,17 +50,18 @@ class Parser:
         return {
             "id": str(uuid.uuid1()),
             "type": HTTP_TYPE,
-            "info": {"httpInfo": {"host": url, "request": additional_info}},
+            "info": {"httpInfo": {"host": host, "request": additional_info, "uri": uri}},
             "started": int(time.time() * 1000),
         }
 
     def parse_response(
-        self, url: str, headers: Optional[http.client.HTTPMessage], body: bytes
+        self, url: str, response_code: int, headers: Optional[http.client.HTTPMessage], body: bytes
     ) -> dict:
         if is_verbose():
             additional_info = {
                 "headers": prepare_large_data(dict(headers.items() if headers else {})),
                 "body": prepare_large_data(body),
+                "responseCode": response_code,
             }
         else:
             additional_info = {}
@@ -68,17 +74,17 @@ class Parser:
 
 
 class ServerlessAWSParser(Parser):
-    def parse_response(self, url: str, headers, body: bytes) -> dict:
+    def parse_response(self, url: str, response_code: int, headers, body: bytes) -> dict:
         return recursive_json_join(
-            super().parse_response(url, headers, body),
+            super().parse_response(url, response_code, headers, body),
             {"id": headers.get("x-amzn-requestid") or headers.get("x-amz-requestid")},
         )
 
 
 class DynamoParser(ServerlessAWSParser):
-    def parse_request(self, url: str, method: str, headers, body: bytes) -> dict:
+    def parse_request(self, host: str, method: str, uri: str, headers, body: bytes) -> dict:
         return recursive_json_join(
-            super().parse_request(url, method, headers, body),
+            super().parse_request(host, method, uri, headers, body),
             {
                 "info": {
                     "resourceName": safe_key_from_json(body, "TableName"),
@@ -89,9 +95,9 @@ class DynamoParser(ServerlessAWSParser):
 
 
 class SnsParser(ServerlessAWSParser):
-    def parse_request(self, url: str, method: str, headers, body: bytes) -> dict:
+    def parse_request(self, host: str, method: str, uri: str, headers, body: bytes) -> dict:
         return recursive_json_join(
-            super().parse_request(url, method, headers, body),
+            super().parse_request(host, method, uri, headers, body),
             {
                 "info": {
                     "resourceName": safe_key_from_query(body, "TopicArn"),
@@ -100,17 +106,17 @@ class SnsParser(ServerlessAWSParser):
             },
         )
 
-    def parse_response(self, url: str, headers, body: bytes) -> dict:
+    def parse_response(self, url: str, response_code: int, headers, body: bytes) -> dict:
         return recursive_json_join(
-            super().parse_response(url, headers, body),
+            super().parse_response(url, response_code, headers, body),
             {"messageId": safe_key_from_xml(body, "PublishResponse/PublishResult/MessageId")},
         )
 
 
 class LambdaParser(ServerlessAWSParser):
-    def parse_request(self, url: str, method: str, headers, body: bytes) -> dict:
+    def parse_request(self, host: str, method: str, uri: str, headers, body: bytes) -> dict:
         return recursive_json_join(
-            super().parse_request(url, method, headers, body),
+            super().parse_request(host, method, uri, headers, body),
             {
                 "name": safe_split_get(headers.get("path", ""), "/", 3),
                 "invocationType": headers.get("x-amz-invocation-type"),
@@ -119,17 +125,17 @@ class LambdaParser(ServerlessAWSParser):
 
 
 class KinesisParser(ServerlessAWSParser):
-    def parse_request(self, url: str, method: str, headers, body: bytes) -> dict:
+    def parse_request(self, host: str, method: str, uri: str, headers, body: bytes) -> dict:
         return recursive_json_join(
-            super().parse_request(url, method, headers, body),
+            super().parse_request(host, method, uri, headers, body),
             {"info": {"resourceName": safe_key_from_json(body, "StreamName")}},
         )
 
 
 class SqsParser(ServerlessAWSParser):
-    def parse_request(self, url: str, method: str, headers, body: bytes) -> dict:
+    def parse_request(self, host: str, method: str, uri: str, headers, body: bytes) -> dict:
         return recursive_json_join(
-            super().parse_request(url, method, headers, body),
+            super().parse_request(host, method, uri, headers, body),
             {"info": {"resourceName": safe_key_from_query(body, "QueueUrl")}},
         )
 

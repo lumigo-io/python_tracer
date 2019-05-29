@@ -27,9 +27,10 @@ def _request_wrapper(func, instance, args, kwargs):
             data = data.read(MAX_READ_SIZE)
             args[0].seek(current_pos)
 
-    url, method, headers, body = (
+    host, method, headers, body, uri = (
         getattr(instance, "host", None),
         getattr(instance, "_method", None),
+        None,
         None,
         None,
     )
@@ -39,13 +40,20 @@ def _request_wrapper(func, instance, args, kwargs):
             if _FLAGS_HEADER_SPLITTER in headers:
                 _, headers = headers.split(_FLAGS_HEADER_SPLITTER, 1)
                 headers = http.client.parse_headers(BytesIO(headers))
-                url = url or headers.get("Host")
+                path_and_query_params = (
+                    _.decode("ascii")
+                    .replace(method, "")
+                    .replace(instance._http_vsn_str, "")
+                    .strip()
+                )
+                uri = "{}{}".format(host, path_and_query_params)
+                host = host or headers.get("Host")
 
     with lumigo_safe_execute("add request event"):
         if headers:
-            SpansContainer.get_span().add_request_event(url, method, headers, body)
+            SpansContainer.get_span().add_request_event(host, method, uri, headers, body)
         else:
-            SpansContainer.get_span().add_unparsed_request(url, method, data)
+            SpansContainer.get_span().add_unparsed_request(host, method, uri, data)
 
     ret_val = func(*args, **kwargs)
     with lumigo_safe_execute("add response event"):
@@ -61,7 +69,8 @@ def _response_wrapper(func, instance, args, kwargs):
     ret_val = func(*args, **kwargs)
     with lumigo_safe_execute("parse response"):
         headers = ret_val.headers
-        SpansContainer.get_span().update_event_headers(instance.host, headers)
+        response_code = ret_val.code
+        SpansContainer.get_span().add_response_event(instance.host, response_code, headers)
     return ret_val
 
 

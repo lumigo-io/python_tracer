@@ -90,17 +90,22 @@ class SpansContainer:
         self.events = [self.start_msg]
 
     def add_request_event(
-        self, url: str, method: str, headers: Optional[http.client.HTTPMessage], body: bytes
+        self,
+        host: str,
+        method: str,
+        uri: str,
+        headers: Optional[http.client.HTTPMessage],
+        body: bytes,
     ):
         """
             This function parses an request event and add it to the span.
         """
-        parser = get_parser(url)()
-        msg = parser.parse_request(url, method, headers, body)
+        parser = get_parser(host)()
+        msg = parser.parse_request(host, method, uri, headers, body)
         self.previous_request = headers, body
         self.events.append(recursive_json_join(self.base_msg, msg))
 
-    def add_unparsed_request(self, url: str, method: str, body: bytes):
+    def add_unparsed_request(self, host: str, method: str, uri: str, body: bytes):
         """
         This function handle the case where we got a request the is not fully formatted as we expected,
         I.e. there isn't '\r\n' in the request data that <i>logically</i> splits the headers from the body.
@@ -111,15 +116,15 @@ class SpansContainer:
         if self.events:
             last_event = self.events[-1]
             if last_event and last_event.get("type") == HTTP_TYPE:
-                if last_event.get("info", {}).get("httpInfo", {}).get("host") == url:
+                if last_event.get("info", {}).get("httpInfo", {}).get("host") == host:
                     if "response" not in last_event["info"]["httpInfo"]:
                         self.events.pop()
                         prev_headers, prev_body = self.previous_request
                         self.add_request_event(
-                            url, method, prev_headers, (prev_body + body)[:MAX_BODY_SIZE]
+                            host, method, uri, prev_headers, (prev_body + body)[:MAX_BODY_SIZE]
                         )
                         return
-        self.add_request_event(url, method, None, body)
+        self.add_request_event(host, method, uri, None, body)
 
     def update_event_end_time(self) -> None:
         """
@@ -128,14 +133,18 @@ class SpansContainer:
         if self.events:
             self.events[-1]["ended"] = int(time.time() * 1000)
 
-    def update_event_headers(self, host: str, headers: http.client.HTTPMessage) -> None:
+    def add_response_event(
+        self, host: str, response_code: int, headers: http.client.HTTPMessage
+    ) -> None:
         """
         This function assumes synchronous execution - we update the last http event.
         """
         parser = get_parser(host)()
         if self.events:
             self.events.append(
-                recursive_json_join(parser.parse_response(host, headers, b""), self.events.pop())
+                recursive_json_join(
+                    parser.parse_response(host, response_code, headers, b""), self.events.pop()
+                )
             )
 
     def add_exception_event(self, exception: Exception) -> None:
