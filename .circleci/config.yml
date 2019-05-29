@@ -20,6 +20,7 @@ commands:
       - run: curl -sL https://deb.nodesource.com/setup_10.x | sudo bash -
       - run: sudo apt install nodejs
       - run: sudo npm install -g serverless@1.41.1
+
   checkout_utils:
     description: "Checkout various utilities"
     steps:
@@ -129,7 +130,6 @@ jobs:
       - install_java
       - install_node
       - checkout_utils
-      - checkout_code
       - run: sudo pip install awscli
       - run: ./scripts/ci_deploy.sh
       - run: cd ../integration-tests && npm i
