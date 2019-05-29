@@ -78,6 +78,7 @@ def test_lambda_wrapper_query_with_http_params():
     events = SpansContainer.get_span().events
 
     assert len(events) == 2
+    print(events[1]["info"]["httpInfo"]["request"])
     assert events[1]["info"]["httpInfo"]["request"]["uri"] == "www.google.com/?q=123"
 
 
@@ -91,8 +92,8 @@ def test_lambda_wrapper_get_response():
     lambda_test_function()
     events = SpansContainer.get_span().events
 
-
     assert len(events) == 2
+    print(events[1]["info"]["httpInfo"]["response"])
     assert events[1]["info"]["httpInfo"]["response"]["statusCode"] == 200
 
 
