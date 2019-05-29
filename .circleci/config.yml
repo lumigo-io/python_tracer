@@ -5,15 +5,6 @@ defaults: &defaults
   - image: circleci/python:3.7
 
 commands:
-  install_java:
-    description: "Install java 8 JDK & maven"
-    steps:
-      - run:
-          command: |
-            sudo apt-get update
-            sudo apt-get install openjdk-8-jdk
-            sudo update-alternatives --config java
-            sudo apt install maven
   checkout_credentials:
     description: "Checkout credentials"
     steps:
@@ -21,18 +12,6 @@ commands:
           command: |
             cd ..
             git clone git@github.com:lumigo-io/common-resources.git
-  checkout_utils:
-    description: "Checkout various utilities"
-    steps:
-      - run:
-          command: |
-            mkdir ~/.ssh/ && echo -e "Host github.com\n\tStrictHostKeyChecking no\n" > ~/.ssh/config
-            cd ..
-            git clone git@github.com:lumigo-io/common-resources.git
-      - run:
-          command: |
-            cd ..
-            git clone git@github.com:lumigo-io/utils.git
   checkout_code:
     description: "Checkout code and test it"
     steps:
@@ -55,9 +34,9 @@ commands:
       # Download and cache dependencies
       - restore_cache:
           keys:
-            - v2-dependencies-{{ checksum "requirements.txt" }}
+            - v1-dependencies-{{ checksum "requirements.txt" }}
             # fallback to using the latest cache if no exact match is found
-            - v2-dependencies-
+            - v1-dependencies-
 
       - run:
           name: install dependencies
@@ -74,14 +53,11 @@ commands:
       - run: pip install pytest-cov
       - run: pip install pre-commit
       - run: pre-commit install
-      - run: curl -sL https://deb.nodesource.com/setup_10.x | sudo bash -
-      - run: sudo apt install nodejs
-      - run: sudo npm i -g serverless@1.41.1
 
       - save_cache:
           paths:
             - ./venv
-          key: v2-dependencies-{{ checksum "requirements.txt" }}
+          key: v1-dependencies-{{ checksum "requirements.txt" }}
 
 workflows:
   test-deploy:
@@ -90,61 +66,34 @@ workflows:
         filters:
           branches:
             ignore: master
-    - integration-test:
-        filters:
-          branches:
-            ignore: master
-        requires:
-          - test
     - deploy:
         filters:
           branches:
             only: master
-  midnight-deploy: # Deploy everyday to make sure the latest nodejs tracer is deployed
-    triggers:
-      - schedule:
-          cron: "0 8 * * *"
-          filters:
-            branches:
-              only:
-                - master
-    jobs:
-      - deploy
 
 jobs:
   test:
     <<: *defaults
     steps:
-      - checkout_utils
       - checkout_code
+      - checkout_credentials
       # run tests!
-      - run: mkdir ~/.aws && printf "[default] \n aws_access_key_id=dummy \n aws_secret_access_key=dummy" > ~/.aws/credentials
-      - run: export AWS_DEFAULT_REGION=us-west-2 && export USER=CICD && pytest --cov=./
-      - run: export AWS_DEFAULT_REGION=us-west-2 && export USER=CICD && ./scripts/checks.sh
+      - run: echo "export AWS_DEFAULT_REGION=us-west-2" >> $BASH_ENV
+      - run: mkdir -p ~/.aws
+      - run: echo ${KEY} | gpg --batch -d --passphrase-fd 0 ../common-resources/encrypted_files/credentials_integration.enc > ~/.aws/credentials
+      - run: pre-commit install
+      - run: curl -sL https://deb.nodesource.com/setup_8.x | sudo bash -
+      - run: sudo apt install nodejs
+      - run: sudo npm install -g serverless@1.38.0
+      - run: sudo pip install awscli
+      - run: ./scripts/checks.sh
       - run: bash <(curl -s https://codecov.io/bash)
 
-  integration-test:
-    <<: *defaults
-    steps:
-      - checkout_utils
-      - checkout_code
-      - install_java
-      - run: sudo pip install awscli
-      - run: ./scripts/ci_deploy.sh
-      - run: cd ../integration-tests && npm i
-      - run: sudo npm install -g recursive-install
-      - run: cd ../integration-tests && ./scripts/prepare_env.sh
-      - run: cd ../integration-tests && ./scripts/deploy.sh
-      - run: cd ../integration-tests && npm run test
 
   deploy:
     <<: *defaults
     steps:
-      - checkout_utils
       - checkout_code
-      # Set environment variables to allow unit testing runs. See https://github.com/spulec/moto/issues/1941
-      - run: mkdir ~/.aws && printf "[default] \n aws_access_key_id=dummy \n aws_secret_access_key=dummy" > ~/.aws/credentials
-      - run: export AWS_DEFAULT_REGION=us-west-2 && export USER=CICD && pytest --cov=./
-      - run: bash <(curl -s https://codecov.io/bash)
+      - checkout_credentials
       - run: sudo pip install awscli
       - run: ./scripts/bd_to_prod.sh
