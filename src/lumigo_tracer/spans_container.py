@@ -11,7 +11,6 @@ from lumigo_tracer.parsers.utils import (
     parse_triggered_by,
     prepare_large_data,
 )
-from dataclasses import replace
 import time
 import os
 from .parsers.http_data_classes import HttpRequest
@@ -116,11 +115,9 @@ class SpansContainer:
                         self.events.pop()
                         prev_headers, prev_body = self.previous_request
                         body = (prev_body + parse_params.body)[:MAX_BODY_SIZE]
-                        self.add_request_event(
-                            replace(parse_params, headers=prev_headers, body=body)
-                        )
+                        self.add_request_event(parse_params.clone(headers=prev_headers, body=body))
                         return
-        self.add_request_event(replace(parse_params, headers=None))
+        self.add_request_event(parse_params.clone(headers=None))
 
     def update_event_end_time(self) -> None:
         """
