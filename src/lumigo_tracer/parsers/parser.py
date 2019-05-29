@@ -39,34 +39,29 @@ class Parser:
                 ),
                 "body": prepare_large_data(parse_params.body),
                 "method": parse_params.method,
+                "uri": parse_params.uri,
             }
         else:
-            additional_info = {}
+            additional_info = {"method": parse_params.method}
 
         return {
             "id": str(uuid.uuid1()),
             "type": HTTP_TYPE,
-            "info": {
-                "httpInfo": {
-                    "host": parse_params.host,
-                    "request": additional_info,
-                    "uri": parse_params.uri,
-                }
-            },
+            "info": {"httpInfo": {"host": parse_params.host, "request": additional_info}},
             "started": int(time.time() * 1000),
         }
 
     def parse_response(
-        self, url: str, response_code: int, headers: Optional[http.client.HTTPMessage], body: bytes
+        self, url: str, status_code: int, headers: Optional[http.client.HTTPMessage], body: bytes
     ) -> dict:
         if is_verbose():
             additional_info = {
                 "headers": prepare_large_data(dict(headers.items() if headers else {})),
                 "body": prepare_large_data(body),
-                "responseCode": response_code,
+                "statusCode": status_code,
             }
         else:
-            additional_info = {}
+            additional_info = {"statusCode": status_code}
 
         return {
             "type": HTTP_TYPE,
@@ -76,9 +71,9 @@ class Parser:
 
 
 class ServerlessAWSParser(Parser):
-    def parse_response(self, url: str, response_code: int, headers, body: bytes) -> dict:
+    def parse_response(self, url: str, status_code: int, headers, body: bytes) -> dict:
         return recursive_json_join(
-            super().parse_response(url, response_code, headers, body),
+            super().parse_response(url, status_code, headers, body),
             {"id": headers.get("x-amzn-requestid") or headers.get("x-amz-requestid")},
         )
 
@@ -109,9 +104,9 @@ class SnsParser(ServerlessAWSParser):
             },
         )
 
-    def parse_response(self, url: str, response_code: int, headers, body: bytes) -> dict:
+    def parse_response(self, url: str, status_code: int, headers, body: bytes) -> dict:
         return recursive_json_join(
-            super().parse_response(url, response_code, headers, body),
+            super().parse_response(url, status_code, headers, body),
             {"messageId": safe_key_from_xml(body, "PublishResponse/PublishResult/MessageId")},
         )
 

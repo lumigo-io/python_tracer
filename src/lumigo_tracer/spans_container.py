@@ -127,7 +127,7 @@ class SpansContainer:
             self.events[-1]["ended"] = int(time.time() * 1000)
 
     def add_response_event(
-        self, host: str, response_code: int, headers: http.client.HTTPMessage
+        self, host: str, status_code: int, headers: http.client.HTTPMessage
     ) -> None:
         """
         This function assumes synchronous execution - we update the last http event.
@@ -136,7 +136,7 @@ class SpansContainer:
         if self.events:
             self.events.append(
                 recursive_json_join(
-                    parser.parse_response(host, response_code, headers, b""), self.events.pop()
+                    parser.parse_response(host, status_code, headers, b""), self.events.pop()
                 )
             )
 

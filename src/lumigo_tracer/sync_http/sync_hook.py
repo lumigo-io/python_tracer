@@ -74,8 +74,8 @@ def _response_wrapper(func, instance, args, kwargs):
     ret_val = func(*args, **kwargs)
     with lumigo_safe_execute("parse response"):
         headers = ret_val.headers
-        response_code = ret_val.code
-        SpansContainer.get_span().add_response_event(instance.host, response_code, headers)
+        status_code = ret_val.code
+        SpansContainer.get_span().add_response_event(instance.host, status_code, headers)
     return ret_val
 
 
