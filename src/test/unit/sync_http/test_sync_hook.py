@@ -93,7 +93,6 @@ def test_lambda_wrapper_get_response():
     events = SpansContainer.get_span().events
 
     assert len(events) == 2
-    print(events[1]["info"]["httpInfo"]["response"])
     assert events[1]["info"]["httpInfo"]["response"]["statusCode"] == 200
 
 
