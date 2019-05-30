@@ -114,7 +114,6 @@ jobs:
     <<: *defaults
     steps:
       - checkout_code
-      - checkout_credentials
       # run tests!
       - run: echo "export AWS_DEFAULT_REGION=us-west-2" >> $BASH_ENV
       - run: mkdir -p ~/.aws
@@ -122,7 +121,7 @@ jobs:
       - run: pre-commit install
       - run: curl -sL https://deb.nodesource.com/setup_8.x | sudo bash -
       - run: sudo apt install nodejs
-      - run: sudo npm install -g serverless@1.38.0
+      - run: sudo npm install -g serverless@1.41.0
       - run: sudo pip install awscli
       - run: ./scripts/checks.sh
       - run: bash <(curl -s https://codecov.io/bash)
