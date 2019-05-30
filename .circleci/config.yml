@@ -5,6 +5,37 @@ defaults: &defaults
   - image: circleci/python:3.7
 
 commands:
+
+  install_java:
+    description: "Install java 8 JDK & maven"
+    steps:
+      - run:
+          command: |
+            sudo apt-get update
+            sudo apt-get install openjdk-8-jdk
+            sudo update-alternatives --config java
+            sudo apt install maven
+
+  install_node:
+    description: "Install node 10"
+    steps:
+      - run: curl -sL https://deb.nodesource.com/setup_10.x | sudo bash -
+      - run: sudo apt install nodejs
+      - run: sudo npm install -g serverless@1.41.1
+
+  checkout_utils:
+    description: "Checkout various utilities"
+    steps:
+      - run:
+          command: |
+            mkdir ~/.ssh/ && echo -e "Host github.com\n\tStrictHostKeyChecking no\n" > ~/.ssh/config
+            cd ..
+            git clone git@github.com:lumigo-io/common-resources.git
+      - run:
+          command: |
+            cd ..
+            git clone git@github.com:lumigo-io/utils.git
+
   checkout_credentials:
     description: "Checkout credentials"
     steps:
@@ -12,6 +43,7 @@ commands:
           command: |
             cd ..
             git clone git@github.com:lumigo-io/common-resources.git
+
   checkout_code:
     description: "Checkout code and test it"
     steps:
@@ -47,7 +79,6 @@ commands:
             cd src/
             python setup.py develop
             cd ..
-
       # https://discuss.circleci.com/t/activate-python-virtualenv-for-whole-job/14434
       - run: echo "source venv/bin/activate" >> $BASH_ENV
 
@@ -67,6 +98,12 @@ workflows:
         filters:
           branches:
             ignore: master
+    - integration-test:
+        filters:
+          branches:
+            ignore: master
+        requires:
+          - test
     - deploy:
         filters:
           branches:
@@ -85,11 +122,25 @@ jobs:
       - run: pre-commit install
       - run: curl -sL https://deb.nodesource.com/setup_8.x | sudo bash -
       - run: sudo apt install nodejs
-      - run: sudo npm install -g serverless@1.38.0
+      - run: sudo npm install -g serverless
       - run: sudo pip install awscli
       - run: ./scripts/checks.sh
       - run: bash <(curl -s https://codecov.io/bash)
 
+  integration-test:
+    <<: *defaults
+    steps:
+      - install_java
+      - install_node
+      - checkout_utils
+      - checkout_code
+      - run: sudo pip install awscli
+      - run: ./scripts/ci_deploy.sh
+      - run: cd ../integration-tests && npm i
+      - run: sudo npm install -g recursive-install
+      - run: cd ../integration-tests && ./scripts/prepare_env.sh
+      - run: cd ../integration-tests && ./scripts/deploy.sh
+      - run: cd ../integration-tests && npm run test
 
   deploy:
     <<: *defaults

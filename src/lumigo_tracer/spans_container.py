@@ -13,15 +13,11 @@ from lumigo_tracer.parsers.utils import (
 )
 import time
 import os
+from .parsers.http_data_classes import HttpRequest
 
 _VERSION_PATH = os.path.join(os.path.dirname(__file__), "..", "VERSION")
 MAX_LAMBDA_TIME = 15 * 60 * 1000
 MAX_BODY_SIZE = 1024
-
-
-class EventType:
-    RESPONSE = 1
-    REQUEST = 2
 
 
 class SpansContainer:
@@ -94,21 +90,16 @@ class SpansContainer:
         self.start_msg["reporter_rtt"] = report_duration
         self.events = [self.start_msg]
 
-    def add_event(
-        self, url: str, headers: Optional[http.client.HTTPMessage], body: bytes, event_type
-    ) -> None:
+    def add_request_event(self, parse_params: HttpRequest):
         """
-        This function parses an input event and add it to the span.
+            This function parses an request event and add it to the span.
         """
-        parser = get_parser(url)()
-        if event_type == EventType.REQUEST:
-            msg = parser.parse_request(url, headers, body)
-            self.previous_request = headers, body
-        else:
-            msg = parser.parse_response(url, headers, body)
+        parser = get_parser(parse_params.host)()
+        msg = parser.parse_request(parse_params)
+        self.previous_request = parse_params.headers, parse_params.body
         self.events.append(recursive_json_join(self.base_msg, msg))
 
-    def add_unparsed_request(self, url: str, body: bytes):
+    def add_unparsed_request(self, parse_params: HttpRequest):
         """
         This function handle the case where we got a request the is not fully formatted as we expected,
         I.e. there isn't '\r\n' in the request data that <i>logically</i> splits the headers from the body.
@@ -119,15 +110,14 @@ class SpansContainer:
         if self.events:
             last_event = self.events[-1]
             if last_event and last_event.get("type") == HTTP_TYPE:
-                if last_event.get("info", {}).get("httpInfo", {}).get("host") == url:
+                if last_event.get("info", {}).get("httpInfo", {}).get("host") == parse_params.host:
                     if "response" not in last_event["info"]["httpInfo"]:
                         self.events.pop()
                         prev_headers, prev_body = self.previous_request
-                        self.add_event(
-                            url, prev_headers, (prev_body + body)[:MAX_BODY_SIZE], EventType.REQUEST
-                        )
+                        body = (prev_body + parse_params.body)[:MAX_BODY_SIZE]
+                        self.add_request_event(parse_params.clone(headers=prev_headers, body=body))
                         return
-        self.add_event(url, None, body, EventType.REQUEST)
+        self.add_request_event(parse_params.clone(headers=None))
 
     def update_event_end_time(self) -> None:
         """
@@ -137,7 +127,7 @@ class SpansContainer:
             self.events[-1]["ended"] = int(time.time() * 1000)
 
     def update_event(
-        self, host: Optional[str], headers: http.client.HTTPMessage, body: bytes
+        self, host: Optional[str], status_code: int, headers: http.client.HTTPMessage, body: bytes
     ) -> None:
         """
         :param host: If None, use the host from the last span.
@@ -150,7 +140,8 @@ class SpansContainer:
             parser = get_parser(host)()  # type: ignore
             self.events.append(
                 recursive_json_join(
-                    parser.parse_response(host, headers, body), last_event  # type: ignore
+                    parser.parse_response(host, status_code, headers, body),  # type: ignore
+                    last_event,  # type: ignore
                 )
             )
 
