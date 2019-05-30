@@ -114,6 +114,7 @@ jobs:
     <<: *defaults
     steps:
       - checkout_code
+      - checkout_credentials
       # run tests!
       - run: echo "export AWS_DEFAULT_REGION=us-west-2" >> $BASH_ENV
       - run: mkdir -p ~/.aws
