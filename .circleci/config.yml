@@ -14,26 +14,26 @@ commands:
             sudo apt-get install openjdk-8-jdk
             sudo update-alternatives --config java
             sudo apt install maven
-    install_node:
-      description: "Install node 10"
-      steps:
-        - run: curl -sL https://deb.nodesource.com/setup_10.x | sudo bash -
-        - run: sudo apt install nodejs
-        - run: sudo npm install -g serverless@1.41.1
+  install_node:
+    description: "Install node 10"
+    steps:
+      - run: curl -sL https://deb.nodesource.com/setup_10.x | sudo bash -
+      - run: sudo apt install nodejs
+      - run: sudo npm install -g serverless@1.41.1
 
 
-    checkout_utils:
-      description: "Checkout various utilities"
-      steps:
-        - run:
-            command: |
-              mkdir ~/.ssh/ && echo -e "Host github.com\n\tStrictHostKeyChecking no\n" > ~/.ssh/config
-              cd ..
-              git clone git@github.com:lumigo-io/common-resources.git
-        - run:
-            command: |
-              cd ..
-              git clone git@github.com:lumigo-io/utils.git
+  checkout_utils:
+    description: "Checkout various utilities"
+    steps:
+      - run:
+        command: |
+          mkdir ~/.ssh/ && echo -e "Host github.com\n\tStrictHostKeyChecking no\n" > ~/.ssh/config
+          cd ..
+          git clone git@github.com:lumigo-io/common-resources.git
+      - run:
+        command: |
+          cd ..
+          git clone git@github.com:lumigo-io/utils.git
 
   checkout_credentials:
     description: "Checkout credentials"
