@@ -139,7 +139,7 @@ jobs:
       - run: cd ../integration-tests && ./scripts/prepare_env.sh
       - run: cd ../integration-tests && ./scripts/deploy.sh
       - run: cd ../integration-tests && npm run test
-ß
+
   deploy:
     <<: *defaults
     steps:
