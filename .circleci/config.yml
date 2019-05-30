@@ -135,6 +135,7 @@ jobs:
       - checkout_utils
       - checkout_code
       - run: sudo pip install awscli
+      - run: ./scripts/ci_deploy.sh
       - run: cd ../integration-tests && npm i
       - run: sudo npm install -g recursive-install
       - run: cd ../integration-tests && ./scripts/prepare_env.sh
