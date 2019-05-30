@@ -39,15 +39,16 @@ def _request_wrapper(func, instance, args, kwargs):
         if isinstance(data, bytes) and _BODY_HEADER_SPLITTER in data:
             headers, body = data.split(_BODY_HEADER_SPLITTER, 1)
             if _FLAGS_HEADER_SPLITTER in headers:
-                _, headers = headers.split(_FLAGS_HEADER_SPLITTER, 1)
+                request_info, headers = headers.split(_FLAGS_HEADER_SPLITTER, 1)
                 headers = http.client.parse_headers(BytesIO(headers))
                 path_and_query_params = (
-                    _.decode("ascii")
+                    # Parse path from request info, remove method (GET | POST) and http version (HTTP/1.1)
+                    request_info.decode("ascii")
                     .replace(method, "")
                     .replace(instance._http_vsn_str, "")
                     .strip()
                 )
-                uri = "{}{}".format(host, path_and_query_params)
+                uri = f"{host}{path_and_query_params}"
                 host = host or headers.get("Host")
 
     with lumigo_safe_execute("add request event"):
@@ -57,7 +58,7 @@ def _request_wrapper(func, instance, args, kwargs):
             )
         else:
             SpansContainer.get_span().add_unparsed_request(
-                HttpRequest(host=host, method=method, uri=uri, headers=headers, body=data)
+                HttpRequest(host=host, method=method, uri=uri, body=data)
             )
 
     ret_val = func(*args, **kwargs)

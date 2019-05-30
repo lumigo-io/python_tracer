@@ -1,12 +1,13 @@
 from http import client
 from copy import deepcopy
+from typing import Optional
 
 
 class HttpRequest:
     host: str
     method: str
     uri: str
-    headers: client.HTTPMessage
+    headers: Optional[client.HTTPMessage]
     body: bytes
 
     def __init__(self, **kwargs):

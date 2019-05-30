@@ -80,7 +80,7 @@ class ServerlessAWSParser(Parser):
 
 class DynamoParser(ServerlessAWSParser):
     def parse_request(self, parse_params: HttpRequest) -> dict:
-        target: str = str(parse_params.headers.get("x-amz-target", ""))
+        target: str = str(parse_params.headers.get("x-amz-target", ""))  # type: ignore
         return recursive_json_join(
             super().parse_request(parse_params),
             {
@@ -116,8 +116,10 @@ class LambdaParser(ServerlessAWSParser):
         return recursive_json_join(
             super().parse_request(parse_params),
             {
-                "name": safe_split_get(str(parse_params.headers.get("path", "")), "/", 3),
-                "invocationType": parse_params.headers.get("x-amz-invocation-type"),
+                "name": safe_split_get(
+                    str(parse_params.headers.get("path", "")), "/", 3  # type: ignore
+                ),
+                "invocationType": parse_params.headers.get("x-amz-invocation-type"),  # type: ignore
             },
         )
 
