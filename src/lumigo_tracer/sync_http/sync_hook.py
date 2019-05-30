@@ -76,7 +76,7 @@ def _response_wrapper(func, instance, args, kwargs):
     with lumigo_safe_execute("parse response"):
         headers = ret_val.headers
         status_code = ret_val.code
-        SpansContainer.get_span().update_event(instance.host, status_code, headers, b"")
+        SpansContainer.get_span().update_event_response(instance.host, status_code, headers, b"")
     return ret_val
 
 
@@ -88,7 +88,9 @@ def _read_wrapper(func, instance, args, kwargs):
     ret_val = func(*args, **kwargs)
     if ret_val:
         with lumigo_safe_execute("parse response.read"):
-            SpansContainer.get_span().update_event(None, instance.code, instance.headers, ret_val)
+            SpansContainer.get_span().update_event_response(
+                None, instance.code, instance.headers, ret_val
+            )
     return ret_val
 
 

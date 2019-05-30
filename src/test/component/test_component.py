@@ -76,7 +76,6 @@ def test_sns(sns_resource, region):
     assert events[1]["info"]["httpInfo"]["host"] == f"sns.{region}.amazonaws.com"
     assert events[1]["info"]["resourceName"] == sns_resource
     assert events[1]["info"]["messageId"]
-    assert events[1]["info"]["httpInfo"]["response"]["body"]
 
 
 @pytest.mark.slow
