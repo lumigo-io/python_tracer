@@ -69,6 +69,33 @@ def test_lambda_wrapper_http():
     assert "Content-Length" in events[1]["info"]["httpInfo"]["request"]["headers"]
 
 
+def test_lambda_wrapper_query_with_http_params():
+    @lumigo_tracer(token="123")
+    def lambda_test_function():
+        http.client.HTTPConnection("www.google.com").request("GET", "/?q=123")
+
+    lambda_test_function()
+    events = SpansContainer.get_span().events
+
+    assert len(events) == 2
+    print(events[1]["info"]["httpInfo"]["request"])
+    assert events[1]["info"]["httpInfo"]["request"]["uri"] == "www.google.com/?q=123"
+
+
+def test_lambda_wrapper_get_response():
+    @lumigo_tracer(token="123")
+    def lambda_test_function():
+        conn = http.client.HTTPConnection("www.google.com")
+        conn.request("GET", "")
+        conn.getresponse()
+
+    lambda_test_function()
+    events = SpansContainer.get_span().events
+
+    assert len(events) == 2
+    assert events[1]["info"]["httpInfo"]["response"]["statusCode"] == 200
+
+
 def test_lambda_wrapper_http_splitted_send():
     """
     This is a test for the specific case of requests, where they split the http requests into headers and body.

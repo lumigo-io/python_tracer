@@ -12,6 +12,7 @@ from lumigo_tracer.parsers.utils import (
     prepare_large_data,
 )
 from lumigo_tracer.utils import is_verbose
+from .http_data_classes import HttpRequest
 
 HTTP_TYPE = "http"
 
@@ -30,34 +31,37 @@ class Parser:
                  |----- <FutureParser> ----\
     """
 
-    def parse_request(
-        self, url: str, headers: Optional[http.client.HTTPMessage], body: bytes
-    ) -> dict:
+    def parse_request(self, parse_params: HttpRequest) -> dict:
         if is_verbose():
             additional_info = {
-                "headers": prepare_large_data(dict(headers.items() if headers else {})),
-                "body": prepare_large_data(body),
+                "headers": prepare_large_data(
+                    dict(parse_params.headers.items() if parse_params.headers else {})
+                ),
+                "body": prepare_large_data(parse_params.body),
+                "method": parse_params.method,
+                "uri": parse_params.uri,
             }
         else:
-            additional_info = {}
+            additional_info = {"method": parse_params.method}
 
         return {
             "id": str(uuid.uuid1()),
             "type": HTTP_TYPE,
-            "info": {"httpInfo": {"host": url, "request": additional_info}},
+            "info": {"httpInfo": {"host": parse_params.host, "request": additional_info}},
             "started": int(time.time() * 1000),
         }
 
     def parse_response(
-        self, url: str, headers: Optional[http.client.HTTPMessage], body: bytes
+        self, url: str, status_code: int, headers: Optional[http.client.HTTPMessage], body: bytes
     ) -> dict:
         if is_verbose():
             additional_info = {
                 "headers": prepare_large_data(dict(headers.items() if headers else {})),
                 "body": prepare_large_data(body),
+                "statusCode": status_code,
             }
         else:
-            additional_info = {}
+            additional_info = {"statusCode": status_code}
 
         return {
             "type": HTTP_TYPE,
@@ -67,69 +71,72 @@ class Parser:
 
 
 class ServerlessAWSParser(Parser):
-    def parse_response(self, url: str, headers, body: bytes) -> dict:
+    def parse_response(self, url: str, status_code: int, headers, body: bytes) -> dict:
         return recursive_json_join(
-            super().parse_response(url, headers, body),
+            super().parse_response(url, status_code, headers, body),
             {"id": headers.get("x-amzn-requestid") or headers.get("x-amz-requestid")},
         )
 
 
 class DynamoParser(ServerlessAWSParser):
-    def parse_request(self, url: str, headers, body: bytes) -> dict:
+    def parse_request(self, parse_params: HttpRequest) -> dict:
+        target: str = str(parse_params.headers.get("x-amz-target", ""))  # type: ignore
         return recursive_json_join(
-            super().parse_request(url, headers, body),
+            super().parse_request(parse_params),
             {
                 "info": {
-                    "resourceName": safe_key_from_json(body, "TableName"),
-                    "dynamodbMethod": safe_split_get(headers.get("x-amz-target", ""), ".", 1),
+                    "resourceName": safe_key_from_json(parse_params.body, "TableName"),
+                    "dynamodbMethod": safe_split_get(target, ".", 1),
                 }
             },
         )
 
 
 class SnsParser(ServerlessAWSParser):
-    def parse_request(self, url: str, headers, body: bytes) -> dict:
+    def parse_request(self, parse_params: HttpRequest) -> dict:
         return recursive_json_join(
-            super().parse_request(url, headers, body),
+            super().parse_request(parse_params),
             {
                 "info": {
-                    "resourceName": safe_key_from_query(body, "TopicArn"),
-                    "targetArn": safe_key_from_query(body, "TopicArn"),
+                    "resourceName": safe_key_from_query(parse_params.body, "TopicArn"),
+                    "targetArn": safe_key_from_query(parse_params.body, "TopicArn"),
                 }
             },
         )
 
-    def parse_response(self, url: str, headers, body: bytes) -> dict:
+    def parse_response(self, url: str, status_code: int, headers, body: bytes) -> dict:
         return recursive_json_join(
-            super().parse_response(url, headers, body),
+            super().parse_response(url, status_code, headers, body),
             {"messageId": safe_key_from_xml(body, "PublishResponse/PublishResult/MessageId")},
         )
 
 
 class LambdaParser(ServerlessAWSParser):
-    def parse_request(self, url: str, headers, body: bytes) -> dict:
+    def parse_request(self, parse_params: HttpRequest) -> dict:
         return recursive_json_join(
-            super().parse_request(url, headers, body),
+            super().parse_request(parse_params),
             {
-                "name": safe_split_get(headers.get("path", ""), "/", 3),
-                "invocationType": headers.get("x-amz-invocation-type"),
+                "name": safe_split_get(
+                    str(parse_params.headers.get("path", "")), "/", 3  # type: ignore
+                ),
+                "invocationType": parse_params.headers.get("x-amz-invocation-type"),  # type: ignore
             },
         )
 
 
 class KinesisParser(ServerlessAWSParser):
-    def parse_request(self, url: str, headers, body: bytes) -> dict:
+    def parse_request(self, parse_params: HttpRequest) -> dict:
         return recursive_json_join(
-            super().parse_request(url, headers, body),
-            {"info": {"resourceName": safe_key_from_json(body, "StreamName")}},
+            super().parse_request(parse_params),
+            {"info": {"resourceName": safe_key_from_json(parse_params.body, "StreamName")}},
         )
 
 
 class SqsParser(ServerlessAWSParser):
-    def parse_request(self, url: str, headers, body: bytes) -> dict:
+    def parse_request(self, parse_params: HttpRequest) -> dict:
         return recursive_json_join(
-            super().parse_request(url, headers, body),
-            {"info": {"resourceName": safe_key_from_query(body, "QueueUrl")}},
+            super().parse_request(parse_params),
+            {"info": {"resourceName": safe_key_from_query(parse_params.body, "QueueUrl")}},
         )
 
 

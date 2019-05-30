@@ -5,8 +5,9 @@ import http.client
 from io import BytesIO
 import os
 from functools import wraps
-from lumigo_tracer.spans_container import SpansContainer, EventType
+from lumigo_tracer.spans_container import SpansContainer
 import builtins
+from ..parsers.http_data_classes import HttpRequest
 
 _BODY_HEADER_SPLITTER = b"\r\n\r\n"
 _FLAGS_HEADER_SPLITTER = b"\r\n"
@@ -27,20 +28,38 @@ def _request_wrapper(func, instance, args, kwargs):
             data = data.read(MAX_READ_SIZE)
             args[0].seek(current_pos)
 
-    url, headers, body = getattr(instance, "host", None), None, None
+    host, method, headers, body, uri = (
+        getattr(instance, "host", None),
+        getattr(instance, "_method", None),
+        None,
+        None,
+        None,
+    )
     with lumigo_safe_execute("parse request"):
         if isinstance(data, bytes) and _BODY_HEADER_SPLITTER in data:
             headers, body = data.split(_BODY_HEADER_SPLITTER, 1)
             if _FLAGS_HEADER_SPLITTER in headers:
-                _, headers = headers.split(_FLAGS_HEADER_SPLITTER, 1)
+                request_info, headers = headers.split(_FLAGS_HEADER_SPLITTER, 1)
                 headers = http.client.parse_headers(BytesIO(headers))
-                url = url or headers.get("Host")
+                path_and_query_params = (
+                    # Parse path from request info, remove method (GET | POST) and http version (HTTP/1.1)
+                    request_info.decode("ascii")
+                    .replace(method, "")
+                    .replace(instance._http_vsn_str, "")
+                    .strip()
+                )
+                uri = f"{host}{path_and_query_params}"
+                host = host or headers.get("Host")
 
     with lumigo_safe_execute("add request event"):
         if headers:
-            SpansContainer.get_span().add_event(url, headers, body, EventType.REQUEST)
+            SpansContainer.get_span().add_request_event(
+                HttpRequest(host=host, method=method, uri=uri, headers=headers, body=body)
+            )
         else:
-            SpansContainer.get_span().add_unparsed_request(url, data)
+            SpansContainer.get_span().add_unparsed_request(
+                HttpRequest(host=host, method=method, uri=uri, body=data)
+            )
 
     ret_val = func(*args, **kwargs)
     with lumigo_safe_execute("add response event"):
@@ -56,7 +75,8 @@ def _response_wrapper(func, instance, args, kwargs):
     ret_val = func(*args, **kwargs)
     with lumigo_safe_execute("parse response"):
         headers = ret_val.headers
-        SpansContainer.get_span().update_event_headers(instance.host, headers)
+        status_code = ret_val.code
+        SpansContainer.get_span().add_response_event(instance.host, status_code, headers)
     return ret_val
 
 
