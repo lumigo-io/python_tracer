@@ -75,7 +75,8 @@ def test_sns(sns_resource, region):
     assert len(events) == 2
     assert events[1]["info"]["httpInfo"]["host"] == f"sns.{region}.amazonaws.com"
     assert events[1]["info"]["resourceName"] == sns_resource
-    # assert events[2].get("messageId") is not None  # this is valid only when we read the body
+    assert events[1]["info"]["messageId"]
+    assert events[1]["info"]["httpInfo"]["response"]["body"]
 
 
 @pytest.mark.slow
@@ -119,3 +120,15 @@ def test_sqs(sqs_resource, region):
     assert len(events) == 2
     assert events[1]["info"]["httpInfo"]["host"] == f"{region}.queue.amazonaws.com"
     assert events[1]["info"]["resourceName"] == sqs_resource
+
+
+@pytest.mark.slow
+def test_get_body_from_aws_response(sqs_resource, region):
+    @lumigo_tracer(token="123")
+    def lambda_test_function():
+        boto3.client("sqs").send_message(QueueUrl=sqs_resource, MessageBody="myMessage")
+
+    lambda_test_function()
+    events = SpansContainer.get_span().events
+    # making sure there is any data in the body, 10 is an arbitrary number.
+    assert len(events[1]["info"]["httpInfo"]["response"]["body"]) > 10

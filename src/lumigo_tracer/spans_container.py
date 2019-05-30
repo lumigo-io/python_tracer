@@ -44,8 +44,8 @@ class SpansContainer:
         trace_id_suffix: str = None,
         trigger_by: dict = None,
         max_finish_time: int = None,
-        event: dict = None,
-        envs: dict = None,
+        event: str = None,
+        envs: str = None,
     ):
         self.name = name
         self.events: List[Dict] = []
@@ -136,14 +136,22 @@ class SpansContainer:
         if self.events:
             self.events[-1]["ended"] = int(time.time() * 1000)
 
-    def update_event_headers(self, host: str, headers: http.client.HTTPMessage) -> None:
+    def update_event(
+        self, host: Optional[str], headers: http.client.HTTPMessage, body: bytes
+    ) -> None:
         """
+        :param host: If None, use the host from the last span.
         This function assumes synchronous execution - we update the last http event.
         """
-        parser = get_parser(host)()
         if self.events:
+            last_event = self.events.pop()
+            if not host:
+                host = last_event.get("info", {}).get("httpInfo", {}).get("host", "unknown")
+            parser = get_parser(host)()  # type: ignore
             self.events.append(
-                recursive_json_join(parser.parse_response(host, headers, b""), self.events.pop())
+                recursive_json_join(
+                    parser.parse_response(host, headers, body), last_event  # type: ignore
+                )
             )
 
     def add_exception_event(self, exception: Exception) -> None:

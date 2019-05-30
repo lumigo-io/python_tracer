@@ -157,7 +157,11 @@ def _is_supported_sns(event: dict):
 
 
 def _parse_sns(event: dict):
-    return {"triggeredBy": "sns", "arn": event["Records"][0]["Sns"]["TopicArn"]}
+    return {
+        "triggeredBy": "sns",
+        "arn": event["Records"][0]["Sns"]["TopicArn"],
+        "messageId": event["Records"][0]["Sns"]["MessageId"],
+    }
 
 
 def _is_supported_streams(event: dict):
@@ -179,7 +183,7 @@ def _parse_streams(event: dict):
     return result
 
 
-def prepare_large_data(value, max_size=MAX_ENTRY_SIZE):
+def prepare_large_data(value, max_size=MAX_ENTRY_SIZE) -> str:
     """
     This function prepare the given value to send it to lumigo.
     You should call to this function if there's a possibility that the value will be big.

@@ -102,7 +102,11 @@ class SnsParser(ServerlessAWSParser):
     def parse_response(self, url: str, headers, body: bytes) -> dict:
         return recursive_json_join(
             super().parse_response(url, headers, body),
-            {"messageId": safe_key_from_xml(body, "PublishResponse/PublishResult/MessageId")},
+            {
+                "info": {
+                    "messageId": safe_key_from_xml(body, "PublishResponse/PublishResult/MessageId")
+                }
+            },
         )
 
 
