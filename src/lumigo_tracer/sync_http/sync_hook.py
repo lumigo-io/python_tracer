@@ -1,13 +1,16 @@
-from lumigo_tracer.libs.wrapt import wrap_function_wrapper
-from lumigo_tracer.parsers.utils import safe_get
-from lumigo_tracer.utils import config, get_logger, lumigo_safe_execute, is_enhanced_print
 import http.client
 from io import BytesIO
 import os
 from functools import wraps
-from lumigo_tracer.spans_container import SpansContainer
 import builtins
+import logging
+
+from lumigo_tracer.libs.wrapt import wrap_function_wrapper
+from lumigo_tracer.parsers.utils import safe_get
+from lumigo_tracer.utils import config, get_logger, lumigo_safe_execute, is_enhanced_print
+from lumigo_tracer.spans_container import SpansContainer
 from ..parsers.http_data_classes import HttpRequest
+
 
 _BODY_HEADER_SPLITTER = b"\r\n\r\n"
 _FLAGS_HEADER_SPLITTER = b"\r\n"
@@ -103,6 +106,10 @@ def _putheader_wrapper(func, instance, args, kwargs):
     return ret_val
 
 
+def _add_prefix_for_each_line(prefix: str, text: str) -> str:
+    return prefix + " " + text.replace("\n", f"\n{prefix} ")
+
+
 def _lumigo_tracer(func):
     @wraps(func)
     def lambda_wrapper(*args, **kwargs):
@@ -112,6 +119,7 @@ def _lumigo_tracer(func):
         executed = False
         ret_val = None
         local_print = print
+        local_logging_format = logging.Formatter.format
         try:
 
             if is_enhanced_print():
@@ -120,6 +128,9 @@ def _lumigo_tracer(func):
                     prefix = f"RequestId: {request_id}"
                     builtins.print = lambda *args, **kwargs: local_print(
                         prefix, *[str(arg).replace("\n", f"\n{prefix} ") for arg in args], **kwargs
+                    )
+                    logging.Formatter.format = lambda self, record: _add_prefix_for_each_line(
+                        prefix, local_logging_format(self, record)
                     )
             SpansContainer.create_span(*args, force=True)
             SpansContainer.get_span().start()
@@ -134,6 +145,7 @@ def _lumigo_tracer(func):
             finally:
                 SpansContainer.get_span().end(ret_val)
                 builtins.print = local_print
+                logging.Formatter.format = local_logging_format
             return ret_val
         except Exception:
             # The case where our wrapping raised an exception
