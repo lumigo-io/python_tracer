@@ -160,7 +160,7 @@ def _parse_sns(event: dict):
     return {
         "triggeredBy": "sns",
         "arn": event["Records"][0]["Sns"]["TopicArn"],
-        "messageId": event["Records"][0]["Sns"]["MessageId"],
+        "messageId": event["Records"][0]["Sns"].get("MessageId"),
     }
 
 

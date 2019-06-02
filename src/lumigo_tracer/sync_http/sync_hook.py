@@ -83,7 +83,6 @@ def _response_wrapper(func, instance, args, kwargs):
 def _read_wrapper(func, instance, args, kwargs):
     """
     This is the wrapper of the function that can be called only after `getresponse` was called.
-    Note that we don't examine the response data because it may change the original behaviour (instance.peek()).
     """
     ret_val = func(*args, **kwargs)
     if ret_val:

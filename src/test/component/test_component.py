@@ -129,5 +129,6 @@ def test_get_body_from_aws_response(sqs_resource, region):
 
     lambda_test_function()
     events = SpansContainer.get_span().events
-    # making sure there is any data in the body, 10 is an arbitrary number.
-    assert len(events[1]["info"]["httpInfo"]["response"]["body"]) > 10
+    # making sure there is any data in the body.
+    body = events[1]["info"]["httpInfo"]["response"]["body"]
+    assert body and body != "b''"
