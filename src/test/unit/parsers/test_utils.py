@@ -108,11 +108,18 @@ def test_recursive_json_join(d1, d2, result):
                 "Records": [
                     {
                         "EventSource": "aws:sns",
-                        "Sns": {"TopicArn": "arn:aws:sns:us-east-1:123456789:sns-topic-name"},
+                        "Sns": {
+                            "TopicArn": "arn:aws:sns:us-east-1:123456789:sns-topic-name",
+                            "MessageId": "9cecb7e5-b11e-59fa-95c8-e28d3f64d6a8",
+                        },
                     }
                 ]
             },
-            {"triggeredBy": "sns", "arn": "arn:aws:sns:us-east-1:123456789:sns-topic-name"},
+            {
+                "triggeredBy": "sns",
+                "arn": "arn:aws:sns:us-east-1:123456789:sns-topic-name",
+                "messageId": "9cecb7e5-b11e-59fa-95c8-e28d3f64d6a8",
+            },
         ),
         (  # s3 example trigger
             {

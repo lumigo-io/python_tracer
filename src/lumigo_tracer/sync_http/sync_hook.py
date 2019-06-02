@@ -69,14 +69,27 @@ def _request_wrapper(func, instance, args, kwargs):
 
 def _response_wrapper(func, instance, args, kwargs):
     """
-    This is the wrapper of the function that called after that the http request was sent.
+    This is the wrapper of the function that can be called only after that the http request was sent.
     Note that we don't examine the response data because it may change the original behaviour (ret_val.peek()).
     """
     ret_val = func(*args, **kwargs)
     with lumigo_safe_execute("parse response"):
         headers = ret_val.headers
         status_code = ret_val.code
-        SpansContainer.get_span().add_response_event(instance.host, status_code, headers)
+        SpansContainer.get_span().update_event_response(instance.host, status_code, headers, b"")
+    return ret_val
+
+
+def _read_wrapper(func, instance, args, kwargs):
+    """
+    This is the wrapper of the function that can be called only after `getresponse` was called.
+    """
+    ret_val = func(*args, **kwargs)
+    if ret_val:
+        with lumigo_safe_execute("parse response.read"):
+            SpansContainer.get_span().update_event_response(
+                None, instance.code, instance.headers, ret_val
+            )
     return ret_val
 
 
@@ -167,4 +180,5 @@ def wrap_http_calls():
             wrap_function_wrapper("http.client", "HTTPConnection.send", _request_wrapper)
             wrap_function_wrapper("botocore.awsrequest", "AWSRequest.__init__", _putheader_wrapper)
             wrap_function_wrapper("http.client", "HTTPConnection.getresponse", _response_wrapper)
+            wrap_function_wrapper("http.client", "HTTPResponse.read", _read_wrapper)
             already_wrapped = True

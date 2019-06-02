@@ -21,7 +21,7 @@ commands:
     steps:
       - run: curl -sL https://deb.nodesource.com/setup_10.x | sudo bash -
       - run: sudo apt install nodejs
-      - run: sudo npm install -g serverless@1.41.1
+      - run: sudo npm install -g serverless
 
   checkout_utils:
     description: "Checkout various utilities"
