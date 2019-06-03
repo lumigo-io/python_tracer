@@ -167,7 +167,7 @@ def lumigo_tracer(*args, **kwargs):
 
 
 class LumigoChalice:
-    NEW_HANDLER_DECORATORS = [
+    DECORATORS_OF_NEW_HANDLERS = [
         "on_s3_event",
         "on_sns_message",
         "on_sqs_message",
@@ -177,26 +177,31 @@ class LumigoChalice:
     ]
 
     def __init__(self, app, *args, **kwargs):
-        self.args = args
-        self.kwargs = kwargs
+        self.lumigo_conf_args = args
+        self.lumigo_conf_kwargs = kwargs
         self.app = app
         self.original_app_attr_getter = app.__getattribute__
-        self.lumigo_app = lumigo_tracer(*self.args, **self.kwargs)(app)
+        self.lumigo_app = lumigo_tracer(*self.lumigo_conf_args, **self.lumigo_conf_kwargs)(app)
 
     def __getattr__(self, item):
         original_attr = self.original_app_attr_getter(item)
-        if is_aws_environment() and item in self.NEW_HANDLER_DECORATORS:
+        if is_aws_environment() and item in self.DECORATORS_OF_NEW_HANDLERS:
 
-            def wrapper(*args, **kwargs):
-                first = original_attr(*args, **kwargs)
+            def get_decorator(*args, **kwargs):
+                # calling the annotation, example `app.authorizer(THIS)`
+                chalice_actual_decorator = original_attr(*args, **kwargs)
 
-                def wrapper2(*args2, **kwargs2):
-                    second = first(*args2, **kwargs2)
-                    return LumigoChalice(second, *self.args, **self.kwargs)
+                def wrapper2(func):
+                    user_func_wrapped_by_chalice = chalice_actual_decorator(func)
+                    return LumigoChalice(
+                        user_func_wrapped_by_chalice,
+                        *self.lumigo_conf_args,
+                        **self.lumigo_conf_kwargs,
+                    )
 
                 return wrapper2
 
-            return wrapper
+            return get_decorator
         return original_attr
 
     def __call__(self, *args, **kwargs):

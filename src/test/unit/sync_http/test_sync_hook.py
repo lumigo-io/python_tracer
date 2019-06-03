@@ -251,31 +251,35 @@ def test_lumigo_chalice():
     assert SpansContainer.get_span().events
 
 
-def test_lumigo_chalice_outer_lambdas(monkeypatch):
+def test_lumigo_chalice_create_extra_lambdas(monkeypatch):
     # mimic aws env
     monkeypatch.setitem(os.environ, "LAMBDA_RUNTIME_DIR", "true")
 
-    class App:
+    class Chalice:
+        """
+        This class in a mimic of chalice.
+        """
+
         touched = False
 
         @staticmethod
-        def lambda_function(**kwargs):
-            App.touched = True  # represents chalice's global analysis (in the deploy process)
+        def on_s3_event(**kwargs):
+            Chalice.touched = True  # represents chalice's global analysis (in the deploy process)
 
-            def wrapper(func):
+            def _create_registration_function(func):
                 @wraps(func)
-                def inner_wrapper(*args, **kwargs):
+                def user_lambda_handler(*args, **kwargs):
                     return func(*args, **kwargs)
 
-                return inner_wrapper
+                return user_lambda_handler
 
-            return wrapper
+            return _create_registration_function
 
-    app = App()
+    app = Chalice()
     app = LumigoChalice(app)
 
-    @app.lambda_function(name="test")
-    def outer_lambda(event, context):
+    @app.on_s3_event(name="test")
+    def handler(event, context):
         return "hello world"
 
     # should run the outer code before lambda execution, but not create span (in global execution)
@@ -283,5 +287,5 @@ def test_lumigo_chalice_outer_lambdas(monkeypatch):
     assert not SpansContainer.get_span().events
 
     # should create a new span (but return the original value)
-    assert outer_lambda({}, {}) == "hello world"
+    assert handler({}, {}) == "hello world"
     assert SpansContainer.get_span().events
