@@ -260,8 +260,34 @@ def test_wrapping_with_logging_override_default_usage(caplog):
 
     assert lambda_test_function({}, SimpleNamespace(aws_request_id="1234")) == 1
     assert utils._ENHANCE_PRINT is True
-    assert "RequestId: 1234 test_sync_hook.py " in caplog.text
-    assert " WARNING  hello\nRequestId: 1234 world" in caplog.text
+    assert "RequestId: 1234 test_sync_hook.py" in caplog.text
+    assert "WARNING  hello\nRequestId: 1234 world" in caplog.text
+
+
+def test_wrapping_with_logging_override_all_levels(caplog):
+    @lumigo_tracer(enhance_print=True)
+    def lambda_test_function(event, context):
+        logger = logging.getLogger("logger_name")
+        handler = logging.StreamHandler()
+        logger.setLevel(logging.DEBUG)
+        logger.addHandler(handler)
+
+        logger.debug("hello")
+        logger.info("hello")
+        logger.warning("hello")
+        logger.error("hello")
+        logger.exception("hello")
+        logger.critical("hello")
+        return 1
+
+    assert lambda_test_function({}, SimpleNamespace(aws_request_id="1234")) == 1
+    tested_messages = [line for line in caplog.text.splitlines() if line.endswith("hello")]
+    #  Check all messages have RequestId.
+    for line in tested_messages:
+        assert line.startswith("RequestId: 1234 test_sync_hook.py")
+    #  Check all messages were logged with the correct message.
+    for i, level in enumerate(("DEBUG", "INFO", "WARNING", "ERROR", "ERROR", "CRITICAL")):
+        assert tested_messages[i].replace(" ", "").endswith(f"{level}hello")
 
 
 def test_wrapping_with_logging_override_complex_usage():
@@ -270,13 +296,12 @@ def test_wrapping_with_logging_override_complex_usage():
         handler = logging.StreamHandler(sys.stdout)
         formatter = logging.Formatter("%(name)s [%(levelname)s] %(message)s")  # Format of a client.
         handler.setFormatter(formatter)
+        logger = logging.getLogger("my_test")
+        logger.propagate = False
+        logger.handlers = [handler]
+        logger.setLevel("INFO")
 
-        log = logging.getLogger("my_test")
-        log.propagate = False
-        log.handlers = [handler]
-        log.setLevel("INFO")
-
-        log.info("hello\nworld")
+        logger.info("hello\nworld")
         return 1
 
     with CaptureOutput() as capturer:
