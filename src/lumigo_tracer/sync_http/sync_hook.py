@@ -179,6 +179,7 @@ class LumigoChalice:
     def __init__(self, app, *args, **kwargs):
         self.args = args
         self.kwargs = kwargs
+        self.app = app
         self.original_app_attr_getter = app.__getattribute__
         self.lumigo_app = lumigo_tracer(*self.args, **self.kwargs)(app)
 
@@ -200,7 +201,7 @@ class LumigoChalice:
 
     def __call__(self, *args, **kwargs):
         if len(args) < 2 and "context" not in kwargs:
-            kwargs["context"] = getattr(self.app.current_request, "context", None)
+            kwargs["context"] = getattr(getattr(self.app, "current_request", None), "context", None)
         return self.lumigo_app(*args, **kwargs)
 
 

@@ -1,5 +1,6 @@
 import os
 import urllib
+from functools import wraps
 from io import BytesIO
 from types import SimpleNamespace
 
@@ -247,4 +248,40 @@ def test_lumigo_chalice():
 
     # should create a new span (but return the original value)
     assert app() == "c"
+    assert SpansContainer.get_span().events
+
+
+def test_lumigo_chalice_outer_lambdas(monkeypatch):
+    # mimic aws env
+    monkeypatch.setitem(os.environ, "LAMBDA_RUNTIME_DIR", "true")
+
+    class App:
+        touched = False
+
+        @staticmethod
+        def lambda_function(**kwargs):
+            App.touched = True  # represents chalice's global analysis (in the deploy process)
+
+            def wrapper(func):
+                @wraps(func)
+                def inner_wrapper(*args, **kwargs):
+                    return func(*args, **kwargs)
+
+                return inner_wrapper
+
+            return wrapper
+
+    app = App()
+    app = LumigoChalice(app)
+
+    @app.lambda_function(name="test")
+    def outer_lambda(event, context):
+        return "hello world"
+
+    # should run the outer code before lambda execution, but not create span (in global execution)
+    assert app.touched
+    assert not SpansContainer.get_span().events
+
+    # should create a new span (but return the original value)
+    assert outer_lambda({}, {}) == "hello world"
     assert SpansContainer.get_span().events
