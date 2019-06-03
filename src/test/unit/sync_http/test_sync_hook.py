@@ -276,16 +276,19 @@ def test_wrapping_with_logging_override_all_levels(caplog):
         logger.info("hello")
         logger.warning("hello")
         logger.error("hello")
-        logger.exception("hello")
+        try:
+            1 / 0
+        except Exception:  # You must call the logging.exception method just inside the except part.
+            logger.exception("hello")
         logger.critical("hello")
         return 1
 
     assert lambda_test_function({}, SimpleNamespace(aws_request_id="1234")) == 1
-    tested_messages = [line for line in caplog.text.splitlines() if line.endswith("hello")]
-    #  Check all messages have RequestId.
-    for line in tested_messages:
-        assert line.startswith("RequestId: 1234 test_sync_hook.py")
+    #  Check all lines have RequestId.
+    for line in caplog.text.splitlines():
+        assert line.startswith("RequestId: 1234") and line.count("RequestId: 1234") == 1
     #  Check all messages were logged with the correct message.
+    tested_messages = [line for line in caplog.text.splitlines() if line.endswith("hello")]
     for i, level in enumerate(("DEBUG", "INFO", "WARNING", "ERROR", "ERROR", "CRITICAL")):
         assert tested_messages[i].replace(" ", "").endswith(f"{level}hello")
 
