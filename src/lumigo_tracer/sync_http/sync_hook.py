@@ -1,6 +1,12 @@
 from lumigo_tracer.libs.wrapt import wrap_function_wrapper
 from lumigo_tracer.parsers.utils import safe_get
-from lumigo_tracer.utils import config, get_logger, lumigo_safe_execute, is_enhanced_print
+from lumigo_tracer.utils import (
+    config,
+    get_logger,
+    lumigo_safe_execute,
+    is_enhanced_print,
+    is_aws_environment,
+)
 import http.client
 from io import BytesIO
 import os
@@ -161,15 +167,41 @@ def lumigo_tracer(*args, **kwargs):
 
 
 class LumigoChalice:
+    NEW_HANDLER_DECORATORS = [
+        "on_s3_event",
+        "on_sns_message",
+        "on_sqs_message",
+        "schedule",
+        # 'authorizer',
+        "lambda_function",
+    ]
+
     def __init__(self, app, *args, **kwargs):
+        self.args = args
+        self.kwargs = kwargs
         self.original_app_attr_getter = app.__getattribute__
-        self.lumigo_app = lumigo_tracer(*args, **kwargs)(app)
+        self.lumigo_app = lumigo_tracer(*self.args, **self.kwargs)(app)
 
     def __getattr__(self, item):
-        return self.original_app_attr_getter(item)
+        original_attr = self.original_app_attr_getter(item)
+        if is_aws_environment() and item in self.NEW_HANDLER_DECORATORS:
+
+            def wrapper(*args, **kwargs):
+                first = original_attr(*args, **kwargs)
+
+                def wrapper2(*args2, **kwargs2):
+                    second = first(*args2, **kwargs2)
+                    return LumigoChalice(second, *self.args, **self.kwargs)
+
+                return wrapper2
+
+            return wrapper
+        return original_attr
 
     def __call__(self, *args, **kwargs):
-        return self.lumigo_app.__call__(*args, **kwargs)
+        if len(args) < 2 and "context" not in kwargs:
+            kwargs["context"] = getattr(self.app.current_request, "context", None)
+        return self.lumigo_app(*args, **kwargs)
 
 
 def wrap_http_calls():
