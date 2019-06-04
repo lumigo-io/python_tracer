@@ -139,8 +139,8 @@ jobs:
       - run: cd ../integration-tests && npm i
       - run: sudo npm install -g recursive-install
       - run: cd ../integration-tests && ./scripts/prepare_env.sh
-      - run: cd ../integration-tests && ./scripts/deploy.sh
-      - run: cd ../integration-tests && npm run test
+      - run: cd ../integration-tests && ./scripts/deploy.sh --spec python
+      - run: cd ../integration-tests && export testPython=true && npm run test
 
   deploy:
     <<: *defaults
