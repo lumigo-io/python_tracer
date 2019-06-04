@@ -1,13 +1,19 @@
+import logging
 import http.client
 from io import BytesIO
 import os
-from functools import wraps
 import builtins
-import logging
+from functools import wraps
 
 from lumigo_tracer.libs.wrapt import wrap_function_wrapper
 from lumigo_tracer.parsers.utils import safe_get
-from lumigo_tracer.utils import config, get_logger, lumigo_safe_execute, is_enhanced_print
+from lumigo_tracer.utils import (
+    config,
+    get_logger,
+    lumigo_safe_execute,
+    is_enhanced_print,
+    is_aws_environment,
+)
 from lumigo_tracer.spans_container import SpansContainer
 from ..parsers.http_data_classes import HttpRequest
 
@@ -183,15 +189,47 @@ def lumigo_tracer(*args, **kwargs):
 
 
 class LumigoChalice:
+    DECORATORS_OF_NEW_HANDLERS = [
+        "on_s3_event",
+        "on_sns_message",
+        "on_sqs_message",
+        "schedule",
+        # 'authorizer',  # remove when bug RD-715 will be fixed
+        "lambda_function",
+    ]
+
     def __init__(self, app, *args, **kwargs):
+        self.lumigo_conf_args = args
+        self.lumigo_conf_kwargs = kwargs
+        self.app = app
         self.original_app_attr_getter = app.__getattribute__
-        self.lumigo_app = lumigo_tracer(*args, **kwargs)(app)
+        self.lumigo_app = lumigo_tracer(*self.lumigo_conf_args, **self.lumigo_conf_kwargs)(app)
 
     def __getattr__(self, item):
-        return self.original_app_attr_getter(item)
+        original_attr = self.original_app_attr_getter(item)
+        if is_aws_environment() and item in self.DECORATORS_OF_NEW_HANDLERS:
+
+            def get_decorator(*args, **kwargs):
+                # calling the annotation, example `app.authorizer(THIS)`
+                chalice_actual_decorator = original_attr(*args, **kwargs)
+
+                def wrapper2(func):
+                    user_func_wrapped_by_chalice = chalice_actual_decorator(func)
+                    return LumigoChalice(
+                        user_func_wrapped_by_chalice,
+                        *self.lumigo_conf_args,
+                        **self.lumigo_conf_kwargs,
+                    )
+
+                return wrapper2
+
+            return get_decorator
+        return original_attr
 
     def __call__(self, *args, **kwargs):
-        return self.lumigo_app.__call__(*args, **kwargs)
+        if len(args) < 2 and "context" not in kwargs:
+            kwargs["context"] = getattr(getattr(self.app, "current_request", None), "context", None)
+        return self.lumigo_app(*args, **kwargs)
 
 
 def wrap_http_calls():
