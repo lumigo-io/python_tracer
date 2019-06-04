@@ -1,3 +1,10 @@
+import logging
+import http.client
+from io import BytesIO
+import os
+import builtins
+from functools import wraps
+
 from lumigo_tracer.libs.wrapt import wrap_function_wrapper
 from lumigo_tracer.parsers.utils import safe_get
 from lumigo_tracer.utils import (
@@ -7,12 +14,7 @@ from lumigo_tracer.utils import (
     is_enhanced_print,
     is_aws_environment,
 )
-import http.client
-from io import BytesIO
-import os
-from functools import wraps
 from lumigo_tracer.spans_container import SpansContainer
-import builtins
 from ..parsers.http_data_classes import HttpRequest
 
 _BODY_HEADER_SPLITTER = b"\r\n\r\n"
@@ -118,15 +120,11 @@ def _lumigo_tracer(func):
         executed = False
         ret_val = None
         local_print = print
+        local_logging_format = logging.Formatter.format
         try:
 
             if is_enhanced_print():
-                if len(args) >= 2:
-                    request_id = getattr(args[1], "aws_request_id", "")
-                    prefix = f"RequestId: {request_id}"
-                    builtins.print = lambda *args, **kwargs: local_print(
-                        prefix, *[str(arg).replace("\n", f"\n{prefix} ") for arg in args], **kwargs
-                    )
+                _enhance_output(args, local_print, local_logging_format)
             SpansContainer.create_span(*args, force=True)
             SpansContainer.get_span().start()
             wrap_http_calls()
@@ -139,7 +137,9 @@ def _lumigo_tracer(func):
                 raise
             finally:
                 SpansContainer.get_span().end(ret_val)
-                builtins.print = local_print
+                if is_enhanced_print():
+                    builtins.print = local_print
+                    logging.Formatter.format = local_logging_format
             return ret_val
         except Exception:
             # The case where our wrapping raised an exception
@@ -150,6 +150,28 @@ def _lumigo_tracer(func):
                 raise
 
     return lambda_wrapper
+
+
+def _enhance_output(args, local_print, local_logging_format):
+    if len(args) < 2:
+        return
+    request_id = getattr(args[1], "aws_request_id", "")
+    prefix = f"RequestId: {request_id}"
+    builtins.print = lambda *args, **kwargs: local_print(
+        *[_add_prefix_for_each_line(prefix, str(arg)) for arg in args], **kwargs
+    )
+    logging.Formatter.format = lambda self, record: _add_prefix_for_each_line(
+        prefix, local_logging_format(self, record)
+    )
+
+
+def _add_prefix_for_each_line(prefix: str, text: str):
+    enhanced_lines = []
+    for line in text.split("\n"):
+        if line and not line.startswith(prefix):
+            line = prefix + " " + line
+        enhanced_lines.append(line)
+    return "\n".join(enhanced_lines)
 
 
 def lumigo_tracer(*args, **kwargs):

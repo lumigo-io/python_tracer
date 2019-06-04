@@ -1,8 +1,10 @@
 import os
+import sys
 import urllib
 from functools import wraps
 from io import BytesIO
 from types import SimpleNamespace
+import logging
 
 from capturer import CaptureOutput
 from lumigo_tracer import lumigo_tracer, LumigoChalice
@@ -289,3 +291,68 @@ def test_lumigo_chalice_create_extra_lambdas(monkeypatch):
     # should create a new span (but return the original value)
     assert handler({}, {}) == "hello world"
     assert SpansContainer.get_span().events
+
+
+def test_wrapping_with_logging_override_default_usage(caplog):
+    @lumigo_tracer(enhance_print=True)
+    def lambda_test_function(event, context):
+        logging.warning("hello\nworld")
+        return 1
+
+    assert lambda_test_function({}, SimpleNamespace(aws_request_id="1234")) == 1
+    assert utils._ENHANCE_PRINT is True
+    assert "RequestId: 1234 test_sync_hook.py" in caplog.text
+    assert "WARNING  hello\nRequestId: 1234 world" in caplog.text
+
+
+def test_wrapping_with_logging_exception(caplog):
+    @lumigo_tracer(enhance_print=True)
+    def lambda_test_function(event, context):
+        logger = logging.getLogger("logger_name")
+        handler = logging.StreamHandler()
+        logger.addHandler(handler)
+
+        try:
+            1 / 0
+        except Exception:  # You must call the logging.exception method just inside the except part.
+            logger.exception("hello")
+        return 1
+
+    assert lambda_test_function({}, SimpleNamespace(aws_request_id="1234")) == 1
+    #  Check all lines have exactly one RequestId.
+    for line in caplog.text.splitlines():
+        assert line.startswith("RequestId: 1234") and line.count("RequestId: 1234") == 1
+    #  Check the message was logged.
+    test_message = [line for line in caplog.text.splitlines() if line.endswith("hello")][0]
+    assert test_message.replace(" ", "").endswith("ERRORhello")
+
+
+def test_wrapping_with_logging_override_complex_usage():
+    @lumigo_tracer(enhance_print=True)
+    def lambda_test_function(event, context):
+        handler = logging.StreamHandler(sys.stdout)
+        formatter = logging.Formatter("%(name)s [%(levelname)s] %(message)s")  # Format of a client.
+        handler.setFormatter(formatter)
+        logger = logging.getLogger("my_test")
+        logger.handlers = [handler]
+        logger.setLevel("INFO")
+
+        logger.info("hello\nworld")
+        return 1
+
+    with CaptureOutput() as capturer:
+        assert lambda_test_function({}, SimpleNamespace(aws_request_id="1234")) == 1
+        assert utils._ENHANCE_PRINT is True
+        assert "RequestId: 1234 my_test [INFO] hello" in capturer.get_lines()
+        assert "RequestId: 1234 world" in capturer.get_lines()
+
+
+def test_wrapping_without_logging_override(caplog):
+    @lumigo_tracer()
+    def lambda_test_function(event, context):
+        logging.warning("hello\nworld")
+        return 1
+
+    assert lambda_test_function({}, SimpleNamespace(aws_request_id="1234")) == 1
+    assert utils._ENHANCE_PRINT is False
+    assert " WARNING  hello\nworld" in caplog.text
