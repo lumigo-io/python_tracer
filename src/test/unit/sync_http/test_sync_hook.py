@@ -305,33 +305,26 @@ def test_wrapping_with_logging_override_default_usage(caplog):
     assert "WARNING  hello\nRequestId: 1234 world" in caplog.text
 
 
-def test_wrapping_with_logging_override_all_levels(caplog):
+def test_wrapping_with_logging_exception(caplog):
     @lumigo_tracer(enhance_print=True)
     def lambda_test_function(event, context):
         logger = logging.getLogger("logger_name")
         handler = logging.StreamHandler()
-        logger.setLevel(logging.DEBUG)
         logger.addHandler(handler)
 
-        logger.debug("hello")
-        logger.info("hello")
-        logger.warning("hello")
-        logger.error("hello")
         try:
             1 / 0
         except Exception:  # You must call the logging.exception method just inside the except part.
             logger.exception("hello")
-        logger.critical("hello")
         return 1
 
     assert lambda_test_function({}, SimpleNamespace(aws_request_id="1234")) == 1
-    #  Check all lines have RequestId.
+    #  Check all lines have exactly one RequestId.
     for line in caplog.text.splitlines():
         assert line.startswith("RequestId: 1234") and line.count("RequestId: 1234") == 1
-    #  Check all messages were logged with the correct message.
-    tested_messages = [line for line in caplog.text.splitlines() if line.endswith("hello")]
-    for i, level in enumerate(("DEBUG", "INFO", "WARNING", "ERROR", "ERROR", "CRITICAL")):
-        assert tested_messages[i].replace(" ", "").endswith(f"{level}hello")
+    #  Check the message was logged.
+    test_message = [line for line in caplog.text.splitlines() if line.endswith("hello")][0]
+    assert test_message.replace(" ", "").endswith("ERRORhello")
 
 
 def test_wrapping_with_logging_override_complex_usage():
@@ -341,7 +334,6 @@ def test_wrapping_with_logging_override_complex_usage():
         formatter = logging.Formatter("%(name)s [%(levelname)s] %(message)s")  # Format of a client.
         handler.setFormatter(formatter)
         logger = logging.getLogger("my_test")
-        logger.propagate = False
         logger.handlers = [handler]
         logger.setLevel("INFO")
 
