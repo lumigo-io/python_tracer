@@ -144,7 +144,7 @@ class SqsParser(ServerlessAWSParser):
         )
 
 
-class S3Parser(ServerlessAWSParser):
+class S3Parser(Parser):
     def parse_request(self, parse_params: HttpRequest) -> dict:
         return recursive_json_join(
             super().parse_request(parse_params),
