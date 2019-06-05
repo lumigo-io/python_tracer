@@ -129,10 +129,15 @@ def test_recursive_json_join(d1, d2, result):
                         "awsRegion": "us-east-1",
                         "eventName": "ObjectCreated:Put",
                         "eventSource": "aws:s3",
+                        "responseElements": {"x-amz-request-id": "E6CFE6C141196902"},
                     }
                 ]
             },
-            {"triggeredBy": "s3", "arn": "arn:aws:s3:::s3-bucket-name"},
+            {
+                "triggeredBy": "s3",
+                "arn": "arn:aws:s3:::s3-bucket-name",
+                "messageId": "E6CFE6C141196902",
+            },
         ),
         (  # kinesis example trigger
             {

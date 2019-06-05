@@ -178,6 +178,9 @@ def _parse_streams(event: dict):
     result = {"triggeredBy": triggered_by}
     if triggered_by == "s3":
         result["arn"] = event["Records"][0]["s3"]["bucket"]["arn"]
+        result["messageId"] = (
+            event["Records"][0].get("responseElements", {}).get("x-amz-request-id")
+        )
     else:
         result["arn"] = event["Records"][0]["eventSourceARN"]
     return result
