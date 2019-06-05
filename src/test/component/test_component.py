@@ -2,6 +2,7 @@ import json
 import subprocess
 import boto3
 import pytest
+import os
 
 
 from lumigo_tracer.sync_http.sync_hook import lumigo_tracer
@@ -46,6 +47,11 @@ def kinesis_resource(region):
 @pytest.fixture
 def sqs_resource(region, account_id):
     return f"https://sqs.{region}.amazonaws.com/{account_id}/component-test"
+
+
+@pytest.fixture
+def s3_bucket_resource():
+    return f"python-tracer-component-test-{os.environ['USER']}-s3-bucket"
 
 
 @pytest.mark.slow
@@ -119,6 +125,19 @@ def test_sqs(sqs_resource, region):
     assert len(events) == 2
     assert events[1]["info"]["httpInfo"]["host"] == f"{region}.queue.amazonaws.com"
     assert events[1]["info"]["resourceName"] == sqs_resource
+
+
+@pytest.mark.slow
+def test_s3(s3_bucket_resource):
+    @lumigo_tracer(token="123")
+    def lambda_test_function():
+        boto3.client("s3").put_object(Bucket=s3_bucket_resource, Key="0")
+
+    lambda_test_function()
+    events = SpansContainer.get_span().events
+    assert len(events) == 2
+    assert events[1]["info"]["messageId"]
+    assert events[1]["info"]["resourceName"] == s3_bucket_resource
 
 
 @pytest.mark.slow
