@@ -191,6 +191,8 @@ def _parse_streams(event: dict) -> Dict[str, str]:
         )
     else:
         result["arn"] = event["Records"][0]["eventSourceARN"]
+    if triggered_by == "sqs":
+        result["messageId"] = event["Records"][0].get("messageId")
     return result
 
 

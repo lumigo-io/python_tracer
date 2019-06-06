@@ -173,10 +173,15 @@ def test_recursive_json_join(d1, d2, result):
                     {
                         "eventSourceARN": "arn:aws:sqs:us-east-1:123456789:sqs-queue-name",
                         "eventSource": "aws:sqs",
+                        "messageId": "e97ff404-96ca-460e-8ff0-a46012e61826",
                     }
                 ]
             },
-            {"triggeredBy": "sqs", "arn": "arn:aws:sqs:us-east-1:123456789:sqs-queue-name"},
+            {
+                "triggeredBy": "sqs",
+                "arn": "arn:aws:sqs:us-east-1:123456789:sqs-queue-name",
+                "messageId": "e97ff404-96ca-460e-8ff0-a46012e61826",
+            },
         ),
         ({"bla": "bla2"}, {"triggeredBy": "unknown"}),  # unknown trigger
         (None, None),
