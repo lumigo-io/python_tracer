@@ -51,7 +51,11 @@ def safe_key_from_xml(xml_str: bytes, key: str, default=None):
     """
     try:
         result = functools.reduce(
-            lambda prev, sub_key: prev.get(sub_key, {}), key.split("/"), xmltodict.parse(xml_str)
+            lambda prev, sub_key: prev[int(sub_key)]
+            if isinstance(prev, list)
+            else prev.get(sub_key, {}),
+            key.split("/"),
+            xmltodict.parse(xml_str),
         )
         return result or default
     except xmltodict.expat.ExpatError:

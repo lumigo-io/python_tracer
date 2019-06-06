@@ -143,6 +143,21 @@ class SqsParser(ServerlessAWSParser):
             {"info": {"resourceName": safe_key_from_query(parse_params.body, "QueueUrl")}},
         )
 
+    def parse_response(self, url: str, status_code: int, headers, body: bytes) -> dict:
+        return recursive_json_join(
+            super().parse_response(url, status_code, headers, body),
+            {"info": {"messageId": SqsParser._extract_message_id(body)}},
+        )
+
+    @staticmethod
+    def _extract_message_id(response_body: bytes) -> Optional[str]:
+        return safe_key_from_xml(
+            response_body, "SendMessageResponse/SendMessageResult/MessageId"  # Single.
+        ) or safe_key_from_xml(
+            response_body,
+            "SendMessageBatchResponse/SendMessageBatchResult/SendMessageBatchResultEntry/0/MessageId",  # Batch.
+        )
+
 
 class S3Parser(Parser):
     def parse_request(self, parse_params: HttpRequest) -> dict:

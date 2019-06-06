@@ -120,13 +120,27 @@ def test_kinesis(kinesis_resource, region):
 def test_sqs(sqs_resource, region):
     @lumigo_tracer(token="123")
     def lambda_test_function():
-        boto3.client("sqs").send_message(QueueUrl=sqs_resource, MessageBody="myMessage")
+        client = boto3.client("sqs")
+        client.send_message(QueueUrl=sqs_resource, MessageBody="myMessage")
+        client.send_message_batch(
+            QueueUrl=sqs_resource,
+            Entries=[
+                {"Id": "1", "MessageBody": "message1"},
+                {"Id": "2", "MessageBody": "message2"},
+            ],
+        )
 
     lambda_test_function()
     events = SpansContainer.get_span().events
-    assert len(events) == 2
+    assert len(events) == 3
+    # Single message.
     assert events[1]["info"]["httpInfo"]["host"] == f"{region}.queue.amazonaws.com"
     assert events[1]["info"]["resourceName"] == sqs_resource
+    assert events[1]["info"]["messageId"]
+    # Batch messages.
+    assert events[2]["info"]["httpInfo"]["host"] == f"{region}.queue.amazonaws.com"
+    assert events[2]["info"]["resourceName"] == sqs_resource
+    assert events[2]["info"]["messageId"]
 
 
 @pytest.mark.slow
