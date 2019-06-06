@@ -144,6 +144,20 @@ class SqsParser(ServerlessAWSParser):
         )
 
 
+class S3Parser(Parser):
+    def parse_request(self, parse_params: HttpRequest) -> dict:
+        return recursive_json_join(
+            super().parse_request(parse_params),
+            {"info": {"resourceName": safe_split_get(parse_params.host, ".", 0)}},
+        )
+
+    def parse_response(self, url: str, status_code: int, headers, body: bytes) -> dict:
+        return recursive_json_join(
+            super().parse_response(url, status_code, headers, body),
+            {"info": {"messageId": headers.get("x-amz-request-id")}},
+        )
+
+
 def get_parser(url: str) -> Type[Parser]:
     service = safe_split_get(url, ".", 0)
     if service == "dynamodb":
@@ -154,6 +168,8 @@ def get_parser(url: str) -> Type[Parser]:
         return LambdaParser
     elif service == "kinesis":
         return KinesisParser
+    elif safe_split_get(url, ".", 1) == "s3":
+        return S3Parser
     # SQS Legacy Endpoints: https://docs.aws.amazon.com/general/latest/gr/rande.html
     elif service in ("sqs", "sqs-fips") or "queue.amazonaws.com" in url:
         return SqsParser

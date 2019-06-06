@@ -1,12 +1,15 @@
 service: python-tracer-component-test
 
+custom:
+  env: ${opt:env, env:USER}
+
 provider:
     name: aws
     runtime: python3.7
     memorySize: 256
     timeout: 60
     region: us-west-2
-    stage: ${opt:stage, 'dev'}
+    stage: ${self:custom.env}
     iamRoleStatements:
         - Effect: "Allow"
           Action:
@@ -75,3 +78,7 @@ resources:
       Type: AWS::SQS::Queue
       Properties:
         QueueName: component-test
+    ComponentTestS3Bucket:
+      Type: AWS::S3::Bucket
+      Properties:
+        BucketName: ${self:service}-${self:provider.stage}-s3-bucket
