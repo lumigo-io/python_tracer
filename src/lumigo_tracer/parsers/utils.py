@@ -1,7 +1,7 @@
 import json
 import re
 import urllib.parse
-from typing import Tuple
+from typing import Tuple, Dict
 
 from lumigo_tracer.libs import xmltodict
 import functools
@@ -173,7 +173,11 @@ def _is_supported_streams(event: dict):
     ]
 
 
-def _parse_streams(event: dict):
+def _parse_streams(event: dict) -> Dict[str, str]:
+    """
+    :return: {"triggeredBy": str, "arn": str}
+    If triggered by s3, return also: {"messageId": str}
+    """
     triggered_by = event["Records"][0]["eventSource"].split(":")[1]
     result = {"triggeredBy": triggered_by}
     if triggered_by == "s3":
