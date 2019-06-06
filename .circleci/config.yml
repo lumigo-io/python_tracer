@@ -148,4 +148,5 @@ jobs:
       - checkout_code
       - checkout_credentials
       - run: sudo pip install awscli
+      - run: export AWS_DEFAULT_REGION=us-west-2 && export USER=CICD
       - run: ./scripts/bd_to_prod.sh
