@@ -8,10 +8,12 @@ import os
 from lumigo_tracer.sync_http.sync_hook import lumigo_tracer
 from lumigo_tracer.spans_container import SpansContainer
 
+DEFAULT_USER = "cicd"
+
 
 @pytest.fixture(scope="session", autouse=True)
 def serverless_yaml():
-    subprocess.check_output(["sls", "deploy", "--env", os.environ.get("USER", "cicd")])
+    subprocess.check_output(["sls", "deploy", "--env", os.environ.get("USER", DEFAULT_USER)])
 
 
 @pytest.fixture
@@ -51,7 +53,7 @@ def sqs_resource(region, account_id):
 
 @pytest.fixture
 def s3_bucket_resource():
-    return f"python-tracer-component-test-{os.environ['USER']}-s3-bucket"
+    return f"python-tracer-component-test-{os.environ.get('USER', DEFAULT_USER)}-s3-bucket"
 
 
 @pytest.mark.slow
