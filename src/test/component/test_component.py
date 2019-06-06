@@ -11,7 +11,7 @@ from lumigo_tracer.spans_container import SpansContainer
 
 @pytest.fixture(scope="session", autouse=True)
 def serverless_yaml():
-    subprocess.check_output(["sls", "deploy"])
+    subprocess.check_output(["sls", "deploy", "--env", os.environ["USER"]])
 
 
 @pytest.fixture
