@@ -33,7 +33,17 @@ app = LumigoChalice(app, token="XXX")
 * You can turn on the debug logs by setting the environment variable `LUMIGO_DEBUG=true`
 * You can change the timeout to send the trace information to the edge by setting `LUMIGO_EDGE_TIMEOUT=<seconds>`
 
-
+## Sentry/Raven Lambda Integration
+Add our decorator beneath the Raven decorator
+```
+from lumigo_tracer import lumigo_tracer
+...
+@RavenLambdaWrapper()
+@lumigo_tracer(token='t_1b8e3e1eada1064d41ff')
+def lambda_handler (event, context):  return  {
+ 'statusCode' :  200,
+ 'body' : json.dumps( 'Hi!' ) }
+```
 # How To Contribute
 Prepare your machine
 ----
