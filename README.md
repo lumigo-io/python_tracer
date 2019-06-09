@@ -9,8 +9,18 @@
 ```
 @lumigo_tracer(token='XXX')
 def my_lambda(event, context):
-    print('I cant finally trubleshoot!')
+    print('I can finally trubleshoot!')
 ```
+## Configuration
+### Enhanced print
+In case you are using `print()` or [python logging](https://docs.python.org/3/library/logging.html) to log, then you can use the enhanced print capabilities that the tracer provides in order to view your logs in the platform view. Just add `enhance_print=True` to the tracer configuration and you are set.
+```
+@lumigo_tracer(token='XXX', enhance_print=True)
+def my_lambda(event, context):
+    print('I can view this line now')
+```
+# Frameworks
+## Chalice
 * In chalice, you should add the following lines to the your file:
 ```
 from lumigo_tracer import LumigoChalice
