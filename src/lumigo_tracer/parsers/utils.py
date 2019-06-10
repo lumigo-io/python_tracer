@@ -48,6 +48,8 @@ def safe_key_from_xml(xml_str: bytes, key: str, default=None):
     If the key doesn't found or the input string is not a valid XML, returns the default.
 
     We accept keys with hierarchy by `/` (i.e. we accept keys with the format `outer/inner`)
+    If there are some keys with the same name at the same hierarchy, they can be accessed as index in list,
+        e.g: <a><b>val0</b><b>val1</b></a> will be accessed with "a/b/0" or "a/b/1".
     """
     try:
         result = functools.reduce(
