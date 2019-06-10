@@ -1,7 +1,7 @@
 import json
 import re
 import urllib.parse
-from typing import Tuple, Dict
+from typing import Tuple, Dict, Union
 
 from lumigo_tracer.libs import xmltodict
 import functools
@@ -11,11 +11,17 @@ from collections.abc import Iterable
 MAX_ENTRY_SIZE = 1024
 
 
-def safe_get(l: list, index: int, default=None):
+def safe_get(l: list, index: Union[int, str], default=None):
     """
     This function return the organ in the `index` place from the given list.
     If this values doesn't exist, return default.
+    :param index: int or an object that can be cast into int.
     """
+    if not isinstance(index, int):
+        try:
+            index = int(index)
+        except Exception:
+            return None
     if not isinstance(l, Iterable):
         return default
     return l[index] if len(l) > index else default
@@ -53,7 +59,7 @@ def safe_key_from_xml(xml_str: bytes, key: str, default=None):
     """
     try:
         result = functools.reduce(
-            lambda prev, sub_key: prev[int(sub_key)]
+            lambda prev, sub_key: safe_get(prev, sub_key)
             if isinstance(prev, list)
             else prev.get(sub_key, {}),
             key.split("/"),
