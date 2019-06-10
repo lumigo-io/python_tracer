@@ -15,12 +15,11 @@ def safe_get(l: list, index: Union[int, str], default=None):
     """
     This function return the organ in the `index` place from the given list.
     If this values doesn't exist, return default.
-    :param index: int or an object that can be cast into int.
     """
-    if not isinstance(index, int):
+    if isinstance(index, str):
         try:
             index = int(index)
-        except Exception:
+        except ValueError:
             return None
     if not isinstance(l, Iterable):
         return default
