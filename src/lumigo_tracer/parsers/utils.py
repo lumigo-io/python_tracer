@@ -20,7 +20,7 @@ def safe_get(l: list, index: Union[int, str], default=None):
         try:
             index = int(index)
         except ValueError:
-            return None
+            return default
     if not isinstance(l, Iterable):
         return default
     return l[index] if len(l) > index else default
