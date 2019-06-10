@@ -9,8 +9,18 @@
 ```
 @lumigo_tracer(token='XXX')
 def my_lambda(event, context):
-    print('I cant finally trubleshoot!')
+    print('I can finally trubleshoot!')
 ```
+## Configuration
+### Enhanced print
+In case you are using `print()` or [python logging](https://docs.python.org/3/library/logging.html) to log, then you can use the enhanced print capabilities that the tracer provides in order to view your logs in the platform view. Just add `enhance_print=True` to the tracer configuration and you are set.
+```
+@lumigo_tracer(token='XXX', enhance_print=True)
+def my_lambda(event, context):
+    print('I can view this line now')
+```
+# Frameworks
+## Chalice
 * In chalice, you should add the following lines to the your file:
 ```
 from lumigo_tracer import LumigoChalice
@@ -23,7 +33,17 @@ app = LumigoChalice(app, token="XXX")
 * You can turn on the debug logs by setting the environment variable `LUMIGO_DEBUG=true`
 * You can change the timeout to send the trace information to the edge by setting `LUMIGO_EDGE_TIMEOUT=<seconds>`
 
-
+## Sentry/Raven Lambda Integration
+Add our decorator beneath the Raven decorator
+```
+from lumigo_tracer import lumigo_tracer
+...
+@RavenLambdaWrapper()
+@lumigo_tracer(token='t_1b8e3e1eada1064d41ff')
+def lambda_handler (event, context):  return  {
+ 'statusCode' :  200,
+ 'body' : json.dumps( 'Hi!' ) }
+```
 # How To Contribute
 Prepare your machine
 ----
