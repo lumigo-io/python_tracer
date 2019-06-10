@@ -1,7 +1,7 @@
 import json
 import re
 import urllib.parse
-from typing import Tuple, Dict
+from typing import Tuple, Dict, Union
 
 from lumigo_tracer.libs import xmltodict
 import functools
@@ -11,11 +11,16 @@ from collections.abc import Iterable
 MAX_ENTRY_SIZE = 1024
 
 
-def safe_get(l: list, index: int, default=None):
+def safe_get(l: list, index: Union[int, str], default=None):
     """
     This function return the organ in the `index` place from the given list.
     If this values doesn't exist, return default.
     """
+    if isinstance(index, str):
+        try:
+            index = int(index)
+        except ValueError:
+            return default
     if not isinstance(l, Iterable):
         return default
     return l[index] if len(l) > index else default
@@ -48,10 +53,16 @@ def safe_key_from_xml(xml_str: bytes, key: str, default=None):
     If the key doesn't found or the input string is not a valid XML, returns the default.
 
     We accept keys with hierarchy by `/` (i.e. we accept keys with the format `outer/inner`)
+    If there are some keys with the same name at the same hierarchy, they can be accessed as index in list,
+        e.g: <a><b>val0</b><b>val1</b></a> will be accessed with "a/b/0" or "a/b/1".
     """
     try:
         result = functools.reduce(
-            lambda prev, sub_key: prev.get(sub_key, {}), key.split("/"), xmltodict.parse(xml_str)
+            lambda prev, sub_key: safe_get(prev, sub_key)
+            if isinstance(prev, list)
+            else prev.get(sub_key, {}),
+            key.split("/"),
+            xmltodict.parse(xml_str),
         )
         return result or default
     except xmltodict.expat.ExpatError:
@@ -187,6 +198,8 @@ def _parse_streams(event: dict) -> Dict[str, str]:
         )
     else:
         result["arn"] = event["Records"][0]["eventSourceARN"]
+    if triggered_by == "sqs":
+        result["messageId"] = event["Records"][0].get("messageId")
     return result
 
 
