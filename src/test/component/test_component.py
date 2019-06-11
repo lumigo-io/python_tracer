@@ -117,8 +117,8 @@ def test_kinesis(kinesis_resource, region):
 
     lambda_test_function()
     events = SpansContainer.get_span().events
-    # Single message.
     assert len(events) == 3
+    # Single message.
     assert events[1]["info"]["httpInfo"]["host"] == f"kinesis.{region}.amazonaws.com"
     assert events[1]["info"]["resourceName"] == kinesis_resource
     assert events[1]["info"]["messageId"]
