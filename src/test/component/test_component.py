@@ -105,15 +105,27 @@ def test_lambda(lambda_resource, region):
 def test_kinesis(kinesis_resource, region):
     @lumigo_tracer(token="123")
     def lambda_test_function():
-        boto3.client("kinesis").put_record(
-            StreamName=kinesis_resource, Data=b"my data", PartitionKey="1"
+        client = boto3.client("kinesis")
+        client.put_record(StreamName=kinesis_resource, Data=b"my data", PartitionKey="1")
+        client.put_records(
+            StreamName=kinesis_resource,
+            Records=[
+                {"Data": "First", "PartitionKey": "1"},
+                {"Data": "Second", "PartitionKey": "1"},
+            ],
         )
 
     lambda_test_function()
     events = SpansContainer.get_span().events
-    assert len(events) == 2
+    # Single message.
+    assert len(events) == 3
     assert events[1]["info"]["httpInfo"]["host"] == f"kinesis.{region}.amazonaws.com"
     assert events[1]["info"]["resourceName"] == kinesis_resource
+    assert events[1]["info"]["messageId"]
+    # Batch messages.
+    assert events[2]["info"]["httpInfo"]["host"] == f"kinesis.{region}.amazonaws.com"
+    assert events[2]["info"]["resourceName"] == kinesis_resource
+    assert events[2]["info"]["messageId"]
 
 
 @pytest.mark.slow

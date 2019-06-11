@@ -145,12 +145,16 @@ def test_recursive_json_join(d1, d2, result):
                     {
                         "eventSourceARN": "arn:aws:kinesis:us-east-1:123456789:stream/kinesis-stream-name",
                         "eventSource": "aws:kinesis",
+                        "kinesis": {
+                            "sequenceNumber": "49596548435872826596585001154057221542698475626757619714"
+                        },
                     }
                 ]
             },
             {
                 "triggeredBy": "kinesis",
                 "arn": "arn:aws:kinesis:us-east-1:123456789:stream/kinesis-stream-name",
+                "messageId": "49596548435872826596585001154057221542698475626757619714",
             },
         ),
         (  # DynamoDB example trigger
@@ -220,3 +224,16 @@ def test_config_no_verbose_param_and_with_env_verbose_equals_to_false_verbose_is
     config()
 
     assert is_verbose() is False
+
+
+@pytest.mark.parametrize(
+    ("d", "keys", "result_value", "default"),
+    [
+        ({"k": ["a", "b"]}, ["k", 1], "b", None),  # Happy flow.
+        ({"k": ["a"]}, ["k", 1], "default", "default"),  # Key doesn't exist.
+        ({"k": "a"}, ["k", 1], "default", "default"),  # Wrong type.
+        ({"k": "a"}, ["k", 0, 1], "default", "default"),  # Wrong length.
+    ],
+)
+def test_safe_get(d, keys, result_value, default):
+    assert utils.safe_get(d, keys, default) == result_value

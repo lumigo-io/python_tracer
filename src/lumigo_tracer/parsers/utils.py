@@ -1,7 +1,7 @@
 import json
 import re
 import urllib.parse
-from typing import Tuple, Dict, Union
+from typing import Tuple, Dict, Union, List, Any
 
 from lumigo_tracer.libs import xmltodict
 import functools
@@ -11,7 +11,25 @@ from collections.abc import Iterable
 MAX_ENTRY_SIZE = 1024
 
 
-def safe_get(l: list, index: Union[int, str], default=None):
+def safe_get(d: Any, keys: List[Union[str, int]], default=None):
+    """
+    :param d: Should be list or dict, otherwise return default.
+    :param keys: If keys[i] is int, then it should be a list index. If keys[i] is string, then it should be a dict key.
+    :param default: If encountered a problem, return default.
+    :return: d[keys[0]][keys[1]]...
+    """
+    current = d
+    for key in keys:
+        if isinstance(current, dict) and isinstance(key, str):
+            current = current.get(key, default)
+        elif isinstance(current, list) and isinstance(key, int):
+            current = safe_get_list(current, key, default)
+        else:
+            return default
+    return current
+
+
+def safe_get_list(l: list, index: Union[int, str], default=None):
     """
     This function return the organ in the `index` place from the given list.
     If this values doesn't exist, return default.
@@ -33,10 +51,10 @@ def safe_split_get(string: str, sep: str, index: int, default=None) -> str:
     """
     if not isinstance(string, str):
         return default
-    return safe_get(string.split(sep), index, default)
+    return safe_get_list(string.split(sep), index, default)
 
 
-def safe_key_from_json(json_str: bytes, key: object, default=None) -> str:
+def safe_key_from_json(json_str: bytes, key: object, default=None) -> Union[str, list]:
     """
     This function tries to read the given str as json, and returns the value of the desired key.
     If the key doesn't found or the input string is not a valid json, returns the default.
@@ -58,7 +76,7 @@ def safe_key_from_xml(xml_str: bytes, key: str, default=None):
     """
     try:
         result = functools.reduce(
-            lambda prev, sub_key: safe_get(prev, sub_key)
+            lambda prev, sub_key: safe_get_list(prev, sub_key)
             if isinstance(prev, list)
             else prev.get(sub_key, {}),
             key.split("/"),
@@ -187,7 +205,7 @@ def _is_supported_streams(event: dict):
 def _parse_streams(event: dict) -> Dict[str, str]:
     """
     :return: {"triggeredBy": str, "arn": str}
-    If triggered by s3, return also: {"messageId": str}
+    If has messageId, return also: {"messageId": str}
     """
     triggered_by = event["Records"][0]["eventSource"].split(":")[1]
     result = {"triggeredBy": triggered_by}
@@ -200,6 +218,8 @@ def _parse_streams(event: dict) -> Dict[str, str]:
         result["arn"] = event["Records"][0]["eventSourceARN"]
     if triggered_by == "sqs":
         result["messageId"] = event["Records"][0].get("messageId")
+    elif triggered_by == "kinesis":
+        result["messageId"] = event["Records"][0].get("kinesis", {}).get("sequenceNumber")
     return result
 
 

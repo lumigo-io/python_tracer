@@ -10,6 +10,7 @@ from lumigo_tracer.parsers.utils import (
     safe_key_from_query,
     recursive_json_join,
     prepare_large_data,
+    safe_get,
 )
 from lumigo_tracer.utils import is_verbose
 from .http_data_classes import HttpRequest
@@ -133,6 +134,18 @@ class KinesisParser(ServerlessAWSParser):
         return recursive_json_join(
             super().parse_request(parse_params),
             {"info": {"resourceName": safe_key_from_json(parse_params.body, "StreamName")}},
+        )
+
+    def parse_response(self, url: str, status_code: int, headers, body: bytes) -> dict:
+        return recursive_json_join(
+            super().parse_response(url, status_code, headers, body),
+            {"info": {"messageId": KinesisParser._extract_message_id(body)}},
+        )
+
+    @staticmethod
+    def _extract_message_id(response_body: bytes) -> Optional[str]:
+        return safe_key_from_json(response_body, "SequenceNumber") or safe_get(  # type: ignore
+            safe_key_from_json(response_body, "Records", []), [0, "SequenceNumber"]
         )
 
 
