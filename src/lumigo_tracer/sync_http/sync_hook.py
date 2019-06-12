@@ -6,7 +6,7 @@ import builtins
 from functools import wraps
 
 from lumigo_tracer.libs.wrapt import wrap_function_wrapper
-from lumigo_tracer.parsers.utils import safe_get
+from lumigo_tracer.parsers.utils import safe_get_list
 from lumigo_tracer.utils import (
     config,
     get_logger,
@@ -29,7 +29,7 @@ def _request_wrapper(func, instance, args, kwargs):
     This is the wrapper of the requests. it parses the http's message to conclude the url, headers, and body.
     Finally, it add an event to the span, and run the wrapped function (http.client.HTTPConnection.send).
     """
-    data = safe_get(args, 0)
+    data = safe_get_list(args, 0)
     with lumigo_safe_execute("parse requested streams"):
         if isinstance(data, BytesIO):
             current_pos = data.tell()
