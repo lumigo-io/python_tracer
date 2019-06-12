@@ -11,20 +11,18 @@ from collections.abc import Iterable
 MAX_ENTRY_SIZE = 1024
 
 
-def safe_get(d: Any, keys: List[Union[str, int]], default=None):
+def safe_get(d: Any, keys: List[Union[str, int]], default=None) -> Any:
     """
     :param d: Should be list or dict, otherwise return default.
-    :param keys: If keys[i] is int, then it should be a list index. If keys[i] is string, then it should be a dict key.
+    :param keys: Can be dict keys or list indices.
     :param default: If encountered a problem, return default.
     :return: d[keys[0]][keys[1]]...
     """
     current = d
     for key in keys:
-        if isinstance(current, dict) and isinstance(key, str):
-            current = current.get(key, default)
-        elif isinstance(current, list) and isinstance(key, int):
-            current = safe_get_list(current, key, default)
-        else:
+        try:
+            current = current[key]
+        except Exception:
             return default
     return current
 
