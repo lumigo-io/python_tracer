@@ -11,20 +11,23 @@ from collections.abc import Iterable
 MAX_ENTRY_SIZE = 1024
 
 
-def safe_get(d: Any, keys: List[Union[str, int]], default=None) -> Any:
+def safe_get(d: Union[dict, list], keys: List[Union[str, int]], default: Any = None) -> Any:
     """
     :param d: Should be list or dict, otherwise return default.
-    :param keys: Can be dict keys or list indices.
+    :param keys: If keys[i] is int, then it should be a list index. If keys[i] is string, then it should be a dict key.
     :param default: If encountered a problem, return default.
     :return: d[keys[0]][keys[1]]...
     """
-    current = d
-    for key in keys:
-        try:
-            current = current[key]
-        except Exception:
+
+    def get_next_val(prev_result, key):
+        if isinstance(prev_result, dict) and isinstance(key, str):
+            return prev_result.get(key, default)
+        elif isinstance(prev_result, list) and isinstance(key, int):
+            return safe_get_list(prev_result, key, default)
+        else:
             return default
-    return current
+
+    return functools.reduce(get_next_val, keys, d)
 
 
 def safe_get_list(l: list, index: Union[int, str], default=None):
@@ -217,7 +220,7 @@ def _parse_streams(event: dict) -> Dict[str, str]:
     if triggered_by == "sqs":
         result["messageId"] = event["Records"][0].get("messageId")
     elif triggered_by == "kinesis":
-        result["messageId"] = event["Records"][0].get("kinesis", {}).get("sequenceNumber")
+        result["messageId"] = safe_get(event, ["Records", 0, "kinesis", "sequenceNumber"])
     return result
 
 
