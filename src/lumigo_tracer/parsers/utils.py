@@ -239,12 +239,12 @@ def prepare_large_data(value: Union[str, bytes, dict], max_size=MAX_ENTRY_SIZE) 
     if isinstance(value, dict):
         try:
             value = json.dumps(value)
-        except TypeError:
+        except Exception:
             pass
     elif isinstance(value, bytes):
         try:
             value = value.decode()
-        except UnicodeDecodeError:
+        except Exception:
             pass
 
     res = str(value)
