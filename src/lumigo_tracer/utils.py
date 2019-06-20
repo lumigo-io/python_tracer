@@ -38,12 +38,16 @@ def config(
     global _HOST, _SHOULD_REPORT, _TOKEN, _VERBOSE, _ENHANCE_PRINT
     if edge_host:
         _HOST = edge_host
+    elif os.environ.get("LUMIGO_TRACER_HOST"):
+        _HOST = os.environ["LUMIGO_TRACER_HOST"]
     if should_report is not None:
         _SHOULD_REPORT = should_report
     elif not is_aws_environment():
         _SHOULD_REPORT = False
     if token:
         _TOKEN = token
+    elif os.environ.get("LUMIGO_TRACER_TOKEN"):
+        _TOKEN = os.environ["LUMIGO_TRACER_TOKEN"]
     _ENHANCE_PRINT = enhance_print
     if not verbose or os.environ.get("LUMIGO_VERBOSE", "").lower() == "false":
         _VERBOSE = False
