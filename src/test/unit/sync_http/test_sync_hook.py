@@ -114,7 +114,7 @@ def test_lambda_wrapper_http_splitted_send():
     lambda_test_function()
     events = SpansContainer.get_span().events
     assert len(events) == 2
-    assert events[1]["info"]["httpInfo"]["request"]["body"] == "b'123456'"
+    assert events[1]["info"]["httpInfo"]["request"]["body"] == "123456"
     assert "Content-Length" in events[1]["info"]["httpInfo"]["request"]["headers"]
 
 
@@ -211,7 +211,7 @@ def test_wrapping_json_request():
     assert lambda_test_function() == 1
     events = SpansContainer.get_span().events
     assert any(
-        "'Content-Type': 'application/json'"
+        '"Content-Type": "application/json"'
         in event.get("info", {}).get("httpInfo", {}).get("request", {}).get("headers", "")
         for event in events
     )
