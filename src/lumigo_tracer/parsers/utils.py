@@ -224,19 +224,30 @@ def _parse_streams(event: dict) -> Dict[str, str]:
     return result
 
 
-def prepare_large_data(value, max_size=MAX_ENTRY_SIZE) -> str:
+def prepare_large_data(value: Union[str, bytes, dict], max_size=MAX_ENTRY_SIZE) -> str:
     """
     This function prepare the given value to send it to lumigo.
     You should call to this function if there's a possibility that the value will be big.
 
     Current logic:
-        If the data is larger than `max_size`, we truncate it.
+        Converts the data to str and if it is larger than `max_size`, we truncate it.
 
     :param value: The value we wish to send
     :param max_size: The maximum size of the data that we will send
     :return: The value that we will actually send
     """
+    if isinstance(value, dict):
+        try:
+            value = json.dumps(value)
+        except Exception:
+            pass
+    elif isinstance(value, bytes):
+        try:
+            value = value.decode()
+        except Exception:
+            pass
+
     res = str(value)
     if len(res) > max_size:
-        return f"{str(value)[:max_size]}...[too long]"
-    return str(value)[:max_size]
+        return f"{res[:max_size]}...[too long]"
+    return res
