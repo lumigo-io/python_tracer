@@ -194,7 +194,7 @@ class LumigoChalice:
         "on_sns_message",
         "on_sqs_message",
         "schedule",
-        # 'authorizer',  # remove when bug RD-715 will be fixed
+        "authorizer",
         "lambda_function",
     ]
 
