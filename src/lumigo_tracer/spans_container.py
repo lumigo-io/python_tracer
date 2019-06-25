@@ -15,7 +15,7 @@ import time
 import os
 from .parsers.http_data_classes import HttpRequest
 
-_VERSION_PATH = os.path.join(os.path.dirname(__file__), "..", "VERSION")
+_VERSION_PATH = os.path.join(os.path.dirname(__file__), "VERSION")
 MAX_LAMBDA_TIME = 15 * 60 * 1000
 MAX_BODY_SIZE = 1024
 
