@@ -6,6 +6,7 @@ from io import BytesIO
 from types import SimpleNamespace
 import logging
 
+import urllib3
 from capturer import CaptureOutput
 from lumigo_tracer import lumigo_tracer, LumigoChalice
 from lumigo_tracer.parsers.parser import Parser
@@ -356,3 +357,21 @@ def test_wrapping_without_logging_override(caplog):
     assert lambda_test_function({}, SimpleNamespace(aws_request_id="1234")) == 1
     assert utils._ENHANCE_PRINT is False
     assert " WARNING  hello\nworld" in caplog.text
+
+
+def test_wrapping_urlib_stream_get():
+    """
+    This is the same case as the one of `requests.get`.
+    """
+
+    @lumigo_tracer()
+    def lambda_test_function(event, context):
+        r = urllib3.PoolManager().urlopen("GET", "https://www.google.com", preload_content=False)
+        return b"".join(r.stream(32)).decode()
+
+    response = lambda_test_function({}, None)
+    assert len(SpansContainer.get_span().events) == 2
+    event = SpansContainer.get_span().events[1]
+    assert response[:50] == event["info"]["httpInfo"]["response"]["body"][:50]
+    assert event["info"]["httpInfo"]["response"]["statusCode"] == 200
+    assert event["info"]["httpInfo"]["host"] == "www.google.com"
