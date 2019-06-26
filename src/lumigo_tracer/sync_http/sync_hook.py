@@ -255,5 +255,7 @@ def wrap_http_calls():
             wrap_function_wrapper("botocore.awsrequest", "AWSRequest.__init__", _putheader_wrapper)
             wrap_function_wrapper("http.client", "HTTPConnection.getresponse", _response_wrapper)
             wrap_function_wrapper("http.client", "HTTPResponse.read", _read_wrapper)
-            wrap_function_wrapper("urllib3.response", "HTTPResponse.read_chunked", _read_wrapper)
+            wrap_function_wrapper(
+                "urllib3.response", "HTTPResponse.read_chunked", _read_stream_wrapper
+            )
             already_wrapped = True
