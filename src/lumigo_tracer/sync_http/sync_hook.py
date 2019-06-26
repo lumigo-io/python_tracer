@@ -4,6 +4,7 @@ from io import BytesIO
 import os
 import builtins
 from functools import wraps
+import importlib.util
 
 from lumigo_tracer.libs.wrapt import wrap_function_wrapper
 from lumigo_tracer.parsers.utils import safe_get_list
@@ -99,6 +100,20 @@ def _read_wrapper(func, instance, args, kwargs):
                 None, instance.code, instance.headers, ret_val
             )
     return ret_val
+
+
+def _read_stream_wrapper(func, instance, args, kwargs):
+    ret_val = func(*args, **kwargs)
+    return _read_stream_wrapper_generator(ret_val, instance)
+
+
+def _read_stream_wrapper_generator(stream_generator, instance):
+    for partial_response in stream_generator:
+        with lumigo_safe_execute("parse response.read_chunked"):
+            SpansContainer.get_span().update_event_response(
+                None, instance.status, instance.headers, partial_response
+            )
+        yield partial_response
 
 
 def _putheader_wrapper(func, instance, args, kwargs):
@@ -241,4 +256,8 @@ def wrap_http_calls():
             wrap_function_wrapper("botocore.awsrequest", "AWSRequest.__init__", _putheader_wrapper)
             wrap_function_wrapper("http.client", "HTTPConnection.getresponse", _response_wrapper)
             wrap_function_wrapper("http.client", "HTTPResponse.read", _read_wrapper)
+            if importlib.util.find_spec("urllib3"):
+                wrap_function_wrapper(
+                    "urllib3.response", "HTTPResponse.read_chunked", _read_stream_wrapper
+                )
             already_wrapped = True

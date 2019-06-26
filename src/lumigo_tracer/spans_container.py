@@ -15,7 +15,7 @@ import time
 import os
 from .parsers.http_data_classes import HttpRequest
 
-_VERSION_PATH = os.path.join(os.path.dirname(__file__), "..", "VERSION")
+_VERSION_PATH = os.path.join(os.path.dirname(__file__), "VERSION")
 MAX_LAMBDA_TIME = 15 * 60 * 1000
 MAX_BODY_SIZE = 1024
 
@@ -79,6 +79,7 @@ class SpansContainer:
             },
         )
         self.previous_request: Tuple[Optional[http.client.HTTPMessage], bytes] = (None, b"")
+        self.previous_response_body: bytes = b""
         SpansContainer.is_cold = False
 
     def start(self):
@@ -130,17 +131,24 @@ class SpansContainer:
         self, host: Optional[str], status_code: int, headers: http.client.HTTPMessage, body: bytes
     ) -> None:
         """
-        :param host: If None, use the host from the last span.
+        :param host: If None, use the host from the last span, otherwise this is the first chuck and we can empty
+                            the aggregated response body
         This function assumes synchronous execution - we update the last http event.
         """
         if self.events:
             last_event = self.events.pop()
             if not host:
                 host = last_event.get("info", {}).get("httpInfo", {}).get("host", "unknown")
+            else:
+                self.previous_response_body = b""
+
             parser = get_parser(host)()  # type: ignore
+            self.previous_response_body += body
             self.events.append(
                 recursive_json_join(
-                    parser.parse_response(host, status_code, headers, body),  # type: ignore
+                    parser.parse_response(  # type: ignore
+                        host, status_code, headers, self.previous_response_body
+                    ),
                     last_event,
                 )
             )
