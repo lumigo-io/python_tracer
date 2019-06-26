@@ -4,7 +4,6 @@ from io import BytesIO
 import os
 import builtins
 from functools import wraps
-import types
 
 from lumigo_tracer.libs.wrapt import wrap_function_wrapper
 from lumigo_tracer.parsers.utils import safe_get_list
@@ -94,8 +93,6 @@ def _read_wrapper(func, instance, args, kwargs):
     This is the wrapper of the function that can be called only after `getresponse` was called.
     """
     ret_val = func(*args, **kwargs)
-    if isinstance(ret_val, types.GeneratorType):
-        return _read_stream_wrapper(ret_val, instance)
     if ret_val:
         with lumigo_safe_execute("parse response.read"):
             SpansContainer.get_span().update_event_response(
@@ -104,8 +101,13 @@ def _read_wrapper(func, instance, args, kwargs):
     return ret_val
 
 
-def _read_stream_wrapper(inner_generator, instance):
-    for partial_response in inner_generator:
+def _read_stream_wrapper(func, instance, args, kwargs):
+    ret_val = func(*args, **kwargs)
+    return _read_stream_wrapper_generator(ret_val, instance)
+
+
+def _read_stream_wrapper_generator(stream_generator, instance):
+    for partial_response in stream_generator:
         with lumigo_safe_execute("parse response.read_chunked"):
             SpansContainer.get_span().update_event_response(
                 None, instance.status, instance.headers, partial_response
