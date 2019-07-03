@@ -12,5 +12,5 @@ setuptools.setup(
     packages=setuptools.find_packages(exclude="test"),
     install_requires=[],
     classifiers=["Programming Language :: Python :: 3", "Operating System :: OS Independent"],
-    package_data={"lumigo_tracer": os.path.join("lumigo_tracer", "VERSION")},
+    package_data={"lumigo_tracer": ["VERSION"]},
 )
