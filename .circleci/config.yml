@@ -2,27 +2,12 @@ version: 2.1
 defaults: &defaults
   working_directory: ~/python_tracer
   docker:
-  - image: circleci/python:3.7
+  - image: lumigo/ci:latest
+    auth:
+      username: lumigo
+      password: $DOCKERHUB_PASSWORD
 
 commands:
-
-  install_java:
-    description: "Install java 8 JDK & maven"
-    steps:
-      - run:
-          command: |
-            sudo apt-get update
-            sudo apt-get install openjdk-8-jdk
-            sudo update-alternatives --config java
-            sudo apt install maven
-
-  install_node:
-    description: "Install node 10"
-    steps:
-      - run: curl -sL https://deb.nodesource.com/setup_10.x | sudo bash -
-      - run: sudo apt install nodejs
-      - run: sudo npm install -g serverless
-
   checkout_utils:
     description: "Checkout various utilities"
     steps:
@@ -81,9 +66,6 @@ commands:
             cd ..
       # https://discuss.circleci.com/t/activate-python-virtualenv-for-whole-job/14434
       - run: echo "source venv/bin/activate" >> $BASH_ENV
-
-      - run: pip install pytest-cov
-      - run: pip install pre-commit
       - run: pre-commit install
 
       - save_cache:
@@ -120,21 +102,14 @@ jobs:
       - run: mkdir -p ~/.aws
       - run: echo ${KEY} | gpg --batch -d --passphrase-fd 0 ../common-resources/encrypted_files/credentials_integration.enc > ~/.aws/credentials
       - run: pre-commit install
-      - run: curl -sL https://deb.nodesource.com/setup_8.x | sudo bash -
-      - run: sudo apt install nodejs
-      - run: sudo npm install -g serverless
-      - run: sudo pip install awscli
       - run: ./scripts/checks.sh
       - run: bash <(curl -s https://codecov.io/bash)
 
   integration-test:
     <<: *defaults
     steps:
-      - install_java
-      - install_node
       - checkout_utils
       - checkout_code
-      - run: sudo pip install awscli
       - run: ./scripts/ci_deploy.sh
       - run: cd ../integration-tests && npm i
       - run: sudo npm install -g recursive-install
@@ -147,5 +122,4 @@ jobs:
     steps:
       - checkout_code
       - checkout_credentials
-      - run: sudo pip install awscli
       - run: ./scripts/bd_to_prod.sh
