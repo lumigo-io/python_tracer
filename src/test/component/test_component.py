@@ -73,6 +73,7 @@ def test_dynamo_db(ddb_resource, region):
 
 
 @pytest.mark.slow
+@pytest.mark.skip("See RD-893")
 def test_sns(sns_resource, region):
     @lumigo_tracer(token="123")
     def lambda_test_function():
