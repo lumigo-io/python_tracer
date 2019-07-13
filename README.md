@@ -11,6 +11,7 @@
 def my_lambda(event, context):
     print('I can finally trubleshoot!')
 ```
+
 ## Configuration
 ### Enhanced print
 In case you are using `print()` or [python logging](https://docs.python.org/3/library/logging.html) to log, then you can use the enhanced print capabilities that the tracer provides in order to view your logs in the platform view. Just add `enhance_print=True` to the tracer configuration and you are set.
