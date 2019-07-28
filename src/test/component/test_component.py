@@ -16,6 +16,17 @@ def serverless_yaml():
     subprocess.check_output(["sls", "deploy", "--env", os.environ.get("USER", DEFAULT_USER)])
 
 
+@pytest.fixture(autouse=True)
+def aws_env_variables():
+    old = os.environ.get("_X_AMZN_TRACE_ID")
+    os.environ[
+        "_X_AMZN_TRACE_ID"
+    ] = "RequestId: 4365921c-fc6d-4745-9f00-9fe9c516ede5 Root=1-000044d4-c3881e0c19c02c5e6ffa8f9e;Parent=37cf579525dfb3ba;Sampled=0"
+    yield
+    if old:
+        os.environ["_X_AMZN_TRACE_ID"] = old
+
+
 @pytest.fixture
 def region():
     return boto3.session.Session().region_name
@@ -73,7 +84,6 @@ def test_dynamo_db(ddb_resource, region):
 
 
 @pytest.mark.slow
-@pytest.mark.skip("See RD-893")
 def test_sns(sns_resource, region):
     @lumigo_tracer(token="123")
     def lambda_test_function():
