@@ -17,14 +17,11 @@ def serverless_yaml():
 
 
 @pytest.fixture(autouse=True)
-def aws_env_variables():
-    old = os.environ.get("_X_AMZN_TRACE_ID")
-    os.environ[
-        "_X_AMZN_TRACE_ID"
-    ] = "RequestId: 4365921c-fc6d-4745-9f00-9fe9c516ede5 Root=1-000044d4-c3881e0c19c02c5e6ffa8f9e;Parent=37cf579525dfb3ba;Sampled=0"
-    yield
-    if old:
-        os.environ["_X_AMZN_TRACE_ID"] = old
+def aws_env_variables(monkeypatch):
+    monkeypatch.setenv(
+        "_X_AMZN_TRACE_ID",
+        "RequestId: 4365921c-fc6d-4745-9f00-9fe9c516ede5 Root=1-000044d4-c3881e0c19c02c5e6ffa8f9e;Parent=37cf579525dfb3ba;Sampled=0",
+    )
 
 
 @pytest.fixture
