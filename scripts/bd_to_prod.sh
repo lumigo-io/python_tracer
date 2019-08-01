@@ -40,7 +40,7 @@ curl -F package=@${upload_file} https://${FURY_AUTH}@push.fury.io/lumigo/
 popd > /dev/null 2>&1
 
 echo "Create Layer"
-enc_location=../common-resources/encrypted_files/credentials_integration.enc
+enc_location=../common-resources/encrypted_files/credentials_production.enc
 if [[ ! -f ${enc_location} ]]
 then
     echo "$enc_location not found"
