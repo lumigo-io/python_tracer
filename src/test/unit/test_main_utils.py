@@ -18,21 +18,17 @@ def error_span():
     return {"dummy": "dummy", "error": "Error"}
 
 
-@pytest.fixture
-def status_code_error_span():
-    return {"dummy": "dummy", "info": {"httpInfo": {"response": {"statusCode": 500}}}}
-
-
-@pytest.fixture
-def status_code_span():
-    return {"dummy": "dummy", "info": {"httpInfo": {"response": {"statusCode": 200}}}}
-
-
-def test_is_span_has_error(dummy_span, error_span, status_code_error_span, status_code_span):
-    assert _is_span_has_error(dummy_span) is False
-    assert _is_span_has_error(error_span) is True
-    assert _is_span_has_error(status_code_span) is False
-    assert _is_span_has_error(status_code_error_span) is True
+@pytest.mark.parametrize(
+    ("input_span", "expected_is_error"),
+    [
+        ({"dummy": "dummy"}, False),
+        ({"dummy": "dummy", "error": "Error"}, True),
+        ({"dummy": "dummy", "info": {"httpInfo": {"response": {"statusCode": 500}}}}, True),
+        ({"dummy": "dummy", "info": {"httpInfo": {"response": {"statusCode": 200}}}}, False),
+    ],
+)
+def test_is_span_has_error(input_span, expected_is_error):
+    assert _is_span_has_error(input_span) is expected_is_error
 
 
 def test_create_request_body_default(dummy_span):

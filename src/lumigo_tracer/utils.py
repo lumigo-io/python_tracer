@@ -6,7 +6,7 @@ import urllib.request
 from urllib.error import URLError
 from typing import Union, List
 from contextlib import contextmanager
-from math import ceil
+from base64 import b64encode
 
 
 EDGE_HOST = "https://{region}.lumigo-tracer-edge.golumigo.com/api/spans"
@@ -66,7 +66,7 @@ def _is_span_has_error(span: dict) -> bool:
 
 
 def _get_event_base64_size(event) -> int:
-    return ceil(len(json.dumps(event).encode()) * 4 / 3)
+    return len(b64encode(json.dumps(event).encode()))
 
 
 def _create_request_body(
