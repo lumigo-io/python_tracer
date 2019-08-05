@@ -13,7 +13,7 @@ EDGE_HOST = "https://{region}.lumigo-tracer-edge.golumigo.com/api/spans"
 LOG_FORMAT = "#LUMIGO# - %(asctime)s - %(levelname)s - %(message)s"
 _SHOULD_REPORT = True
 SECONDS_TO_TIMEOUT = 0.3
-MAX_SIZE_FOR_REQUEST: int = int(os.environ.get("MAX_SIZE_FOR_REQUEST", 900_000))
+MAX_SIZE_FOR_REQUEST: int = int(os.environ.get("LUMIGO_MAX_SIZE_FOR_REQUEST", 900_000))
 
 _HOST: str = ""
 _TOKEN: str = ""
@@ -66,7 +66,7 @@ def _is_span_has_error(span: dict) -> bool:
 
 
 def _get_event_base64_size(event) -> int:
-    return ceil(len(json.dumps(event)) * 4 / 3)
+    return ceil(len(json.dumps(event).encode()) * 4 / 3)
 
 
 def _create_request_body(
@@ -77,19 +77,14 @@ def _create_request_body(
         return json.dumps(msgs)
 
     end_span = msgs[-1]
-    error_spans = [span for span in msgs if _is_span_has_error(span) and span != end_span]
-    normal_spans = [span for span in msgs if not _is_span_has_error(span) and span != end_span]
-    ordered_spans = []
-    ordered_spans.extend(error_spans)
-    ordered_spans.extend(normal_spans)
+    ordered_spans = sorted(msgs[:-1], key=_is_span_has_error, reverse=True)
 
-    spans_to_send: list = []
+    spans_to_send: list = [end_span]
     for span in ordered_spans:
-        current_size = _get_event_base64_size(spans_to_send) + _get_event_base64_size(end_span)
+        current_size = _get_event_base64_size(spans_to_send)
         span_size = _get_event_base64_size(span)
         if current_size + span_size < max_size:
             spans_to_send.append(span)
-    spans_to_send.append(end_span)
     return json.dumps(spans_to_send)
 
 
@@ -109,7 +104,7 @@ def report_json(region: Union[None, str], msgs: List[dict]) -> int:
     duration = 0
     if _SHOULD_REPORT:
         try:
-            prune_trace: bool = not os.environ.get("LUMIGO_PRUNE_TRACE_OFF", False) == "TRUE"
+            prune_trace: bool = not os.environ.get("LUMIGO_PRUNE_TRACE_OFF", "").lower() == "true"
             to_send = _create_request_body(msgs, prune_trace).encode()
             start_time = time.time()
             response = urllib.request.urlopen(
