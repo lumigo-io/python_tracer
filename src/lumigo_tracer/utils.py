@@ -55,6 +55,15 @@ def config(
         _VERBOSE = True
 
 
+def _is_span_has_error(span: dict) -> bool:
+    return (
+        span.get("error") is not None
+        or span.get("info", {}).get("httpInfo", {}).get("response", {}).get("statusCode", 0)  # noqa
+        > 400  # noqa
+        or span.get("returnValue", {}).get("statusCode", 0) > 400  # noqa
+    )
+
+
 def report_json(region: Union[None, str], msgs: List[dict]) -> int:
     """
     This function sends the information back to the edge.
@@ -71,6 +80,7 @@ def report_json(region: Union[None, str], msgs: List[dict]) -> int:
     duration = 0
     if _SHOULD_REPORT:
         try:
+
             to_send = json.dumps(msgs).encode()
             start_time = time.time()
             response = urllib.request.urlopen(
