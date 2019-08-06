@@ -13,7 +13,7 @@ from lumigo_tracer.utils import (
     _is_span_has_error,
 )
 from lumigo_tracer import utils
-from lumigo_tracer.parsers.parser import get_parser, HTTP_TYPE, Parser
+from lumigo_tracer.parsers.parser import get_parser, HTTP_TYPE, StepFunctionParser
 from lumigo_tracer.parsers.utils import (
     parse_trace_id,
     safe_split_get,
@@ -176,12 +176,12 @@ class SpansContainer:
             self.events[0].update({"error": msg})
 
     def add_step_end_event(self, ret_val):
-        step_function_span = Parser().parse_request(None)
         message_id = str(uuid.uuid4())
-        step_function_span["info"]["messageId"] = message_id
+        step_function_span = StepFunctionParser().create_span(message_id)
         self.events.append(recursive_json_join(self.base_msg, step_function_span))
         if isinstance(ret_val, dict):
             ret_val[LUMIGO_EVENT_KEY] = {STEP_FUNCTION_UID_KEY: message_id}
+            get_logger().debug(f"Added key {LUMIGO_EVENT_KEY} to the user's return value")
 
     def end(self, ret_val) -> Optional[int]:
         reported_rtt = None

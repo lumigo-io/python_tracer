@@ -50,7 +50,7 @@ class Parser:
             "type": HTTP_TYPE,
             "info": {
                 "httpInfo": {
-                    "host": parse_params.host if parse_params else "StepFunction",
+                    "host": parse_params.host if parse_params else "",
                     "request": additional_info,
                 }
             },
@@ -188,6 +188,20 @@ class S3Parser(Parser):
         return recursive_json_join(
             super().parse_response(url, status_code, headers, body),
             {"info": {"messageId": headers.get("x-amz-request-id")}},
+        )
+
+
+class StepFunctionParser(ServerlessAWSParser):
+    def create_span(self, message_id: str) -> dict:
+        return recursive_json_join(
+            {
+                "info": {
+                    "resourceName": "StepFunction",
+                    "httpInfo": {"host": "StepFunction"},
+                    "messageId": message_id,
+                }
+            },
+            super().parse_request(None),  # type: ignore
         )
 
 

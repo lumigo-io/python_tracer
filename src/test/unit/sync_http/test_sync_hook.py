@@ -379,13 +379,13 @@ def test_wrapping_urlib_stream_get():
 
 
 @pytest.mark.parametrize(
-    "event, triggered_by, message_id",
+    "event, expected_triggered_by, expected_message_id",
     [
         ({}, "unknown", None),
         ({"result": 1, LUMIGO_EVENT_KEY: {STEP_FUNCTION_UID_KEY: "123"}}, "stepFunction", "123"),
     ],
 )
-def test_wrapping_step_function(event, triggered_by, message_id):
+def test_wrapping_step_function(event, expected_triggered_by, expected_message_id):
     @lumigo_tracer(step_function=True)
     def lambda_test_function(event, context):
         return {"result": 1}
@@ -393,8 +393,8 @@ def test_wrapping_step_function(event, triggered_by, message_id):
     lambda_test_function(event, None)
     span = SpansContainer.get_span()
     assert len(span.events) == 2
-    assert span.events[0]["info"]["triggeredBy"] == triggered_by
-    assert span.events[0]["info"].get("messageId") == message_id
+    assert span.events[0]["info"]["triggeredBy"] == expected_triggered_by
+    assert span.events[0]["info"].get("messageId") == expected_message_id
     return_value = json.loads(span.events[0]["return_value"])
     assert return_value["result"] == 1
     assert return_value[LUMIGO_EVENT_KEY][STEP_FUNCTION_UID_KEY]
