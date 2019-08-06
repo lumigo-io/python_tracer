@@ -80,7 +80,6 @@ def report_json(region: Union[None, str], msgs: List[dict]) -> int:
     duration = 0
     if _SHOULD_REPORT:
         try:
-
             to_send = json.dumps(msgs).encode()
             start_time = time.time()
             response = urllib.request.urlopen(

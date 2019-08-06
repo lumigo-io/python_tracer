@@ -169,20 +169,20 @@ class SpansContainer:
             self.events[0].update({"error": msg})
 
     def end(self, ret_val) -> Optional[int]:
-        reported_ttl = None
+        reported_rtt = None
         self.previous_request = None, b""
         self.events[0].update({"ended": int(time.time() * 1000)})
         if utils.is_verbose():
             self.events[0].update({"return_value": prepare_large_data(ret_val)})
-        spans_contain_errors: bool = sum(_is_span_has_error(s) for s in self.events) > 0
+        spans_contain_errors: bool = any(_is_span_has_error(s) for s in self.events)
 
         if (not SEND_ONLY_IF_ERROR) or spans_contain_errors:
-            reported_ttl = utils.report_json(region=self.region, msgs=self.events[:])
+            reported_rtt = utils.report_json(region=self.region, msgs=self.events[:])
         else:
             get_logger().debug(
-                "No Spans was sent, `SEND_ONLY_IF_ERROR` is on and no span has error"
+                "No Spans were sent, `SEND_ONLY_IF_ERROR` is on and no span has error"
             )
-        return reported_ttl
+        return reported_rtt
 
     def get_patched_root(self):
         root = safe_split_get(self.trace_root, "-", 0)

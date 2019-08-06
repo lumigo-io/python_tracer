@@ -13,8 +13,9 @@ def dummy_http_request():
     )
 
 
-def _mock_report_json(region, msgs):
-    return 1
+@pytest.fixture(autouse=True)
+def mock_report_json(monkeypatch):
+    monkeypatch.setattr(utils, "report_json", lambda *args, **kwargs: 1)
 
 
 def _is_start_span_sent():
@@ -22,8 +23,6 @@ def _is_start_span_sent():
 
 
 def test_spans_container_send_only_on_errors_mode_false_not_effecting(monkeypatch):
-    monkeypatch.setattr(utils, "report_json", _mock_report_json)
-
     SpansContainer.create_span()
     SpansContainer.get_span().start()
     assert _is_start_span_sent() is True
@@ -31,7 +30,6 @@ def test_spans_container_send_only_on_errors_mode_false_not_effecting(monkeypatc
 
 def test_spans_container_not_send_start_span_on_send_only_on_errors_mode(monkeypatch):
     monkeypatch.setattr(spans_container, "SEND_ONLY_IF_ERROR", True)
-    monkeypatch.setattr(utils, "report_json", _mock_report_json)
 
     SpansContainer.create_span()
     SpansContainer.get_span().start()
@@ -42,7 +40,6 @@ def test_spans_container_end_function_not_send_spans_on_send_only_on_errors_mode
     monkeypatch, dummy_http_request
 ):
     monkeypatch.setattr(spans_container, "SEND_ONLY_IF_ERROR", True)
-    monkeypatch.setattr(utils, "report_json", _mock_report_json)
 
     SpansContainer.create_span()
     SpansContainer.get_span().start()
@@ -57,7 +54,6 @@ def test_spans_container_end_function_send_spans_on_send_only_on_errors_mode(
     monkeypatch, dummy_http_request
 ):
     monkeypatch.setattr(spans_container, "SEND_ONLY_IF_ERROR", True)
-    monkeypatch.setattr(utils, "report_json", _mock_report_json)
 
     SpansContainer.create_span()
     SpansContainer.get_span().start()
@@ -72,7 +68,6 @@ def test_spans_container_end_function_send_spans_on_send_only_on_errors_mode(
 def test_spans_container_end_function_send_only_on_errors_mode_false_not_effecting(
     monkeypatch, dummy_http_request
 ):
-    monkeypatch.setattr(utils, "report_json", _mock_report_json)
 
     SpansContainer.create_span()
     SpansContainer.get_span().start()
