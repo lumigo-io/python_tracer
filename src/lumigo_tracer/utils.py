@@ -6,12 +6,14 @@ import urllib.request
 from urllib.error import URLError
 from typing import Union, List
 from contextlib import contextmanager
+from base64 import b64encode
 
 
 EDGE_HOST = "https://{region}.lumigo-tracer-edge.golumigo.com/api/spans"
 LOG_FORMAT = "#LUMIGO# - %(asctime)s - %(levelname)s - %(message)s"
 _SHOULD_REPORT = True
 SECONDS_TO_TIMEOUT = 0.3
+MAX_SIZE_FOR_REQUEST: int = int(os.environ.get("LUMIGO_MAX_SIZE_FOR_REQUEST", 900_000))
 
 _HOST: str = ""
 _TOKEN: str = ""
@@ -55,6 +57,37 @@ def config(
         _VERBOSE = True
 
 
+def _is_span_has_error(span: dict) -> bool:
+    return (
+        span.get("error") is not None
+        or span.get("info", {}).get("httpInfo", {}).get("response", {}).get("statusCode", 0)  # noqa
+        > 400  # noqa
+    )
+
+
+def _get_event_base64_size(event) -> int:
+    return len(b64encode(json.dumps(event).encode()))
+
+
+def _create_request_body(
+    msgs: List[dict], prune_size_flag: bool, max_size: int = MAX_SIZE_FOR_REQUEST
+) -> str:
+
+    if not prune_size_flag or _get_event_base64_size(msgs) < max_size:
+        return json.dumps(msgs)
+
+    end_span = msgs[-1]
+    ordered_spans = sorted(msgs[:-1], key=_is_span_has_error, reverse=True)
+
+    spans_to_send: list = [end_span]
+    for span in ordered_spans:
+        current_size = _get_event_base64_size(spans_to_send)
+        span_size = _get_event_base64_size(span)
+        if current_size + span_size < max_size:
+            spans_to_send.append(span)
+    return json.dumps(spans_to_send)
+
+
 def report_json(region: Union[None, str], msgs: List[dict]) -> int:
     """
     This function sends the information back to the edge.
@@ -71,7 +104,8 @@ def report_json(region: Union[None, str], msgs: List[dict]) -> int:
     duration = 0
     if _SHOULD_REPORT:
         try:
-            to_send = json.dumps(msgs).encode()
+            prune_trace: bool = not os.environ.get("LUMIGO_PRUNE_TRACE_OFF", "").lower() == "true"
+            to_send = _create_request_body(msgs, prune_trace).encode()
             start_time = time.time()
             response = urllib.request.urlopen(
                 urllib.request.Request(host, to_send, headers={"Content-Type": "application/json"}),
