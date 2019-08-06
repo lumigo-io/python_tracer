@@ -4,28 +4,35 @@ import os
 import time
 import urllib.request
 from urllib.error import URLError
-from typing import Union, List
+from typing import Union, List, Optional
 from contextlib import contextmanager
 
 
 EDGE_HOST = "https://{region}.lumigo-tracer-edge.golumigo.com/api/spans"
 LOG_FORMAT = "#LUMIGO# - %(asctime)s - %(levelname)s - %(message)s"
-_SHOULD_REPORT = True
 SECONDS_TO_TIMEOUT = 0.3
+LUMIGO_EVENT_KEY = "_lumigo"
+STEP_FUNCTION_UID_KEY = "step_function_uid"
 
-_HOST: str = ""
-_TOKEN: str = ""
-_VERBOSE: bool = True
-_ENHANCE_PRINT: bool = False
 _logger: Union[logging.Logger, None] = None
+
+
+class Configuration:
+    should_report: bool = True
+    host: str = ""
+    token: Optional[str] = ""
+    verbose: bool = True
+    enhanced_print: bool = False
+    is_step_function: bool = False
 
 
 def config(
     edge_host: str = "",
     should_report: Union[bool, None] = None,
-    token: str = None,
+    token: Optional[str] = None,
     verbose: bool = True,
     enhance_print: bool = False,
+    step_function: bool = False,
 ) -> None:
     """
     This function configure the lumigo wrapper.
@@ -34,25 +41,18 @@ def config(
     :param edge_host: The host to send the events. Leave empty for default.
     :param should_report: Weather we should send the events. Change to True in the production.
     :param token: The token to use when sending back the events.
+    :param enhance_print: Should we add prefix to the print (so the logs will be in the platform).
+    :param step_function: Is this function is a part of a step function?
     """
-    global _HOST, _SHOULD_REPORT, _TOKEN, _VERBOSE, _ENHANCE_PRINT
-    if edge_host:
-        _HOST = edge_host
-    elif os.environ.get("LUMIGO_TRACER_HOST"):
-        _HOST = os.environ["LUMIGO_TRACER_HOST"]
     if should_report is not None:
-        _SHOULD_REPORT = should_report
+        Configuration.should_report = should_report
     elif not is_aws_environment():
-        _SHOULD_REPORT = False
-    if token:
-        _TOKEN = token
-    elif os.environ.get("LUMIGO_TRACER_TOKEN"):
-        _TOKEN = os.environ["LUMIGO_TRACER_TOKEN"]
-    _ENHANCE_PRINT = enhance_print
-    if not verbose or os.environ.get("LUMIGO_VERBOSE", "").lower() == "false":
-        _VERBOSE = False
-    else:
-        _VERBOSE = True
+        Configuration.should_report = False
+    Configuration.host = edge_host or os.environ.get("LUMIGO_TRACER_HOST", "")
+    Configuration.token = token or os.environ.get("LUMIGO_TRACER_TOKEN", "")
+    Configuration.enhanced_print = enhance_print
+    Configuration.verbose = verbose and os.environ.get("LUMIGO_VERBOSE", "").lower() != "false"
+    Configuration.is_step_function = step_function
 
 
 def report_json(region: Union[None, str], msgs: List[dict]) -> int:
@@ -65,11 +65,11 @@ def report_json(region: Union[None, str], msgs: List[dict]) -> int:
                 or 0 if we didn't send (due to configuration or fail).
     """
     for msg in msgs:
-        msg["token"] = _TOKEN
+        msg["token"] = Configuration.token
     get_logger().info(f"reporting the messages: {msgs}")
-    host = _HOST or EDGE_HOST.format(region=region)
+    host = Configuration.host or EDGE_HOST.format(region=region)
     duration = 0
-    if _SHOULD_REPORT:
+    if Configuration.should_report:
         try:
             to_send = json.dumps(msgs).encode()
             start_time = time.time()
@@ -107,10 +107,6 @@ def get_logger():
     return _logger
 
 
-def is_verbose():
-    return _VERBOSE
-
-
 @contextmanager
 def lumigo_safe_execute(part_name=""):
     try:
@@ -124,7 +120,3 @@ def is_aws_environment():
     :return: heuristically determine rather we're running on an aws environment.
     """
     return bool(os.environ.get("LAMBDA_RUNTIME_DIR"))
-
-
-def is_enhanced_print():
-    return _ENHANCE_PRINT
