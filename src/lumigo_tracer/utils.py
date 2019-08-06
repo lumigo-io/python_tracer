@@ -59,9 +59,10 @@ def config(
 
 def _is_span_has_error(span: dict) -> bool:
     return (
-        span.get("error") is not None
+        span.get("error") is not None  # noqa
         or span.get("info", {}).get("httpInfo", {}).get("response", {}).get("statusCode", 0)  # noqa
         > 400  # noqa
+        or span.get("returnValue", {}).get("statusCode", 0) > 400  # noqa
     )
 
 

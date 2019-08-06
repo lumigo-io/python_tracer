@@ -5,7 +5,13 @@ import traceback
 import http.client
 from typing import List, Dict, Tuple, Optional
 
-from lumigo_tracer.utils import Configuration, LUMIGO_EVENT_KEY, STEP_FUNCTION_UID_KEY
+from lumigo_tracer.utils import (
+    Configuration,
+    LUMIGO_EVENT_KEY,
+    STEP_FUNCTION_UID_KEY,
+    get_logger,
+    _is_span_has_error,
+)
 from lumigo_tracer import utils
 from lumigo_tracer.parsers.parser import get_parser, HTTP_TYPE, Parser
 from lumigo_tracer.parsers.utils import (
@@ -19,6 +25,7 @@ from lumigo_tracer.parsers.http_data_classes import HttpRequest
 
 
 _VERSION_PATH = os.path.join(os.path.dirname(__file__), "VERSION")
+SEND_ONLY_IF_ERROR: bool = os.environ.get("SEND_ONLY_IF_ERROR", "").lower() == "true"
 MAX_LAMBDA_TIME = 15 * 60 * 1000
 MAX_BODY_SIZE = 1024
 
@@ -90,8 +97,11 @@ class SpansContainer:
         to_send["id"] = f"{to_send['id']}_started"
         to_send["ended"] = to_send["started"]
         to_send["maxFinishTime"] = self.max_finish_time
-        report_duration = utils.report_json(region=self.region, msgs=[to_send])
-        self.start_msg["reporter_rtt"] = report_duration
+        if not SEND_ONLY_IF_ERROR:
+            report_duration = utils.report_json(region=self.region, msgs=[to_send])
+            self.start_msg["reporter_rtt"] = report_duration
+        else:
+            get_logger().debug("Skip sending start because tracer in 'send only if error' mode .")
         self.events = [self.start_msg]
 
     def add_request_event(self, parse_params: HttpRequest):
@@ -173,14 +183,23 @@ class SpansContainer:
         if isinstance(ret_val, dict):
             ret_val[LUMIGO_EVENT_KEY] = {STEP_FUNCTION_UID_KEY: message_id}
 
-    def end(self, ret_val) -> None:
+    def end(self, ret_val) -> Optional[int]:
+        reported_rtt = None
         self.previous_request = None, b""
         self.events[0].update({"ended": int(time.time() * 1000)})
         if Configuration.is_step_function:
             self.add_step_end_event(ret_val)
         if Configuration.verbose:
             self.events[0].update({"return_value": prepare_large_data(ret_val)})
-        utils.report_json(region=self.region, msgs=self.events[:])
+        spans_contain_errors: bool = any(_is_span_has_error(s) for s in self.events)
+
+        if (not SEND_ONLY_IF_ERROR) or spans_contain_errors:
+            reported_rtt = utils.report_json(region=self.region, msgs=self.events[:])
+        else:
+            get_logger().debug(
+                "No Spans were sent, `SEND_ONLY_IF_ERROR` is on and no span has error"
+            )
+        return reported_rtt
 
     def get_patched_root(self):
         root = safe_split_get(self.trace_root, "-", 0)
