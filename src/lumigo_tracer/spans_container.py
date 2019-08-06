@@ -13,9 +13,12 @@ from lumigo_tracer.parsers.utils import (
 )
 import time
 import os
+
+from lumigo_tracer.utils import get_logger, _is_span_has_error
 from .parsers.http_data_classes import HttpRequest
 
 _VERSION_PATH = os.path.join(os.path.dirname(__file__), "VERSION")
+SEND_ONLY_IF_ERROR: bool = os.environ.get("SEND_ONLY_IF_ERROR", "").lower() == "true"
 MAX_LAMBDA_TIME = 15 * 60 * 1000
 MAX_BODY_SIZE = 1024
 
@@ -87,8 +90,11 @@ class SpansContainer:
         to_send["id"] = f"{to_send['id']}_started"
         to_send["ended"] = to_send["started"]
         to_send["maxFinishTime"] = self.max_finish_time
-        report_duration = utils.report_json(region=self.region, msgs=[to_send])
-        self.start_msg["reporter_rtt"] = report_duration
+        if not SEND_ONLY_IF_ERROR:
+            report_duration = utils.report_json(region=self.region, msgs=[to_send])
+            self.start_msg["reporter_rtt"] = report_duration
+        else:
+            get_logger().debug("Skip sending start because tracer in 'send only if error' mode .")
         self.events = [self.start_msg]
 
     def add_request_event(self, parse_params: HttpRequest):
@@ -162,12 +168,21 @@ class SpansContainer:
             }
             self.events[0].update({"error": msg})
 
-    def end(self, ret_val) -> None:
+    def end(self, ret_val) -> Optional[int]:
+        reported_rtt = None
         self.previous_request = None, b""
         self.events[0].update({"ended": int(time.time() * 1000)})
         if utils.is_verbose():
             self.events[0].update({"return_value": prepare_large_data(ret_val)})
-        utils.report_json(region=self.region, msgs=self.events[:])
+        spans_contain_errors: bool = any(_is_span_has_error(s) for s in self.events)
+
+        if (not SEND_ONLY_IF_ERROR) or spans_contain_errors:
+            reported_rtt = utils.report_json(region=self.region, msgs=self.events[:])
+        else:
+            get_logger().debug(
+                "No Spans were sent, `SEND_ONLY_IF_ERROR` is on and no span has error"
+            )
+        return reported_rtt
 
     def get_patched_root(self):
         root = safe_split_get(self.trace_root, "-", 0)
