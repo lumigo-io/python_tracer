@@ -26,7 +26,7 @@ If this function is part of a step function, you can add the flag `step_function
 ```
 @lumigo_tracer(token='XXX', step_function=True)
 def my_lambda(event, context):
-    print('I can view this line now')
+    print('Step function visibility!')
 ```
 
 
