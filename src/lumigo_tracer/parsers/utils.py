@@ -8,6 +8,8 @@ import functools
 import itertools
 from collections.abc import Iterable
 
+from lumigo_tracer.utils import Configuration, LUMIGO_EVENT_KEY, STEP_FUNCTION_UID_KEY
+
 MAX_ENTRY_SIZE = 1024
 
 
@@ -156,12 +158,28 @@ def parse_triggered_by(event: dict):
         return _parse_sns(event)
     elif _is_supported_streams(event):
         return _parse_streams(event)
+    elif _is_step_function(event):
+        return _parse_step_function(event)
     else:
         return _parse_unknown(event)
 
 
 def _parse_unknown(event: dict):
     result = {"triggeredBy": "unknown"}
+    return result
+
+
+def _is_step_function(event):
+    return Configuration.is_step_function and STEP_FUNCTION_UID_KEY in event.get(
+        LUMIGO_EVENT_KEY, {}
+    )
+
+
+def _parse_step_function(event: dict):
+    result = {
+        "triggeredBy": "stepFunction",
+        "messageId": event[LUMIGO_EVENT_KEY][STEP_FUNCTION_UID_KEY],
+    }
     return result
 
 

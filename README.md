@@ -20,6 +20,11 @@ In case you are using `print()` or [python logging](https://docs.python.org/3/li
 def my_lambda(event, context):
     print('I can view this line now')
 ```
+
+### Step Functions
+If this function is part of a step function, you can add the flag `step_function=True`, and we will track the states in the step function as a single transaction.
+
+
 # Frameworks
 ## Chalice
 * In chalice, you should add the following lines to the your file:

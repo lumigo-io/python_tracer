@@ -12,8 +12,8 @@ from lumigo_tracer.parsers.utils import (
     prepare_large_data,
     safe_get,
 )
-from lumigo_tracer.utils import is_verbose
-from .http_data_classes import HttpRequest
+from lumigo_tracer.utils import Configuration
+from lumigo_tracer.parsers.http_data_classes import HttpRequest
 
 HTTP_TYPE = "http"
 
@@ -33,7 +33,7 @@ class Parser:
     """
 
     def parse_request(self, parse_params: HttpRequest) -> dict:
-        if is_verbose():
+        if Configuration.verbose and parse_params:
             additional_info = {
                 "headers": prepare_large_data(
                     dict(parse_params.headers.items() if parse_params.headers else {})
@@ -43,19 +43,24 @@ class Parser:
                 "uri": parse_params.uri,
             }
         else:
-            additional_info = {"method": parse_params.method}
+            additional_info = {"method": parse_params.method if parse_params else ""}
 
         return {
-            "id": str(uuid.uuid1()),
+            "id": str(uuid.uuid4()),
             "type": HTTP_TYPE,
-            "info": {"httpInfo": {"host": parse_params.host, "request": additional_info}},
+            "info": {
+                "httpInfo": {
+                    "host": parse_params.host if parse_params else "",
+                    "request": additional_info,
+                }
+            },
             "started": int(time.time() * 1000),
         }
 
     def parse_response(
         self, url: str, status_code: int, headers: Optional[http.client.HTTPMessage], body: bytes
     ) -> dict:
-        if is_verbose():
+        if Configuration.verbose:
             additional_info = {
                 "headers": prepare_large_data(dict(headers.items() if headers else {})),
                 "body": prepare_large_data(body),
@@ -183,6 +188,20 @@ class S3Parser(Parser):
         return recursive_json_join(
             super().parse_response(url, status_code, headers, body),
             {"info": {"messageId": headers.get("x-amz-request-id")}},
+        )
+
+
+class StepFunctionParser(ServerlessAWSParser):
+    def create_span(self, message_id: str) -> dict:
+        return recursive_json_join(
+            {
+                "info": {
+                    "resourceName": "StepFunction",
+                    "httpInfo": {"host": "StepFunction"},
+                    "messageId": message_id,
+                }
+            },
+            super().parse_request(None),  # type: ignore
         )
 
 

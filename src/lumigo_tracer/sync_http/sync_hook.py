@@ -10,9 +10,9 @@ from lumigo_tracer.libs.wrapt import wrap_function_wrapper
 from lumigo_tracer.parsers.utils import safe_get_list
 from lumigo_tracer.utils import (
     config,
+    Configuration,
     get_logger,
     lumigo_safe_execute,
-    is_enhanced_print,
     is_aws_environment,
 )
 from lumigo_tracer.spans_container import SpansContainer
@@ -137,8 +137,7 @@ def _lumigo_tracer(func):
         local_print = print
         local_logging_format = logging.Formatter.format
         try:
-
-            if is_enhanced_print():
+            if Configuration.enhanced_print:
                 _enhance_output(args, local_print, local_logging_format)
             SpansContainer.create_span(*args, force=True)
             SpansContainer.get_span().start()
@@ -152,7 +151,7 @@ def _lumigo_tracer(func):
                 raise
             finally:
                 SpansContainer.get_span().end(ret_val)
-                if is_enhanced_print():
+                if Configuration.enhanced_print:
                     builtins.print = local_print
                     logging.Formatter.format = local_logging_format
             return ret_val
