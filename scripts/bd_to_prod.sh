@@ -50,18 +50,17 @@ echo "Creating new credential files"
 mkdir -p ~/.aws
 echo ${KEY} | gpg --batch -d --passphrase-fd 0 ${enc_location} > ~/.aws/credentials
 
-cd src
+pushd src
 mkdir python
 cp -R lumigo_tracer.egg-info python/
 cp -R lumigo_tracer python/
-zip -r lumigo_tracer.zip python
+popd
+cp -R src/python/ python/
 
-regions=("ap-northeast-1" "ap-northeast-2" "ap-south-1" "ap-southeast-1" "ap-southeast-2" "ca-central-1" "eu-central-1" "eu-north-1" "eu-west-1" "eu-west-2" "eu-west-3" "sa-east-1" "us-east-1" "us-east-2" "us-west-1" "us-west-2")
-for region in "${regions[@]}"; do
-    version=$(aws lambda publish-layer-version --layer-name lumigo-python-tracer --description "Serverless Troubleshooting Made Simple" --license-info "Apache License Version 2.0" --zip-file fileb://lumigo_tracer.zip --compatible-runtimes python3.6 python3.7 --region ${region}| jq -r '.Version')
-    aws lambda add-layer-version-permission --layer-name lumigo-python-tracer --statement-id engineering-org --principal "*" --action lambda:GetLayerVersion --version-number ${version} --region ${region}
-    echo "published version ${version} to region ${region}"
-done
+~/source/utils/common_bash/create_layer.sh lumigo-python-tracer ALL python "python3.6 python3.7"
+
+git add README.md
+git commit -m "Update README.md layer ARN"
 
 echo "Create release tag"
 push_tags
