@@ -26,18 +26,9 @@ setup_git
 echo "Getting latest changes from git"
 changes=$(git log $(git describe --tags --abbrev=0)..HEAD --oneline)
 
-sudo pip install --upgrade bumpversion
-bumpversion patch --message "{current_version} → {new_version}. Changes: ${changes}"
-
 echo "Uploading to gemfury"
 echo "Setup"
-pushd ./src > /dev/null
 python setup.py sdist
-
-echo "Upload"
-upload_file=$(ls ./dist/*.gz)
-curl -F package=@${upload_file} https://${FURY_AUTH}@push.fury.io/lumigo/
-popd > /dev/null 2>&1
 
 echo "Create Layer"
 enc_location=../common-resources/encrypted_files/credentials_production.enc
@@ -50,7 +41,9 @@ echo "Creating new credential files"
 mkdir -p ~/.aws
 echo ${KEY} | gpg --batch -d --passphrase-fd 0 ${enc_location} > ~/.aws/credentials
 
+
 pushd src
+rm -rf python
 mkdir python
 cp -R lumigo_tracer.egg-info python/
 cp -R lumigo_tracer python/
@@ -58,11 +51,14 @@ popd
 cp -R src/python/ python/
 
 ../utils/common_bash/create_layer.sh lumigo-python-tracer ALL python "python3.6 python3.7"
-
+#
 git add README.md
 git commit -m "Update README.md layer ARN"
 
-echo "Create release tag"
-push_tags
+pip install --upgrade wheel setuptools twine pkginfo
+pip install python-semantic-release
+npm install @semantic-release/exec semantic-release
+
+npx semantic-release
 
 echo "Done"

@@ -1,9 +1,9 @@
-import os
 import setuptools
+from version import version
 
 setuptools.setup(
     name="lumigo_tracer",
-    version=open(os.path.join(os.path.dirname(__file__), "lumigo_tracer", "VERSION"), "r").read(),
+    version=version,
     author="saart",
     author_email="saart@lumigo.io",
     description="Troubleshoot your lambda using lumigo",
