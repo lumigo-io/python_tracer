@@ -1,4 +1,4 @@
-![Version](https://img.shields.io/badge/version-1.0.52-green.svg)
+![Version](https://img.shields.io/badge/version-1.0.53-green.svg)
 ![CircleCI](https://circleci.com/gh/lumigo-io/python_tracer/tree/master.svg?style=svg&circle-token=421fefe82bcad1c17c4116f154e25e32ebc90f2c)
 ![codecov](https://codecov.io/gh/lumigo-io/python_tracer/branch/master/graph/badge.svg?token=6EgXIlefwG)
 
@@ -23,6 +23,11 @@ def my_lambda(event, context):
 
 ### Step Functions
 If this function is part of a step function, you can add the flag `step_function=True`, and we will track the states in the step function as a single transaction.
+```
+@lumigo_tracer(token='XXX', step_function=True)
+def my_lambda(event, context):
+    print('Step function visibility!')
+```
 
 
 # Frameworks
