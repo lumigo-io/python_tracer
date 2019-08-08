@@ -28,7 +28,9 @@ changes=$(git log $(git describe --tags --abbrev=0)..HEAD --oneline)
 
 echo "Uploading to gemfury"
 echo "Setup"
+pushd src
 python setup.py sdist
+popd
 
 echo "Create Layer"
 enc_location=../common-resources/encrypted_files/credentials_production.enc
