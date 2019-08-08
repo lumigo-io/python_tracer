@@ -5,7 +5,7 @@
    "@semantic-release/github",
    ["@semantic-release/exec", {
      "prepareCmd" : ". venv/bin/activate && python set_version.py ${nextRelease.version}",
-     "publishCmd" : ". venv/bin/activate && python publish_package.py"
+     "publishCmd" : ". venv/bin/activate && cd src && python ./../publish_package.py"
    }]
   ],
 }
