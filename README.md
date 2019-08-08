@@ -1,4 +1,4 @@
-![Version](https://img.shields.io/badge/version-1.0.53-green.svg)
+![Version](https://img.shields.io/badge/version-1.0.54-green.svg)
 ![CircleCI](https://circleci.com/gh/lumigo-io/python_tracer/tree/master.svg?style=svg&circle-token=421fefe82bcad1c17c4116f154e25e32ebc90f2c)
 ![codecov](https://codecov.io/gh/lumigo-io/python_tracer/branch/master/graph/badge.svg?token=6EgXIlefwG)
 
@@ -71,4 +71,3 @@ Test
 * To run the unit tests, run `py.test` in the root folder.
 * To deploy the services for the component tests, move to the root test directory and run `sls deploy`. This can be performed only once if the resources doesn't change.
 * To run the component tests, run `py.test --all`.
-
