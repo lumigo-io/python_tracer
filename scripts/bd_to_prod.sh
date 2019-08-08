@@ -9,10 +9,6 @@ setup_git() {
     git stash
 }
 
-push_tags() {
-    git push origin master --tags
-}
-
 echo ".____                  .__                  .__        ";
 echo "|    |    __ __  _____ |__| ____   ____     |__| ____  ";
 echo "|    |   |  |  \/     \|  |/ ___\ /  _ \    |  |/  _ \ ";
