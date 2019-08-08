@@ -1,9 +1,15 @@
-import os
 import setuptools
+import os
+import re
+
+with open(
+    os.path.join(os.path.dirname(__file__), "lumigo_tracer", "version.py"), "rt"
+) as version_file:
+    version = re.search(r"version = \"(.*?)\"", version_file.read()).group(1)  # type: ignore
 
 setuptools.setup(
     name="lumigo_tracer",
-    version=open(os.path.join(os.path.dirname(__file__), "lumigo_tracer", "VERSION"), "r").read(),
+    version=version,
     author="saart",
     author_email="saart@lumigo.io",
     description="Troubleshoot your lambda using lumigo",

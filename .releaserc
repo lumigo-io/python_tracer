@@ -1,0 +1,11 @@
+{
+ "plugins": [
+   "@semantic-release/commit-analyzer",
+   "@semantic-release/release-notes-generator",
+   "@semantic-release/github",
+   ["@semantic-release/exec", {
+     "prepareCmd" : "python set_version.py ${nextRelease.version}",
+     "publishCmd" : "python publish_package.py"
+   }]
+  ],
+}

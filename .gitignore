@@ -224,3 +224,4 @@ _meta
 package-lock.json
 
 .idea/
+python/
