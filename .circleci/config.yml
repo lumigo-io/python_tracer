@@ -124,4 +124,5 @@ jobs:
     steps:
       - checkout_code
       - checkout_credentials
+      - checkout_utils
       - run: ./scripts/bd_to_prod.sh
