@@ -4,7 +4,7 @@
    "@semantic-release/release-notes-generator",
    "@semantic-release/github",
    ["@semantic-release/exec", {
-     "prepareCmd" : ". venv/bin/activate && python set_version.py ${nextRelease.version} && git tag -d ${nextRelease.version}",
+     "prepareCmd" : ". venv/bin/activate && python set_version.py ${nextRelease.version}",
      "publishCmd" : ". venv/bin/activate && cd src && python ./../publish_package.py"
    }]
   ],
