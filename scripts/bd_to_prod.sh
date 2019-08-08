@@ -51,7 +51,6 @@ popd
 cp -R src/python/ python/
 
 ../utils/common_bash/create_layer.sh lumigo-python-tracer ALL python "python3.6 python3.7"
-#
 git add README.md
 git commit -m "Update README.md layer ARN"
 
