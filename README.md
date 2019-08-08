@@ -71,4 +71,3 @@ Test
 * To run the unit tests, run `py.test` in the root folder.
 * To deploy the services for the component tests, move to the root test directory and run `sls deploy`. This can be performed only once if the resources doesn't change.
 * To run the component tests, run `py.test --all`.
-
