@@ -61,9 +61,9 @@ commands:
             python3 -m venv venv
             . venv/bin/activate
             pip install -r requirements.txt
-            cd src/
+            pushd src
             python setup.py develop
-            cd ..
+            popd
       # https://discuss.circleci.com/t/activate-python-virtualenv-for-whole-job/14434
       - run: echo "source venv/bin/activate" >> $BASH_ENV
       - run: pip install pytest-cov
@@ -124,4 +124,5 @@ jobs:
     steps:
       - checkout_code
       - checkout_credentials
+      - checkout_utils
       - run: ./scripts/bd_to_prod.sh

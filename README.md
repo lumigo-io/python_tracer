@@ -3,7 +3,8 @@
 ![codecov](https://codecov.io/gh/lumigo-io/python_tracer/branch/master/graph/badge.svg?token=6EgXIlefwG)
 
 # How To Use
-* install with `pip install lumigo_tracer`
+* install with `pip install lumigo_tracer` <br/> 
+or with Lambda layer with ARN `arn:aws:lambda:YOUR-REGION:724777057400:layer:lumigo-python-tracer:2
 * import using `from lumigo_tracer import lumigo_tracer`
 * wrap you lambda function using `@lumigo_tracer` or `@lumigo_tracer(token='XXX')`. As an example, your lambda should look like: 
 ```

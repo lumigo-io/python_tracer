@@ -5,13 +5,7 @@ import traceback
 import http.client
 from typing import List, Dict, Tuple, Optional
 
-from lumigo_tracer.utils import (
-    Configuration,
-    LUMIGO_EVENT_KEY,
-    STEP_FUNCTION_UID_KEY,
-    get_logger,
-    _is_span_has_error,
-)
+from lumigo_tracer.utils import Configuration, LUMIGO_EVENT_KEY, STEP_FUNCTION_UID_KEY
 from lumigo_tracer import utils
 from lumigo_tracer.parsers.parser import get_parser, HTTP_TYPE, StepFunctionParser
 from lumigo_tracer.parsers.utils import (
@@ -21,10 +15,10 @@ from lumigo_tracer.parsers.utils import (
     parse_triggered_by,
     prepare_large_data,
 )
-from lumigo_tracer.parsers.http_data_classes import HttpRequest
+from lumigo_tracer.utils import get_logger, _is_span_has_error
+from .parsers.http_data_classes import HttpRequest
+from lumigo_tracer.version import version
 
-
-_VERSION_PATH = os.path.join(os.path.dirname(__file__), "VERSION")
 SEND_ONLY_IF_ERROR: bool = os.environ.get("SEND_ONLY_IF_ERROR", "").lower() == "true"
 MAX_LAMBDA_TIME = 15 * 60 * 1000
 MAX_BODY_SIZE = 1024
@@ -55,8 +49,6 @@ class SpansContainer:
     ):
         self.name = name
         self.events: List[Dict] = []
-        version = open(_VERSION_PATH, "r").read() if os.path.exists(_VERSION_PATH) else "unknown"
-        version = version.strip()
         self.region = region
         self.trace_root = trace_root
         self.trace_id_suffix = trace_id_suffix
