@@ -9,7 +9,7 @@ import pytest
 
 @pytest.fixture(autouse=True)
 def reporter_mock(monkeypatch):
-    utils._SHOULD_REPORT = False
+    utils.Configuration.should_report = False
     reporter_mock = mock.Mock(utils.report_json)
     monkeypatch.setattr(utils, "report_json", reporter_mock)
     return reporter_mock

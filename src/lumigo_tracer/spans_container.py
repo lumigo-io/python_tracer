@@ -1,9 +1,13 @@
+import os
+import time
+import uuid
 import traceback
-from typing import List, Dict, Tuple, Optional
 import http.client
+from typing import List, Dict, Tuple, Optional
 
+from lumigo_tracer.utils import Configuration, LUMIGO_EVENT_KEY, STEP_FUNCTION_UID_KEY
 from lumigo_tracer import utils
-from lumigo_tracer.parsers.parser import get_parser, HTTP_TYPE
+from lumigo_tracer.parsers.parser import get_parser, HTTP_TYPE, StepFunctionParser
 from lumigo_tracer.parsers.utils import (
     parse_trace_id,
     safe_split_get,
@@ -11,9 +15,6 @@ from lumigo_tracer.parsers.utils import (
     parse_triggered_by,
     prepare_large_data,
 )
-import time
-import os
-
 from lumigo_tracer.utils import get_logger, _is_span_has_error
 from .parsers.http_data_classes import HttpRequest
 from version import version
@@ -166,11 +167,21 @@ class SpansContainer:
             }
             self.events[0].update({"error": msg})
 
+    def add_step_end_event(self, ret_val):
+        message_id = str(uuid.uuid4())
+        step_function_span = StepFunctionParser().create_span(message_id)
+        self.events.append(recursive_json_join(self.base_msg, step_function_span))
+        if isinstance(ret_val, dict):
+            ret_val[LUMIGO_EVENT_KEY] = {STEP_FUNCTION_UID_KEY: message_id}
+            get_logger().debug(f"Added key {LUMIGO_EVENT_KEY} to the user's return value")
+
     def end(self, ret_val) -> Optional[int]:
         reported_rtt = None
         self.previous_request = None, b""
         self.events[0].update({"ended": int(time.time() * 1000)})
-        if utils.is_verbose():
+        if Configuration.is_step_function:
+            self.add_step_end_event(ret_val)
+        if Configuration.verbose:
             self.events[0].update({"return_value": prepare_large_data(ret_val)})
         spans_contain_errors: bool = any(_is_span_has_error(s) for s in self.events)
 
@@ -202,13 +213,11 @@ class SpansContainer:
         """
         if cls._span and not force:
             return
-        if utils.is_verbose():
-            additional_info = {
-                "event": prepare_large_data(event),
-                "envs": prepare_large_data(dict(os.environ)),
-            }
-        else:
-            additional_info = {}
+        additional_info = {}
+        if Configuration.verbose:
+            additional_info.update(
+                {"event": prepare_large_data(event), "envs": prepare_large_data(dict(os.environ))}
+            )
 
         trace_root, transaction_id, suffix = parse_trace_id(os.environ.get("_X_AMZN_TRACE_ID", ""))
         remaining_time = getattr(context, "get_remaining_time_in_millis", lambda: MAX_LAMBDA_TIME)()

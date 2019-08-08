@@ -1,4 +1,4 @@
-![Version](https://img.shields.io/badge/version-1.0.51-green.svg)
+![Version](https://img.shields.io/badge/version-1.0.53-green.svg)
 ![CircleCI](https://circleci.com/gh/lumigo-io/python_tracer/tree/master.svg?style=svg&circle-token=421fefe82bcad1c17c4116f154e25e32ebc90f2c)
 ![codecov](https://codecov.io/gh/lumigo-io/python_tracer/branch/master/graph/badge.svg?token=6EgXIlefwG)
 
@@ -21,6 +21,16 @@ In case you are using `print()` or [python logging](https://docs.python.org/3/li
 def my_lambda(event, context):
     print('I can view this line now')
 ```
+
+### Step Functions
+If this function is part of a step function, you can add the flag `step_function=True`, and we will track the states in the step function as a single transaction.
+```
+@lumigo_tracer(token='XXX', step_function=True)
+def my_lambda(event, context):
+    print('Step function visibility!')
+```
+
+
 # Frameworks
 ## Chalice
 * In chalice, you should add the following lines to the your file:

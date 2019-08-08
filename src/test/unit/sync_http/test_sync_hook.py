@@ -1,3 +1,4 @@
+import json
 import os
 import sys
 import urllib
@@ -11,7 +12,7 @@ from capturer import CaptureOutput
 from lumigo_tracer import lumigo_tracer, LumigoChalice
 from lumigo_tracer.parsers.parser import Parser
 import http.client
-from lumigo_tracer import utils
+from lumigo_tracer.utils import Configuration, STEP_FUNCTION_UID_KEY, LUMIGO_EVENT_KEY
 import pytest
 
 from lumigo_tracer.spans_container import SpansContainer
@@ -171,7 +172,7 @@ def test_wrapping_with_parameters():
         return 1
 
     assert lambda_test_function() == 1
-    assert utils._SHOULD_REPORT == "123"
+    assert Configuration.should_report == "123"
 
 
 def test_wrapping_with_print_override():
@@ -182,7 +183,7 @@ def test_wrapping_with_print_override():
 
     with CaptureOutput() as capturer:
         assert lambda_test_function({}, SimpleNamespace(aws_request_id="1234")) == 1
-        assert utils._ENHANCE_PRINT is True
+        assert Configuration.enhanced_print is True
         assert "RequestId: 1234 hello" in capturer.get_lines()
         assert "RequestId: 1234 world" in capturer.get_lines()
 
@@ -195,7 +196,7 @@ def test_wrapping_without_print_override():
 
     with CaptureOutput() as capturer:
         assert lambda_test_function({}, SimpleNamespace(aws_request_id="1234")) == 1
-        assert utils._ENHANCE_PRINT is False
+        assert Configuration.enhanced_print is False
         assert any(line == "hello" for line in capturer.get_lines())
 
 
@@ -301,7 +302,7 @@ def test_wrapping_with_logging_override_default_usage(caplog):
         return 1
 
     assert lambda_test_function({}, SimpleNamespace(aws_request_id="1234")) == 1
-    assert utils._ENHANCE_PRINT is True
+    assert Configuration.enhanced_print is True
     assert "RequestId: 1234 test_sync_hook.py" in caplog.text
     assert "WARNING  hello\nRequestId: 1234 world" in caplog.text
 
@@ -343,7 +344,7 @@ def test_wrapping_with_logging_override_complex_usage():
 
     with CaptureOutput() as capturer:
         assert lambda_test_function({}, SimpleNamespace(aws_request_id="1234")) == 1
-        assert utils._ENHANCE_PRINT is True
+        assert Configuration.enhanced_print is True
         assert "RequestId: 1234 my_test [INFO] hello" in capturer.get_lines()
         assert "RequestId: 1234 world" in capturer.get_lines()
 
@@ -355,7 +356,7 @@ def test_wrapping_without_logging_override(caplog):
         return 1
 
     assert lambda_test_function({}, SimpleNamespace(aws_request_id="1234")) == 1
-    assert utils._ENHANCE_PRINT is False
+    assert Configuration.enhanced_print is False
     assert " WARNING  hello\nworld" in caplog.text
 
 
@@ -375,3 +376,26 @@ def test_wrapping_urlib_stream_get():
     assert event["info"]["httpInfo"]["response"]["body"]
     assert event["info"]["httpInfo"]["response"]["statusCode"] == 200
     assert event["info"]["httpInfo"]["host"] == "www.google.com"
+
+
+@pytest.mark.parametrize(
+    "event, expected_triggered_by, expected_message_id",
+    [
+        ({}, "unknown", None),
+        ({"result": 1, LUMIGO_EVENT_KEY: {STEP_FUNCTION_UID_KEY: "123"}}, "stepFunction", "123"),
+    ],
+)
+def test_wrapping_step_function(event, expected_triggered_by, expected_message_id):
+    @lumigo_tracer(step_function=True)
+    def lambda_test_function(event, context):
+        return {"result": 1}
+
+    lambda_test_function(event, None)
+    span = SpansContainer.get_span()
+    assert len(span.events) == 2
+    assert span.events[0]["info"]["triggeredBy"] == expected_triggered_by
+    assert span.events[0]["info"].get("messageId") == expected_message_id
+    return_value = json.loads(span.events[0]["return_value"])
+    assert return_value["result"] == 1
+    assert return_value[LUMIGO_EVENT_KEY][STEP_FUNCTION_UID_KEY]
+    assert span.events[1]["info"]["httpInfo"]["host"] == "StepFunction"
