@@ -1,4 +1,0 @@
-[run]
-omit =
-    ../lumigo_tracer/libs/*
-    venv/*

@@ -26,18 +26,11 @@ setup_git
 echo "Getting latest changes from git"
 changes=$(git log $(git describe --tags --abbrev=0)..HEAD --oneline)
 
-sudo pip install --upgrade bumpversion
-bumpversion patch --message "{current_version} → {new_version}. Changes: ${changes}"
-
 echo "Uploading to gemfury"
 echo "Setup"
-pushd ./src > /dev/null
+pushd src
 python setup.py sdist
-
-echo "Upload"
-upload_file=$(ls ./dist/*.gz)
-curl -F package=@${upload_file} https://${FURY_AUTH}@push.fury.io/lumigo/
-popd > /dev/null 2>&1
+popd
 
 echo "Create Layer"
 enc_location=../common-resources/encrypted_files/credentials_production.enc
@@ -50,20 +43,23 @@ echo "Creating new credential files"
 mkdir -p ~/.aws
 echo ${KEY} | gpg --batch -d --passphrase-fd 0 ${enc_location} > ~/.aws/credentials
 
-cd src
+
+pushd src
+rm -rf python
 mkdir python
 cp -R lumigo_tracer.egg-info python/
 cp -R lumigo_tracer python/
-zip -r lumigo_tracer.zip python
+popd
+cp -R src/python/ python/
 
-regions=("ap-northeast-1" "ap-northeast-2" "ap-south-1" "ap-southeast-1" "ap-southeast-2" "ca-central-1" "eu-central-1" "eu-north-1" "eu-west-1" "eu-west-2" "eu-west-3" "sa-east-1" "us-east-1" "us-east-2" "us-west-1" "us-west-2")
-for region in "${regions[@]}"; do
-    version=$(aws lambda publish-layer-version --layer-name lumigo-python-tracer --description "Serverless Troubleshooting Made Simple" --license-info "Apache License Version 2.0" --zip-file fileb://lumigo_tracer.zip --compatible-runtimes python3.6 python3.7 --region ${region}| jq -r '.Version')
-    aws lambda add-layer-version-permission --layer-name lumigo-python-tracer --statement-id engineering-org --principal "*" --action lambda:GetLayerVersion --version-number ${version} --region ${region}
-    echo "published version ${version} to region ${region}"
-done
+../utils/common_bash/create_layer.sh lumigo-python-tracer ALL python "python3.6 python3.7"
+git add README.md
+git commit -m "Update README.md layer ARN"
 
-echo "Create release tag"
-push_tags
+pip install --upgrade wheel setuptools twine pkginfo
+pip install python-semantic-release
+npm install @semantic-release/exec semantic-release
+
+npx semantic-release
 
 echo "Done"
