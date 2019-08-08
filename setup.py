@@ -1,5 +1,9 @@
 import setuptools
-from version import version
+import os
+import re
+
+with open(os.path.join(os.path.dirname(__file__), "src", "version.py"), "rt") as version_file:
+    version = re.search(r"version = \"(.*?)\"", version_file.read()).group(1)  # type: ignore
 
 setuptools.setup(
     name="lumigo_tracer",
