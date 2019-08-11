@@ -24,6 +24,8 @@ echo "Deploy Python Tracer"
 
 setup_git
 
+pip install wheel
+
 echo "Create package"
 python setup.py bdist_wheel
 
