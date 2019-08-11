@@ -55,5 +55,5 @@ git commit -m "Update README.md layer ARN"
 pip install --upgrade wheel setuptools twine pkginfo
 pip install python-semantic-release
 
-python-semantic-release publish
+semantic-release publish
 echo "Done"
