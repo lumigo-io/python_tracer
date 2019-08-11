@@ -25,7 +25,7 @@ echo "Deploy Python Tracer"
 setup_git
 
 echo "Create package"
-python setup.py sdist
+python setup.py bdist_wheel
 
 echo "Create Layer"
 enc_location=../common-resources/encrypted_files/credentials_production.enc
