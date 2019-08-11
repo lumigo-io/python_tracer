@@ -1,10 +1,6 @@
 import setuptools
-import os
 
-from src.lumigo_tracer import version
-
-with open(os.path.join(os.path.dirname(__file__), "README.md"), encoding="utf-8") as f:
-    long_description = f.read()
+from src.lumigo_tracer.version import version
 
 setuptools.setup(
     name="lumigo_tracer",
@@ -21,5 +17,5 @@ setuptools.setup(
         "Operating System :: OS Independent",
         "License :: OSI Approved :: Apache-2.0",
     ],
-    long_description=long_description,
+    long_description=open("README.md").read(),
 )
