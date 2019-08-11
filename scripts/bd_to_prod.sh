@@ -5,8 +5,12 @@ setup_git() {
     git config --global user.email "no-reply@build.com"
     git config --global user.name "CircleCI"
     git checkout master
-    # Avoid npm version failure
+    # Avoid version failure
     git stash
+}
+
+push_tags() {
+    git push origin master --tags
 }
 
 echo ".____                  .__                  .__        ";
@@ -16,17 +20,12 @@ echo "|    |___|  |  /  Y Y  \  / /_/  >  <_> )   |  (  <_> )";
 echo "|_______ \____/|__|_|  /__\___  / \____/ /\ |__|\____/ ";
 echo "        \/           \/  /_____/         \/            ";
 echo
-echo "Deploy lumigo-logger to pypi server"
+echo "Deploy Python Tracer"
 
 setup_git
-echo "Getting latest changes from git"
-changes=$(git log $(git describe --tags --abbrev=0)..HEAD --oneline)
 
-echo "Uploading to gemfury"
-echo "Setup"
-pushd src
+echo "Create package"
 python setup.py sdist
-popd
 
 echo "Create Layer"
 enc_location=../common-resources/encrypted_files/credentials_production.enc
@@ -40,20 +39,24 @@ mkdir -p ~/.aws
 echo ${KEY} | gpg --batch -d --passphrase-fd 0 ${enc_location} > ~/.aws/credentials
 
 
-pushd src
-rm -rf python
-mkdir python
+rm -rf python && mkdir python
 cp -R lumigo_tracer.egg-info python/
-cp -R lumigo_tracer python/
-popd
-cp -R src/python/ python/
+cp -R src/lumigo_tracer python/
 
 ../utils/common_bash/create_layer.sh lumigo-python-tracer ALL python "python3.6 python3.7"
 git add README.md
 git commit -m "Update README.md layer ARN"
 
-pip install --upgrade wheel setuptools twine pkginfo
-pip install python-semantic-release
+echo "Getting latest changes from git"
+changes=$(git log $(git describe --tags --abbrev=0)..HEAD --oneline)
 
-semantic-release publish
+sudo pip install --upgrade bumpversion
+bumpversion patch --message "{current_version} → {new_version}. Changes: ${changes}"
+
+echo "Uploading to PyPi"
+pip install twine
+twine upload dist/*
+
+push_tags
+
 echo "Done"

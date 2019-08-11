@@ -1,11 +1,10 @@
 ![CircleCI](https://circleci.com/gh/lumigo-io/python_tracer/tree/master.svg?style=svg&circle-token=421fefe82bcad1c17c4116f154e25e32ebc90f2c)
 ![Version](https://badge.fury.io/py/lumigo-tracer.svg)
 ![codecov](https://codecov.io/gh/lumigo-io/python_tracer/branch/master/graph/badge.svg?token=6EgXIlefwG)
-[![semantic-release](https://img.shields.io/badge/%20%20%F0%9F%93%A6%F0%9F%9A%80-semantic--release-e10079.svg)](https://github.com/semantic-release/semantic-release)
 
 # How To Use
 * install with `pip install lumigo_tracer` <br/> 
-or with Lambda layer with ARN `arn:aws:lambda:YOUR-REGION:724777057400:layer:lumigo-python-tracer:20
+or with Lambda layer with ARN `arn:aws:lambda:YOUR-REGION:724777057400:layer:lumigo-python-tracer:36
 * import using `from lumigo_tracer import lumigo_tracer`
 * wrap you lambda function using `@lumigo_tracer` or `@lumigo_tracer(token='XXX')`. As an example, your lambda should look like: 
 ```
