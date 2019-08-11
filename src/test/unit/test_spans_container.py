@@ -1,9 +1,10 @@
 import pytest
 
 from lumigo_tracer.parsers.http_data_classes import HttpRequest
-from lumigo_tracer.spans_container import SpansContainer
+from lumigo_tracer.spans_container import SpansContainer, TimeoutMechanism, TIMEOUT_BUFFER
 from lumigo_tracer import spans_container
 from lumigo_tracer import utils
+from lumigo_tracer.utils import Configuration
 
 
 @pytest.fixture()
@@ -76,3 +77,32 @@ def test_spans_container_end_function_send_only_on_errors_mode_false_not_effecti
 
     reported_ttl = SpansContainer.get_span().end({})
     assert reported_ttl is not None
+
+
+def test_timeout_mechanism_disabled_by_configuration(monkeypatch, context):
+    monkeypatch.setattr(Configuration, "timeout_timer", False)
+    SpansContainer.create_span()
+    SpansContainer.get_span().start()
+
+    assert not TimeoutMechanism.is_activated()
+
+
+def test_timeout_mechanism_too_short_time(monkeypatch, context):
+    monkeypatch.setattr(Configuration, "timeout_timer", True)
+    monkeypatch.setattr(context, "get_remaining_time_in_millis", lambda: TIMEOUT_BUFFER / 2)
+    SpansContainer.create_span()
+    SpansContainer.get_span().start(context=context)
+
+    assert not TimeoutMechanism.is_activated()
+
+
+def test_timeout_mechanism_timeout_occurred(monkeypatch, context):
+    monkeypatch.setattr(Configuration, "timeout_timer", True)
+    SpansContainer.create_span()
+    SpansContainer.get_span().start(context=context)
+
+    assert TimeoutMechanism.is_activated()
+    TimeoutMechanism.stop()
+    SpansContainer.get_span().handle_timeout()
+
+    assert SpansContainer.get_span().events[-1]["error"]["type"] == "TimeoutError"

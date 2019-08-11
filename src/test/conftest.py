@@ -2,9 +2,11 @@ import builtins
 import logging
 
 from lumigo_tracer import utils
-from lumigo_tracer.spans_container import SpansContainer
+from lumigo_tracer.spans_container import SpansContainer, TIMEOUT_BUFFER
 import mock
 import pytest
+
+from lumigo_tracer.utils import Configuration
 
 
 @pytest.fixture(autouse=True)
@@ -13,6 +15,11 @@ def reporter_mock(monkeypatch):
     reporter_mock = mock.Mock(utils.report_json)
     monkeypatch.setattr(utils, "report_json", reporter_mock)
     return reporter_mock
+
+
+@pytest.fixture(autouse=True)
+def cancel_timeout_mechanism(monkeypatch):
+    monkeypatch.setattr(Configuration, "timeout_timer", False)
 
 
 @pytest.yield_fixture(autouse=True)
@@ -59,3 +66,8 @@ def pytest_collection_modifyitems(config, items):
 @pytest.fixture(autouse=True)
 def capture_all_logs(caplog):
     caplog.set_level(logging.DEBUG, logger="lumigo")
+
+
+@pytest.fixture
+def context():
+    return mock.Mock(get_remaining_time_in_millis=lambda: TIMEOUT_BUFFER * 1000 * 2)

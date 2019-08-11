@@ -1,9 +1,10 @@
 import os
 import time
 import uuid
+import signal
 import traceback
 import http.client
-from typing import List, Dict, Tuple, Optional
+from typing import List, Dict, Tuple, Optional, Callable
 
 from lumigo_tracer.utils import Configuration, LUMIGO_EVENT_KEY, STEP_FUNCTION_UID_KEY
 from lumigo_tracer import utils
@@ -22,6 +23,8 @@ from lumigo_tracer.version import version
 SEND_ONLY_IF_ERROR: bool = os.environ.get("SEND_ONLY_IF_ERROR", "").lower() == "true"
 MAX_LAMBDA_TIME = 15 * 60 * 1000
 MAX_BODY_SIZE = 1024
+# The buffer that we take before reaching timeout to send the traces to lumigo (seconds)
+TIMEOUT_BUFFER = 0.5
 
 
 class SpansContainer:
@@ -84,7 +87,7 @@ class SpansContainer:
         self.previous_response_body: bytes = b""
         SpansContainer.is_cold = False
 
-    def start(self):
+    def start(self, event=None, context=None):
         to_send = self.start_msg.copy()
         to_send["id"] = f"{to_send['id']}_started"
         to_send["ended"] = to_send["started"]
@@ -95,6 +98,22 @@ class SpansContainer:
         else:
             get_logger().debug("Skip sending start because tracer in 'send only if error' mode .")
         self.events = [self.start_msg]
+        self.start_timeout_timer(context)
+
+    def handle_timeout(self, *args):
+        self.add_exception_event(TimeoutError("Identified Timeout"))
+        self.end()
+
+    def start_timeout_timer(self, context=None) -> None:
+        if Configuration.timeout_timer:
+            if not hasattr(context, "get_remaining_time_in_millis"):
+                get_logger().info("Skip setting timeout timer - Could not get the remaining time.")
+                return
+            remaining_time = context.get_remaining_time_in_millis() / 1000
+            if TIMEOUT_BUFFER >= remaining_time:
+                get_logger().debug("Skip setting timeout timer - Too short timeout.")
+                return
+            TimeoutMechanism.start(remaining_time - TIMEOUT_BUFFER, self.handle_timeout)
 
     def add_request_event(self, parse_params: HttpRequest):
         """
@@ -175,7 +194,8 @@ class SpansContainer:
             ret_val[LUMIGO_EVENT_KEY] = {STEP_FUNCTION_UID_KEY: message_id}
             get_logger().debug(f"Added key {LUMIGO_EVENT_KEY} to the user's return value")
 
-    def end(self, ret_val) -> Optional[int]:
+    def end(self, ret_val=None) -> Optional[int]:
+        TimeoutMechanism.stop()
         reported_rtt = None
         self.previous_request = None, b""
         self.events[0].update({"ended": int(time.time() * 1000)})
@@ -238,3 +258,19 @@ class SpansContainer:
             max_finish_time=int(time.time() * 1000) + remaining_time,
             **additional_info,
         )
+
+
+class TimeoutMechanism:
+    @staticmethod
+    def start(milliseconds: int, to_exec: Callable):
+        signal.signal(signal.SIGALRM, to_exec)
+        signal.setitimer(signal.ITIMER_REAL, milliseconds)
+
+    @staticmethod
+    def stop():
+        signal.alarm(0)
+        signal.signal(signal.SIGALRM, signal.SIG_DFL)
+
+    @staticmethod
+    def is_activated():
+        return signal.getsignal(signal.SIGALRM) != signal.SIG_DFL

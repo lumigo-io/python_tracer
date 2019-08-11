@@ -243,7 +243,7 @@ def _parse_streams(event: dict) -> Dict[str, str]:
     return result
 
 
-def prepare_large_data(value: Union[str, bytes, dict], max_size=MAX_ENTRY_SIZE) -> str:
+def prepare_large_data(value: Union[str, bytes, dict, None], max_size=MAX_ENTRY_SIZE) -> str:
     """
     This function prepare the given value to send it to lumigo.
     You should call to this function if there's a possibility that the value will be big.
