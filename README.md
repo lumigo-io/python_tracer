@@ -29,6 +29,27 @@ If this function is part of a step function, you can add the flag `step_function
 def my_lambda(event, context):
     print('Step function visibility!')
 ```
+Note: we will add the key `"_lumigo"` to the return value of the function. 
+
+If you override the `"Parameters"` configuration, simply add `"_lumigo.$": "$._lumigo"`. <br/>
+For example:
+```
+"States": {
+    "state1": {
+      "Type": "Task",
+      "Resource": "arn:aws:lambda:us-west-2:ACCOUNT:function:FUNCTION_NAME",
+      "Parameters": {
+          "Changed": "parameters",
+          "_lumigo.$": "$._lumigo"
+        },
+      "Next": "state2"
+    },
+    "state2": {
+      "Type": "pass",
+      "End": true
+    }
+}
+```
 
 
 # Frameworks
