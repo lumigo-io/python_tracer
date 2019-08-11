@@ -192,6 +192,7 @@ def parse_http_method(event: dict):
         "triggeredBy": "apigw",
         "httpMethod": event.get("httpMethod", ""),
         "resource": event.get("resource", ""),
+        "messageId": event.get("requestContext", {}).get("requestId", ""),
     }
     if isinstance(event.get("headers"), dict):
         result["api"] = event["headers"].get("Host", "unknown.unknown.unknown")

@@ -93,7 +93,7 @@ def test_recursive_json_join(d1, d2, result):
                 "httpMethod": "GET",
                 "resource": "resource",
                 "headers": {"Host": "www.google.com"},
-                "requestContext": {"stage": "1"},
+                "requestContext": {"stage": "1", "requestId": "123"},
             },
             {
                 "triggeredBy": "apigw",
@@ -101,6 +101,7 @@ def test_recursive_json_join(d1, d2, result):
                 "api": "www.google.com",
                 "stage": "1",
                 "resource": "resource",
+                "messageId": "123",
             },
         ),
         (  # sns example trigger
