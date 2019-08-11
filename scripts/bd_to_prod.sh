@@ -42,7 +42,7 @@ echo ${KEY} | gpg --batch -d --passphrase-fd 0 ${enc_location} > ~/.aws/credenti
 
 
 rm -rf python && mkdir python
-cp -R lumigo_tracer.egg-info python/
+cp -R src/lumigo_tracer.egg-info python/
 cp -R src/lumigo_tracer python/
 
 ../utils/common_bash/create_layer.sh lumigo-python-tracer ALL python "python3.6 python3.7"
