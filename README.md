@@ -1,5 +1,5 @@
-![Version](https://img.shields.io/badge/version-1.0.54-green.svg)
 ![CircleCI](https://circleci.com/gh/lumigo-io/python_tracer/tree/master.svg?style=svg&circle-token=421fefe82bcad1c17c4116f154e25e32ebc90f2c)
+![Version](https://badge.fury.io/py/lumigo-tracer.svg)
 ![codecov](https://codecov.io/gh/lumigo-io/python_tracer/branch/master/graph/badge.svg?token=6EgXIlefwG)
 
 # How To Use
