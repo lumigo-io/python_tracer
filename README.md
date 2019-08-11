@@ -1,10 +1,10 @@
-![Version](https://img.shields.io/badge/version-1.0.54-green.svg)
 ![CircleCI](https://circleci.com/gh/lumigo-io/python_tracer/tree/master.svg?style=svg&circle-token=421fefe82bcad1c17c4116f154e25e32ebc90f2c)
+![Version](https://badge.fury.io/py/lumigo-tracer.svg)
 ![codecov](https://codecov.io/gh/lumigo-io/python_tracer/branch/master/graph/badge.svg?token=6EgXIlefwG)
 
 # How To Use
 * install with `pip install lumigo_tracer` <br/> 
-or with Lambda layer with ARN `arn:aws:lambda:YOUR-REGION:724777057400:layer:lumigo-python-tracer:2
+or with Lambda layer with ARN `arn:aws:lambda:YOUR-REGION:724777057400:layer:lumigo-python-tracer:20
 * import using `from lumigo_tracer import lumigo_tracer`
 * wrap you lambda function using `@lumigo_tracer` or `@lumigo_tracer(token='XXX')`. As an example, your lambda should look like: 
 ```
@@ -92,3 +92,4 @@ Test
 * To run the unit tests, run `py.test` in the root folder.
 * To deploy the services for the component tests, move to the root test directory and run `sls deploy`. This can be performed only once if the resources doesn't change.
 * To run the component tests, run `py.test --all`.
+

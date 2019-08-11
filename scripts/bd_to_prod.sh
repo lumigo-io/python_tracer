@@ -56,6 +56,7 @@ pip install --upgrade wheel setuptools twine pkginfo
 pip install python-semantic-release
 npm install @semantic-release/exec semantic-release
 
+git fetch --tags origin
 npx semantic-release
 
 echo "Done"
