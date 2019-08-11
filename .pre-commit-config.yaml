@@ -16,3 +16,4 @@ repos:
     hooks:
     -   id: flake8
         args: ["--ignore","E501","--exclude","src/lumigo_tracer/libs/*"]
+
