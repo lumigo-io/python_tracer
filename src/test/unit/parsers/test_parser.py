@@ -8,4 +8,6 @@ def test_serverless_aws_parser_fallback_doesnt_change():
     headers.add_header("nothing", "relevant")
     serverless_parser = ServerlessAWSParser().parse_response(url, 200, headers=headers, body=b"")
     root_parser = Parser().parse_response(url, 200, headers=headers, body=b"")
+    serverless_parser.pop("ended")
+    root_parser.pop("ended")
     assert serverless_parser == root_parser
