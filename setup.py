@@ -1,10 +1,12 @@
+import os
+
 import setuptools
 
-from src.lumigo_tracer.version import version
+VERSION_PATH = os.path.join(os.path.dirname(__file__), "src", "lumigo_tracer", "VERSION")
 
 setuptools.setup(
     name="lumigo_tracer",
-    version=version,
+    version=open(VERSION_PATH).read(),
     author="Lumigo LTD (https://lumigo.io)",
     author_email="support@lumigo.io",
     description="Lumigo Tracer for Python v3.6 / v3.7 runtimes",
@@ -16,4 +18,5 @@ setuptools.setup(
     license="Apache License 2.0",
     classifiers=["Programming Language :: Python :: 3", "Operating System :: OS Independent"],
     long_description=open("README.md").read(),
+    package_data={"lumigo_tracer": ["VERSION"]},
 )
