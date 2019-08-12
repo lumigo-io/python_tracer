@@ -13,7 +13,9 @@ DEFAULT_USER = "cicd"
 
 @pytest.fixture(scope="session", autouse=True)
 def serverless_yaml():
-    subprocess.check_output(["sls", "deploy", "--env", os.environ.get("USER", DEFAULT_USER)])
+    subprocess.check_output(
+        ["sls", "deploy", "--env", os.environ.get("USER", DEFAULT_USER)], cwd="test/"
+    )
 
 
 @pytest.fixture(autouse=True)
