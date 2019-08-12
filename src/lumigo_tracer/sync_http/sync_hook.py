@@ -140,7 +140,7 @@ def _lumigo_tracer(func):
             if Configuration.enhanced_print:
                 _enhance_output(args, local_print, local_logging_format)
             SpansContainer.create_span(*args, force=True)
-            SpansContainer.get_span().start()
+            SpansContainer.get_span().start(*args)
             wrap_http_calls()
             try:
                 executed = True
