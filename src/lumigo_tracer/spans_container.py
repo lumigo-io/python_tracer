@@ -18,8 +18,8 @@ from lumigo_tracer.parsers.utils import (
 )
 from lumigo_tracer.utils import get_logger, _is_span_has_error
 from .parsers.http_data_classes import HttpRequest
-from lumigo_tracer.version import version
 
+_VERSION_PATH = os.path.join(os.path.dirname(__file__), "VERSION")
 MAX_LAMBDA_TIME = 15 * 60 * 1000
 MAX_BODY_SIZE = 1024
 # The buffer that we take before reaching timeout to send the traces to lumigo (seconds)
@@ -49,6 +49,8 @@ class SpansContainer:
         event: str = None,
         envs: str = None,
     ):
+        version = open(_VERSION_PATH, "r").read() if os.path.exists(_VERSION_PATH) else "unknown"
+        version = version.strip()
         self.name = name
         self.region = region
         self.trace_root = trace_root
