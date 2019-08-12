@@ -3,5 +3,5 @@ set -eo pipefail
 
 pre-commit run -a
 pushd src
-py.test --all --cov=./lumigo_tracer
+python -m pytest --cov=./lumigo_tracer
 popd
