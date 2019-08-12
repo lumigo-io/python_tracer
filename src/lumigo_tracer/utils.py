@@ -27,6 +27,7 @@ class Configuration:
     enhanced_print: bool = False
     is_step_function: bool = False
     timeout_timer: bool = True
+    send_only_if_error: bool = False
 
 
 def config(
@@ -59,6 +60,7 @@ def config(
     Configuration.verbose = verbose and os.environ.get("LUMIGO_VERBOSE", "").lower() != "false"
     Configuration.is_step_function = step_function
     Configuration.timeout_timer = timeout_timer
+    Configuration.send_only_if_error = os.environ.get("SEND_ONLY_IF_ERROR", "").lower() == "true"
 
 
 def _is_span_has_error(span: dict) -> bool:

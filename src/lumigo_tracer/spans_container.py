@@ -20,7 +20,6 @@ from lumigo_tracer.utils import get_logger, _is_span_has_error
 from .parsers.http_data_classes import HttpRequest
 from lumigo_tracer.version import version
 
-SEND_ONLY_IF_ERROR: bool = os.environ.get("SEND_ONLY_IF_ERROR", "").lower() == "true"
 MAX_LAMBDA_TIME = 15 * 60 * 1000
 MAX_BODY_SIZE = 1024
 # The buffer that we take before reaching timeout to send the traces to lumigo (seconds)
@@ -93,7 +92,7 @@ class SpansContainer:
         to_send["id"] = f"{to_send['id']}_started"
         to_send["ended"] = to_send["started"]
         to_send["maxFinishTime"] = self.max_finish_time
-        if not SEND_ONLY_IF_ERROR:
+        if not Configuration.send_only_if_error:
             report_duration = utils.report_json(region=self.region, msgs=[to_send])
             self.function_span["reporter_rtt"] = report_duration
         else:
@@ -101,14 +100,12 @@ class SpansContainer:
         self.start_timeout_timer(context)
 
     def handle_timeout(self, *args):
-        spans_contain_errors: bool = any(_is_span_has_error(s) for s in self.http_spans)
-        if (not SEND_ONLY_IF_ERROR) or spans_contain_errors:
-            to_send = [s for s in self.http_spans if s["id"] in self.http_span_ids_to_send]
-            utils.report_json(region=self.region, msgs=to_send)
-            self.http_span_ids_to_send.clear()
+        to_send = [s for s in self.http_spans if s["id"] in self.http_span_ids_to_send]
+        utils.report_json(region=self.region, msgs=to_send)
+        self.http_span_ids_to_send.clear()
 
     def start_timeout_timer(self, context=None) -> None:
-        if Configuration.timeout_timer:
+        if Configuration.timeout_timer and not Configuration.send_only_if_error:
             if not hasattr(context, "get_remaining_time_in_millis"):
                 get_logger().info("Skip setting timeout timer - Could not get the remaining time.")
                 return
@@ -212,14 +209,14 @@ class SpansContainer:
             _is_span_has_error(s) for s in self.http_spans + [self.function_span]
         )
 
-        if (not SEND_ONLY_IF_ERROR) or spans_contain_errors:
+        if (not Configuration.send_only_if_error) or spans_contain_errors:
             to_send = [self.function_span] + [
                 s for s in self.http_spans if s["id"] in self.http_span_ids_to_send
             ]
             reported_rtt = utils.report_json(region=self.region, msgs=to_send)
         else:
             get_logger().debug(
-                "No Spans were sent, `SEND_ONLY_IF_ERROR` is on and no span has error"
+                "No Spans were sent, `Configuration.send_only_if_error` is on and no span has error"
             )
         return reported_rtt
 
