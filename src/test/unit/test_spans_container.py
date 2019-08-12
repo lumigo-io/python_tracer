@@ -2,7 +2,6 @@ import pytest
 
 from lumigo_tracer.parsers.http_data_classes import HttpRequest
 from lumigo_tracer.spans_container import SpansContainer, TimeoutMechanism, TIMEOUT_BUFFER
-from lumigo_tracer import spans_container
 from lumigo_tracer import utils
 from lumigo_tracer.utils import Configuration
 
@@ -30,7 +29,7 @@ def test_spans_container_send_only_on_errors_mode_false_not_effecting(monkeypatc
 
 
 def test_spans_container_not_send_start_span_on_send_only_on_errors_mode(monkeypatch):
-    monkeypatch.setattr(spans_container, "SEND_ONLY_IF_ERROR", True)
+    Configuration.send_only_if_error = True
 
     SpansContainer.create_span()
     SpansContainer.get_span().start()
@@ -40,7 +39,7 @@ def test_spans_container_not_send_start_span_on_send_only_on_errors_mode(monkeyp
 def test_spans_container_end_function_not_send_spans_on_send_only_on_errors_mode(
     monkeypatch, dummy_http_request
 ):
-    monkeypatch.setattr(spans_container, "SEND_ONLY_IF_ERROR", True)
+    Configuration.send_only_if_error = True
 
     SpansContainer.create_span()
     SpansContainer.get_span().start()
@@ -54,7 +53,7 @@ def test_spans_container_end_function_not_send_spans_on_send_only_on_errors_mode
 def test_spans_container_end_function_send_spans_on_send_only_on_errors_mode(
     monkeypatch, dummy_http_request
 ):
-    monkeypatch.setattr(spans_container, "SEND_ONLY_IF_ERROR", True)
+    Configuration.send_only_if_error = True
 
     SpansContainer.create_span()
     SpansContainer.get_span().start()
