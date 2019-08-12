@@ -28,10 +28,10 @@ def test_lambda_wrapper_basic_events(reporter_mock):
         pass
 
     lambda_test_function()
-    events = SpansContainer.get_span().events
-    assert len(events) == 1
-    assert "started" in events[0]
-    assert "ended" in events[0]
+    function_span = SpansContainer.get_span().function_span
+    assert not SpansContainer.get_span().http_spans
+    assert "started" in function_span
+    assert "ended" in function_span
     assert reporter_mock.call_count == 2
     first_send = reporter_mock.call_args_list[0][1]["msgs"]
     assert len(first_send) == 1
@@ -52,12 +52,12 @@ def test_lambda_wrapper_exception(exc):
     else:
         assert False
 
-    events = SpansContainer.get_span().events
-    assert len(events) == 1
-    assert events[0].get("error", {}).get("type") == "ValueError"
-    assert not events[0]["id"].endswith("_started")
-    assert "reporter_rtt" in events[0]
-    assert "maxFinishTime" not in events[0]
+    function_span = SpansContainer.get_span().function_span
+    assert not SpansContainer.get_span().http_spans
+    assert function_span.get("error", {}).get("type") == "ValueError"
+    assert not function_span["id"].endswith("_started")
+    assert "reporter_rtt" in function_span
+    assert "maxFinishTime" not in function_span
 
 
 def test_lambda_wrapper_http():
@@ -66,12 +66,12 @@ def test_lambda_wrapper_http():
         http.client.HTTPConnection("www.google.com").request("POST", "/")
 
     lambda_test_function()
-    events = SpansContainer.get_span().events
-    assert len(events) == 2
-    assert events[1].get("info", {}).get("httpInfo", {}).get("host") == "www.google.com"
-    assert "started" in events[1]
-    assert "ended" in events[1]
-    assert "Content-Length" in events[1]["info"]["httpInfo"]["request"]["headers"]
+    http_spans = SpansContainer.get_span().http_spans
+    assert http_spans
+    assert http_spans[0].get("info", {}).get("httpInfo", {}).get("host") == "www.google.com"
+    assert "started" in http_spans[0]
+    assert "ended" in http_spans[0]
+    assert "Content-Length" in http_spans[0]["info"]["httpInfo"]["request"]["headers"]
 
 
 def test_lambda_wrapper_query_with_http_params():
@@ -80,11 +80,11 @@ def test_lambda_wrapper_query_with_http_params():
         http.client.HTTPConnection("www.google.com").request("GET", "/?q=123")
 
     lambda_test_function()
-    events = SpansContainer.get_span().events
+    http_spans = SpansContainer.get_span().http_spans
 
-    assert len(events) == 2
-    print(events[1]["info"]["httpInfo"]["request"])
-    assert events[1]["info"]["httpInfo"]["request"]["uri"] == "www.google.com/?q=123"
+    assert http_spans
+    print(http_spans[0]["info"]["httpInfo"]["request"])
+    assert http_spans[0]["info"]["httpInfo"]["request"]["uri"] == "www.google.com/?q=123"
 
 
 def test_lambda_wrapper_get_response():
@@ -95,10 +95,10 @@ def test_lambda_wrapper_get_response():
         conn.getresponse()
 
     lambda_test_function()
-    events = SpansContainer.get_span().events
+    http_spans = SpansContainer.get_span().http_spans
 
-    assert len(events) == 2
-    assert events[1]["info"]["httpInfo"]["response"]["statusCode"] == 200
+    assert http_spans
+    assert http_spans[0]["info"]["httpInfo"]["response"]["statusCode"] == 200
 
 
 def test_lambda_wrapper_http_splitted_send():
@@ -114,10 +114,10 @@ def test_lambda_wrapper_http_splitted_send():
         conn.send(BytesIO(b"456"))
 
     lambda_test_function()
-    events = SpansContainer.get_span().events
-    assert len(events) == 2
-    assert events[1]["info"]["httpInfo"]["request"]["body"] == "123456"
-    assert "Content-Length" in events[1]["info"]["httpInfo"]["request"]["headers"]
+    http_spans = SpansContainer.get_span().http_spans
+    assert http_spans
+    assert http_spans[0]["info"]["httpInfo"]["request"]["body"] == "123456"
+    assert "Content-Length" in http_spans[0]["info"]["httpInfo"]["request"]["headers"]
 
 
 def test_lambda_wrapper_no_headers():
@@ -126,11 +126,11 @@ def test_lambda_wrapper_no_headers():
         http.client.HTTPConnection("www.google.com").send(BytesIO(b"123"))
 
     lambda_test_function()
-    events = SpansContainer.get_span().events
-    assert len(events) == 2
-    assert events[1].get("info", {}).get("httpInfo", {}).get("host") == "www.google.com"
-    assert "started" in events[1]
-    assert "ended" in events[1]
+    http_events = SpansContainer.get_span().http_spans
+    assert len(http_events) == 1
+    assert http_events[0].get("info", {}).get("httpInfo", {}).get("host") == "www.google.com"
+    assert "started" in http_events[0]
+    assert "ended" in http_events[0]
 
 
 def test_lambda_wrapper_http_non_splitted_send():
@@ -140,8 +140,8 @@ def test_lambda_wrapper_http_non_splitted_send():
         http.client.HTTPConnection("www.github.com").send(BytesIO(b"123"))
 
     lambda_test_function()
-    events = SpansContainer.get_span().events
-    assert len(events) == 3  # one for the function span, and another two http spans
+    http_events = SpansContainer.get_span().http_spans
+    assert len(http_events) == 2
 
 
 def test_kill_switch(monkeypatch):
@@ -211,11 +211,11 @@ def test_wrapping_json_request():
         return 1
 
     assert lambda_test_function() == 1
-    events = SpansContainer.get_span().events
+    http_events = SpansContainer.get_span().http_spans
     assert any(
         '"Content-Type": "application/json"'
         in event.get("info", {}).get("httpInfo", {}).get("request", {}).get("headers", "")
-        for event in events
+        for event in http_events
     )
 
 
@@ -248,11 +248,11 @@ def test_lumigo_chalice():
     # should not use lumigo's wrapper
     assert app.a == "a"
     assert app.b() == "b"
-    assert not SpansContainer.get_span().events
+    assert not SpansContainer._span
 
     # should create a new span (but return the original value)
     assert app() == "c"
-    assert SpansContainer.get_span().events
+    assert SpansContainer._span
 
 
 def test_lumigo_chalice_create_extra_lambdas(monkeypatch):
@@ -288,11 +288,11 @@ def test_lumigo_chalice_create_extra_lambdas(monkeypatch):
 
     # should run the outer code before lambda execution, but not create span (in global execution)
     assert app.touched
-    assert not SpansContainer.get_span().events
+    assert not SpansContainer._span
 
     # should create a new span (but return the original value)
     assert handler({}, {}) == "hello world"
-    assert SpansContainer.get_span().events
+    assert SpansContainer._span
 
 
 def test_wrapping_with_logging_override_default_usage(caplog):
@@ -371,8 +371,8 @@ def test_wrapping_urlib_stream_get():
         return b"".join(r.stream(32))
 
     lambda_test_function({}, None)
-    assert len(SpansContainer.get_span().events) == 2
-    event = SpansContainer.get_span().events[1]
+    assert len(SpansContainer.get_span().http_spans) == 1
+    event = SpansContainer.get_span().http_spans[0]
     assert event["info"]["httpInfo"]["response"]["body"]
     assert event["info"]["httpInfo"]["response"]["statusCode"] == 200
     assert event["info"]["httpInfo"]["host"] == "www.google.com"
@@ -392,10 +392,10 @@ def test_wrapping_step_function(event, expected_triggered_by, expected_message_i
 
     lambda_test_function(event, None)
     span = SpansContainer.get_span()
-    assert len(span.events) == 2
-    assert span.events[0]["info"]["triggeredBy"] == expected_triggered_by
-    assert span.events[0]["info"].get("messageId") == expected_message_id
-    return_value = json.loads(span.events[0]["return_value"])
+    assert len(span.http_spans) == 1
+    assert span.function_span["info"]["triggeredBy"] == expected_triggered_by
+    assert span.function_span["info"].get("messageId") == expected_message_id
+    return_value = json.loads(span.function_span["return_value"])
     assert return_value["result"] == 1
     assert return_value[LUMIGO_EVENT_KEY][STEP_FUNCTION_UID_KEY]
-    assert span.events[1]["info"]["httpInfo"]["host"] == "StepFunction"
+    assert span.http_spans[0]["info"]["httpInfo"]["host"] == "StepFunction"

@@ -20,7 +20,7 @@ def mock_report_json(monkeypatch):
 
 
 def _is_start_span_sent():
-    return SpansContainer.get_span().start_msg.get("reporter_rtt") is not None
+    return SpansContainer.get_span().function_span.get("reporter_rtt") is not None
 
 
 def test_spans_container_send_only_on_errors_mode_false_not_effecting(monkeypatch):
@@ -96,13 +96,41 @@ def test_timeout_mechanism_too_short_time(monkeypatch, context):
     assert not TimeoutMechanism.is_activated()
 
 
-def test_timeout_mechanism_timeout_occurred(monkeypatch, context):
-    monkeypatch.setattr(Configuration, "timeout_timer", True)
+def test_timeout_mechanism_timeout_occurred_doesnt_send_span_twice(monkeypatch, context):
     SpansContainer.create_span()
     SpansContainer.get_span().start(context=context)
+    SpansContainer.get_span().add_request_event(
+        HttpRequest(host="google.com", method="", uri="", headers=None, body="")
+    )
 
-    assert TimeoutMechanism.is_activated()
-    TimeoutMechanism.stop()
+    assert SpansContainer.get_span().http_span_ids_to_send
+    SpansContainer.get_span().handle_timeout()
+    assert not SpansContainer.get_span().http_span_ids_to_send
+
+
+def test_timeout_mechanism_timeout_occurred_send_new_spans(monkeypatch, context):
+    SpansContainer.create_span()
+    SpansContainer.get_span().start(context=context)
+    SpansContainer.get_span().add_request_event(
+        HttpRequest(host="google.com", method="", uri="", headers=None, body="")
+    )
     SpansContainer.get_span().handle_timeout()
 
-    assert SpansContainer.get_span().events[-1]["error"]["type"] == "TimeoutError"
+    SpansContainer.get_span().add_request_event(
+        HttpRequest(host="google.com", method="", uri="", headers=None, body="2")
+    )
+    assert SpansContainer.get_span().http_span_ids_to_send
+
+
+def test_timeout_mechanism_timeout_occurred_send_updated_spans(monkeypatch, context):
+    SpansContainer.create_span()
+    SpansContainer.get_span().start(context=context)
+    SpansContainer.get_span().add_request_event(
+        HttpRequest(host="google.com", method="", uri="", headers=None, body="")
+    )
+    SpansContainer.get_span().handle_timeout()
+
+    SpansContainer.get_span().update_event_response(
+        host="google.com", status_code=200, headers=None, body=b"2"
+    )
+    assert SpansContainer.get_span().http_span_ids_to_send

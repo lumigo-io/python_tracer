@@ -82,9 +82,6 @@ class ServerlessAWSParser(Parser):
         message_id = headers.get("x-amzn-RequestId")
         if message_id:
             additional_info["info"] = {"messageId": message_id}
-        span_id = headers.get("x-amzn-requestid") or headers.get("x-amz-requestid")
-        if span_id:
-            additional_info["id"] = span_id
         return recursive_json_join(
             additional_info, super().parse_response(url, status_code, headers, body)
         )
