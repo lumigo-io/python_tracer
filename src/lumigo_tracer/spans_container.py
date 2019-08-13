@@ -97,11 +97,13 @@ class SpansContainer:
         if not Configuration.send_only_if_error:
             report_duration = utils.report_json(region=self.region, msgs=[to_send])
             self.function_span["reporter_rtt"] = report_duration
+            self.http_spans = []
         else:
             get_logger().debug("Skip sending start because tracer in 'send only if error' mode .")
         self.start_timeout_timer(context)
 
     def handle_timeout(self, *args):
+        get_logger().info("The tracer reached the end of the timeout timer")
         to_send = [s for s in self.http_spans if s["id"] in self.http_span_ids_to_send]
         utils.report_json(region=self.region, msgs=to_send)
         self.http_span_ids_to_send.clear()
@@ -272,9 +274,9 @@ class SpansContainer:
 
 class TimeoutMechanism:
     @staticmethod
-    def start(milliseconds: int, to_exec: Callable):
+    def start(seconds: int, to_exec: Callable):
         signal.signal(signal.SIGALRM, to_exec)
-        signal.setitimer(signal.ITIMER_REAL, milliseconds)
+        signal.setitimer(signal.ITIMER_REAL, seconds)
 
     @staticmethod
     def stop():
