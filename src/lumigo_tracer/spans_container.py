@@ -173,15 +173,11 @@ class SpansContainer:
 
             parser = get_parser(host)()  # type: ignore
             self.previous_response_body += body
-            self.http_spans.append(
-                recursive_json_join(
-                    parser.parse_response(  # type: ignore
-                        host, status_code, headers, self.previous_response_body
-                    ),
-                    last_event,
-                )
+            update = parser.parse_response(  # type: ignore
+                host, status_code, headers, self.previous_response_body
             )
-            self.http_span_ids_to_send.add(last_event["id"])
+            self.http_spans.append(recursive_json_join(update, last_event))
+            self.http_span_ids_to_send.add(update.get("id") or last_event["id"])
 
     def add_exception_event(self, exception: Exception) -> None:
         if self.function_span:
