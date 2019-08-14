@@ -15,8 +15,8 @@ from lumigo_tracer.utils import (
     lumigo_safe_execute,
     is_aws_environment,
 )
-from lumigo_tracer.spans_container import SpansContainer
-from ..parsers.http_data_classes import HttpRequest
+from lumigo_tracer.spans_container import SpansContainer, TimeoutMechanism
+from lumigo_tracer.parsers.http_data_classes import HttpRequest
 
 _BODY_HEADER_SPLITTER = b"\r\n\r\n"
 _FLAGS_HEADER_SPLITTER = b"\r\n"
@@ -140,7 +140,7 @@ def _lumigo_tracer(func):
             if Configuration.enhanced_print:
                 _enhance_output(args, local_print, local_logging_format)
             SpansContainer.create_span(*args, force=True)
-            SpansContainer.get_span().start()
+            SpansContainer.get_span().start(*args)
             wrap_http_calls()
             try:
                 executed = True
@@ -158,6 +158,7 @@ def _lumigo_tracer(func):
         except Exception:
             # The case where our wrapping raised an exception
             if not executed:
+                TimeoutMechanism.stop()
                 get_logger().exception("exception in the wrapper", exc_info=True)
                 return func(*args, **kwargs)
             else:

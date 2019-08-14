@@ -26,6 +26,8 @@ class Configuration:
     verbose: bool = True
     enhanced_print: bool = False
     is_step_function: bool = False
+    timeout_timer: bool = True
+    send_only_if_error: bool = False
 
 
 def config(
@@ -35,6 +37,7 @@ def config(
     verbose: bool = True,
     enhance_print: bool = False,
     step_function: bool = False,
+    timeout_timer: bool = True,
 ) -> None:
     """
     This function configure the lumigo wrapper.
@@ -45,6 +48,7 @@ def config(
     :param token: The token to use when sending back the events.
     :param enhance_print: Should we add prefix to the print (so the logs will be in the platform).
     :param step_function: Is this function is a part of a step function?
+    :param timeout_timer: Should we start a timer to send the traced data before timeout acceded.
     """
     if should_report is not None:
         Configuration.should_report = should_report
@@ -55,6 +59,8 @@ def config(
     Configuration.enhanced_print = enhance_print
     Configuration.verbose = verbose and os.environ.get("LUMIGO_VERBOSE", "").lower() != "false"
     Configuration.is_step_function = step_function
+    Configuration.timeout_timer = timeout_timer
+    Configuration.send_only_if_error = os.environ.get("SEND_ONLY_IF_ERROR", "").lower() == "true"
 
 
 def _is_span_has_error(span: dict) -> bool:

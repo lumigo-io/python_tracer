@@ -79,10 +79,10 @@ def test_dynamo_db(ddb_resource, region):
         )
 
     lambda_test_function()
-    events = SpansContainer.get_span().events
-    assert len(events) == 2
-    assert events[1]["info"]["httpInfo"]["host"] == f"dynamodb.{region}.amazonaws.com"
-    assert events[1]["info"]["resourceName"] == ddb_resource
+    events = SpansContainer.get_span().http_spans
+    assert len(events) == 1
+    assert events[0]["info"]["httpInfo"]["host"] == f"dynamodb.{region}.amazonaws.com"
+    assert events[0]["info"]["resourceName"] == ddb_resource
     assert "ended" in events[0]
 
 
@@ -93,11 +93,11 @@ def test_sns(sns_resource, region):
         boto3.resource("sns").Topic(sns_resource).publish(Message=json.dumps({"test": "test"}))
 
     lambda_test_function()
-    events = SpansContainer.get_span().events
-    assert len(events) == 2
-    assert events[1]["info"]["httpInfo"]["host"] == f"sns.{region}.amazonaws.com"
-    assert events[1]["info"]["resourceName"] == sns_resource
-    assert events[1]["info"]["messageId"]
+    events = SpansContainer.get_span().http_spans
+    assert len(events) == 1
+    assert events[0]["info"]["httpInfo"]["host"] == f"sns.{region}.amazonaws.com"
+    assert events[0]["info"]["resourceName"] == sns_resource
+    assert events[0]["info"]["messageId"]
 
 
 @pytest.mark.slow
@@ -109,10 +109,10 @@ def test_lambda(lambda_resource, region):
         )
 
     lambda_test_function()
-    events = SpansContainer.get_span().events
-    assert len(events) == 2
-    assert events[1]["info"]["httpInfo"]["host"] == f"lambda.{region}.amazonaws.com"
-    assert events[1].get("id").count("-") == 4
+    events = SpansContainer.get_span().http_spans
+    assert len(events) == 1
+    assert events[0]["info"]["httpInfo"]["host"] == f"lambda.{region}.amazonaws.com"
+    assert events[0].get("id").count("-") == 4
 
 
 @pytest.mark.slow
@@ -130,16 +130,16 @@ def test_kinesis(kinesis_resource, region):
         )
 
     lambda_test_function()
-    events = SpansContainer.get_span().events
-    assert len(events) == 3
+    events = SpansContainer.get_span().http_spans
+    assert len(events) == 2
     # Single message.
+    assert events[0]["info"]["httpInfo"]["host"] == f"kinesis.{region}.amazonaws.com"
+    assert events[0]["info"]["resourceName"] == kinesis_resource
+    assert events[0]["info"]["messageId"]
+    # Batch messages.
     assert events[1]["info"]["httpInfo"]["host"] == f"kinesis.{region}.amazonaws.com"
     assert events[1]["info"]["resourceName"] == kinesis_resource
     assert events[1]["info"]["messageId"]
-    # Batch messages.
-    assert events[2]["info"]["httpInfo"]["host"] == f"kinesis.{region}.amazonaws.com"
-    assert events[2]["info"]["resourceName"] == kinesis_resource
-    assert events[2]["info"]["messageId"]
 
 
 @pytest.mark.slow
@@ -157,16 +157,16 @@ def test_sqs(sqs_resource, region):
         )
 
     lambda_test_function()
-    events = SpansContainer.get_span().events
-    assert len(events) == 3
+    events = SpansContainer.get_span().http_spans
+    assert len(events) == 2
     # Single message.
+    assert events[0]["info"]["httpInfo"]["host"] == f"{region}.queue.amazonaws.com"
+    assert events[0]["info"]["resourceName"] == sqs_resource
+    assert events[0]["info"]["messageId"]
+    # Batch messages.
     assert events[1]["info"]["httpInfo"]["host"] == f"{region}.queue.amazonaws.com"
     assert events[1]["info"]["resourceName"] == sqs_resource
     assert events[1]["info"]["messageId"]
-    # Batch messages.
-    assert events[2]["info"]["httpInfo"]["host"] == f"{region}.queue.amazonaws.com"
-    assert events[2]["info"]["resourceName"] == sqs_resource
-    assert events[2]["info"]["messageId"]
 
 
 @pytest.mark.slow
@@ -176,10 +176,10 @@ def test_s3(s3_bucket_resource):
         boto3.client("s3").put_object(Bucket=s3_bucket_resource, Key="0")
 
     lambda_test_function()
-    events = SpansContainer.get_span().events
-    assert len(events) == 2
-    assert events[1]["info"]["messageId"]
-    assert events[1]["info"]["resourceName"] == s3_bucket_resource
+    events = SpansContainer.get_span().http_spans
+    assert len(events) == 1
+    assert events[0]["info"]["messageId"]
+    assert events[0]["info"]["resourceName"] == s3_bucket_resource
 
 
 @pytest.mark.slow
@@ -189,7 +189,7 @@ def test_get_body_from_aws_response(sqs_resource, region):
         boto3.client("sqs").send_message(QueueUrl=sqs_resource, MessageBody="myMessage")
 
     lambda_test_function()
-    events = SpansContainer.get_span().events
+    events = SpansContainer.get_span().http_spans
     # making sure there is any data in the body.
-    body = events[1]["info"]["httpInfo"]["response"]["body"]
+    body = events[0]["info"]["httpInfo"]["response"]["body"]
     assert body and body != "b''"

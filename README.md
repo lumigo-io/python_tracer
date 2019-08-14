@@ -22,6 +22,14 @@ def my_lambda(event, context):
     print('I can view this line now')
 ```
 
+### Timeout timer
+We add an alarm that sends the traced data in a case of timeout. You can disable this with the flag `timeout_timer=False`:
+```
+@lumigo_tracer(token='XXX', timeout_timer=False)
+def my_lambda(event, context):
+    print('I will miss spans in case of timeout')
+```
+
 ### Step Functions
 If this function is part of a step function, you can add the flag `step_function=True`, and we will track the states in the step function as a single transaction.
 ```
