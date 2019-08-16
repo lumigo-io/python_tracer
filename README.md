@@ -80,7 +80,7 @@ Add our decorator beneath the Raven decorator
 from lumigo_tracer import lumigo_tracer
 ...
 @RavenLambdaWrapper()
-@lumigo_tracer(token='t_1b8e3e1eada1064d41ff')
+@lumigo_tracer(token='XXX')
 def lambda_handler (event, context):  return  {
  'statusCode' :  200,
  'body' : json.dumps( 'Hi!' ) }
