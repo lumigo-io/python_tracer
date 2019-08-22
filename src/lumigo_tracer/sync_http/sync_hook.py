@@ -106,7 +106,10 @@ def _read_wrapper(func, instance, args, kwargs):
     if ret_val:
         with lumigo_safe_execute("parse response.read"):
             SpansContainer.get_span().update_event_response(
-                None, instance.code, instance.headers, ret_val
+                None,
+                instance.code if is_python_3() else instance.status,
+                instance.headers if is_python_3() else instance.msg.dict,
+                ret_val,
             )
     return ret_val
 
