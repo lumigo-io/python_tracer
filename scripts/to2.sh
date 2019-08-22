@@ -27,6 +27,7 @@ sed -i '' 's/urllib.parse/urllib/g' lumigo_tracer/parsers/utils.py;
 sed -i '' 's/**self.lumigo_conf_kwargs,/**self.lumigo_conf_kwargs/g' lumigo_tracer/sync_http/sync_hook.py;
 sed -i '' 's/**additional_info,/**additional_info/g' lumigo_tracer/spans_container.py;
 sed -i '' '/from __future__ import absolute_import/d' lumigo_tracer/libs/xmltodict.py;
+sed -i '' 's/1_000_000/1000000/g' lumigo_tracer/test/unit/test_main_utils.py;
 
 popd
 
@@ -38,7 +39,7 @@ if [[ ! -d ./pypy_env ]]; then
 fi
 source ./pypy_env/bin/activate
 
-pip install pytest capturer mock
+pip install pytest capturer mock boto3 urllib3
 python setup.py develop
 
 py.test
