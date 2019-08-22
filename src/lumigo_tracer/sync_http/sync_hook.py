@@ -4,7 +4,6 @@ from io import BytesIO
 import os
 import builtins
 from functools import wraps
-import importlib.util
 
 from lumigo_tracer.libs.wrapt import wrap_function_wrapper
 from lumigo_tracer.parsers.utils import safe_get_list
@@ -257,7 +256,8 @@ def wrap_http_calls():
             wrap_function_wrapper("http.client", "HTTPConnection.getresponse", _response_wrapper)
             wrap_function_wrapper("http.client", "HTTPResponse.read", _read_wrapper)
             try:
-                import utrllib3
+                import utrllib3  # noqa
+
                 wrap_function_wrapper(
                     "urllib3.response", "HTTPResponse.read_chunked", _read_stream_wrapper
                 )
