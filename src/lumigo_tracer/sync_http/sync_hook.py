@@ -52,7 +52,13 @@ def _request_wrapper(func, instance, args, kwargs):
             headers, body = data.split(_BODY_HEADER_SPLITTER, 1)
             if _FLAGS_HEADER_SPLITTER in headers:
                 request_info, headers = headers.split(_FLAGS_HEADER_SPLITTER, 1)
-                headers = http.client.parse_headers(io.BytesIO(headers))
+                if is_python_3():
+                    headers = http.client.parse_headers(io.BytesIO(headers))
+                else:
+                    import email
+
+                    message = email.message_from_file(io.StringIO(headers))
+                    headers = {t[0]: t[1] for t in message.items()}
                 path_and_query_params = (
                     # Parse path from request info, remove method (GET | POST) and http version (HTTP/1.1)
                     request_info.decode("ascii")
