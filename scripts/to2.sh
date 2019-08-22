@@ -22,9 +22,10 @@ sleep 5;
 sed -i '' 's/u\"/\"/g' lumigo_tracer/libs/wrapt.py;
 sed -i '' 's/urllib.request/urllib2/g' lumigo_tracer/utils.py;
 sed -i '' 's/from collections.abc import Iterable/from collections import Iterable/g' lumigo_tracer/parsers/utils.py;
-sed -i '' 's/900_000/900000/g' lumigo_tracer/parsers/utils.py;
+sed -i '' 's/900_000/900000/g' lumigo_tracer/utils.py;
 sed -i '' 's/urllib.parse/urllib/g' lumigo_tracer/parsers/utils.py;
 sed -i '' 's/**self.lumigo_conf_kwargs,/**self.lumigo_conf_kwargs/g' lumigo_tracer/sync_http/sync_hook.py;
+sed -i '' 's/**(trigger_by or {}),/**(trigger_by or {})/g' lumigo_tracer/spans_container.py;
 sed -i '' '/from __future__ import absolute_import/d' lumigo_tracer/libs/xmltodict.py;
 
 popd
