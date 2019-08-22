@@ -45,6 +45,7 @@ class SpansContainer:
         account: str = None,
         trace_id_suffix: str = None,
         trigger_by: dict = None,
+        message_id: str = None,
         max_finish_time: int = None,
         event: str = None,
         envs: str = None,
@@ -79,7 +80,8 @@ class SpansContainer:
                 "info": {
                     "logStreamName": log_stream_name,
                     "logGroupName": log_group_name,
-                    **(trigger_by or {}),
+                    "triggeredBy": trigger_by,
+                    "messageId": message_id,
                 },
             },
         )
@@ -248,6 +250,7 @@ class SpansContainer:
 
         trace_root, transaction_id, suffix = parse_trace_id(os.environ.get("_X_AMZN_TRACE_ID", ""))
         remaining_time = getattr(context, "get_remaining_time_in_millis", lambda: MAX_LAMBDA_TIME)()
+        triggered_by = parse_triggered_by(event) or {}
         cls._span = SpansContainer(
             started=int(time.time() * 1000),
             name=os.environ.get("AWS_LAMBDA_FUNCTION_NAME"),
@@ -261,7 +264,8 @@ class SpansContainer:
             trace_id_suffix=suffix,
             request_id=getattr(context, "aws_request_id", ""),
             account=safe_split_get(getattr(context, "invoked_function_arn", ""), ":", 4, ""),
-            trigger_by=parse_triggered_by(event),
+            trigger_by=triggered_by.get("triggeredBy"),
+            message_id=triggered_by.get("messageId"),
             max_finish_time=int(time.time() * 1000) + remaining_time,
             **additional_info,
         )
