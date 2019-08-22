@@ -16,7 +16,7 @@ for file in $(find . -type f); do
     rm "$file.tmp";
 done
 # change imports, exceptions, bytes, class(object), etc.
-3to2 ./ -n -w;
+3to2 ./ -n -w -x print;
 sleep 5;
 
 sed -i '' 's/u\"/\"/g' lumigo_tracer/libs/wrapt.py;
@@ -38,7 +38,7 @@ if [[ ! -d ./pypy_env ]]; then
 fi
 source ./pypy_env/bin/activate
 
-pip install pytest capturer
+pip install pytest capturer mock
 python setup.py develop
 
 py.test
