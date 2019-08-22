@@ -25,6 +25,7 @@ sed -i '' 's/from collections.abc import Iterable/from collections import Iterab
 sed -i '' 's/900_000/900000/g' lumigo_tracer/parsers/utils.py;
 sed -i '' 's/urllib.parse/urllib/g' lumigo_tracer/parsers/utils.py;
 sed -i '' 's/**self.lumigo_conf_kwargs,/**self.lumigo_conf_kwargs/g' lumigo_tracer/sync_http/sync_hook.py;
+sed -i '' '/from __future__ import absolute_import/d' lumigo_tracer/libs/xmltodict.py;
 
 popd
 
