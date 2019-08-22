@@ -3,7 +3,7 @@ source ./venv/bin/activate
 pushd src
 
 pip install future-fstrings 3to2 strip-hints
-for file in $(find . -type f); do
+for file in $(find src -type f); do
     # don't use f-strings
     future-fstrings-show "$file" > "$file.tmp";
     # add future print
@@ -11,12 +11,12 @@ for file in $(find . -type f); do
 /' "$file.tmp";
     # remove the typing imports
     sed -i '' '/from typing import.*/d' "$file.tmp";
-    # change imports, exceptions, bytes, class(object), etc.
-#    3to2 -n -w "$file.tmp";  # THIS LEAVES FILES EMPTY! BUT WE HAVE TO USE IT!
     # no types hints
     strip-hints "$file.tmp" > "$file";
     rm "$file.tmp";
 done
+# change imports, exceptions, bytes, class(object), etc.
+3to2 -n -w src;
 
 sed -i '' 's/u\"/\"/g' lumigo_tracer/libs/wrapt.py;
 sed -i '' 's/urllib.request/urllib2/g' lumigo_tracer/utils.py;
