@@ -1,6 +1,8 @@
 import json
 import logging
 import os
+import sys
+
 import time
 import urllib.request
 from urllib.error import URLError
@@ -161,3 +163,7 @@ def is_aws_environment():
     :return: heuristically determine rather we're running on an aws environment.
     """
     return bool(os.environ.get("LAMBDA_RUNTIME_DIR"))
+
+
+def is_python_3():
+    return sys.version.startswith("3")

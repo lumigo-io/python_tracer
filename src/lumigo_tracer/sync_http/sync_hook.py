@@ -1,6 +1,6 @@
 import logging
 import http.client
-from io import BytesIO
+import io
 import os
 import builtins
 from functools import wraps
@@ -13,6 +13,7 @@ from lumigo_tracer.utils import (
     get_logger,
     lumigo_safe_execute,
     is_aws_environment,
+    is_python_3,
 )
 from lumigo_tracer.spans_container import SpansContainer, TimeoutMechanism
 from lumigo_tracer.parsers.http_data_classes import HttpRequest
@@ -31,7 +32,7 @@ def _request_wrapper(func, instance, args, kwargs):
     """
     data = safe_get_list(args, 0)
     with lumigo_safe_execute("parse requested streams"):
-        if isinstance(data, BytesIO):
+        if isinstance(data, io.BytesIO):
             current_pos = data.tell()
             data = data.read(MAX_READ_SIZE)
             args[0].seek(current_pos)
@@ -44,11 +45,14 @@ def _request_wrapper(func, instance, args, kwargs):
         None,
     )
     with lumigo_safe_execute("parse request"):
-        if isinstance(data, bytes) and _BODY_HEADER_SPLITTER in data:
+        is_data_parsable = (
+            isinstance(data, str) if is_python_3() else isinstance(data, unicode)  # noqa
+        )
+        if is_data_parsable and _BODY_HEADER_SPLITTER in data:
             headers, body = data.split(_BODY_HEADER_SPLITTER, 1)
             if _FLAGS_HEADER_SPLITTER in headers:
                 request_info, headers = headers.split(_FLAGS_HEADER_SPLITTER, 1)
-                headers = http.client.parse_headers(BytesIO(headers))
+                headers = http.client.parse_headers(io.BytesIO(headers))
                 path_and_query_params = (
                     # Parse path from request info, remove method (GET | POST) and http version (HTTP/1.1)
                     request_info.decode("ascii")
@@ -82,8 +86,8 @@ def _response_wrapper(func, instance, args, kwargs):
     """
     ret_val = func(*args, **kwargs)
     with lumigo_safe_execute("parse response"):
-        headers = ret_val.headers
-        status_code = ret_val.code
+        headers = ret_val.headers if is_python_3() else ret_val.msg.dict
+        status_code = ret_val.code if is_python_3() else ret_val.status
         SpansContainer.get_span().update_event_response(instance.host, status_code, headers, b"")
     return ret_val
 
@@ -251,12 +255,19 @@ def wrap_http_calls():
     if not already_wrapped:
         with lumigo_safe_execute("wrap http calls"):
             get_logger().debug("wrapping the http request")
-            wrap_function_wrapper("http.client", "HTTPConnection.send", _request_wrapper)
             wrap_function_wrapper("botocore.awsrequest", "AWSRequest.__init__", _putheader_wrapper)
-            wrap_function_wrapper("http.client", "HTTPConnection.getresponse", _response_wrapper)
-            wrap_function_wrapper("http.client", "HTTPResponse.read", _read_wrapper)
+            if is_python_3():
+                wrap_function_wrapper("http.client", "HTTPConnection.send", _request_wrapper)
+                wrap_function_wrapper(
+                    "http.client", "HTTPConnection.getresponse", _response_wrapper
+                )
+                wrap_function_wrapper("http.client", "HTTPResponse.read", _read_wrapper)
+            else:
+                wrap_function_wrapper("httplib", "HTTPConnection.send", _request_wrapper)
+                wrap_function_wrapper("httplib", "HTTPConnection.getresponse", _response_wrapper)
+                wrap_function_wrapper("httplib", "HTTPResponse.read", _read_wrapper)
             try:
-                import utrllib3  # noqa
+                import urllib3  # noqa
 
                 wrap_function_wrapper(
                     "urllib3.response", "HTTPResponse.read_chunked", _read_stream_wrapper
