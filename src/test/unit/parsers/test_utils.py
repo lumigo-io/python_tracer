@@ -211,7 +211,7 @@ def test_parse_triggered_by(event, output):
         ("a" * 21, "a" * 20 + "...[too long]"),
         ({"a": "a"}, '{"a": "a"}'),  # dict.
         # dict that can't be converted to json.
-        ({"a": sys}, "{'a': <module 'sys'...[too long]"),  # type: ignore
+        ({"a": sys}, "{'a': <module 'sys' ...[too long]"),  # type: ignore
         (b"a", "a"),  # bytes that can be decoded.
         (b"\xff\xfea\x00", "b'\\xff\\xfea\\x00'"),  # bytes that can't be decoded.
     ],

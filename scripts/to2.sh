@@ -21,6 +21,7 @@ sleep 5;
 
 sed -i '' 's/urllib.request/urllib2/g' lumigo_tracer/utils.py;
 sed -i '' 's/from collections.abc import Iterable/from collections import Iterable/g' lumigo_tracer/parsers/utils.py;
+sed -i '' 's/except json.JSONDecodeError/except ValueError/g' lumigo_tracer/parsers/utils.py;
 sed -i '' 's/900_000/900000/g' lumigo_tracer/utils.py;
 sed -i '' 's/urllib.parse/urllib/g' lumigo_tracer/parsers/utils.py;
 sed -i '' 's/**self.lumigo_conf_kwargs,/**self.lumigo_conf_kwargs/g' lumigo_tracer/sync_http/sync_hook.py;
