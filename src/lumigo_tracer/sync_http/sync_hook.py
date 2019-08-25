@@ -1,6 +1,6 @@
 import logging
 import http.client
-import io
+from io import BytesIO
 import os
 import builtins
 from functools import wraps
@@ -32,7 +32,7 @@ def _request_wrapper(func, instance, args, kwargs):
     """
     data = safe_get_list(args, 0)
     with lumigo_safe_execute("parse requested streams"):
-        if isinstance(data, io.BytesIO):
+        if isinstance(data, BytesIO):
             current_pos = data.tell()
             data = data.read(MAX_READ_SIZE)
             args[0].seek(current_pos)
@@ -45,19 +45,16 @@ def _request_wrapper(func, instance, args, kwargs):
         None,
     )
     with lumigo_safe_execute("parse request"):
-        is_data_parsable = (
-            isinstance(data, str) if is_python_3() else isinstance(data, unicode)  # noqa
-        )
-        if is_data_parsable and _BODY_HEADER_SPLITTER in data:
+        if isinstance(data, str) and _BODY_HEADER_SPLITTER in data:
             headers, body = data.split(_BODY_HEADER_SPLITTER, 1)
             if _FLAGS_HEADER_SPLITTER in headers:
                 request_info, headers = headers.split(_FLAGS_HEADER_SPLITTER, 1)
                 if is_python_3():
-                    headers = http.client.parse_headers(io.BytesIO(headers))
+                    headers = http.client.parse_headers(BytesIO(headers))
                 else:
                     import email
 
-                    message = email.message_from_file(io.StringIO(headers))
+                    message = email.message_from_file(BytesIO(headers))
                     headers = {t[0]: t[1] for t in message.items()}
                 path_and_query_params = (
                     # Parse path from request info, remove method (GET | POST) and http version (HTTP/1.1)
