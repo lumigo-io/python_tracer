@@ -24,6 +24,7 @@ MAX_LAMBDA_TIME = 15 * 60 * 1000
 MAX_BODY_SIZE = 1024
 # The buffer that we take before reaching timeout to send the traces to lumigo (seconds)
 TIMEOUT_BUFFER = 0.5
+FALLBACK_RUNTIME = "provided"
 
 
 class SpansContainer:
@@ -254,7 +255,7 @@ class SpansContainer:
         cls._span = SpansContainer(
             started=int(time.time() * 1000),
             name=os.environ.get("AWS_LAMBDA_FUNCTION_NAME"),
-            runtime=os.environ.get("AWS_EXECUTION_ENV"),
+            runtime=os.environ.get("AWS_EXECUTION_ENV", FALLBACK_RUNTIME),
             region=os.environ.get("AWS_REGION"),
             memory_allocated=os.environ.get("AWS_LAMBDA_FUNCTION_MEMORY_SIZE"),
             log_stream_name=os.environ.get("AWS_LAMBDA_LOG_STREAM_NAME"),
