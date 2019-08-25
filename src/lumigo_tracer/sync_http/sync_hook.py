@@ -38,8 +38,8 @@ def _request_wrapper(func, instance, args, kwargs):
             args[0].seek(current_pos)
 
     host, method, headers, body, uri = (
-        getattr(instance, "host", None),
-        getattr(instance, "_method", None),
+        str(getattr(instance, "host", "")),
+        str(getattr(instance, "_method", "")),
         None,
         None,
         None,
