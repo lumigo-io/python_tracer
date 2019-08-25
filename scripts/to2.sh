@@ -15,17 +15,14 @@ for file in $(find . -type f); do
     strip-hints "$file.tmp" > "$file";
     rm "$file.tmp";
 done
-# change imports, exceptions, bytes, class(object), etc.
-3to2 ./ -n -w -x print;
+# change imports, exceptions, bytes, class(object), etc. Dont change: print("a") -> print "a", str -> unicode.
+3to2 ./ -n -w -x print -x str;
 sleep 5;
 
-sed -i '' 's/u\"/\"/g' lumigo_tracer/libs/wrapt.py;
 sed -i '' 's/urllib.request/urllib2/g' lumigo_tracer/utils.py;
 sed -i '' 's/from collections.abc import Iterable/from collections import Iterable/g' lumigo_tracer/parsers/utils.py;
 sed -i '' 's/900_000/900000/g' lumigo_tracer/utils.py;
 sed -i '' 's/urllib.parse/urllib/g' lumigo_tracer/parsers/utils.py;
-sed -i '' 's/unicode/str/g' lumigo_tracer/parsers/utils.py;
-sed -i '' 's/unicode/str/g' lumigo_tracer/sync_http/sync_hook.py;
 sed -i '' 's/**self.lumigo_conf_kwargs,/**self.lumigo_conf_kwargs/g' lumigo_tracer/sync_http/sync_hook.py;
 sed -i '' 's/**additional_info,/**additional_info/g' lumigo_tracer/spans_container.py;
 sed -i '' '/from __future__ import absolute_import/d' lumigo_tracer/libs/xmltodict.py;
