@@ -212,7 +212,7 @@ class StepFunctionParser(ServerlessAWSParser):
 
 
 def get_parser(url: str) -> Type[Parser]:
-    service = safe_split_get(url, ".", 0)
+    service = safe_split_get(str(url), ".", 0)
     if service == "dynamodb":
         return DynamoParser
     elif service == "sns":
@@ -221,7 +221,7 @@ def get_parser(url: str) -> Type[Parser]:
         return LambdaParser
     elif service == "kinesis":
         return KinesisParser
-    elif safe_split_get(url, ".", 1) == "s3":
+    elif safe_split_get(str(url), ".", 1) == "s3":
         return S3Parser
     # SQS Legacy Endpoints: https://docs.aws.amazon.com/general/latest/gr/rande.html
     elif service in ("sqs", "sqs-fips") or "queue.amazonaws.com" in url:
