@@ -46,7 +46,6 @@ class SpansContainer:
         account: str = None,
         trace_id_suffix: str = None,
         trigger_by: dict = None,
-        message_id: str = None,
         max_finish_time: int = None,
         event: str = None,
         envs: str = None,
@@ -69,6 +68,9 @@ class SpansContainer:
             "event": event,
             "envs": envs,
         }
+        info: dict = {"logStreamName": log_stream_name, "logGroupName": log_group_name}
+        if trigger_by:
+            info.update(trigger_by)
         self.function_span = recursive_json_join(
             self.base_msg,
             {
@@ -78,12 +80,7 @@ class SpansContainer:
                 "runtime": runtime,
                 "memoryAllocated": memory_allocated,
                 "readiness": "cold" if SpansContainer.is_cold else "warm",
-                "info": {
-                    "logStreamName": log_stream_name,
-                    "logGroupName": log_group_name,
-                    "triggeredBy": trigger_by,
-                    "messageId": message_id,
-                },
+                "info": info,
             },
         )
         self.previous_request: Tuple[Optional[http.client.HTTPMessage], bytes] = (None, b"")
@@ -251,7 +248,6 @@ class SpansContainer:
 
         trace_root, transaction_id, suffix = parse_trace_id(os.environ.get("_X_AMZN_TRACE_ID", ""))
         remaining_time = getattr(context, "get_remaining_time_in_millis", lambda: MAX_LAMBDA_TIME)()
-        triggered_by = parse_triggered_by(event) or {}
         cls._span = SpansContainer(
             started=int(time.time() * 1000),
             name=os.environ.get("AWS_LAMBDA_FUNCTION_NAME"),
@@ -265,8 +261,7 @@ class SpansContainer:
             trace_id_suffix=suffix,
             request_id=getattr(context, "aws_request_id", ""),
             account=safe_split_get(getattr(context, "invoked_function_arn", ""), ":", 4, ""),
-            trigger_by=triggered_by.get("triggeredBy"),
-            message_id=triggered_by.get("messageId"),
+            trigger_by=parse_triggered_by(event),
             max_finish_time=int(time.time() * 1000) + remaining_time,
             **additional_info,
         )
