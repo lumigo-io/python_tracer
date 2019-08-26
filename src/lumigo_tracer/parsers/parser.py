@@ -79,7 +79,7 @@ class Parser:
 class ServerlessAWSParser(Parser):
     def parse_response(self, url: str, status_code: int, headers, body: bytes) -> dict:
         additional_info = {}
-        message_id = headers.get("x-amzn-RequestId")
+        message_id = headers.get("x-amzn-RequestId") or headers.get("x-amzn-requestid")
         if message_id:
             additional_info["info"] = {"messageId": message_id}
         span_id = headers.get("x-amzn-requestid") or headers.get("x-amz-requestid")
