@@ -263,6 +263,11 @@ def prepare_large_data(value: Union[str, bytes, dict, None], max_size=MAX_ENTRY_
     elif isinstance(value, bytes):
         try:
             value = value.decode()
+        except UnicodeDecodeError:
+            try:
+                value = repr(value)
+            except Exception:
+                pass
         except Exception:
             pass
 
