@@ -76,6 +76,15 @@ def test_lambda_wrapper_http():
     assert "Content-Length" in http_spans[0]["info"]["httpInfo"]["request"]["headers"]
 
 
+def test_lambda_wrapper_non_encodeable_request():
+    @lumigo_tracer(token="123")
+    def lambda_test_function():
+        http.client.HTTPConnection("www.google.com").request("POST", "/", "\xff")
+
+    lambda_test_function()
+    assert json.dumps(SpansContainer.get_span().http_spans)
+
+
 def test_lambda_wrapper_query_with_http_params():
     @lumigo_tracer(token="123")
     def lambda_test_function():
