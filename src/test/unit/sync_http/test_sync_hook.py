@@ -35,7 +35,7 @@ def test_lambda_wrapper_basic_events(reporter_mock):
     assert "started" in function_span
     assert "ended" in function_span
     assert reporter_mock.call_count == 2
-    first_send = json.loads(reporter_mock.call_args_list[0][0][0].data)
+    first_send = reporter_mock.call_args_list[0][1]["msgs"]
     assert len(first_send) == 1
     assert first_send[0]["id"].endswith("_started")
     assert first_send[0]["maxFinishTime"]
@@ -140,16 +140,6 @@ def test_lambda_wrapper_http_non_splitted_send():
     def lambda_test_function():
         http.client.HTTPConnection("www.google.com").request("POST", "/")
         http.client.HTTPConnection("www.github.com").send(BytesIO(b"123"))
-
-    lambda_test_function()
-    http_events = SpansContainer.get_span().http_spans
-    assert len(http_events) == 2
-
-
-def test_lambda_wrapper_http_non_encodeable_send():
-    @lumigo_tracer(token="123")
-    def lambda_test_function():
-        http.client.HTTPConnection("www.google.com").send(BytesIO("\xff"))
 
     lambda_test_function()
     http_events = SpansContainer.get_span().http_spans

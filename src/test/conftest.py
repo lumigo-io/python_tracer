@@ -1,5 +1,3 @@
-import urllib
-
 import builtins
 import logging
 
@@ -13,18 +11,9 @@ from lumigo_tracer.utils import Configuration
 
 @pytest.fixture(autouse=True)
 def reporter_mock(monkeypatch):
-    monkeypatch.setattr(utils.Configuration, "should_report", True)
-    monkeypatch.setenv("LAMBDA_RUNTIME_DIR", "/var/task")
+    utils.Configuration.should_report = False
     reporter_mock = mock.Mock(utils.report_json)
-    original_urlopen = urllib.request.urlopen
-
-    def my_urlopen(*args, **kwargs):
-        if args and "lumigo" in args[0].host:
-            return reporter_mock(*args, **kwargs)
-        else:
-            return original_urlopen(*args, **kwargs)
-
-    monkeypatch.setattr(urllib.request, "urlopen", my_urlopen)
+    monkeypatch.setattr(utils, "report_json", reporter_mock)
     return reporter_mock
 
 
@@ -58,7 +47,7 @@ def verbose_logger():
     This fixture make sure that we will see all the log in the tests.
     """
     utils.get_logger().setLevel(logging.DEBUG)
-    utils.config(verbose=True)
+    utils.config(should_report=False, verbose=True)
 
 
 def pytest_addoption(parser):
