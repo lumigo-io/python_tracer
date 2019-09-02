@@ -133,6 +133,8 @@ class SnsParser(ServerlessAWSParser):
 
 
 class LambdaParser(ServerlessAWSParser):
+    should_add_message_id = True
+
     def parse_request(self, parse_params: HttpRequest) -> dict:
         return recursive_json_join(
             {

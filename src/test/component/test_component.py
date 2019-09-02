@@ -113,6 +113,7 @@ def test_lambda(lambda_resource, region):
     events = SpansContainer.get_span().http_spans
     assert len(events) == 1
     assert events[0]["info"]["httpInfo"]["host"] == f"lambda.{region}.amazonaws.com"
+    assert events[0]["info"]["messageId"]
     assert events[0].get("id").count("-") == 4
 
 
