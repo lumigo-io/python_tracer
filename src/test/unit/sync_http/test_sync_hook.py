@@ -43,6 +43,7 @@ def test_lambda_wrapper_basic_events(reporter_mock):
 def test_lambda_wrapper_exception(exc):
     @lumigo_tracer(token="123")
     def lambda_test_function():
+        a = "A"  # noqa
         raise exc
 
     try:
@@ -55,6 +56,14 @@ def test_lambda_wrapper_exception(exc):
     function_span = SpansContainer.get_span().function_span
     assert not SpansContainer.get_span().http_spans
     assert function_span.get("error", {}).get("type") == "ValueError"
+    # Make sure no lumigo_tracer
+    assert len(function_span["error"]["frames"]) == 1
+    assert function_span["error"]["frames"][0].pop("lineno") > 0
+    assert function_span["error"]["frames"][0] == {
+        "function": "lambda_test_function",
+        "file_name": __file__,
+        "variables": {"a": "A", "exc": str(exc)},
+    }
     assert not function_span["id"].endswith("_started")
     assert "reporter_rtt" in function_span
     assert "maxFinishTime" not in function_span

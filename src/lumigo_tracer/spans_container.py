@@ -6,7 +6,12 @@ import traceback
 import http.client
 from typing import List, Dict, Tuple, Optional, Callable, Set
 
-from lumigo_tracer.utils import Configuration, LUMIGO_EVENT_KEY, STEP_FUNCTION_UID_KEY
+from lumigo_tracer.utils import (
+    Configuration,
+    LUMIGO_EVENT_KEY,
+    STEP_FUNCTION_UID_KEY,
+    extract_frames_from_exception,
+)
 from lumigo_tracer import utils
 from lumigo_tracer.parsers.parser import get_parser, HTTP_TYPE, StepFunctionParser
 from lumigo_tracer.parsers.utils import (
@@ -180,11 +185,15 @@ class SpansContainer:
             self.http_span_ids_to_send.add(update.get("id") or last_event["id"])
 
     def add_exception_event(self, exception: Exception) -> None:
+        """
+        Should be called only in `except` scope.
+        """
         if self.function_span:
             self.function_span["error"] = {
                 "type": exception.__class__.__name__,
                 "message": exception.args[0] if exception.args else None,
                 "stacktrace": traceback.format_exc(),
+                "frames": [frame.to_dict() for frame in extract_frames_from_exception()],
             }
 
     def add_step_end_event(self, ret_val):

@@ -4,10 +4,10 @@ import os
 import time
 import urllib.request
 from urllib.error import URLError
-from typing import Union, List, Optional
+from typing import Union, List, Optional, Dict, Any
 from contextlib import contextmanager
 from base64 import b64encode
-
+import inspect
 
 EDGE_HOST = "https://{region}.lumigo-tracer-edge.golumigo.com/api/spans"
 LOG_FORMAT = "#LUMIGO# - %(asctime)s - %(levelname)s - %(message)s"
@@ -15,6 +15,8 @@ SECONDS_TO_TIMEOUT = 0.3
 LUMIGO_EVENT_KEY = "_lumigo"
 STEP_FUNCTION_UID_KEY = "step_function_uid"
 MAX_SIZE_FOR_REQUEST: int = int(os.environ.get("LUMIGO_MAX_SIZE_FOR_REQUEST", 900_000))
+MAX_VARS_SIZE = 100000
+FrameVariables = Dict[str, str]
 
 _logger: Union[logging.Logger, None] = None
 
@@ -79,7 +81,6 @@ def _get_event_base64_size(event) -> int:
 def _create_request_body(
     msgs: List[dict], prune_size_flag: bool, max_size: int = MAX_SIZE_FOR_REQUEST
 ) -> str:
-
     if not prune_size_flag or _get_event_base64_size(msgs) < max_size:
         return json.dumps(msgs)
 
@@ -161,3 +162,62 @@ def is_aws_environment():
     :return: heuristically determine rather we're running on an aws environment.
     """
     return bool(os.environ.get("LAMBDA_RUNTIME_DIR"))
+
+
+class Frame:
+    MAX_VAR_LEN = 200
+
+    total_frames_size: int = 0
+
+    def __init__(self, frame_info: inspect.FrameInfo):
+        self.lineno: int = frame_info.lineno
+        self.file_name: str = frame_info.filename
+        self.function: str = frame_info.function
+        Frame.total_frames_size += len(str(self.lineno)) + len(self.file_name) + len(self.function)
+        self.variables: FrameVariables = Frame._truncate_locals(frame_info.frame.f_locals)
+
+    def to_dict(self) -> Dict[str, Union[int, str, FrameVariables]]:
+        return {
+            "lineno": self.lineno,
+            "file_name": self.file_name,
+            "function": self.function,
+            "variables": self.variables,
+        }
+
+    @staticmethod
+    def _truncate_var(var: Any) -> str:
+        var = str(var)
+        if len(var) > Frame.MAX_VAR_LEN:
+            return var[: Frame.MAX_VAR_LEN] + "..."
+        return var
+
+    @staticmethod
+    def _truncate_locals(f_locals: Dict[str, Any]) -> FrameVariables:
+        """
+        Truncate variable part or the entire variable in order to avoid exceeding the maximum frames size.
+        :param f_locals: inspect.FrameInfo.frame.f_locals
+        """
+        locals_truncated: FrameVariables = {}
+        for var_name, var_value in f_locals.items():
+            if not callable(var_value):
+                var = {var_name: Frame._truncate_var(var_value)}
+                var_len = len(json.dumps(var))
+                if var_len + Frame.total_frames_size > MAX_VARS_SIZE:
+                    return locals_truncated
+                Frame.total_frames_size += var_len
+                locals_truncated.update(var)
+        return locals_truncated
+
+
+def extract_frames_from_exception() -> List[Frame]:
+    """
+    Should be called only in `except` scope.
+    """
+    Frame.total_frames_size = 0
+    frames: List[Frame] = []
+    frames_infos = inspect.trace()
+    for frame_info in frames_infos[::-1]:
+        if Frame.total_frames_size >= MAX_VARS_SIZE or "lumigo_tracer" in frame_info.filename:
+            return frames
+        frames.append(Frame(frame_info))
+    return frames
