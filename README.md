@@ -4,7 +4,7 @@
 
 # How To Use
 * install with `pip install lumigo_tracer` <br/> 
-or with Lambda layer with ARN `arn:aws:lambda:YOUR-REGION:724777057400:layer:lumigo-python-tracer:41
+or with Lambda layer with ARN `arn:aws:lambda:YOUR-REGION:724777057400:layer:lumigo-python-tracer:2
 * import using `from lumigo_tracer import lumigo_tracer`
 * wrap you lambda function using `@lumigo_tracer` or `@lumigo_tracer(token='XXX')`. As an example, your lambda should look like: 
 ```
@@ -20,14 +20,6 @@ In case you are using `print()` or [python logging](https://docs.python.org/3/li
 @lumigo_tracer(token='XXX', enhance_print=True)
 def my_lambda(event, context):
     print('I can view this line now')
-```
-
-### Timeout timer
-We add an alarm that sends the traced data in a case of timeout. You can disable this with the flag `timeout_timer=False`:
-```
-@lumigo_tracer(token='XXX', timeout_timer=False)
-def my_lambda(event, context):
-    print('I will miss spans in case of timeout')
 ```
 
 ### Step Functions

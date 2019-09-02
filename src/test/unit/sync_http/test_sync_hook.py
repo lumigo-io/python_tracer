@@ -72,6 +72,7 @@ def test_lambda_wrapper_http():
     assert http_spans
     assert http_spans[0].get("info", {}).get("httpInfo", {}).get("host") == "www.google.com"
     assert "started" in http_spans[0]
+    assert http_spans[0]["started"] > SpansContainer.get_span().function_span["started"]
     assert "ended" in http_spans[0]
     assert "Content-Length" in http_spans[0]["info"]["httpInfo"]["request"]["headers"]
 
