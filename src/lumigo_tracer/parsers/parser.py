@@ -78,7 +78,7 @@ class Parser:
 
 class ServerlessAWSParser(Parser):
     # Override this field to add message id using the amz headers
-    should_add_message_id = False
+    should_add_message_id = True
 
     def parse_response(self, url: str, status_code: int, headers, body: bytes) -> dict:
         additional_info = {}
@@ -94,6 +94,8 @@ class ServerlessAWSParser(Parser):
 
 
 class DynamoParser(ServerlessAWSParser):
+    should_add_message_id = False
+
     def parse_request(self, parse_params: HttpRequest) -> dict:
         target: str = str(parse_params.headers.get("x-amz-target", ""))  # type: ignore
         return recursive_json_join(
@@ -108,8 +110,6 @@ class DynamoParser(ServerlessAWSParser):
 
 
 class SnsParser(ServerlessAWSParser):
-    should_add_message_id = True
-
     def parse_request(self, parse_params: HttpRequest) -> dict:
         return recursive_json_join(
             {
@@ -133,8 +133,6 @@ class SnsParser(ServerlessAWSParser):
 
 
 class LambdaParser(ServerlessAWSParser):
-    should_add_message_id = True
-
     def parse_request(self, parse_params: HttpRequest) -> dict:
         return recursive_json_join(
             {
@@ -148,8 +146,6 @@ class LambdaParser(ServerlessAWSParser):
 
 
 class KinesisParser(ServerlessAWSParser):
-    should_add_message_id = True
-
     def parse_request(self, parse_params: HttpRequest) -> dict:
         return recursive_json_join(
             {"info": {"resourceName": safe_key_from_json(parse_params.body, "StreamName")}},
@@ -170,8 +166,6 @@ class KinesisParser(ServerlessAWSParser):
 
 
 class SqsParser(ServerlessAWSParser):
-    should_add_message_id = True
-
     def parse_request(self, parse_params: HttpRequest) -> dict:
         return recursive_json_join(
             {"info": {"resourceName": safe_key_from_query(parse_params.body, "QueueUrl")}},
