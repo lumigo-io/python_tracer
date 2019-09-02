@@ -73,7 +73,6 @@ class SpansContainer:
             "envs": envs,
         }
         self.function_span = recursive_json_join(
-            self.base_msg,
             {
                 "id": request_id,
                 "type": "function",
@@ -87,6 +86,7 @@ class SpansContainer:
                     **(trigger_by or {}),
                 },
             },
+            self.base_msg,
         )
         self.previous_request: Tuple[Optional[http.client.HTTPMessage], bytes] = (None, b"")
         self.previous_response_body: bytes = b""
@@ -131,7 +131,7 @@ class SpansContainer:
         parser = get_parser(parse_params.host)()
         msg = parser.parse_request(parse_params)
         self.previous_request = parse_params.headers, parse_params.body
-        self.http_spans.append(recursive_json_join(self.base_msg, msg))
+        self.http_spans.append(recursive_json_join(msg, self.base_msg))
         self.http_span_ids_to_send.add(msg["id"])
 
     def add_unparsed_request(self, parse_params: HttpRequest):
@@ -199,7 +199,7 @@ class SpansContainer:
     def add_step_end_event(self, ret_val):
         message_id = str(uuid.uuid4())
         step_function_span = StepFunctionParser().create_span(message_id)
-        self.http_spans.append(recursive_json_join(self.base_msg, step_function_span))
+        self.http_spans.append(recursive_json_join(step_function_span, self.base_msg))
         self.http_span_ids_to_send.add(step_function_span["id"])
         if isinstance(ret_val, dict):
             ret_val[LUMIGO_EVENT_KEY] = {STEP_FUNCTION_UID_KEY: message_id}
