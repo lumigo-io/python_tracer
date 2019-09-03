@@ -4,7 +4,7 @@
 
 # How To Use
 * install with `pip install lumigo_tracer` <br/> 
-or with Lambda layer with ARN `arn:aws:lambda:YOUR-REGION:724777057400:layer:lumigo-python-tracer:2
+or with Lambda layer with ARN `arn:aws:lambda:YOUR-REGION:724777057400:layer:lumigo-python-tracer:3
 * import using `from lumigo_tracer import lumigo_tracer`
 * wrap you lambda function using `@lumigo_tracer` or `@lumigo_tracer(token='XXX')`. As an example, your lambda should look like: 
 ```
