@@ -1,4 +1,6 @@
 import json
+import time
+
 import os
 import sys
 import urllib
@@ -63,6 +65,7 @@ def test_lambda_wrapper_exception(exc):
 def test_lambda_wrapper_http():
     @lumigo_tracer(token="123")
     def lambda_test_function():
+        time.sleep(0.01)
         http.client.HTTPConnection("www.google.com").request("POST", "/")
 
     lambda_test_function()
