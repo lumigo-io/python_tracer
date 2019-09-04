@@ -83,6 +83,7 @@ def test_dynamo_db(ddb_resource, region):
     assert len(events) == 1
     assert events[0]["info"]["httpInfo"]["host"] == f"dynamodb.{region}.amazonaws.com"
     assert events[0]["info"]["resourceName"] == ddb_resource
+    assert not events[0]["info"].get("messageId")
     assert "ended" in events[0]
 
 
@@ -112,6 +113,7 @@ def test_lambda(lambda_resource, region):
     events = SpansContainer.get_span().http_spans
     assert len(events) == 1
     assert events[0]["info"]["httpInfo"]["host"] == f"lambda.{region}.amazonaws.com"
+    assert events[0]["info"]["messageId"]
     assert events[0].get("id").count("-") == 4
 
 
