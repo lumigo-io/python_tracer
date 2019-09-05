@@ -46,8 +46,6 @@ cp -R src/lumigo_tracer.egg-info python/
 cp -R src/lumigo_tracer python/
 
 ../utils/common_bash/create_layer.sh lumigo-python-tracer ALL python "python3.6 python3.7"
-git add README.md
-git commit -m "Update README.md layer ARN"
 
 echo "Getting latest changes from git"
 changes=$(git log $(git describe --tags --abbrev=0)..HEAD --oneline)
