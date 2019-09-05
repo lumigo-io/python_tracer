@@ -16,6 +16,8 @@ LUMIGO_EVENT_KEY = "_lumigo"
 STEP_FUNCTION_UID_KEY = "step_function_uid"
 MAX_SIZE_FOR_REQUEST: int = int(os.environ.get("LUMIGO_MAX_SIZE_FOR_REQUEST", 900_000))
 MAX_VARS_SIZE = 100000
+MAX_VAR_LEN = 200
+MAX_ENTRY_SIZE = 1024
 FrameVariables = Dict[str, str]
 
 _logger: Union[logging.Logger, None] = None
@@ -164,60 +166,69 @@ def is_aws_environment():
     return bool(os.environ.get("LAMBDA_RUNTIME_DIR"))
 
 
-class Frame:
-    MAX_VAR_LEN = 200
-
-    total_frames_size: int = 0
-
-    def __init__(self, frame_info: inspect.FrameInfo):
-        self.lineno: int = frame_info.lineno
-        self.file_name: str = frame_info.filename
-        self.function: str = frame_info.function
-        Frame.total_frames_size += len(str(self.lineno)) + len(self.file_name) + len(self.function)
-        self.variables: FrameVariables = Frame._truncate_locals(frame_info.frame.f_locals)
-
-    def to_dict(self) -> Dict[str, Union[int, str, FrameVariables]]:
-        return {
-            "lineno": self.lineno,
-            "file_name": self.file_name,
-            "function": self.function,
-            "variables": self.variables,
-        }
-
-    @staticmethod
-    def _truncate_var(var: Any) -> str:
-        var = str(var)
-        if len(var) > Frame.MAX_VAR_LEN:
-            return var[: Frame.MAX_VAR_LEN] + "..."
-        return var
-
-    @staticmethod
-    def _truncate_locals(f_locals: Dict[str, Any]) -> FrameVariables:
-        """
-        Truncate variable part or the entire variable in order to avoid exceeding the maximum frames size.
-        :param f_locals: inspect.FrameInfo.frame.f_locals
-        """
-        locals_truncated: FrameVariables = {}
-        for var_name, var_value in f_locals.items():
-            if not callable(var_value):
-                var = {var_name: Frame._truncate_var(var_value)}
-                var_len = len(json.dumps(var))
-                if var_len + Frame.total_frames_size > MAX_VARS_SIZE:
-                    return locals_truncated
-                Frame.total_frames_size += var_len
-                locals_truncated.update(var)
-        return locals_truncated
-
-
-def extract_frames_from_exception() -> List[Frame]:
+def extract_frames_from_exception() -> List[dict]:
     """
     Should be called only in `except` scope.
     """
-    Frame.total_frames_size = 0
-    frames: List[Frame] = []
+    free_space = MAX_VARS_SIZE
+    frames: List[dict] = []
     frames_infos = inspect.trace()
-    for frame_info in frames_infos[::-1]:
-        if Frame.total_frames_size >= MAX_VARS_SIZE or "lumigo_tracer" in frame_info.filename:
+    for frame_info in reversed(frames_infos):
+        if free_space <= 0 or "lumigo_tracer" in frame_info.filename:
             return frames
-        frames.append(Frame(frame_info))
+        frames.append(convert_frame(frame_info, free_space))
+        free_space -= len(json.dumps(frames[-1]))
     return frames
+
+
+def convert_frame(frame_info: inspect.FrameInfo, free_space: int) -> dict:
+    return {
+        "lineno": frame_info.lineno,
+        "fileName": frame_info.filename,
+        "function": frame_info.function,
+        "variables": _truncate_locals(frame_info.frame.f_locals, free_space),
+    }
+
+
+def _truncate_locals(f_locals: Dict[str, Any], free_space: int) -> FrameVariables:
+    """
+    Truncate variable part or the entire variable in order to avoid exceeding the maximum frames size.
+    :param f_locals: inspect.FrameInfo.frame.f_locals
+    """
+    locals_truncated: FrameVariables = {}
+    for var_name, var_value in f_locals.items():
+        var = {var_name: prepare_large_data(var_value, MAX_VAR_LEN)}
+        free_space -= len(json.dumps(var))
+        if free_space < 0:
+            return locals_truncated
+        locals_truncated.update(var)
+    return locals_truncated
+
+
+def prepare_large_data(value: Union[str, bytes, dict, None], max_size=MAX_ENTRY_SIZE) -> str:
+    """
+    This function prepare the given value to send it to lumigo.
+    You should call to this function if there's a possibility that the value will be big.
+
+    Current logic:
+        Converts the data to str and if it is larger than `max_size`, we truncate it.
+
+    :param value: The value we wish to send
+    :param max_size: The maximum size of the data that we will send
+    :return: The value that we will actually send
+    """
+    if isinstance(value, dict):
+        try:
+            value = json.dumps(value)
+        except Exception:
+            pass
+    elif isinstance(value, bytes):
+        try:
+            value = value.decode()
+        except Exception:
+            pass
+
+    res = str(value)
+    if len(res) > max_size:
+        return f"{res[:max_size]}...[too long]"
+    return res

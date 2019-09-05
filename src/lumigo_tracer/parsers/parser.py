@@ -9,10 +9,9 @@ from lumigo_tracer.parsers.utils import (
     safe_key_from_xml,
     safe_key_from_query,
     recursive_json_join,
-    prepare_large_data,
     safe_get,
 )
-from lumigo_tracer.utils import Configuration
+from lumigo_tracer.utils import Configuration, prepare_large_data
 from lumigo_tracer.parsers.http_data_classes import HttpRequest
 
 HTTP_TYPE = "http"

@@ -61,7 +61,7 @@ def test_lambda_wrapper_exception(exc):
     assert function_span["error"]["frames"][0].pop("lineno") > 0
     assert function_span["error"]["frames"][0] == {
         "function": "lambda_test_function",
-        "file_name": __file__,
+        "fileName": __file__,
         "variables": {"a": "A", "exc": str(exc)},
     }
     assert not function_span["id"].endswith("_started")

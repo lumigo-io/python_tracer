@@ -11,6 +11,7 @@ from lumigo_tracer.utils import (
     LUMIGO_EVENT_KEY,
     STEP_FUNCTION_UID_KEY,
     extract_frames_from_exception,
+    prepare_large_data,
 )
 from lumigo_tracer import utils
 from lumigo_tracer.parsers.parser import get_parser, HTTP_TYPE, StepFunctionParser
@@ -19,7 +20,6 @@ from lumigo_tracer.parsers.utils import (
     safe_split_get,
     recursive_json_join,
     parse_triggered_by,
-    prepare_large_data,
 )
 from lumigo_tracer.utils import get_logger, _is_span_has_error
 from .parsers.http_data_classes import HttpRequest
@@ -193,7 +193,7 @@ class SpansContainer:
                 "type": exception.__class__.__name__,
                 "message": exception.args[0] if exception.args else None,
                 "stacktrace": traceback.format_exc(),
-                "frames": [frame.to_dict() for frame in extract_frames_from_exception()],
+                "frames": extract_frames_from_exception() if Configuration.verbose else [],
             }
 
     def add_step_end_event(self, ret_val):

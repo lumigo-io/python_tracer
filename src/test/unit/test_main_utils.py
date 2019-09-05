@@ -3,17 +3,13 @@ from lumigo_tracer.utils import (
     _create_request_body,
     _is_span_has_error,
     _get_event_base64_size,
-    Frame,
     MAX_VARS_SIZE,
     extract_frames_from_exception,
+    _truncate_locals,
+    MAX_VAR_LEN,
+    prepare_large_data,
 )
 import json
-
-
-@pytest.fixture(autouse=True)
-def restore_total_frames_size():
-    yield
-    Frame.total_frames_size = 0
 
 
 @pytest.fixture
@@ -78,50 +74,33 @@ def test_create_request_body_take_error_first(dummy_span, error_span, function_e
 
 
 @pytest.mark.parametrize(
-    ("var", "expected"),
-    [
-        ("aaa", "aaa"),  # Short.
-        ("a" * (Frame.MAX_VAR_LEN + 1), "a" * Frame.MAX_VAR_LEN + "..."),  # Long.
-        (["a", "b"], str(["a", "b"])),  # Type not str.
-    ],
-)
-def test_frame_truncate_var(var, expected):
-    assert Frame._truncate_var(var) == expected
-
-
-@pytest.mark.parametrize(
     ("f_locals", "expected"),
     [
         ({}, {}),  # Empty.
         ({"a": "b"}, {"a": "b"}),  # Short.
-        ({"a": "b" * (Frame.MAX_VAR_LEN + 1)}, {"a": "b" * Frame.MAX_VAR_LEN + "..."}),  # Long.
+        ({"a": "b" * (MAX_VAR_LEN + 1)}, {"a": "b" * MAX_VAR_LEN + "...[too long]"}),  # Long.
         # Some short, some long.
         (
+            {"l1": "l" * (MAX_VAR_LEN + 1), "s1": "s", "l2": "l" * (MAX_VAR_LEN + 1), "s2": "s"},
             {
-                "l1": "l" * (Frame.MAX_VAR_LEN + 1),
+                "l1": "l" * MAX_VAR_LEN + "...[too long]",
                 "s1": "s",
-                "l2": "l" * (Frame.MAX_VAR_LEN + 1),
-                "s2": "s",
-            },
-            {
-                "l1": "l" * Frame.MAX_VAR_LEN + "...",
-                "s1": "s",
-                "l2": "l" * Frame.MAX_VAR_LEN + "...",
+                "l2": "l" * MAX_VAR_LEN + "...[too long]",
                 "s2": "s",
             },
         ),
         ({"a": ["b", "c"]}, {"a": str(["b", "c"])}),  # Not str.
-        ({"f": list}, {}),  # Function.
     ],
 )
 def test_frame_truncate_locals(f_locals, expected):
-    assert Frame._truncate_locals(f_locals) == expected
+    assert _truncate_locals(f_locals, MAX_VARS_SIZE) == expected
 
 
 def test_frame_truncate_locals_pass_max_vars_size():
     f_locals = {i: "i" for i in range(MAX_VARS_SIZE * 2)}
-    actual = Frame._truncate_locals(f_locals)
+    actual = _truncate_locals(f_locals, MAX_VARS_SIZE)
     assert len(actual) < MAX_VARS_SIZE
+    assert len(actual) > 0
 
 
 def test_extract_frames_from_exception():
@@ -140,15 +119,29 @@ def test_extract_frames_from_exception():
     except Exception:
         frames = extract_frames_from_exception()
 
-    assert frames[0].function == "func_b"
-    assert frames[0].variables == {"one": "1", "zero": "0"}
-    assert frames[1].function == "func_a"
-    assert frames[1].variables == {"a": "A"}
-    assert frames[2].function == "test_extract_frames_from_exception"
-    assert frames[2].variables == {"e": "E"}
+    assert frames[0]["function"] == "func_b"
+    assert frames[0]["variables"] == {"one": "1", "zero": "0"}
+    assert frames[1]["function"] == "func_a"
+    assert frames[1]["variables"]["a"] == "A"
+    assert frames[2]["function"] == "test_extract_frames_from_exception"
+    assert frames[2]["variables"]["e"] == "E"
 
 
-def test_extract_frames_from_exception_pass_max_vars_size():
+def test_extract_frames_from_exception__max_recursion():
+    def func():
+        a = "A"  # noqa
+        func()
+
+    try:
+        e = "E"  # noqa
+        func()
+    except RecursionError:
+        frames = extract_frames_from_exception()
+
+    assert frames[0]["function"] == "func"
+
+
+def test_extract_frames_from_exception__pass_max_vars_size():
     def func():
         for i in range(MAX_VARS_SIZE * 2):
             exec(f"a{i} = 'A'")
@@ -159,11 +152,21 @@ def test_extract_frames_from_exception_pass_max_vars_size():
     except Exception:
         frames = extract_frames_from_exception()
 
-    assert len(frames[0].variables) < MAX_VARS_SIZE
-    assert len(frames[0].variables) > 0
+    assert len(frames[0]["variables"]) < MAX_VARS_SIZE
+    assert len(frames[0]["variables"]) > 0
 
 
-def test_frame_to_dict():
+def test_extract_frames_from_exception__huge_var():
+    try:
+        a = "A" * MAX_VARS_SIZE  # noqa F841
+        1 / 0
+    except Exception:
+        frames = extract_frames_from_exception()
+
+    assert frames[0]["variables"]["a"] == "A" * MAX_VAR_LEN + "...[too long]"
+
+
+def test_extract_frames_from_exception__check_all_keys_and_values():
     def func():
         a = "A"  # noqa
         1 / 0
@@ -173,9 +176,26 @@ def test_frame_to_dict():
     except Exception:
         frames = extract_frames_from_exception()
 
-    assert frames[0].to_dict() == {
+    assert frames[0] == {
         "function": "func",
-        "file_name": __file__,
+        "fileName": __file__,
         "variables": {"a": "A"},
-        "lineno": frames[1].lineno - 3,
+        "lineno": frames[1]["lineno"] - 3,
     }
+
+
+@pytest.mark.parametrize(
+    ("value", "output"),
+    [
+        ("aa", "aa"),  # happy flow
+        (None, "None"),  # same key twice
+        ("a" * 21, "a" * 20 + "...[too long]"),
+        ({"a": "a"}, '{"a": "a"}'),  # dict.
+        # dict that can't be converted to json.
+        ({"a": set()}, "{'a': set()}"),  # type: ignore
+        (b"a", "a"),  # bytes that can be decoded.
+        (b"\xff\xfea\x00", "b'\\xff\\xfea\\x00'"),  # bytes that can't be decoded.
+    ],
+)
+def test_prepare_large_data(value, output):
+    assert prepare_large_data(value, 20) == output
