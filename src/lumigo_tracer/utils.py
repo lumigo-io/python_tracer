@@ -199,7 +199,7 @@ def _truncate_locals(f_locals: Dict[str, Any], free_space: int) -> FrameVariable
     for var_name, var_value in f_locals.items():
         var = {var_name: prepare_large_data(var_value, MAX_VAR_LEN)}
         free_space -= len(json.dumps(var))
-        if free_space < 0:
+        if free_space <= 0:
             return locals_truncated
         locals_truncated.update(var)
     return locals_truncated
