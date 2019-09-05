@@ -166,22 +166,18 @@ def is_aws_environment():
     return bool(os.environ.get("LAMBDA_RUNTIME_DIR"))
 
 
-def extract_frames_from_exception() -> List[dict]:
-    """
-    Should be called only in `except` scope.
-    """
+def format_frames(frames_infos: List[inspect.FrameInfo]) -> List[dict]:
     free_space = MAX_VARS_SIZE
     frames: List[dict] = []
-    frames_infos = inspect.trace()
     for frame_info in reversed(frames_infos):
         if free_space <= 0 or "lumigo_tracer" in frame_info.filename:
             return frames
-        frames.append(convert_frame(frame_info, free_space))
+        frames.append(format_frame(frame_info, free_space))
         free_space -= len(json.dumps(frames[-1]))
     return frames
 
 
-def convert_frame(frame_info: inspect.FrameInfo, free_space: int) -> dict:
+def format_frame(frame_info: inspect.FrameInfo, free_space: int) -> dict:
     return {
         "lineno": frame_info.lineno,
         "fileName": frame_info.filename,

@@ -1,3 +1,4 @@
+import inspect
 import os
 import time
 import uuid
@@ -10,7 +11,7 @@ from lumigo_tracer.utils import (
     Configuration,
     LUMIGO_EVENT_KEY,
     STEP_FUNCTION_UID_KEY,
-    extract_frames_from_exception,
+    format_frames,
     prepare_large_data,
 )
 from lumigo_tracer import utils
@@ -184,16 +185,15 @@ class SpansContainer:
             self.http_spans.append(recursive_json_join(update, last_event))
             self.http_span_ids_to_send.add(update.get("id") or last_event["id"])
 
-    def add_exception_event(self, exception: Exception) -> None:
-        """
-        Should be called only in `except` scope.
-        """
+    def add_exception_event(
+        self, exception: Exception, frames_infos: List[inspect.FrameInfo]
+    ) -> None:
         if self.function_span:
             self.function_span["error"] = {
                 "type": exception.__class__.__name__,
                 "message": exception.args[0] if exception.args else None,
                 "stacktrace": traceback.format_exc(),
-                "frames": extract_frames_from_exception() if Configuration.verbose else [],
+                "frames": format_frames(frames_infos) if Configuration.verbose else [],
             }
 
     def add_step_end_event(self, ret_val):

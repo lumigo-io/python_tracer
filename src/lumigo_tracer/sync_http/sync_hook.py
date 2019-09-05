@@ -1,3 +1,4 @@
+import inspect
 import logging
 import http.client
 from io import BytesIO
@@ -147,7 +148,7 @@ def _lumigo_tracer(func):
                 ret_val = func(*args, **kwargs)
             except Exception as e:
                 with lumigo_safe_execute("Customer's exception"):
-                    SpansContainer.get_span().add_exception_event(e)
+                    SpansContainer.get_span().add_exception_event(e, inspect.trace())
                 raise
             finally:
                 SpansContainer.get_span().end(ret_val)
