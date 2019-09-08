@@ -1,3 +1,5 @@
+import inspect
+
 import pytest
 
 from lumigo_tracer.parsers.http_data_classes import HttpRequest
@@ -59,7 +61,10 @@ def test_spans_container_end_function_send_spans_on_send_only_on_errors_mode(
     SpansContainer.get_span().start()
 
     SpansContainer.get_span().add_request_event(dummy_http_request)
-    SpansContainer.get_span().add_exception_event(Exception("Some Error"))
+    try:
+        1 / 0
+    except Exception:
+        SpansContainer.get_span().add_exception_event(Exception("Some Error"), inspect.trace())
 
     reported_ttl = SpansContainer.get_span().end({})
     assert reported_ttl is not None
