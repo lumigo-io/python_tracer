@@ -148,7 +148,7 @@ def test_format_frames__max_recursion():
 def test_format_frames__pass_max_vars_size():
     def func():
         for i in range(MAX_VARS_SIZE * 2):
-            exec(f"a{i} = 'A'")
+            exec(f"a{i} = 'A'") in globals(), locals()
         1 / 0
 
     try:
