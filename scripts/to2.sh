@@ -24,7 +24,7 @@ sed -i '' 's/from collections.abc import Iterable/from collections import Iterab
 sed -i '' 's/except json.JSONDecodeError/except ValueError/g' lumigo_tracer/parsers/utils.py;
 sed -i '' 's/900_000/900000/g' lumigo_tracer/utils.py;
 sed -i '' 's/100_000/100000/g' lumigo_tracer/utils.py;
-sed -i '' 's/FrameVariables = Dict[str, str]/ /g' lumigo_tracer/utils.py;
+sed -i '' 's/FrameVariables = Dict\[str, str\]/ /g' lumigo_tracer/utils.py;
 sed -i '' 's/urllib.parse/urllib/g' lumigo_tracer/parsers/utils.py;
 sed -i '' 's/**self.lumigo_conf_kwargs,/**self.lumigo_conf_kwargs/g' lumigo_tracer/sync_http/sync_hook.py;
 sed -i '' 's/**additional_info,/**additional_info/g' lumigo_tracer/spans_container.py;
