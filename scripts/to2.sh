@@ -3,7 +3,7 @@ source ./venv/bin/activate
 pushd src
 
 pip install future-fstrings 3to2 strip-hints
-for file in $(find {lumigo_tracer, test} -type f); do
+for file in $(find {lumigo_tracer,test} -type f); do
     # don't use f-strings
     future-fstrings-show "$file" > "$file.tmp";
     # add future print
