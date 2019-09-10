@@ -1,5 +1,4 @@
 import os
-import sys
 
 import pytest
 
@@ -201,23 +200,6 @@ def test_recursive_json_join(d1, d2, result):
 def test_parse_triggered_by(event, output):
     Configuration.is_step_function = True
     assert utils.parse_triggered_by(event) == output
-
-
-@pytest.mark.parametrize(
-    ("value", "output"),
-    [
-        ("aa", "aa"),  # happy flow
-        (None, "None"),  # same key twice
-        ("a" * 21, "a" * 20 + "...[too long]"),
-        ({"a": "a"}, '{"a": "a"}'),  # dict.
-        # dict that can't be converted to json.
-        ({"a": sys}, "{'a': <module 'sys' ...[too long]"),  # type: ignore
-        (b"a", "a"),  # bytes that can be decoded.
-        (b"\xff\xfea\x00", "b'\\xff\\xfea\\x00'"),  # bytes that can't be decoded.
-    ],
-)
-def test_prepare_large_data(value, output):
-    assert utils.prepare_large_data(value, 20) == output
 
 
 def test_config_with_verbose_param_with_no_env_verbose_verbose_is_false():

@@ -1,4 +1,6 @@
 import inspect
+import sys
+
 import pytest
 from lumigo_tracer.utils import (
     _create_request_body,
@@ -194,7 +196,7 @@ def test_format_frames__check_all_keys_and_values():
         ("a" * 21, "a" * 20 + "...[too long]"),
         ({"a": "a"}, '{"a": "a"}'),  # dict.
         # dict that can't be converted to json.
-        ({"a": set()}, "{'a': set()}"),  # type: ignore
+        ({"a": sys}, "{'a': <module 'sys' ...[too long]"),  # type: ignore
         (b"a", "a"),  # bytes that can be decoded.
         (b"\xff\xfea\x00", "b'\\xff\\xfea\\x00'"),  # bytes that can't be decoded.
     ],
