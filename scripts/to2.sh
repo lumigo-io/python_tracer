@@ -26,13 +26,13 @@ sed -i '' 's/900_000/900000/g' lumigo_tracer/utils.py;
 sed -i '' 's/100_000/100000/g' lumigo_tracer/utils.py;
 sed -i '' 's/FrameVariables = Dict\[str, str\]/ /g' lumigo_tracer/utils.py;
 sed -i '' 's/frame_info.filename/frame_info[1]/g' lumigo_tracer/utils.py;
-sed -i '' 's/frame_info.filename/frame_info[1]/g' test/test_main_utils.py;
+sed -i '' 's/frame_info.filename/frame_info[1]/g' test/unit/test_main_utils.py;
 sed -i '' 's/frame_info.lineno/frame_info[2]/g' lumigo_tracer/utils.py;
-sed -i '' 's/frame_info.lineno/frame_info[2]/g' test/test_main_utils.py;
+sed -i '' 's/frame_info.lineno/frame_info[2]/g' test/unit/test_main_utils.py;
 sed -i '' 's/frame_info.function/frame_info[3]/g' lumigo_tracer/utils.py;
-sed -i '' 's/frame_info.function/frame_info[3]/g' test/test_main_utils.py;
+sed -i '' 's/frame_info.function/frame_info[3]/g' test/unit/test_main_utils.py;
 sed -i '' 's/frame_info.frame/frame_info[0]/g' lumigo_tracer/utils.py;
-sed -i '' 's/frame_info.frame/frame_info[0]/g' test/test_main_utils.py;
+sed -i '' 's/frame_info.frame/frame_info[0]/g' test/unit/test_main_utils.py;
 sed -i '' 's/urllib.parse/urllib/g' lumigo_tracer/parsers/utils.py;
 sed -i '' 's/**self.lumigo_conf_kwargs,/**self.lumigo_conf_kwargs/g' lumigo_tracer/sync_http/sync_hook.py;
 sed -i '' 's/**additional_info,/**additional_info/g' lumigo_tracer/spans_container.py;
@@ -41,7 +41,7 @@ sed -i '' '/from __future__ import absolute_import/d' lumigo_tracer/libs/xmltodi
 sed -i '' 's/1_000_000/1000000/g' test/unit/test_main_utils.py;
 sed -i '' 's/import urllib/import urllib2/g' test/unit/sync_http/test_sync_hook.py;
 sed -i '' 's/import urllib23/import urllib3/g' test/unit/sync_http/test_sync_hook.py;
-sed -i '' 's/RecursionError/RuntimeError/g' test/test_main_utils.py;
+sed -i '' 's/RecursionError/RuntimeError/g' test/unit/test_main_utils.py;
 # change backend to remove the next line
 sed -i '' 's/FALLBACK_RUNTIME = "provided"/FALLBACK_RUNTIME = "pypy27 (python)"/g' lumigo_tracer/spans_container.py;
 
