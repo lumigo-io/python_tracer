@@ -83,6 +83,7 @@ def test_dynamo_db(ddb_resource, region):
     assert len(events) == 1
     assert events[0]["info"]["httpInfo"]["host"] == f"dynamodb.{region}.amazonaws.com"
     assert events[0]["info"]["resourceName"] == ddb_resource
+    assert not events[0]["info"].get("messageId")
     assert "ended" in events[0]
 
 

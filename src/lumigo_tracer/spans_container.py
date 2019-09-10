@@ -1,3 +1,4 @@
+import inspect
 import os
 import time
 import uuid
@@ -6,7 +7,13 @@ import traceback
 import http.client
 from typing import List, Dict, Tuple, Optional, Callable, Set
 
-from lumigo_tracer.utils import Configuration, LUMIGO_EVENT_KEY, STEP_FUNCTION_UID_KEY
+from lumigo_tracer.utils import (
+    Configuration,
+    LUMIGO_EVENT_KEY,
+    STEP_FUNCTION_UID_KEY,
+    format_frames,
+    prepare_large_data,
+)
 from lumigo_tracer import utils
 from lumigo_tracer.parsers.parser import get_parser, HTTP_TYPE, StepFunctionParser
 from lumigo_tracer.parsers.utils import (
@@ -14,7 +21,6 @@ from lumigo_tracer.parsers.utils import (
     safe_split_get,
     recursive_json_join,
     parse_triggered_by,
-    prepare_large_data,
 )
 from lumigo_tracer.utils import get_logger, _is_span_has_error
 from .parsers.http_data_classes import HttpRequest
@@ -179,12 +185,15 @@ class SpansContainer:
             self.http_spans.append(recursive_json_join(update, last_event))
             self.http_span_ids_to_send.add(update.get("id") or last_event["id"])
 
-    def add_exception_event(self, exception: Exception) -> None:
+    def add_exception_event(
+        self, exception: Exception, frames_infos: List[inspect.FrameInfo]
+    ) -> None:
         if self.function_span:
             self.function_span["error"] = {
                 "type": exception.__class__.__name__,
                 "message": exception.args[0] if exception.args else None,
                 "stacktrace": traceback.format_exc(),
+                "frames": format_frames(frames_infos) if Configuration.verbose else [],
             }
 
     def add_step_end_event(self, ret_val):

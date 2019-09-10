@@ -9,10 +9,9 @@ from lumigo_tracer.parsers.utils import (
     safe_key_from_xml,
     safe_key_from_query,
     recursive_json_join,
-    prepare_large_data,
     safe_get,
 )
-from lumigo_tracer.utils import Configuration
+from lumigo_tracer.utils import Configuration, prepare_large_data
 from lumigo_tracer.parsers.http_data_classes import HttpRequest
 
 HTTP_TYPE = "http"
@@ -77,10 +76,13 @@ class Parser:
 
 
 class ServerlessAWSParser(Parser):
+    # Override this field to add message id using the amz headers
+    should_add_message_id = True
+
     def parse_response(self, url: str, status_code: int, headers, body: bytes) -> dict:
         additional_info = {}
         message_id = headers.get("x-amzn-RequestId") or headers.get("x-amzn-requestid")
-        if message_id:
+        if message_id and self.should_add_message_id:
             additional_info["info"] = {"messageId": message_id}
         span_id = headers.get("x-amzn-requestid") or headers.get("x-amz-requestid")
         if span_id:
@@ -91,6 +93,8 @@ class ServerlessAWSParser(Parser):
 
 
 class DynamoParser(ServerlessAWSParser):
+    should_add_message_id = False
+
     def parse_request(self, parse_params: HttpRequest) -> dict:
         target: str = str(parse_params.headers.get("x-amz-target", ""))  # type: ignore
         return recursive_json_join(

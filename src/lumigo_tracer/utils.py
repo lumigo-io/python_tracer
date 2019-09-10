@@ -6,10 +6,10 @@ import sys
 import time
 import urllib.request
 from urllib.error import URLError
-from typing import Union, List, Optional
+from typing import Union, List, Optional, Dict, Any
 from contextlib import contextmanager
 from base64 import b64encode
-
+import inspect
 
 EDGE_HOST = "https://{region}.lumigo-tracer-edge.golumigo.com/api/spans"
 LOG_FORMAT = "#LUMIGO# - %(asctime)s - %(levelname)s - %(message)s"
@@ -17,6 +17,10 @@ SECONDS_TO_TIMEOUT = 0.3
 LUMIGO_EVENT_KEY = "_lumigo"
 STEP_FUNCTION_UID_KEY = "step_function_uid"
 MAX_SIZE_FOR_REQUEST: int = int(os.environ.get("LUMIGO_MAX_SIZE_FOR_REQUEST", 900_000))
+MAX_VARS_SIZE = 100_000
+MAX_VAR_LEN = 200
+MAX_ENTRY_SIZE = 1024
+FrameVariables = Dict[str, str]
 
 _logger: Union[logging.Logger, None] = None
 
@@ -81,7 +85,6 @@ def _get_event_base64_size(event) -> int:
 def _create_request_body(
     msgs: List[dict], prune_size_flag: bool, max_size: int = MAX_SIZE_FOR_REQUEST
 ) -> str:
-
     if not prune_size_flag or _get_event_base64_size(msgs) < max_size:
         return json.dumps(msgs)
 
@@ -167,3 +170,72 @@ def is_aws_environment():
 
 def is_python_3():
     return sys.version.startswith("3")
+
+
+def format_frames(frames_infos: List[inspect.FrameInfo]) -> List[dict]:
+    free_space = MAX_VARS_SIZE
+    frames: List[dict] = []
+    for frame_info in reversed(frames_infos):
+        if free_space <= 0 or "lumigo_tracer" in frame_info.filename:
+            return frames
+        frames.append(format_frame(frame_info, free_space))
+        free_space -= len(json.dumps(frames[-1]))
+    return frames
+
+
+def format_frame(frame_info: inspect.FrameInfo, free_space: int) -> dict:
+    return {
+        "lineno": frame_info.lineno,
+        "fileName": frame_info.filename,
+        "function": frame_info.function,
+        "variables": _truncate_locals(frame_info.frame.f_locals, free_space),
+    }
+
+
+def _truncate_locals(f_locals: Dict[str, Any], free_space: int) -> FrameVariables:
+    """
+    Truncate variable part or the entire variable in order to avoid exceeding the maximum frames size.
+    :param f_locals: inspect.FrameInfo.frame.f_locals
+    """
+    locals_truncated: FrameVariables = {}
+    for var_name, var_value in f_locals.items():
+        var = {var_name: prepare_large_data(var_value, MAX_VAR_LEN)}
+        free_space -= len(json.dumps(var))
+        if free_space <= 0:
+            return locals_truncated
+        locals_truncated.update(var)
+    return locals_truncated
+
+
+def prepare_large_data(value: Union[str, bytes, dict, None], max_size=MAX_ENTRY_SIZE) -> str:
+    """
+    This function prepare the given value to send it to lumigo.
+    You should call to this function if there's a possibility that the value will be big.
+
+    Current logic:
+        Converts the data to str and if it is larger than `max_size`, we truncate it.
+
+    :param value: The value we wish to send
+    :param max_size: The maximum size of the data that we will send
+    :return: The value that we will actually send
+    """
+    if isinstance(value, dict):
+        try:
+            value = json.dumps(value)
+        except Exception:
+            pass
+    elif isinstance(value, bytes):
+        try:
+            value = value.decode()
+        except UnicodeDecodeError:
+            try:
+                value = repr(value)
+            except Exception:
+                pass
+        except Exception:
+            pass
+
+    res = str(value)
+    if len(res) > max_size:
+        return f"{res[:max_size]}...[too long]"
+    return res

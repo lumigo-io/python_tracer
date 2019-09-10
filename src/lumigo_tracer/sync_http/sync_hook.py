@@ -1,3 +1,4 @@
+import inspect
 import logging
 import http.client
 from io import BytesIO
@@ -155,8 +156,8 @@ def _lumigo_tracer(func):
                 executed = True
                 ret_val = func(*args, **kwargs)
             except Exception as e:
-                # The case where the lambda raised an exception
-                SpansContainer.get_span().add_exception_event(e)
+                with lumigo_safe_execute("Customer's exception"):
+                    SpansContainer.get_span().add_exception_event(e, inspect.trace())
                 raise
             finally:
                 SpansContainer.get_span().end(ret_val)

@@ -10,8 +10,6 @@ from collections.abc import Iterable
 
 from lumigo_tracer.utils import Configuration, LUMIGO_EVENT_KEY, STEP_FUNCTION_UID_KEY
 
-MAX_ENTRY_SIZE = 1024
-
 
 def safe_get(d: Union[dict, list], keys: List[Union[str, int]], default: Any = None) -> Any:
     """
@@ -241,37 +239,3 @@ def _parse_streams(event: dict) -> Dict[str, str]:
     elif triggered_by == "kinesis":
         result["messageId"] = safe_get(event, ["Records", 0, "kinesis", "sequenceNumber"])
     return result
-
-
-def prepare_large_data(value: Union[str, bytes, dict, None], max_size=MAX_ENTRY_SIZE) -> str:
-    """
-    This function prepare the given value to send it to lumigo.
-    You should call to this function if there's a possibility that the value will be big.
-
-    Current logic:
-        Converts the data to str and if it is larger than `max_size`, we truncate it.
-
-    :param value: The value we wish to send
-    :param max_size: The maximum size of the data that we will send
-    :return: The value that we will actually send
-    """
-    if isinstance(value, dict):
-        try:
-            value = json.dumps(value)
-        except Exception:
-            pass
-    elif isinstance(value, bytes):
-        try:
-            value = value.decode()
-        except UnicodeDecodeError:
-            try:
-                value = repr(value)
-            except Exception:
-                pass
-        except Exception:
-            pass
-
-    res = str(value)
-    if len(res) > max_size:
-        return f"{res[:max_size]}...[too long]"
-    return res
