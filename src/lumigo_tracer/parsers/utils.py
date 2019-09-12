@@ -156,6 +156,8 @@ def parse_triggered_by(event: dict):
         return _parse_sns(event)
     elif _is_supported_streams(event):
         return _parse_streams(event)
+    elif _is_supported_cw(event):
+        return _parse_cw(event)
     elif _is_step_function(event):
         return _parse_step_function(event)
     else:
@@ -208,6 +210,20 @@ def _parse_sns(event: dict):
         "triggeredBy": "sns",
         "arn": event["Records"][0]["Sns"]["TopicArn"],
         "messageId": event["Records"][0]["Sns"].get("MessageId"),
+    }
+
+
+def _is_supported_cw(event: dict):
+    return "detail-type" in event and "source" in event and "time" in event
+
+
+def _parse_cw(event: dict):
+    resource = event.get("resources", ["/"])[0].split("/")[1]
+    return {
+        "triggeredBy": "cloudwatch",
+        "resource": resource,
+        "region": event.get("region"),
+        "detailType": event.get("detail-type"),
     }
 
 
