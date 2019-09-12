@@ -193,6 +193,18 @@ def test_recursive_json_join(d1, d2, result):
             },
             {"triggeredBy": "stepFunction", "messageId": "54589cfc-5ed8-4799-8fc0-5b45f6f225d1"},
         ),
+        (
+            {
+                "id": "cdc73f9d-aea9-11e3-9d5a-835b769c0d9c",
+                "detail-type": "Scheduled Event",
+                "source": "aws.events",
+                "time": "1970-01-01T00:00:00Z",
+                "region": "us-east-1",
+                "resources": ["arn:aws:events:us-east-1:123456789012:rule/ExampleRule"],
+                "detail": {},
+            },
+            {"triggeredBy": "cloudwatch", "resource": "ExampleRule", "region": "us-east-1"},
+        ),
         ({"bla": "bla2"}, {"triggeredBy": "unknown"}),  # unknown trigger
         (None, None),
     ],
