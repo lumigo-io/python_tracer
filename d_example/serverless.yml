@@ -1,0 +1,21 @@
+service: p-example
+
+provider:
+  name: aws
+  runtime: python3.7
+
+functions:
+  p-test:
+    handler: main.handler
+
+package:
+  exclude:
+    - d_env/**
+
+custom:
+  pythonRequirements:
+    useDownloadCache: false
+    useStaticCache: false
+
+plugins:
+  - serverless-python-requirements

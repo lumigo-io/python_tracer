@@ -219,7 +219,12 @@ def _is_supported_cw(event: dict):
 
 def _parse_cw(event: dict):
     resource = event.get("resources", ["/"])[0].split("/")[1]
-    return {"triggeredBy": "cloudwatch", "resource": resource, "region": event.get("region")}
+    return {
+        "triggeredBy": "cloudwatch",
+        "resource": resource,
+        "region": event.get("region"),
+        "detailType": event.get("detail-type"),
+    }
 
 
 def _is_supported_streams(event: dict):

@@ -203,7 +203,12 @@ def test_recursive_json_join(d1, d2, result):
                 "resources": ["arn:aws:events:us-east-1:123456789012:rule/ExampleRule"],
                 "detail": {},
             },
-            {"triggeredBy": "cloudwatch", "resource": "ExampleRule", "region": "us-east-1"},
+            {
+                "triggeredBy": "cloudwatch",
+                "resource": "ExampleRule",
+                "region": "us-east-1",
+                "detailType": "Scheduled Event",
+            },
         ),
         ({"bla": "bla2"}, {"triggeredBy": "unknown"}),  # unknown trigger
         (None, None),
