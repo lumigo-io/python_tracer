@@ -1,6 +1,8 @@
 import json
 import logging
 import os
+import sys
+
 import time
 import urllib.request
 from urllib.error import URLError
@@ -15,7 +17,7 @@ SECONDS_TO_TIMEOUT = 0.3
 LUMIGO_EVENT_KEY = "_lumigo"
 STEP_FUNCTION_UID_KEY = "step_function_uid"
 MAX_SIZE_FOR_REQUEST: int = int(os.environ.get("LUMIGO_MAX_SIZE_FOR_REQUEST", 900_000))
-MAX_VARS_SIZE = 100000
+MAX_VARS_SIZE = 100_000
 MAX_VAR_LEN = 200
 MAX_ENTRY_SIZE = 1024
 FrameVariables = Dict[str, str]
@@ -166,6 +168,10 @@ def is_aws_environment():
     return bool(os.environ.get("LAMBDA_RUNTIME_DIR"))
 
 
+def is_python_3():
+    return sys.version.startswith("3")
+
+
 def format_frames(frames_infos: List[inspect.FrameInfo]) -> List[dict]:
     free_space = MAX_VARS_SIZE
     frames: List[dict] = []
@@ -221,6 +227,11 @@ def prepare_large_data(value: Union[str, bytes, dict, None], max_size=MAX_ENTRY_
     elif isinstance(value, bytes):
         try:
             value = value.decode()
+        except UnicodeDecodeError:
+            try:
+                value = repr(value)
+            except Exception:
+                pass
         except Exception:
             pass
 

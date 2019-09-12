@@ -81,7 +81,7 @@ class ServerlessAWSParser(Parser):
 
     def parse_response(self, url: str, status_code: int, headers, body: bytes) -> dict:
         additional_info = {}
-        message_id = headers.get("x-amzn-RequestId")
+        message_id = headers.get("x-amzn-RequestId") or headers.get("x-amzn-requestid")
         if message_id and self.should_add_message_id:
             additional_info["info"] = {"messageId": message_id}
         span_id = headers.get("x-amzn-requestid") or headers.get("x-amz-requestid")
@@ -216,7 +216,7 @@ class StepFunctionParser(ServerlessAWSParser):
 
 
 def get_parser(url: str) -> Type[Parser]:
-    service = safe_split_get(url, ".", 0)
+    service = safe_split_get(str(url), ".", 0)
     if service == "dynamodb":
         return DynamoParser
     elif service == "sns":
@@ -225,7 +225,7 @@ def get_parser(url: str) -> Type[Parser]:
         return LambdaParser
     elif service == "kinesis":
         return KinesisParser
-    elif safe_split_get(url, ".", 1) == "s3":
+    elif safe_split_get(str(url), ".", 1) == "s3":
         return S3Parser
     # SQS Legacy Endpoints: https://docs.aws.amazon.com/general/latest/gr/rande.html
     elif service in ("sqs", "sqs-fips") or "queue.amazonaws.com" in url:

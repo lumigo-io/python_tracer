@@ -6,7 +6,7 @@ import sys
 import urllib
 from functools import wraps
 from io import BytesIO
-from types import SimpleNamespace
+from collections import namedtuple
 import logging
 
 import urllib3
@@ -14,10 +14,12 @@ from capturer import CaptureOutput
 from lumigo_tracer import lumigo_tracer, LumigoChalice
 from lumigo_tracer.parsers.parser import Parser
 import http.client
-from lumigo_tracer.utils import Configuration, STEP_FUNCTION_UID_KEY, LUMIGO_EVENT_KEY
+from lumigo_tracer.utils import Configuration, STEP_FUNCTION_UID_KEY, LUMIGO_EVENT_KEY, is_python_3
 import pytest
 
 from lumigo_tracer.spans_container import SpansContainer
+
+ContextClass = namedtuple("Context", "aws_request_id")
 
 
 def test_lambda_wrapper_basic_events(reporter_mock):
@@ -85,6 +87,15 @@ def test_lambda_wrapper_http():
     assert http_spans[0]["started"] > SpansContainer.get_span().function_span["started"]
     assert "ended" in http_spans[0]
     assert "Content-Length" in http_spans[0]["info"]["httpInfo"]["request"]["headers"]
+
+
+def test_lambda_wrapper_non_encodeable_request():
+    @lumigo_tracer(token="123")
+    def lambda_test_function():
+        http.client.HTTPConnection("www.google.com").request("POST", "/", "\xff")
+
+    lambda_test_function()
+    assert json.dumps(SpansContainer.get_span().http_spans)
 
 
 def test_lambda_wrapper_query_with_http_params():
@@ -195,10 +206,11 @@ def test_wrapping_with_print_override():
         return 1
 
     with CaptureOutput() as capturer:
-        assert lambda_test_function({}, SimpleNamespace(aws_request_id="1234")) == 1
+        assert lambda_test_function({}, ContextClass(aws_request_id="1234")) == 1
         assert Configuration.enhanced_print is True
-        assert "RequestId: 1234 hello" in capturer.get_lines()
-        assert "RequestId: 1234 world" in capturer.get_lines()
+        lines = capturer.get_lines()
+        assert any(l.startswith(u"RequestId: 1234") and "hello" in l for l in lines)
+        assert any(l.startswith(u"RequestId: 1234") and "world" in l for l in lines)
 
 
 def test_wrapping_without_print_override():
@@ -208,7 +220,7 @@ def test_wrapping_without_print_override():
         return 1
 
     with CaptureOutput() as capturer:
-        assert lambda_test_function({}, SimpleNamespace(aws_request_id="1234")) == 1
+        assert lambda_test_function({}, ContextClass(aws_request_id="1234")) == 1
         assert Configuration.enhanced_print is False
         assert any(line == "hello" for line in capturer.get_lines())
 
@@ -243,6 +255,7 @@ def test_exception_in_parsers(monkeypatch, caplog):
     assert caplog.records[-1].msg == "An exception occurred in lumigo's code add request event"
 
 
+@pytest.mark.skipif(not is_python_3(), reason="chalice is for python 3")
 def test_lumigo_chalice():
     class App:
         @property
@@ -268,6 +281,7 @@ def test_lumigo_chalice():
     assert SpansContainer._span
 
 
+@pytest.mark.skipif(not is_python_3(), reason="chalice is for python 3")
 def test_lumigo_chalice_create_extra_lambdas(monkeypatch):
     # mimic aws env
     monkeypatch.setitem(os.environ, "LAMBDA_RUNTIME_DIR", "true")
@@ -314,10 +328,13 @@ def test_wrapping_with_logging_override_default_usage(caplog):
         logging.warning("hello\nworld")
         return 1
 
-    assert lambda_test_function({}, SimpleNamespace(aws_request_id="1234")) == 1
+    assert lambda_test_function({}, ContextClass(aws_request_id="1234")) == 1
     assert Configuration.enhanced_print is True
-    assert "RequestId: 1234 test_sync_hook.py" in caplog.text
-    assert "WARNING  hello\nRequestId: 1234 world" in caplog.text
+    lines = caplog.text.splitlines()
+    assert any(
+        l.startswith("RequestId: 1234") and "test_sync_hook.py" in l and "hello" in l for l in lines
+    )
+    assert any(l.startswith("RequestId: 1234") and "world" in l for l in lines)
 
 
 def test_wrapping_with_logging_exception(caplog):
@@ -333,13 +350,13 @@ def test_wrapping_with_logging_exception(caplog):
             logger.exception("hello")
         return 1
 
-    assert lambda_test_function({}, SimpleNamespace(aws_request_id="1234")) == 1
+    assert lambda_test_function({}, ContextClass(aws_request_id="1234")) == 1
     #  Check all lines have exactly one RequestId.
     for line in caplog.text.splitlines():
         assert line.startswith("RequestId: 1234") and line.count("RequestId: 1234") == 1
     #  Check the message was logged.
     test_message = [line for line in caplog.text.splitlines() if line.endswith("hello")][0]
-    assert test_message.replace(" ", "").endswith("ERRORhello")
+    assert "ERROR" in test_message
 
 
 def test_wrapping_with_logging_override_complex_usage():
@@ -356,7 +373,7 @@ def test_wrapping_with_logging_override_complex_usage():
         return 1
 
     with CaptureOutput() as capturer:
-        assert lambda_test_function({}, SimpleNamespace(aws_request_id="1234")) == 1
+        assert lambda_test_function({}, ContextClass(aws_request_id="1234")) == 1
         assert Configuration.enhanced_print is True
         assert "RequestId: 1234 my_test [INFO] hello" in capturer.get_lines()
         assert "RequestId: 1234 world" in capturer.get_lines()
@@ -368,9 +385,9 @@ def test_wrapping_without_logging_override(caplog):
         logging.warning("hello\nworld")
         return 1
 
-    assert lambda_test_function({}, SimpleNamespace(aws_request_id="1234")) == 1
+    assert lambda_test_function({}, ContextClass(aws_request_id="1234")) == 1
     assert Configuration.enhanced_print is False
-    assert " WARNING  hello\nworld" in caplog.text
+    assert "WARNING" in caplog.text and "hello\nworld" in caplog.text
 
 
 def test_wrapping_urlib_stream_get():

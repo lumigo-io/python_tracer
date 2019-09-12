@@ -5,7 +5,6 @@ from io import BytesIO
 import os
 import builtins
 from functools import wraps
-import importlib.util
 
 from lumigo_tracer.libs.wrapt import wrap_function_wrapper
 from lumigo_tracer.parsers.utils import safe_get_list
@@ -15,6 +14,7 @@ from lumigo_tracer.utils import (
     get_logger,
     lumigo_safe_execute,
     is_aws_environment,
+    is_python_3,
 )
 from lumigo_tracer.spans_container import SpansContainer, TimeoutMechanism
 from lumigo_tracer.parsers.http_data_classes import HttpRequest
@@ -39,18 +39,24 @@ def _request_wrapper(func, instance, args, kwargs):
             args[0].seek(current_pos)
 
     host, method, headers, body, uri = (
-        getattr(instance, "host", None),
-        getattr(instance, "_method", None),
+        str(getattr(instance, "host", "")),
+        str(getattr(instance, "_method", "")),
         None,
         None,
         None,
     )
     with lumigo_safe_execute("parse request"):
-        if isinstance(data, bytes) and _BODY_HEADER_SPLITTER in data:
+        if isinstance(data, str) and _BODY_HEADER_SPLITTER in data:
             headers, body = data.split(_BODY_HEADER_SPLITTER, 1)
             if _FLAGS_HEADER_SPLITTER in headers:
                 request_info, headers = headers.split(_FLAGS_HEADER_SPLITTER, 1)
-                headers = http.client.parse_headers(BytesIO(headers))
+                if is_python_3():
+                    headers = http.client.parse_headers(BytesIO(headers))
+                else:
+                    import email
+
+                    message = email.message_from_file(BytesIO(headers))
+                    headers = {t[0]: t[1] for t in message.items()}
                 path_and_query_params = (
                     # Parse path from request info, remove method (GET | POST) and http version (HTTP/1.1)
                     request_info.decode("ascii")
@@ -84,8 +90,8 @@ def _response_wrapper(func, instance, args, kwargs):
     """
     ret_val = func(*args, **kwargs)
     with lumigo_safe_execute("parse response"):
-        headers = ret_val.headers
-        status_code = ret_val.code
+        headers = ret_val.headers if is_python_3() else ret_val.msg.dict
+        status_code = ret_val.code if is_python_3() else ret_val.status
         SpansContainer.get_span().update_event_response(instance.host, status_code, headers, b"")
     return ret_val
 
@@ -98,7 +104,10 @@ def _read_wrapper(func, instance, args, kwargs):
     if ret_val:
         with lumigo_safe_execute("parse response.read"):
             SpansContainer.get_span().update_event_response(
-                None, instance.code, instance.headers, ret_val
+                None,
+                instance.code if is_python_3() else instance.status,
+                instance.headers if is_python_3() else instance.msg.dict,
+                ret_val,
             )
     return ret_val
 
@@ -253,12 +262,23 @@ def wrap_http_calls():
     if not already_wrapped:
         with lumigo_safe_execute("wrap http calls"):
             get_logger().debug("wrapping the http request")
-            wrap_function_wrapper("http.client", "HTTPConnection.send", _request_wrapper)
             wrap_function_wrapper("botocore.awsrequest", "AWSRequest.__init__", _putheader_wrapper)
-            wrap_function_wrapper("http.client", "HTTPConnection.getresponse", _response_wrapper)
-            wrap_function_wrapper("http.client", "HTTPResponse.read", _read_wrapper)
-            if importlib.util.find_spec("urllib3"):
+            if is_python_3():
+                wrap_function_wrapper("http.client", "HTTPConnection.send", _request_wrapper)
+                wrap_function_wrapper(
+                    "http.client", "HTTPConnection.getresponse", _response_wrapper
+                )
+                wrap_function_wrapper("http.client", "HTTPResponse.read", _read_wrapper)
+            else:
+                wrap_function_wrapper("httplib", "HTTPConnection.send", _request_wrapper)
+                wrap_function_wrapper("httplib", "HTTPConnection.getresponse", _response_wrapper)
+                wrap_function_wrapper("httplib", "HTTPResponse.read", _read_wrapper)
+            try:
+                import urllib3  # noqa
+
                 wrap_function_wrapper(
                     "urllib3.response", "HTTPResponse.read_chunked", _read_stream_wrapper
                 )
+            except ImportError:
+                pass
             already_wrapped = True
