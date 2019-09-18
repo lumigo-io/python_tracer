@@ -55,7 +55,7 @@ bumpversion patch --message "{current_version} → {new_version}. Changes: ${cha
 
 echo "Creating layer latest version arn table md file (LAYERS.md)"
 cd ../larn && npm i -g
-larn -r nodejs10.x --filter lumigo-node-tracer -p ~/lumigo-node
+larn -r python3.6 --filter lumigo-python-tracer -p ~/python_tracer
 cd ../lumigo-node
 git add LAYERS.md
 git commit -m "feat(layers-table): layers md"
