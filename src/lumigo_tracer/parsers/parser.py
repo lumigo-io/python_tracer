@@ -215,7 +215,7 @@ class StepFunctionParser(ServerlessAWSParser):
         )
 
 
-def get_parser(url: str) -> Type[Parser]:
+def get_parser(url: str, headers: Optional[http.client.HTTPMessage] = None) -> Type[Parser]:
     service = safe_split_get(url, ".", 0)
     if service == "dynamodb":
         return DynamoParser
@@ -230,6 +230,6 @@ def get_parser(url: str) -> Type[Parser]:
     # SQS Legacy Endpoints: https://docs.aws.amazon.com/general/latest/gr/rande.html
     elif service in ("sqs", "sqs-fips") or "queue.amazonaws.com" in url:
         return SqsParser
-    elif url.endswith("amazonaws.com"):
+    elif url.endswith("amazonaws.com") or (headers and headers.get("x-amzn-RequestId")):
         return ServerlessAWSParser
     return Parser

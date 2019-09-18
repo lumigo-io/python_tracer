@@ -177,7 +177,7 @@ class SpansContainer:
             else:
                 self.previous_response_body = b""
 
-            parser = get_parser(host)()  # type: ignore
+            parser = get_parser(host, headers)()  # type: ignore
             self.previous_response_body += body
             update = parser.parse_response(  # type: ignore
                 host, status_code, headers, self.previous_response_body
