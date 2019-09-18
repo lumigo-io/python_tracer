@@ -53,6 +53,14 @@ changes=$(git log $(git describe --tags --abbrev=0)..HEAD --oneline)
 sudo pip install --upgrade bumpversion
 bumpversion patch --message "{current_version} → {new_version}. Changes: ${changes}"
 
+echo "Creating layer latest version arn table md file (LAYERS.md)"
+cd ../larn && npm i -g
+larn -r nodejs10.x --filter lumigo-node-tracer -p ~/lumigo-node
+cd ../lumigo-node
+git add LAYERS.md
+git commit -m "feat(layers-table): layers md"
+git push --set-upstream origin master
+
 echo "Uploading to PyPi"
 pip install twine
 twine upload dist/*
