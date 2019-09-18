@@ -1,4 +1,4 @@
-from lumigo_tracer.parsers.parser import ServerlessAWSParser, Parser
+from lumigo_tracer.parsers.parser import ServerlessAWSParser, Parser, get_parser
 import http.client
 
 
@@ -11,3 +11,10 @@ def test_serverless_aws_parser_fallback_doesnt_change():
     serverless_parser.pop("ended")
     root_parser.pop("ended")
     assert serverless_parser == root_parser
+
+
+def test_get_parser_check_headers():
+    url = "api.rti.dev.toyota.com"
+    headers = http.client.HTTPMessage()
+    headers.add_header("x-amzn-requestid", "1234")
+    assert get_parser(url, headers) == ServerlessAWSParser
