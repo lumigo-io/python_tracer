@@ -189,9 +189,12 @@ class SpansContainer:
         self, exception: Exception, frames_infos: List[inspect.FrameInfo]
     ) -> None:
         if self.function_span:
+            message = exception.args[0] if exception.args else None
+            if not isinstance(message, str):
+                message = str(message)
             self.function_span["error"] = {
                 "type": exception.__class__.__name__,
-                "message": exception.args[0] if exception.args else None,
+                "message": message,
                 "stacktrace": traceback.format_exc(),
                 "frames": format_frames(frames_infos) if Configuration.verbose else [],
             }
