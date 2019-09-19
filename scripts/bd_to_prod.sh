@@ -59,7 +59,6 @@ larn -r python3.6 --filter lumigo-python-tracer -p ~/python_tracer
 cd ../lumigo-node
 git add LAYERS.md
 git commit -m "feat(layers-table): layers md"
-git push --set-upstream origin master
 
 echo "Uploading to PyPi"
 pip install twine
