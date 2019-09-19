@@ -14,7 +14,12 @@ from capturer import CaptureOutput
 from lumigo_tracer import lumigo_tracer, LumigoChalice
 from lumigo_tracer.parsers.parser import Parser
 import http.client
-from lumigo_tracer.utils import Configuration, STEP_FUNCTION_UID_KEY, LUMIGO_EVENT_KEY
+from lumigo_tracer.utils import (
+    Configuration,
+    STEP_FUNCTION_UID_KEY,
+    LUMIGO_EVENT_KEY,
+    _create_request_body,
+)
 import pytest
 
 from lumigo_tracer.spans_container import SpansContainer
@@ -41,7 +46,7 @@ def test_lambda_wrapper_basic_events(reporter_mock):
     assert first_send[0]["maxFinishTime"]
 
 
-@pytest.mark.parametrize("exc", [ValueError("Oh no"), ValueError()])
+@pytest.mark.parametrize("exc", [ValueError("Oh no"), ValueError(), ValueError(Exception())])
 def test_lambda_wrapper_exception(exc):
     @lumigo_tracer(token="123")
     def lambda_test_function():
@@ -69,6 +74,8 @@ def test_lambda_wrapper_exception(exc):
     assert not function_span["id"].endswith("_started")
     assert "reporter_rtt" in function_span
     assert "maxFinishTime" not in function_span
+    # Test that we can create an output message out of this span
+    assert _create_request_body([function_span], prune_size_flag=False)
 
 
 def test_lambda_wrapper_http():
