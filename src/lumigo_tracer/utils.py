@@ -236,7 +236,7 @@ def prepare_large_data(value: Union[str, bytes, dict, None], max_size=MAX_ENTRY_
 def get_omitting_regexes():
     return [
         re.compile(r, re.IGNORECASE)
-        for r in OMITTING_KEYS_REGEXES + json.loads(os.environ.get("LUMIGO_BLACKLIST_REGEX", "[]"))
+        for r in json.loads(os.environ.get("LUMIGO_BLACKLIST_REGEX", "[]")) or OMITTING_KEYS_REGEXES
     ]
 
 

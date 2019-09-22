@@ -250,5 +250,5 @@ def test_omit_keys(value, output):
 
 def test_omit_keys_environment(monkeypatch):
     monkeypatch.setenv("LUMIGO_BLACKLIST_REGEX", '[".*evilPlan.*"]')
-    value = {"hello": "world", "evilPlan": {"take": "over", "the": "world"}}
-    assert omit_keys(value) == {"hello": "world", "evilPlan": "****"}
+    value = {"password": "abc", "evilPlan": {"take": "over", "the": "world"}}
+    assert omit_keys(value) == {"password": "abc", "evilPlan": "****"}
