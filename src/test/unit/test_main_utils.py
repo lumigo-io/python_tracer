@@ -10,6 +10,7 @@ from lumigo_tracer.utils import (
     MAX_VAR_LEN,
     prepare_large_data,
     format_frame,
+    omit_keys,
 )
 import json
 
@@ -218,3 +219,33 @@ def test_format_frame():
         "function": frame_info.function,
     }
     assert variables["a"] == "A"
+
+
+@pytest.mark.parametrize(
+    ["value", "output"],
+    (
+        (
+            {"hello": "world", "inner": {"check": "abc"}},
+            {"hello": "world", "inner": {"check": "abc"}},
+        ),
+        ({"hello": "world", "password": "abc"}, {"hello": "world", "password": "****"}),
+        ({"hello": "world", "secretPassword": "abc"}, {"hello": "world", "secretPassword": "****"}),
+        (
+            {"hello": "world", "inner": {"secretPassword": "abc"}},
+            {"hello": "world", "inner": {"secretPassword": "****"}},
+        ),
+        ('{"hello": "world", "password": "abc"}', {"hello": "world", "password": "****"}),
+        (b'{"hello": "world", "password": "abc"}', {"hello": "world", "password": "****"}),
+        ('{"hello": "w', '{"hello": "w'),
+        (5, 5),
+        ([{"password": 1}, {"a": "b"}], [{"password": "****"}, {"a": "b"}]),
+    ),
+)
+def test_omit_keys(value, output):
+    assert omit_keys(value) == output
+
+
+def test_omit_keys_environment(monkeypatch):
+    monkeypatch.setenv("BLACKLIST_REGEX", '[".*evilPlan.*"]')
+    value = {"hello": "world", "evilPlan": {"take": "over", "the": "world"}}
+    assert omit_keys(value) == {"hello": "world", "evilPlan": "****"}

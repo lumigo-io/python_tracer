@@ -419,3 +419,20 @@ def test_wrapping_step_function(event, expected_triggered_by, expected_message_i
     assert return_value["result"] == 1
     assert return_value[LUMIGO_EVENT_KEY][STEP_FUNCTION_UID_KEY]
     assert span.http_spans[0]["info"]["httpInfo"]["host"] == "StepFunction"
+
+
+def test_omitting_keys():
+    @lumigo_tracer()
+    def lambda_test_function(event, context):
+        d = {"a": "b", "myPassword": "123"}
+        conn = http.client.HTTPConnection("www.google.com")
+        conn.request("POST", "/", json.dumps(d))
+        return {"secret_password": "lumigo rulz"}
+
+    lambda_test_function({"key": "24"}, None)
+    span = SpansContainer.get_span()
+    assert span.function_span["return_value"] == '{"secret_password": "****"}'
+    assert span.function_span["event"] == '{"key": "****"}'
+    assert SpansContainer.get_span().http_spans[0]["info"]["httpInfo"]["request"][
+        "body"
+    ] == json.dumps({"a": "b", "myPassword": "****"})

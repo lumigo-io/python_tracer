@@ -11,7 +11,7 @@ from lumigo_tracer.parsers.utils import (
     recursive_json_join,
     safe_get,
 )
-from lumigo_tracer.utils import Configuration, prepare_large_data
+from lumigo_tracer.utils import Configuration, prepare_large_data, omit_keys
 from lumigo_tracer.parsers.http_data_classes import HttpRequest
 
 HTTP_TYPE = "http"
@@ -35,9 +35,9 @@ class Parser:
         if Configuration.verbose and parse_params:
             additional_info = {
                 "headers": prepare_large_data(
-                    dict(parse_params.headers.items() if parse_params.headers else {})
+                    omit_keys(dict(parse_params.headers.items() if parse_params.headers else {}))
                 ),
-                "body": prepare_large_data(parse_params.body),
+                "body": prepare_large_data(omit_keys(parse_params.body)),
                 "method": parse_params.method,
                 "uri": parse_params.uri,
             }
@@ -61,8 +61,8 @@ class Parser:
     ) -> dict:
         if Configuration.verbose:
             additional_info = {
-                "headers": prepare_large_data(dict(headers.items() if headers else {})),
-                "body": prepare_large_data(body),
+                "headers": prepare_large_data(omit_keys(dict(headers.items() if headers else {}))),
+                "body": prepare_large_data(omit_keys(body)),
                 "statusCode": status_code,
             }
         else:

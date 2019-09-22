@@ -13,6 +13,7 @@ from lumigo_tracer.utils import (
     STEP_FUNCTION_UID_KEY,
     format_frames,
     prepare_large_data,
+    omit_keys,
 )
 from lumigo_tracer import utils
 from lumigo_tracer.parsers.parser import get_parser, HTTP_TYPE, StepFunctionParser
@@ -214,9 +215,9 @@ class SpansContainer:
         self.previous_request = None, b""
         self.function_span.update({"ended": int(time.time() * 1000)})
         if Configuration.is_step_function:
-            self.add_step_end_event(ret_val)
+            self.add_step_end_event(omit_keys(ret_val))
         if Configuration.verbose:
-            self.function_span.update({"return_value": prepare_large_data(ret_val)})
+            self.function_span.update({"return_value": prepare_large_data(omit_keys(ret_val))})
         spans_contain_errors: bool = any(
             _is_span_has_error(s) for s in self.http_spans + [self.function_span]
         )
@@ -255,7 +256,10 @@ class SpansContainer:
         additional_info = {}
         if Configuration.verbose:
             additional_info.update(
-                {"event": prepare_large_data(event), "envs": prepare_large_data(dict(os.environ))}
+                {
+                    "event": prepare_large_data(omit_keys(event)),
+                    "envs": prepare_large_data(omit_keys(dict(os.environ))),
+                }
             )
 
         trace_root, transaction_id, suffix = parse_trace_id(os.environ.get("_X_AMZN_TRACE_ID", ""))
