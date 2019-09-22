@@ -4,7 +4,6 @@ import os
 import re
 import time
 import urllib.request
-from json.decoder import JSONDecodeError
 from urllib.error import URLError
 from typing import Union, List, Optional, Dict, Any
 from contextlib import contextmanager
@@ -249,7 +248,7 @@ def omit_keys(value: Any):
     if isinstance(value, (str, bytes)):
         try:
             return omit_keys(json.loads(value))
-        except JSONDecodeError:
+        except Exception:
             return value
     if isinstance(value, dict):
         return {
