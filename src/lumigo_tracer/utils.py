@@ -251,7 +251,7 @@ def omit_keys(value: Any):
         return [omit_keys(item) for item in value]
     if isinstance(value, (str, bytes)):
         try:
-            return omit_keys(json.loads(value))
+            return json.dumps(omit_keys(json.loads(value)))
         except Exception:
             return value
     if isinstance(value, dict):
