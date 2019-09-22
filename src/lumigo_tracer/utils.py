@@ -255,9 +255,10 @@ def omit_keys(value: Any):
         except Exception:
             return value
     if isinstance(value, dict):
+        regexes = get_omitting_regexes()
         return {
             k: omit_keys(v)
-            if not (isinstance(k, str) and any(r.match(k) for r in get_omitting_regexes()))
+            if not (isinstance(k, str) and any(r.match(k) for r in regexes))
             else "****"
             for k, v in value.items()
         }
