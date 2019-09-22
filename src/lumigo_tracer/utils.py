@@ -20,6 +20,7 @@ MAX_VARS_SIZE = 100_000
 MAX_VAR_LEN = 200
 MAX_ENTRY_SIZE = 1024
 FrameVariables = Dict[str, str]
+OMITTING_KEYS_REGEXES = [".*pass.*", ".*key.*"]
 
 _logger: Union[logging.Logger, None] = None
 
@@ -184,7 +185,7 @@ def format_frame(frame_info: inspect.FrameInfo, free_space: int) -> dict:
         "lineno": frame_info.lineno,
         "fileName": frame_info.filename,
         "function": frame_info.function,
-        "variables": _truncate_locals(frame_info.frame.f_locals, free_space),
+        "variables": _truncate_locals(omit_keys(frame_info.frame.f_locals), free_space),
     }
 
 
@@ -233,7 +234,10 @@ def prepare_large_data(value: Union[str, bytes, dict, None], max_size=MAX_ENTRY_
 
 
 def get_omitting_regexes():
-    return [".*pass.*", ".*key.*"] + json.loads(os.environ.get("BLACKLIST_REGEX", "[]"))
+    return [
+        re.compile(r, re.IGNORECASE)
+        for r in OMITTING_KEYS_REGEXES + json.loads(os.environ.get("LUMIGO_BLACKLIST_REGEX", "[]"))
+    ]
 
 
 def omit_keys(value: Any):
@@ -253,7 +257,7 @@ def omit_keys(value: Any):
     if isinstance(value, dict):
         return {
             k: omit_keys(v)
-            if not any(re.match(r, k, re.IGNORECASE) for r in get_omitting_regexes())
+            if not (isinstance(k, str) and any(r.match(k) for r in get_omitting_regexes()))
             else "****"
             for k, v in value.items()
         }
