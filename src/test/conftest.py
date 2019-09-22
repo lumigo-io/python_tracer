@@ -13,6 +13,7 @@ from lumigo_tracer.utils import Configuration
 def reporter_mock(monkeypatch):
     utils.Configuration.should_report = False
     reporter_mock = mock.Mock(utils.report_json)
+    reporter_mock.return_value = 123
     monkeypatch.setattr(utils, "report_json", reporter_mock)
     return reporter_mock
 
