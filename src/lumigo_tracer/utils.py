@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import re
 import time
 import urllib.request
 from urllib.error import URLError
@@ -15,10 +16,11 @@ SECONDS_TO_TIMEOUT = 0.3
 LUMIGO_EVENT_KEY = "_lumigo"
 STEP_FUNCTION_UID_KEY = "step_function_uid"
 MAX_SIZE_FOR_REQUEST: int = int(os.environ.get("LUMIGO_MAX_SIZE_FOR_REQUEST", 900_000))
-MAX_VARS_SIZE = 100000
+MAX_VARS_SIZE = 100_000
 MAX_VAR_LEN = 200
 MAX_ENTRY_SIZE = 1024
 FrameVariables = Dict[str, str]
+OMITTING_KEYS_REGEXES = [".*pass.*", ".*key.*"]
 
 _logger: Union[logging.Logger, None] = None
 
@@ -83,6 +85,7 @@ def _get_event_base64_size(event) -> int:
 def _create_request_body(
     msgs: List[dict], prune_size_flag: bool, max_size: int = MAX_SIZE_FOR_REQUEST
 ) -> str:
+    msgs = omit_keys(msgs)  # extra validation
     if not prune_size_flag or _get_event_base64_size(msgs) < max_size:
         return json.dumps(msgs)
 
@@ -182,7 +185,7 @@ def format_frame(frame_info: inspect.FrameInfo, free_space: int) -> dict:
         "lineno": frame_info.lineno,
         "fileName": frame_info.filename,
         "function": frame_info.function,
-        "variables": _truncate_locals(frame_info.frame.f_locals, free_space),
+        "variables": _truncate_locals(omit_keys(frame_info.frame.f_locals), free_space),
     }
 
 
@@ -228,3 +231,38 @@ def prepare_large_data(value: Union[str, bytes, dict, None], max_size=MAX_ENTRY_
     if len(res) > max_size:
         return f"{res[:max_size]}...[too long]"
     return res
+
+
+def get_omitting_regexes():
+    return [
+        re.compile(r, re.IGNORECASE)
+        for r in json.loads(os.environ.get("LUMIGO_BLACKLIST_REGEX", "[]")) or OMITTING_KEYS_REGEXES
+    ]
+
+
+def omit_keys(value: Any):
+    """
+    This function omit problematic keys from the given value.
+    We do so in the following cases:
+    * if the value is dictionary, then we omit values by keys (recursively)
+    * if the value is a string of a json. then we parse it to dict and omit keys.
+    """
+    if isinstance(value, list):
+        return [omit_keys(item) for item in value]
+    if isinstance(value, (str, bytes)):
+        try:
+            parsed_value = json.loads(value)
+            if isinstance(parsed_value, dict):
+                return json.dumps(omit_keys(parsed_value))
+            return value
+        except Exception:
+            return value
+    if isinstance(value, dict):
+        regexes = get_omitting_regexes()
+        return {
+            k: omit_keys(v)
+            if not (isinstance(k, str) and any(r.match(k) for r in regexes))
+            else "****"
+            for k, v in value.items()
+        }
+    return value
