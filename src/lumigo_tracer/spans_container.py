@@ -214,11 +214,10 @@ class SpansContainer:
         reported_rtt = None
         self.previous_request = None, b""
         self.function_span.update({"ended": int(time.time() * 1000)})
-        ret_val = omit_keys(ret_val)
         if Configuration.is_step_function:
             self.add_step_end_event(ret_val)
         if Configuration.verbose:
-            self.function_span.update({"return_value": prepare_large_data(ret_val)})
+            self.function_span.update({"return_value": prepare_large_data(omit_keys(ret_val))})
         spans_contain_errors: bool = any(
             _is_span_has_error(s) for s in self.http_spans + [self.function_span]
         )
