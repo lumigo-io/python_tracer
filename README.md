@@ -12,7 +12,7 @@ or with Lambda layer with ARN [from this table](https://github.com/lumigo-io/pyt
 def my_lambda(event, context):
     print('I can finally trubleshoot!')
 ```
-
+* Install with [**serverless-lumigo plugin**](https://github.com/lumigo-io/serverless-lumigo-plugin/blob/master/README.md)
 ## Configuration
 ### Enhanced print
 In case you are using `print()` or [python logging](https://docs.python.org/3/library/logging.html) to log, then you can use the enhanced print capabilities that the tracer provides in order to view your logs in the platform view. Just add `enhance_print=True` to the tracer configuration and you are set.
