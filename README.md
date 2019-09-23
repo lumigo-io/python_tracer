@@ -14,6 +14,12 @@ def my_lambda(event, context):
 ```
 
 ## Configuration
+* You can turn on the debug logs by setting the environment variable `LUMIGO_DEBUG=true`
+* You can change the timeout to send the trace information to the edge by setting `LUMIGO_EDGE_TIMEOUT=<seconds>`
+* You can prevent lumigo from sending keys that answer specific regexes by defining `LUMIGO_BLACKLIST_REGEX=["regex1", "regex2"]`. By default, we use the default regexes `[".*pass.*", ".*key.*"]`. All the regexes are case-insensitive.
+* In case of need, there is a kill switch, that stops all the interventions of lumigo immediately, without changing the code. Simply add an environment variable `LUMIGO_SWITCH_OFF=true`.
+* you can find examples in the examples directory 
+
 ### Enhanced print
 In case you are using `print()` or [python logging](https://docs.python.org/3/library/logging.html) to log, then you can use the enhanced print capabilities that the tracer provides in order to view your logs in the platform view. Just add `enhance_print=True` to the tracer configuration and you are set.
 ```
@@ -61,10 +67,6 @@ from lumigo_tracer import LumigoChalice
 app = Chalice(app_name='chalice')
 app = LumigoChalice(app, token="XXX")
 ```
-* you can find more examples in the examples directory 
-* In case of need, there is a kill switch, that stops all the interventions of lumigo immediately, without changing the code. Simply add an environment variable `LUMIGO_SWITCH_OFF=true`.
-* You can turn on the debug logs by setting the environment variable `LUMIGO_DEBUG=true`
-* You can change the timeout to send the trace information to the edge by setting `LUMIGO_EDGE_TIMEOUT=<seconds>`
 
 ## Sentry/Raven Lambda Integration
 Add our decorator beneath the Raven decorator
