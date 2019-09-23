@@ -3,7 +3,7 @@
 ![codecov](https://codecov.io/gh/lumigo-io/python_tracer/branch/master/graph/badge.svg?token=6EgXIlefwG)
 
 # How To Use
-## With Layers:
+## With Lambda Layers:
 * Use the latest ARN version [from this table](https://github.com/lumigo-io/python_tracer/blob/master/LAYERS.md)
 ## With Serverless framework:
 * Install the [**serverless-lumigo-plugin**](https://github.com/lumigo-io/serverless-lumigo-plugin/blob/master/README.md)
