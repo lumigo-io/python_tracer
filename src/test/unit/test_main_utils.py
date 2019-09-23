@@ -239,7 +239,7 @@ def test_format_frame():
         ('{"hello": "world", "password": "abc"}', '{"hello": "world", "password": "****"}'),
         (b'{"hello": "world", "password": "abc"}', '{"hello": "world", "password": "****"}'),
         ('{"hello": "w', '{"hello": "w'),
-        (5, 5),
+        ("5", "5"),
         ([{"password": 1}, {"a": "b"}], [{"password": "****"}, {"a": "b"}]),
         ({None: 1}, {None: 1}),
     ),

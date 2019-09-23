@@ -251,7 +251,10 @@ def omit_keys(value: Any):
         return [omit_keys(item) for item in value]
     if isinstance(value, (str, bytes)):
         try:
-            return json.dumps(omit_keys(json.loads(value)))
+            parsed_value = json.loads(value)
+            if isinstance(value, dict):
+                return json.dumps(omit_keys(parsed_value))
+            return value
         except Exception:
             return value
     if isinstance(value, dict):
