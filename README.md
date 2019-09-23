@@ -3,8 +3,12 @@
 ![codecov](https://codecov.io/gh/lumigo-io/python_tracer/branch/master/graph/badge.svg?token=6EgXIlefwG)
 
 # How To Use
+## With Layers:
+* Use the latest ARN version [from this table](https://github.com/lumigo-io/python_tracer/blob/master/LAYERS.md)
+## With Serverless framework:
+* Install the [**serverless-lumigo-plugin**](https://github.com/lumigo-io/serverless-lumigo-plugin/blob/master/README.md)
+## Manually
 * install with `pip install lumigo_tracer` <br/> 
-or with Lambda layer with ARN [from this table](https://github.com/lumigo-io/python_tracer/blob/master/LAYERS.md)
 * import using `from lumigo_tracer import lumigo_tracer`
 * wrap you lambda function using `@lumigo_tracer` or `@lumigo_tracer(token='XXX')`. As an example, your lambda should look like: 
 ```
@@ -12,7 +16,7 @@ or with Lambda layer with ARN [from this table](https://github.com/lumigo-io/pyt
 def my_lambda(event, context):
     print('I can finally trubleshoot!')
 ```
-* Install with [**serverless-lumigo plugin**](https://github.com/lumigo-io/serverless-lumigo-plugin/blob/master/README.md)
+
 ## Configuration
 ### Enhanced print
 In case you are using `print()` or [python logging](https://docs.python.org/3/library/logging.html) to log, then you can use the enhanced print capabilities that the tracer provides in order to view your logs in the platform view. Just add `enhance_print=True` to the tracer configuration and you are set.
