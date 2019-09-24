@@ -10,6 +10,7 @@ from lumigo_tracer.utils import (
     MAX_VAR_LEN,
     prepare_large_data,
     format_frame,
+    omit_keys,
 )
 import json
 
@@ -206,6 +207,7 @@ def test_prepare_large_data(value, output):
 def test_format_frame():
     try:
         a = "A"  # noqa F841
+        password = "123"  # noqa F841
         1 / 0
     except Exception:
         frame_info = inspect.trace()[0]
@@ -218,3 +220,35 @@ def test_format_frame():
         "function": frame_info.function,
     }
     assert variables["a"] == "A"
+    assert variables["password"] == "****"
+
+
+@pytest.mark.parametrize(
+    ["value", "output"],
+    (
+        (
+            {"hello": "world", "inner": {"check": "abc"}},
+            {"hello": "world", "inner": {"check": "abc"}},
+        ),
+        ({"hello": "world", "password": "abc"}, {"hello": "world", "password": "****"}),
+        ({"hello": "world", "secretPassword": "abc"}, {"hello": "world", "secretPassword": "****"}),
+        (
+            {"hello": "world", "inner": {"secretPassword": "abc"}},
+            {"hello": "world", "inner": {"secretPassword": "****"}},
+        ),
+        ('{"hello": "world", "password": "abc"}', '{"hello": "world", "password": "****"}'),
+        (b'{"hello": "world", "password": "abc"}', '{"hello": "world", "password": "****"}'),
+        ('{"hello": "w', '{"hello": "w'),
+        ("5", "5"),
+        ([{"password": 1}, {"a": "b"}], [{"password": "****"}, {"a": "b"}]),
+        ({None: 1}, {None: 1}),
+    ),
+)
+def test_omit_keys(value, output):
+    assert omit_keys(value) == output
+
+
+def test_omit_keys_environment(monkeypatch):
+    monkeypatch.setenv("LUMIGO_BLACKLIST_REGEX", '[".*evilPlan.*"]')
+    value = {"password": "abc", "evilPlan": {"take": "over", "the": "world"}}
+    assert omit_keys(value) == {"password": "abc", "evilPlan": "****"}

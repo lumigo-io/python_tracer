@@ -3,8 +3,12 @@
 ![codecov](https://codecov.io/gh/lumigo-io/python_tracer/branch/master/graph/badge.svg?token=6EgXIlefwG)
 
 # How To Use
+## With Lambda Layers:
+* Use the latest ARN version [from this table](https://github.com/lumigo-io/python_tracer/blob/master/LAYERS.md)
+## With Serverless framework:
+* Install the [**serverless-lumigo-plugin**](https://github.com/lumigo-io/serverless-lumigo-plugin/blob/master/README.md)
+## Manually
 * install with `pip install lumigo_tracer` <br/> 
-or with Lambda layer with ARN [from this table](https://github.com/lumigo-io/python_tracer/blob/master/LAYERS.md)
 * import using `from lumigo_tracer import lumigo_tracer`
 * wrap you lambda function using `@lumigo_tracer` or `@lumigo_tracer(token='XXX')`. As an example, your lambda should look like: 
 ```
@@ -14,6 +18,10 @@ def my_lambda(event, context):
 ```
 
 ## Configuration
+* You can turn on the debug logs by setting the environment variable `LUMIGO_DEBUG=true`
+* You can prevent lumigo from sending keys that answer specific regexes by defining `LUMIGO_BLACKLIST_REGEX=["regex1", "regex2"]`. By default, we use the default regexes `[".*pass.*", ".*key.*"]`. All the regexes are case-insensitive.
+* In case of need, there is a kill switch, that stops all the interventions of lumigo immediately, without changing the code. Simply add an environment variable `LUMIGO_SWITCH_OFF=true`.
+
 ### Enhanced print
 In case you are using `print()` or [python logging](https://docs.python.org/3/library/logging.html) to log, then you can use the enhanced print capabilities that the tracer provides in order to view your logs in the platform view. Just add `enhance_print=True` to the tracer configuration and you are set.
 ```
@@ -61,10 +69,6 @@ from lumigo_tracer import LumigoChalice
 app = Chalice(app_name='chalice')
 app = LumigoChalice(app, token="XXX")
 ```
-* you can find more examples in the examples directory 
-* In case of need, there is a kill switch, that stops all the interventions of lumigo immediately, without changing the code. Simply add an environment variable `LUMIGO_SWITCH_OFF=true`.
-* You can turn on the debug logs by setting the environment variable `LUMIGO_DEBUG=true`
-* You can change the timeout to send the trace information to the edge by setting `LUMIGO_EDGE_TIMEOUT=<seconds>`
 
 ## Sentry/Raven Lambda Integration
 Add our decorator beneath the Raven decorator
