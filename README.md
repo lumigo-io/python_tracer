@@ -3,8 +3,12 @@
 ![codecov](https://codecov.io/gh/lumigo-io/python_tracer/branch/master/graph/badge.svg?token=6EgXIlefwG)
 
 # How To Use
+## With Lambda Layers:
+* Use the latest ARN version [from this table](https://github.com/lumigo-io/python_tracer/blob/master/LAYERS.md)
+## With Serverless framework:
+* Install the [**serverless-lumigo-plugin**](https://github.com/lumigo-io/serverless-lumigo-plugin/blob/master/README.md)
+## Manually
 * install with `pip install lumigo_tracer` <br/> 
-or with Lambda layer with ARN [from this table](https://github.com/lumigo-io/python_tracer/blob/master/LAYERS.md)
 * import using `from lumigo_tracer import lumigo_tracer`
 * wrap you lambda function using `@lumigo_tracer` or `@lumigo_tracer(token='XXX')`. As an example, your lambda should look like: 
 ```
