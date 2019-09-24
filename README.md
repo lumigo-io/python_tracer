@@ -14,7 +14,7 @@
 ```
 @lumigo_tracer(token='XXX')
 def my_lambda(event, context):
-    print('I can finally trubleshoot!')
+    print('I can finally troubleshoot!')
 ```
 
 ## Configuration
