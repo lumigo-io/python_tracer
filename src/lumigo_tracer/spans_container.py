@@ -287,14 +287,16 @@ class SpansContainer:
 class TimeoutMechanism:
     @staticmethod
     def start(seconds: int, to_exec: Callable):
-        signal.signal(signal.SIGALRM, to_exec)
-        signal.setitimer(signal.ITIMER_REAL, seconds)
+        if Configuration.timeout_timer:
+            signal.signal(signal.SIGALRM, to_exec)
+            signal.setitimer(signal.ITIMER_REAL, seconds)
 
     @staticmethod
     def stop():
-        signal.alarm(0)
-        signal.signal(signal.SIGALRM, signal.SIG_DFL)
+        if Configuration.timeout_timer:
+            signal.alarm(0)
+            signal.signal(signal.SIGALRM, signal.SIG_DFL)
 
     @staticmethod
     def is_activated():
-        return signal.getsignal(signal.SIGALRM) != signal.SIG_DFL
+        return Configuration.timeout_timer and signal.getsignal(signal.SIGALRM) != signal.SIG_DFL
