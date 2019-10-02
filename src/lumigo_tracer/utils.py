@@ -75,7 +75,9 @@ def config(
     Configuration.is_step_function = step_function
     Configuration.timeout_timer = timeout_timer
     Configuration.send_only_if_error = os.environ.get("SEND_ONLY_IF_ERROR", "").lower() == "true"
-    if "LUMIGO_DOMAINS_SCRUBBER" in os.environ:
+    if domains_scrubber:
+        Configuration.domains_scrubber = domains_scrubber
+    elif "LUMIGO_DOMAINS_SCRUBBER" in os.environ:
         try:
             Configuration.domains_scrubber = json.loads(os.environ["LUMIGO_DOMAIN_SCRUBBER"])
         except Exception:
@@ -84,7 +86,7 @@ def config(
             )
             Configuration.should_report = False
     else:
-        Configuration.domains_scrubber = domains_scrubber or DOMAIN_SCRUBBER_REGEXES
+        Configuration.domains_scrubber = DOMAIN_SCRUBBER_REGEXES
 
 
 def _is_span_has_error(span: dict) -> bool:
