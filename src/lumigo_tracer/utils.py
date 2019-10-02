@@ -77,9 +77,7 @@ def config(
     Configuration.send_only_if_error = os.environ.get("SEND_ONLY_IF_ERROR", "").lower() == "true"
     if "LUMIGO_DOMAINS_SCRUBBER" in os.environ:
         try:
-            Configuration.domains_scrubber = json.loads(
-                os.environ.get("LUMIGO_DOMAIN_SCRUBBER", "[]")
-            )
+            Configuration.domains_scrubber = json.loads(os.environ["LUMIGO_DOMAIN_SCRUBBER"])
         except Exception:
             get_logger().critical(
                 "Could not parse the specified domains scrubber, shutting down the reporter."

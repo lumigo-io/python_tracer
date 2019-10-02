@@ -196,10 +196,9 @@ def test_wrapping_with_parameters():
 
 
 def test_bad_domains_scrubber(monkeypatch):
-    utils.Configuration.should_report = True
     monkeypatch.setenv("LUMIGO_DOMAINS_SCRUBBER", '["bad json')
 
-    @lumigo_tracer(token="123")
+    @lumigo_tracer(token="123", should_report=True)
     def lambda_test_function():
         pass
 
