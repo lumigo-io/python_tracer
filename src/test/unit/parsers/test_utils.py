@@ -3,6 +3,7 @@ import os
 import pytest
 
 from lumigo_tracer.parsers import utils
+from lumigo_tracer.parsers.utils import should_scrub_domain
 from lumigo_tracer.utils import config, Configuration
 
 
@@ -250,3 +251,12 @@ def test_config_no_verbose_param_and_with_env_verbose_equals_to_false_verbose_is
 )
 def test_safe_get(d, keys, result_value, default):
     assert utils.safe_get(d, keys, default) == result_value
+
+
+@pytest.mark.parametrize(
+    ("regexes", "url", "expected"),
+    [(["secret.*"], "lumigo.io", False), (["not-relevant", "secret.*"], "secret.aws.com", True)],
+)
+def test_should_scrub_domain(regexes, url, expected):
+    Configuration.domains_scrubber = regexes
+    assert should_scrub_domain(url) == expected

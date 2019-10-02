@@ -10,6 +10,7 @@ from lumigo_tracer.parsers.utils import (
     safe_key_from_query,
     recursive_json_join,
     safe_get,
+    should_scrub_domain,
 )
 from lumigo_tracer.utils import Configuration, prepare_large_data, omit_keys
 from lumigo_tracer.parsers.http_data_classes import HttpRequest
@@ -32,7 +33,7 @@ class Parser:
     """
 
     def parse_request(self, parse_params: HttpRequest) -> dict:
-        if Configuration.verbose and parse_params:
+        if Configuration.verbose and parse_params and not should_scrub_domain(parse_params.host):
             additional_info = {
                 "headers": prepare_large_data(
                     omit_keys(dict(parse_params.headers.items() if parse_params.headers else {}))
@@ -42,7 +43,10 @@ class Parser:
                 "uri": parse_params.uri,
             }
         else:
-            additional_info = {"method": parse_params.method if parse_params else ""}
+            additional_info = {
+                "method": parse_params.method if parse_params else "",
+                "body": "The data is not available",
+            }
 
         return {
             "id": str(uuid.uuid4()),
@@ -59,14 +63,14 @@ class Parser:
     def parse_response(
         self, url: str, status_code: int, headers: Optional[http.client.HTTPMessage], body: bytes
     ) -> dict:
-        if Configuration.verbose:
+        if Configuration.verbose and not should_scrub_domain(url):
             additional_info = {
                 "headers": prepare_large_data(omit_keys(dict(headers.items() if headers else {}))),
                 "body": prepare_large_data(omit_keys(body)),
                 "statusCode": status_code,
             }
         else:
-            additional_info = {"statusCode": status_code}
+            additional_info = {"statusCode": status_code, "body": "The data is not available"}
 
         return {
             "type": HTTP_TYPE,
