@@ -11,7 +11,7 @@ import logging
 
 import urllib3
 from capturer import CaptureOutput
-from lumigo_tracer import lumigo_tracer, LumigoChalice
+from lumigo_tracer import lumigo_tracer, LumigoChalice, utils
 from lumigo_tracer.parsers.parser import Parser
 import http.client
 from lumigo_tracer.utils import (
@@ -193,6 +193,47 @@ def test_wrapping_with_parameters():
 
     assert lambda_test_function() == 1
     assert Configuration.should_report == "123"
+
+
+def test_bad_domains_scrubber(monkeypatch):
+    monkeypatch.setenv("LUMIGO_DOMAINS_SCRUBBER", '["bad json')
+
+    @lumigo_tracer(token="123", should_report=True)
+    def lambda_test_function():
+        pass
+
+    lambda_test_function()
+    assert utils.Configuration.should_report is False
+
+
+def test_domains_scrubber_happy_flow(monkeypatch):
+    @lumigo_tracer(token="123", domains_scrubber=[".*google.*"])
+    def lambda_test_function():
+        return http.client.HTTPConnection(host="www.google.com").send(b"\r\n")
+
+    lambda_test_function()
+    http_events = SpansContainer.get_span().http_spans
+    assert len(http_events) == 1
+    assert http_events[0].get("info", {}).get("httpInfo", {}).get("host") == "www.google.com"
+    assert "headers" not in http_events[0]["info"]["httpInfo"]["request"]
+    assert http_events[0]["info"]["httpInfo"]["request"]["body"] == "The data is not available"
+
+
+def test_domains_scrubber_override_allows_default_domains(monkeypatch):
+    ssm_url = "www.ssm.123.amazonaws.com"
+
+    @lumigo_tracer(token="123", domains_scrubber=[".*google.*"])
+    def lambda_test_function():
+        try:
+            return http.client.HTTPConnection(host=ssm_url).send(b"\r\n")
+        except Exception:
+            return
+
+    lambda_test_function()
+    http_events = SpansContainer.get_span().http_spans
+    assert len(http_events) == 1
+    assert http_events[0].get("info", {}).get("httpInfo", {}).get("host") == ssm_url
+    assert http_events[0]["info"]["httpInfo"]["request"]["headers"]
 
 
 def test_wrapping_with_print_override():

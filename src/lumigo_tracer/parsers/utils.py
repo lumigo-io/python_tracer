@@ -255,3 +255,11 @@ def _parse_streams(event: dict) -> Dict[str, str]:
     elif triggered_by == "kinesis":
         result["messageId"] = safe_get(event, ["Records", 0, "kinesis", "sequenceNumber"])
     return result
+
+
+def should_scrub_domain(url: str) -> bool:
+    if url and Configuration.domains_scrubber:
+        for regex in Configuration.domains_scrubber:
+            if re.match(regex, url, re.IGNORECASE):
+                return True
+    return False

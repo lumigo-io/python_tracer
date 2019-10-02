@@ -21,6 +21,11 @@ MAX_VAR_LEN = 200
 MAX_ENTRY_SIZE = 1024
 FrameVariables = Dict[str, str]
 OMITTING_KEYS_REGEXES = [".*pass.*", ".*key.*"]
+DOMAIN_SCRUBBER_REGEXES = [
+    r"secretsmanager\..*\.amazonaws\.com",
+    r"ssm\..*\.amazonaws\.com",
+    r"kms\..*\.amazonaws\.com",
+]
 
 _logger: Union[logging.Logger, None] = None
 
@@ -34,6 +39,7 @@ class Configuration:
     is_step_function: bool = False
     timeout_timer: bool = True
     send_only_if_error: bool = False
+    domains_scrubber: Optional[List[str]] = None
 
 
 def config(
@@ -44,6 +50,7 @@ def config(
     enhance_print: bool = False,
     step_function: bool = False,
     timeout_timer: bool = True,
+    domains_scrubber: Optional[List[str]] = None,
 ) -> None:
     """
     This function configure the lumigo wrapper.
@@ -55,6 +62,7 @@ def config(
     :param enhance_print: Should we add prefix to the print (so the logs will be in the platform).
     :param step_function: Is this function is a part of a step function?
     :param timeout_timer: Should we start a timer to send the traced data before timeout acceded.
+    :param domains_scrubber: List of regexes. We will not collect data of requests with hosts that match it.
     """
     if should_report is not None:
         Configuration.should_report = should_report
@@ -67,6 +75,18 @@ def config(
     Configuration.is_step_function = step_function
     Configuration.timeout_timer = timeout_timer
     Configuration.send_only_if_error = os.environ.get("SEND_ONLY_IF_ERROR", "").lower() == "true"
+    if domains_scrubber:
+        Configuration.domains_scrubber = domains_scrubber
+    elif "LUMIGO_DOMAINS_SCRUBBER" in os.environ:
+        try:
+            Configuration.domains_scrubber = json.loads(os.environ["LUMIGO_DOMAIN_SCRUBBER"])
+        except Exception:
+            get_logger().critical(
+                "Could not parse the specified domains scrubber, shutting down the reporter."
+            )
+            Configuration.should_report = False
+    else:
+        Configuration.domains_scrubber = DOMAIN_SCRUBBER_REGEXES
 
 
 def _is_span_has_error(span: dict) -> bool:
