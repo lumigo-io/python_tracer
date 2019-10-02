@@ -214,9 +214,26 @@ def test_domains_scrubber_happy_flow(monkeypatch):
     lambda_test_function()
     http_events = SpansContainer.get_span().http_spans
     assert len(http_events) == 1
-    assert "google" in http_events[0].get("info", {}).get("httpInfo", {}).get("host")
+    assert http_events[0].get("info", {}).get("httpInfo", {}).get("host") == "www.google.com"
     assert "headers" not in http_events[0]["info"]["httpInfo"]["request"]
     assert http_events[0]["info"]["httpInfo"]["request"]["body"] == "The data is not available"
+
+
+def test_domains_scrubber_override_allows_default_domains(monkeypatch):
+    ssm_url = "www.ssm.123.amazonaws.com"
+
+    @lumigo_tracer(token="123", domains_scrubber=[".*google.*"])
+    def lambda_test_function():
+        try:
+            return http.client.HTTPConnection(host=ssm_url).send(b"\r\n")
+        except Exception:
+            return
+
+    lambda_test_function()
+    http_events = SpansContainer.get_span().http_spans
+    assert len(http_events) == 1
+    assert http_events[0].get("info", {}).get("httpInfo", {}).get("host") == ssm_url
+    assert http_events[0]["info"]["httpInfo"]["request"]["headers"]
 
 
 def test_wrapping_with_print_override():

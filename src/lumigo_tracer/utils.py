@@ -62,7 +62,7 @@ def config(
     :param enhance_print: Should we add prefix to the print (so the logs will be in the platform).
     :param step_function: Is this function is a part of a step function?
     :param timeout_timer: Should we start a timer to send the traced data before timeout acceded.
-    :param domains_scrubber: List of regexex. We will not collect data of requests with hosts that match it.
+    :param domains_scrubber: List of regexes. We will not collect data of requests with hosts that match it.
     """
     if should_report is not None:
         Configuration.should_report = should_report
