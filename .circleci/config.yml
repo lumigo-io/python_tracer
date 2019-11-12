@@ -68,7 +68,7 @@ commands:
             python setup.py develop
       # https://discuss.circleci.com/t/activate-python-virtualenv-for-whole-job/14434
       - run: echo "source venv/bin/activate" >> $BASH_ENV
-      - run: pip install pytest-cov
+      - run: pip install pytest pytest-cov -U
       - run: pip install pre-commit
       - run: pre-commit install
 
