@@ -22,6 +22,7 @@ from lumigo_tracer.parsers.http_data_classes import HttpRequest
 _BODY_HEADER_SPLITTER = b"\r\n\r\n"
 _FLAGS_HEADER_SPLITTER = b"\r\n"
 _KILL_SWITCH = "LUMIGO_SWITCH_OFF"
+CONTEXT_WRAPPED_BY_LUMIGO_KEY = "_wrapped_by_lumigo"
 MAX_READ_SIZE = 1024
 already_wrapped = False
 
@@ -127,12 +128,33 @@ def _putheader_wrapper(func, instance, args, kwargs):
     return ret_val
 
 
+def _context_already_wrapped(*args):
+    """
+    This function is here in order to validate that we didn't already wrap this invocation
+        (using the sls plugin / auto instrumentation / etc.)
+    """
+    return len(args) >= 2 and hasattr(args[1], CONTEXT_WRAPPED_BY_LUMIGO_KEY)
+
+
+def _wrap_context(*args):
+    """
+    This function is here in order to validate that we didn't already wrap this invocation
+        (using the sls plugin / auto instrumentation / etc.)
+    """
+    if len(args) >= 2:
+        with lumigo_safe_execute("wrap context"):
+            setattr(args[1], CONTEXT_WRAPPED_BY_LUMIGO_KEY, True)
+
+
 def _lumigo_tracer(func):
     @wraps(func)
     def lambda_wrapper(*args, **kwargs):
         if str(os.environ.get(_KILL_SWITCH, "")).lower() == "true":
             return func(*args, **kwargs)
 
+        if _context_already_wrapped(*args):
+            return func(*args, **kwargs)
+        _wrap_context(*args)
         executed = False
         ret_val = None
         local_print = print
