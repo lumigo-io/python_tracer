@@ -12,7 +12,7 @@ from lumigo_tracer.utils import (
     format_frame,
     omit_keys,
     report_error,
-    LUMIGO_REPORT_ERROR_STRING
+    LUMIGO_REPORT_ERROR_STRING,
 )
 import json
 
