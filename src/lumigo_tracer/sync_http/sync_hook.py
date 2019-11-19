@@ -128,18 +128,19 @@ def _putheader_wrapper(func, instance, args, kwargs):
     return ret_val
 
 
-def _context_already_wrapped(*args):
+def _is_context_already_wrapped(*args) -> bool:
     """
-    This function is here in order to validate that we didn't already wrap this invocation
+    This function is here in order to validate that we didn't already wrap this lambda
         (using the sls plugin / auto instrumentation / etc.)
     """
     return len(args) >= 2 and hasattr(args[1], CONTEXT_WRAPPED_BY_LUMIGO_KEY)
 
 
-def _wrap_context(*args):
+def _add_wrap_flag_to_context(*args):
     """
     This function is here in order to validate that we didn't already wrap this invocation
-        (using the sls plugin / auto instrumentation / etc.)
+        (using the sls plugin / auto instrumentation / etc.).
+    We are adding lumigo's flag to the context, and check it's value in _is_context_already_wrapped.
     """
     if len(args) >= 2:
         with lumigo_safe_execute("wrap context"):
@@ -152,9 +153,9 @@ def _lumigo_tracer(func):
         if str(os.environ.get(_KILL_SWITCH, "")).lower() == "true":
             return func(*args, **kwargs)
 
-        if _context_already_wrapped(*args):
+        if _is_context_already_wrapped(*args):
             return func(*args, **kwargs)
-        _wrap_context(*args)
+        _add_wrap_flag_to_context(*args)
         executed = False
         ret_val = None
         local_print = print

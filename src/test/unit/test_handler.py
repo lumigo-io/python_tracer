@@ -3,15 +3,16 @@ import sys
 import os
 
 import pytest
-from lumigo_tracer.sync_http.handler import handler, ORIGINAL_HANDLER_KEY
+from lumigo_tracer.sync_http.handler import _handler, ORIGINAL_HANDLER_KEY
 
 
 def test_happy_flow(monkeypatch):
     m = mock.Mock()
+    m.return_value = {"hello": "world"}
     monkeypatch.setattr(sys, "exit", m)
     monkeypatch.setenv(ORIGINAL_HANDLER_KEY, "sys.exit")
 
-    handler({}, {})
+    assert _handler({}, {}) == {"hello": "world"}
 
     m.assert_called_once()
 
@@ -20,7 +21,7 @@ def test_import_error(monkeypatch):
     monkeypatch.setenv(ORIGINAL_HANDLER_KEY, "blabla.not.exists")
 
     with pytest.raises(ImportError):
-        handler({}, {})
+        _handler({}, {})
 
 
 def test_no_env_handler_error(monkeypatch):
@@ -28,4 +29,4 @@ def test_no_env_handler_error(monkeypatch):
         monkeypatch.delenv(ORIGINAL_HANDLER_KEY)
 
     with pytest.raises(ValueError):
-        handler({}, {})
+        _handler({}, {})

@@ -7,7 +7,7 @@ ORIGINAL_HANDLER_KEY = "LUMIGO_ORIGINAL_HANDLER"
 
 
 @lumigo_tracer()
-def handler(*args, **kwargs):
+def _handler(*args, **kwargs):
     try:
         module_name, unit_name = os.environ[ORIGINAL_HANDLER_KEY].rsplit(".", 1)
         original_handler = getattr(import_module(module_name), unit_name)
@@ -23,4 +23,4 @@ def handler(*args, **kwargs):
         raise Exception(
             "Problem occurred in lumigo's wrapper. Make sure that you followed the docs or contact us."
         )
-    original_handler(*args, **kwargs)
+    return original_handler(*args, **kwargs)
