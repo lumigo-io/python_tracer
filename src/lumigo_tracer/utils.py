@@ -26,7 +26,7 @@ DOMAIN_SCRUBBER_REGEXES = [
     r"ssm\..*\.amazonaws\.com",
     r"kms\..*\.amazonaws\.com",
 ]
-LUMIGO_REPORT_ERROR_STRING = "[LUMIGO_ERROR]"
+LUMIGO_REPORT_ERROR_STRING = "[LUMIGO_LOG]"
 
 _logger: Union[logging.Logger, None] = None
 
