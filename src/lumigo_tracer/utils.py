@@ -26,7 +26,6 @@ DOMAIN_SCRUBBER_REGEXES = [
     r"ssm\..*\.amazonaws\.com",
     r"kms\..*\.amazonaws\.com",
 ]
-LUMIGO_REPORT_ERROR_STRING = "[LUMIGO_LOG]"
 
 _logger: Union[logging.Logger, None] = None
 
@@ -287,8 +286,3 @@ def omit_keys(value: Any):
             for k, v in value.items()
         }
     return value
-
-
-def report_error(msg: str):
-    message_with_initials = f"{LUMIGO_REPORT_ERROR_STRING} {msg}"
-    print(message_with_initials)

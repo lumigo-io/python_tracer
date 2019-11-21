@@ -11,8 +11,6 @@ from lumigo_tracer.utils import (
     prepare_large_data,
     format_frame,
     omit_keys,
-    report_error,
-    LUMIGO_REPORT_ERROR_STRING,
 )
 import json
 
@@ -254,10 +252,3 @@ def test_omit_keys_environment(monkeypatch):
     monkeypatch.setenv("LUMIGO_BLACKLIST_REGEX", '[".*evilPlan.*"]')
     value = {"password": "abc", "evilPlan": {"take": "over", "the": "world"}}
     assert omit_keys(value) == {"password": "abc", "evilPlan": "****"}
-
-
-def test_report_error(capsys):
-    msg = "oh no - an error"
-    report_error(msg)
-    captured = capsys.readouterr()
-    assert captured.out == f"{LUMIGO_REPORT_ERROR_STRING} {msg}\n"

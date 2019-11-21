@@ -31,6 +31,12 @@ def my_lambda(event, context):
     print('I can view this line now')
 ```
 
+### Logging Programmatic Errors
+You can use `report_error` function to write logs which will be visible in the platform.
+
+Update your import statement to `from lumigo_tracer import lumigo_tracer, report_error`.
+Then use `report_error("<msg>")` from anywhere in your lambda code.
+
 ### Step Functions
 If this function is part of a step function, you can add the flag `step_function=True`, and we will track the states in the step function as a single transaction.
 ```
