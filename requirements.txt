@@ -1,6 +1,7 @@
 black==18.9b0
-pytest==5.2.0
+pytest==4.2.0
 mock
 boto3
 pytest-cov==2.6.1
 capturer==2.4
+attrs==19.1.0
