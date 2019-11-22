@@ -214,11 +214,11 @@ def _parse_sns(event: dict):
 
 
 def _is_supported_cw(event: dict):
-    return "detail-type" in event and "source" in event and "time" in event
+    return event.get("detail-type") == "Scheduled Event" and "source" in event and "time" in event
 
 
 def _parse_cw(event: dict):
-    resource = event.get("resources", ["/"])[0].split("/")[1]
+    resource = event.get("resources", ["/unknown"])[0].split("/")[1]
     return {
         "triggeredBy": "cloudwatch",
         "resource": resource,
