@@ -1,2 +1,2 @@
 ignore:
-  - "lumigo_tracer/libs/**/*"
+  - "lumigo_tracer/libs"
