@@ -1,5 +1,5 @@
 black==18.9b0
-pytest==4.2.0
+pytest==4.3.1
 mock
 boto3
 pytest-cov==2.6.1
