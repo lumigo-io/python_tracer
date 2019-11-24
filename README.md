@@ -32,9 +32,9 @@ def my_lambda(event, context):
 ```
 
 ### Logging Programmatic Errors
-You can use `report_error` function to write logs which will be visible in the platform.
+You can use `report_error` function to write logs which will be visible in the platform.<br/>
+Add `from lumigo_tracer import report_error`.<br/>
 
-Update your import statement to `from lumigo_tracer import lumigo_tracer, report_error`.
 Then use `report_error("<msg>")` from anywhere in your lambda code.
 
 ### Step Functions
