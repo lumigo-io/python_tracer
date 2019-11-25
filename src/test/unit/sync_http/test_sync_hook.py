@@ -364,8 +364,8 @@ def test_wrapping_with_logging_override_default_usage(caplog):
 
     assert lambda_test_function({}, SimpleNamespace(aws_request_id="1234")) == 1
     assert Configuration.enhanced_print is True
-    assert "RequestId: 1234 test_sync_hook.py" in caplog.text
-    assert "WARNING  hello\nRequestId: 1234 world" in caplog.text
+    assert any("RequestId: 1234" in line and "hello" in line for line in caplog.text.split("\n"))
+    assert any("RequestId: 1234" in line and "world" in line for line in caplog.text.split("\n"))
 
 
 def test_wrapping_with_logging_exception(caplog):
@@ -386,8 +386,10 @@ def test_wrapping_with_logging_exception(caplog):
     for line in caplog.text.splitlines():
         assert line.startswith("RequestId: 1234") and line.count("RequestId: 1234") == 1
     #  Check the message was logged.
-    test_message = [line for line in caplog.text.splitlines() if line.endswith("hello")][0]
-    assert test_message.replace(" ", "").endswith("ERRORhello")
+    test_message = [line for line in caplog.text.splitlines() if line.endswith("hello")][0].replace(
+        " ", ""
+    )
+    assert "ERROR" in test_message and "hello" in test_message
 
 
 def test_wrapping_with_logging_override_complex_usage():
@@ -418,7 +420,12 @@ def test_wrapping_without_logging_override(caplog):
 
     assert lambda_test_function({}, SimpleNamespace(aws_request_id="1234")) == 1
     assert Configuration.enhanced_print is False
-    assert " WARNING  hello\nworld" in caplog.text
+    assert any(
+        "RequestId: 1234" not in line and "world" in line for line in caplog.text.split("\n")
+    )
+    assert any(
+        "RequestId: 1234" not in line and "hello" in line for line in caplog.text.split("\n")
+    )
 
 
 def test_wrapping_urlib_stream_get():
