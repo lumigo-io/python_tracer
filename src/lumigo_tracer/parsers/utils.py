@@ -8,7 +8,12 @@ import functools
 import itertools
 from collections.abc import Iterable
 
-from lumigo_tracer.utils import Configuration, LUMIGO_EVENT_KEY, STEP_FUNCTION_UID_KEY
+from lumigo_tracer.utils import (
+    Configuration,
+    LUMIGO_EVENT_KEY,
+    STEP_FUNCTION_UID_KEY,
+    lumigo_safe_execute,
+)
 
 
 def safe_get(d: Union[dict, list], keys: List[Union[str, int]], default: Any = None) -> Any:
@@ -148,20 +153,21 @@ def parse_triggered_by(event: dict):
     * {triggeredBy: unknown}
     * {triggeredBy: apigw, api: <host>, resource: <>, httpMethod: <>, stage: <>, identity: <>, referer: <>}
     """
-    if not isinstance(event, dict):
-        return None
-    if _is_supported_http_method(event):
-        return parse_http_method(event)
-    elif _is_supported_sns(event):
-        return _parse_sns(event)
-    elif _is_supported_streams(event):
-        return _parse_streams(event)
-    elif _is_supported_cw(event):
-        return _parse_cw(event)
-    elif _is_step_function(event):
-        return _parse_step_function(event)
-    else:
-        return _parse_unknown(event)
+    with lumigo_safe_execute("triggered by"):
+        if not isinstance(event, dict):
+            return None
+        if _is_supported_http_method(event):
+            return parse_http_method(event)
+        elif _is_supported_sns(event):
+            return _parse_sns(event)
+        elif _is_supported_streams(event):
+            return _parse_streams(event)
+        elif _is_supported_cw(event):
+            return _parse_cw(event)
+        elif _is_step_function(event):
+            return _parse_step_function(event)
+
+    return _parse_unknown(event)
 
 
 def _parse_unknown(event: dict):
