@@ -52,11 +52,11 @@ changes=$(git log $(git describe --tags --abbrev=0)..HEAD --oneline)
 
 echo "Creating layer latest version arn table md file (LAYERS.md)"
 cd ../larn && npm i -g
-larn -r python3.6 -n LAYERS36 --filter lumigo-python-tracer -p ~/python_tracer
-larn -r python3.7 -n LAYERS37 --filter lumigo-python-tracer -p ~/python_tracer
+larn -r python3.6 -n layers/LAYERS36 --filter lumigo-python-tracer -p ~/python_tracer
+larn -r python3.7 -n layers/LAYERS37 --filter lumigo-python-tracer -p ~/python_tracer
 cd ../python_tracer
-git add LAYERS36.md
-git add LAYERS37.md
+git add layers/LAYERS36.md
+git add layers/LAYERS37.md
 git commit -m "layers-table: layers md"
 
 sudo pip install --upgrade bumpversion
