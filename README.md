@@ -4,7 +4,7 @@
 
 # How To Use
 ## With Lambda Layers:
-* Use the latest ARN version [from this table](https://github.com/lumigo-io/python_tracer/blob/master/LAYERS.md)
+* Use the latest ARN version [from these tables](https://github.com/lumigo-io/python_tracer/tree/master/layers)
 ## With Serverless framework:
 * Install the [**serverless-lumigo-plugin**](https://github.com/lumigo-io/serverless-lumigo-plugin/blob/master/README.md)
 ## Manually
