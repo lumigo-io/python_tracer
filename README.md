@@ -4,7 +4,7 @@
 
 # How To Use
 ## With Lambda Layers:
-* Use the latest ARN version [from this table](https://github.com/lumigo-io/python_tracer/blob/master/LAYERS.md)
+* Use the latest ARN version [from these tables](https://github.com/lumigo-io/python_tracer/tree/master/layers)
 ## With Serverless framework:
 * Install the [**serverless-lumigo-plugin**](https://github.com/lumigo-io/serverless-lumigo-plugin/blob/master/README.md)
 ## Manually
@@ -30,6 +30,12 @@ In case you are using `print()` or [python logging](https://docs.python.org/3/li
 def my_lambda(event, context):
     print('I can view this line now')
 ```
+
+### Logging Programmatic Errors
+You can use `report_error` function to write logs which will be visible in the platform.<br/>
+Add `from lumigo_tracer import report_error`.<br/>
+
+Then use `report_error("<msg>")` from anywhere in your lambda code.
 
 ### Step Functions
 If this function is part of a step function, you can add the flag `step_function=True`, and we will track the states in the step function as a single transaction.
