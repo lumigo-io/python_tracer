@@ -24,12 +24,6 @@ echo "Deploy Python Tracer"
 
 setup_git
 
-pip install wheel
-
-echo "Create package"
-python setup.py bdist_wheel
-
-echo "Create Layer"
 enc_location=../common-resources/encrypted_files/credentials_production.enc
 if [[ ! -f ${enc_location} ]]
 then
@@ -40,11 +34,8 @@ echo "Creating new credential files"
 mkdir -p ~/.aws
 echo ${KEY} | gpg --batch -d --passphrase-fd 0 ${enc_location} > ~/.aws/credentials
 
-
-rm -rf python && mkdir python
-cp -R src/lumigo_tracer.egg-info python/
-cp -R src/lumigo_tracer python/
-
+echo "Creating lumigo-python-tracer layer"
+./scripts/prepare_layer_files.sh
 ../utils/common_bash/create_layer.sh lumigo-python-tracer ALL python "python3.6 python3.7"
 
 echo "Getting latest changes from git"

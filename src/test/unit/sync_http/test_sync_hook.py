@@ -484,3 +484,14 @@ def test_omitting_keys():
     assert SpansContainer.get_span().http_spans[0]["info"]["httpInfo"]["request"][
         "body"
     ] == json.dumps({"a": "b", "myPassword": "****"})
+
+
+def test_can_not_wrap_twice(reporter_mock):
+    @lumigo_tracer()
+    @lumigo_tracer()
+    def lambda_test_function(event, context):
+        return "ret_value"
+
+    result = lambda_test_function({}, SimpleNamespace(aws_request_id="1234"))
+    assert result == "ret_value"
+    assert reporter_mock.call_count == 2
