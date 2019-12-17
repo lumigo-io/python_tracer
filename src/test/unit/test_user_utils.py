@@ -1,8 +1,5 @@
 from lumigo_tracer.spans_container import SpansContainer
-from lumigo_tracer.user_utils import (
-    report_error,
-    LUMIGO_REPORT_ERROR_STRING,
-)
+from lumigo_tracer.user_utils import report_error, LUMIGO_REPORT_ERROR_STRING
 from lumigo_tracer.utils import Configuration
 
 
