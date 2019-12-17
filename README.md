@@ -24,7 +24,7 @@ def my_lambda(event, context):
 * In case of need, there is a kill switch, that stops all the interventions of lumigo immediately, without changing the code. Simply add an environment variable `LUMIGO_SWITCH_OFF=true`.
 
 ### Enhanced print
-In case you are using `print()` or [python logging](https://docs.python.org/3/library/logging.html) to log, then you can use the enhanced print capabilities that the tracer provides in order to view your logs in the platform view. Just add `enhance_print=True` to the tracer configuration and you are set.
+In case you are using `print()` or [python logging](https://docs.python.org/3/library/logging.html) to log, then you can use the enhanced print capabilities that the tracer provides in order to view your logs in the platform view. Just add `enhance_print=True` to the tracer configuration or the environment variable `LUMIGO_ENHANCED_PRINT = TRUE` and you are set.
 ```
 @lumigo_tracer(token='XXX', enhance_print=True)
 def my_lambda(event, context):

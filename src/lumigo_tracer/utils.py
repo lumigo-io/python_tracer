@@ -70,7 +70,9 @@ def config(
         Configuration.should_report = False
     Configuration.host = edge_host or os.environ.get("LUMIGO_TRACER_HOST", "")
     Configuration.token = token or os.environ.get("LUMIGO_TRACER_TOKEN", "")
-    Configuration.enhanced_print = enhance_print
+    Configuration.enhanced_print = (
+        enhance_print or os.environ.get("LUMIGO_ENHANCED_PRINT", "").lower() == "true"
+    )
     Configuration.verbose = verbose and os.environ.get("LUMIGO_VERBOSE", "").lower() != "false"
     Configuration.is_step_function = step_function
     Configuration.timeout_timer = timeout_timer

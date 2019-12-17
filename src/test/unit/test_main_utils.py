@@ -11,6 +11,8 @@ from lumigo_tracer.utils import (
     prepare_large_data,
     format_frame,
     omit_keys,
+    config,
+    Configuration,
 )
 import json
 
@@ -252,3 +254,17 @@ def test_omit_keys_environment(monkeypatch):
     monkeypatch.setenv("LUMIGO_BLACKLIST_REGEX", '[".*evilPlan.*"]')
     value = {"password": "abc", "evilPlan": {"take": "over", "the": "world"}}
     assert omit_keys(value) == {"password": "abc", "evilPlan": "****"}
+
+
+@pytest.mark.parametrize("configuration_value", (True, False))
+def test_config_enhanced_print_with_envs(monkeypatch, configuration_value):
+    monkeypatch.setenv("LUMIGO_ENHANCED_PRINT", "TRUE")
+    config(enhance_print=configuration_value)
+    assert Configuration.enhanced_print is True
+
+
+@pytest.mark.parametrize("configuration_value", (True, False))
+def test_config_enhanced_print_without_envs(monkeypatch, configuration_value):
+    monkeypatch.delenv("LUMIGO_ENHANCED_PRINT", raising=False)
+    config(enhance_print=configuration_value)
+    assert Configuration.enhanced_print == configuration_value
