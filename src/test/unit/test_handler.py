@@ -30,3 +30,13 @@ def test_no_env_handler_error(monkeypatch):
 
     with pytest.raises(ValueError):
         _handler({}, {})
+
+
+def test_syntax_error_in_original_handler(monkeypatch, context):
+    m = mock.Mock(side_effect=SyntaxError)
+    monkeypatch.setattr(sys, "exit", m)
+    monkeypatch.setenv(ORIGINAL_HANDLER_KEY, "sys.exit")
+
+    with pytest.raises(SyntaxError) as err:
+        _handler({}, context)
+    assert err.value.text == "Syntax error in the original handler."
