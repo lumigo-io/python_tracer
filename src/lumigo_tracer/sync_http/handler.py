@@ -1,5 +1,5 @@
 import os
-from importlib import import_module
+import importlib
 
 from lumigo_tracer import lumigo_tracer
 
@@ -10,15 +10,15 @@ ORIGINAL_HANDLER_KEY = "LUMIGO_ORIGINAL_HANDLER"
 def _handler(*args, **kwargs):
     try:
         module_name, unit_name = os.environ[ORIGINAL_HANDLER_KEY].rsplit(".", 1)
-        original_handler = getattr(import_module(module_name), unit_name)
+        original_handler = getattr(importlib.import_module(module_name), unit_name)
     except (ImportError, AttributeError):
         raise ImportError(
             "Could not load the original handler. Are you sure that the import is ok?"
-        )
+        ) from None
     except KeyError:
         raise ValueError(
             "Could not find the original handler. Please follow lumigo's docs: https://docs.lumigo.io/"
-        )
+        ) from None
     except SyntaxError:
         raise SyntaxError("Syntax error in the original handler.")
     except Exception:
