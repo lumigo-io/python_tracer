@@ -6,8 +6,6 @@ import os
 import builtins
 from functools import wraps
 import importlib.util
-
-# Note: This is here to increase performance - load this huge module in load time instead of runtime
 import botocore.awsrequest  # noqa: F401
 
 from lumigo_tracer.libs.wrapt import wrap_function_wrapper
