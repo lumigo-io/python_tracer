@@ -14,11 +14,11 @@ def _handler(*args, **kwargs):
     except (ImportError, AttributeError):
         raise ImportError(
             "Could not load the original handler. Are you sure that the import is ok?"
-        ) from None
+        )
     except KeyError:
         raise ValueError(
             "Could not find the original handler. Please follow lumigo's docs: https://docs.lumigo.io/"
-        ) from None
+        )
     except SyntaxError:
         raise SyntaxError("Syntax error in the original handler.")
     except Exception:
