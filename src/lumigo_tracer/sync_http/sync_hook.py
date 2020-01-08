@@ -6,6 +6,7 @@ import os
 import builtins
 from functools import wraps
 import importlib.util
+import botocore.awsrequest  # noqa: F401
 
 from lumigo_tracer.libs.wrapt import wrap_function_wrapper
 from lumigo_tracer.parsers.utils import safe_get_list
