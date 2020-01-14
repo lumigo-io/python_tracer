@@ -10,7 +10,8 @@ ORIGINAL_HANDLER_KEY = "LUMIGO_ORIGINAL_HANDLER"
 def _handler(*args, **kwargs):
     try:
         module_name, unit_name = os.environ[ORIGINAL_HANDLER_KEY].rsplit(".", 1)
-        original_handler = getattr(importlib.import_module(module_name), unit_name)
+        importable_name = module_name.replace("/", ".")
+        original_handler = getattr(importlib.import_module(importable_name), unit_name)
     except (ImportError, AttributeError):
         raise ImportError(
             "Could not load the original handler. Are you sure that the import is ok?"

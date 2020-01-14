@@ -9,10 +9,19 @@ from lumigo_tracer.sync_http.handler import _handler, ORIGINAL_HANDLER_KEY
 
 
 def test_happy_flow(monkeypatch):
-    m = mock.Mock()
-    m.return_value = {"hello": "world"}
+    m = mock.Mock(return_value={"hello": "world"})
     monkeypatch.setattr(sys, "exit", m)
     monkeypatch.setenv(ORIGINAL_HANDLER_KEY, "sys.exit")
+
+    assert _handler({}, {}) == {"hello": "world"}
+
+    m.assert_called_once()
+
+
+def test_hierarchy_happy_flow(monkeypatch):
+    monkeypatch.setenv(ORIGINAL_HANDLER_KEY, "os/path.getsize")
+    m = mock.Mock(return_value={"hello": "world"})
+    monkeypatch.setattr(os.path, "getsize", m)
 
     assert _handler({}, {}) == {"hello": "world"}
 
