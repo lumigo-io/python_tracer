@@ -190,7 +190,12 @@ def _parse_step_function(event: dict):
 
 
 def _is_supported_http_method(event: dict):
-    return "httpMethod" in event and "headers" in event and "requestContext" in event
+    return (
+        "httpMethod" in event  # noqa
+        and "headers" in event  # noqa
+        and "requestContext" in event  # noqa
+        and event.get("requestContext", {}).get("elb") is None  # noqa
+    )  # noqa
 
 
 def parse_http_method(event: dict):

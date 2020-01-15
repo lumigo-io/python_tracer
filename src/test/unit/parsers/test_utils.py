@@ -239,6 +239,15 @@ def test_recursive_json_join(d1, d2, result):
                 "detailType": "Scheduled Event",
             },
         ),
+        (  # elb example trigger
+            {
+                "httpMethod": "GET",
+                "resource": "resource",
+                "headers": {"Host": "www.google.com"},
+                "requestContext": {"elb": "Elb", "stage": "1", "requestId": "123"},
+            },
+            {"triggeredBy": "unknown"},
+        ),
         ({"bla": "bla2"}, {"triggeredBy": "unknown"}),  # unknown trigger
         (None, None),
     ],
