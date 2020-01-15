@@ -239,6 +239,28 @@ def test_recursive_json_join(d1, d2, result):
                 "detailType": "Scheduled Event",
             },
         ),
+        (  # elb example trigger
+            {
+                "requestContext": {
+                    "elb": {
+                        "targetGroupArn": "arn:aws:elasticloadbalancing:us-east-1:195175520793:targetgroup/5a3a356429c37a7b4b104b399bab2a57/e7d3bec316fe42ea"
+                    }
+                },
+                "httpMethod": "POST",
+                "path": "/commands/bank/iou",
+                "queryStringParameters": {},
+                "headers": {
+                    "accept": "application/json,*/*",
+                    "accept-encoding": "gzip,deflate",
+                    "cache-control": "max-age=259200",
+                    "connection": "keep-alive",
+                    "content-length": "355",
+                    "content-type": "application/x-www-form-urlencoded",
+                    "host": "lambd-loadb-bp68mp6nujg0-50156485.us-east-1.elb.amazonaws.com",
+                },
+            },
+            {"triggeredBy": "unknown"},
+        ),
         ({"bla": "bla2"}, {"triggeredBy": "unknown"}),  # unknown trigger
         (None, None),
     ],
