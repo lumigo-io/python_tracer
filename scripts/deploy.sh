@@ -15,4 +15,4 @@ cp -R lumigo_tracer python/
 popd
 cp -R src/python/ python/
 
-../utils/common_bash/create_layer.sh lumigo-python-tracer us-west-2 python "python3.6 python3.7"
+../utils/common_bash/create_layer.sh --layer-name lumigo-python-tracer --region us-west-2 --package-folder python --version $(git describe --abbrev=0 --tags) --runtimes "python3.6 python3.7"
