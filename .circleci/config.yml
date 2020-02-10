@@ -117,9 +117,9 @@ jobs:
       - run: ./scripts/ci_deploy.sh
       - run: cd ../integration-tests && npm i
       - run: sudo npm install -g recursive-install
-      - run: cd ../integration-tests && ./scripts/prepare_env.sh
-      - run: cd ../integration-tests && ./scripts/deploy.sh --spec python
-      - run: cd ../integration-tests && export testPython=true && npm run test
+      - run: cd ../integration-tests && ./scripts/parallel_prepare_env.sh
+      - run: cd ../integration-tests && ./scripts/parallel_deploy.sh --spec python
+      - run: cd ../integration-tests && export testPython=true && npm run test-parallel
 
   deploy:
     <<: *defaults
