@@ -23,14 +23,6 @@ def my_lambda(event, context):
 * Similarly, you can prevent lumigo from sending the entire headers and body of specific domains using the environment variable `LUMIGO_DOMAINS_SCRUBBER=[".*secret.*"]` (give it a list which is a json parsable), or by specify the list of regexes with the key `domains_scrubber` in the tracer's decorator. By default, we will use `["secretsmanager\..*\.amazonaws\.com", "ssm\..*\.amazonaws\.com", "kms\..*\.amazonaws\.com"]`.
 * In case of need, there is a kill switch, that stops all the interventions of lumigo immediately, without changing the code. Simply add an environment variable `LUMIGO_SWITCH_OFF=true`.
 
-### Enhanced print
-In case you are using `print()` or [python logging](https://docs.python.org/3/library/logging.html) to log, then you can use the enhanced print capabilities that the tracer provides in order to view your logs in the platform view. Just add `enhance_print=True` to the tracer configuration or the environment variable `LUMIGO_ENHANCED_PRINT = TRUE` and you are set.
-```
-@lumigo_tracer(token='XXX', enhance_print=True)
-def my_lambda(event, context):
-    print('I can view this line now')
-```
-
 ### Logging Programmatic Errors
 You can use `report_error` function to write logs which will be visible in the platform.<br/>
 Add `from lumigo_tracer import report_error`.<br/>
