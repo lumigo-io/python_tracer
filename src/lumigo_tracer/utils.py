@@ -26,6 +26,10 @@ DOMAIN_SCRUBBER_REGEXES = [
     r"ssm\..*\.amazonaws\.com",
     r"kms\..*\.amazonaws\.com",
 ]
+LUMIGO_SECRET_MASKING_REGEXES = [
+    "LUMIGO_BLACKLIST_REGEX",  # backward compatibility
+    "LUMIGO_SECRET_MASKING_REGEX",
+]
 
 _logger: Union[logging.Logger, None] = None
 
@@ -256,10 +260,10 @@ def prepare_large_data(value: Union[str, bytes, dict, None], max_size=MAX_ENTRY_
 
 
 def get_omitting_regexes():
-    return [
-        re.compile(r, re.IGNORECASE)
-        for r in json.loads(os.environ.get("LUMIGO_BLACKLIST_REGEX", "[]")) or OMITTING_KEYS_REGEXES
-    ]
+    given_regexes = sum(
+        [json.loads(os.environ.get(key, "[]")) for key in LUMIGO_SECRET_MASKING_REGEXES], []
+    )
+    return [re.compile(r, re.IGNORECASE) for r in given_regexes or OMITTING_KEYS_REGEXES]
 
 
 def omit_keys(value: Any):

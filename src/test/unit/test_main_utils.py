@@ -13,6 +13,8 @@ from lumigo_tracer.utils import (
     omit_keys,
     config,
     Configuration,
+    LUMIGO_SECRET_MASKING_REGEXES,
+    get_omitting_regexes,
 )
 import json
 
@@ -250,8 +252,20 @@ def test_omit_keys(value, output):
     assert omit_keys(value) == output
 
 
+@pytest.mark.parametrize("index", range(len(LUMIGO_SECRET_MASKING_REGEXES)))
+def test_get_omitting_regexes_only_one_environment_key(monkeypatch, index):
+    monkeypatch.setenv(LUMIGO_SECRET_MASKING_REGEXES[index], '[".*evilPlan.*"]')
+    assert [r.pattern for r in get_omitting_regexes()] == [".*evilPlan.*"]
+
+
+def test_get_omitting_regexes_both_environment_keys(monkeypatch):
+    monkeypatch.setenv(LUMIGO_SECRET_MASKING_REGEXES[0], '[".*evilPlan.*"]')
+    monkeypatch.setenv(LUMIGO_SECRET_MASKING_REGEXES[1], '[".*evilPlan2.*"]')
+    assert [r.pattern for r in get_omitting_regexes()] == [".*evilPlan.*", ".*evilPlan2.*"]
+
+
 def test_omit_keys_environment(monkeypatch):
-    monkeypatch.setenv("LUMIGO_BLACKLIST_REGEX", '[".*evilPlan.*"]')
+    monkeypatch.setenv(LUMIGO_SECRET_MASKING_REGEXES[0], '[".*evilPlan.*"]')
     value = {"password": "abc", "evilPlan": {"take": "over", "the": "world"}}
     assert omit_keys(value) == {"password": "abc", "evilPlan": "****"}
 
