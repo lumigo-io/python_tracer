@@ -258,10 +258,11 @@ def prepare_large_data(value: Union[str, bytes, dict, None], max_size=MAX_ENTRY_
 
 
 def get_omitting_regexes():
-    given_regexes = json.loads(os.environ.get(LUMIGO_SECRET_MASKING_REGEX, "[]"))
-    if not given_regexes:
-        given_regexes = json.loads(os.environ.get(LUMIGO_SECRET_MASKING_REGEX_BACKWARD_COMP, "[]"))
-    if not given_regexes:
+    if LUMIGO_SECRET_MASKING_REGEX in os.environ:
+        given_regexes = json.loads(os.environ[LUMIGO_SECRET_MASKING_REGEX])
+    elif LUMIGO_SECRET_MASKING_REGEX_BACKWARD_COMP in os.environ:
+        given_regexes = json.loads(os.environ[LUMIGO_SECRET_MASKING_REGEX_BACKWARD_COMP])
+    else:
         given_regexes = OMITTING_KEYS_REGEXES
     return [re.compile(r, re.IGNORECASE) for r in given_regexes]
 
