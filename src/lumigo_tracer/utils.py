@@ -20,7 +20,7 @@ MAX_VARS_SIZE = 100_000
 MAX_VAR_LEN = 200
 MAX_ENTRY_SIZE = 1024
 FrameVariables = Dict[str, str]
-OMITTING_KEYS_REGEXES = [".*pass.*", ".*key.*"]
+OMITTING_KEYS_REGEXES = [".*pass.*", ".*key.*", ".*secret.*", ".*credential.*", ".*passphrase.*"]
 DOMAIN_SCRUBBER_REGEXES = [
     r"secretsmanager\..*\.amazonaws\.com",
     r"ssm\..*\.amazonaws\.com",
