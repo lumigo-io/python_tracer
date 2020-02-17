@@ -20,12 +20,14 @@ MAX_VARS_SIZE = 100_000
 MAX_VAR_LEN = 200
 MAX_ENTRY_SIZE = 1024
 FrameVariables = Dict[str, str]
-OMITTING_KEYS_REGEXES = [".*pass.*", ".*key.*"]
+OMITTING_KEYS_REGEXES = [".*pass.*", ".*key.*", ".*secret.*", ".*credential.*", ".*passphrase.*"]
 DOMAIN_SCRUBBER_REGEXES = [
     r"secretsmanager\..*\.amazonaws\.com",
     r"ssm\..*\.amazonaws\.com",
     r"kms\..*\.amazonaws\.com",
 ]
+LUMIGO_SECRET_MASKING_REGEX_BACKWARD_COMP = "LUMIGO_BLACKLIST_REGEX"
+LUMIGO_SECRET_MASKING_REGEX = "LUMIGO_SECRET_MASKING_REGEX"
 
 _logger: Union[logging.Logger, None] = None
 
@@ -256,10 +258,13 @@ def prepare_large_data(value: Union[str, bytes, dict, None], max_size=MAX_ENTRY_
 
 
 def get_omitting_regexes():
-    return [
-        re.compile(r, re.IGNORECASE)
-        for r in json.loads(os.environ.get("LUMIGO_BLACKLIST_REGEX", "[]")) or OMITTING_KEYS_REGEXES
-    ]
+    if LUMIGO_SECRET_MASKING_REGEX in os.environ:
+        given_regexes = json.loads(os.environ[LUMIGO_SECRET_MASKING_REGEX])
+    elif LUMIGO_SECRET_MASKING_REGEX_BACKWARD_COMP in os.environ:
+        given_regexes = json.loads(os.environ[LUMIGO_SECRET_MASKING_REGEX_BACKWARD_COMP])
+    else:
+        given_regexes = OMITTING_KEYS_REGEXES
+    return [re.compile(r, re.IGNORECASE) for r in given_regexes]
 
 
 def omit_keys(value: Any):

@@ -13,6 +13,10 @@ from lumigo_tracer.utils import (
     omit_keys,
     config,
     Configuration,
+    LUMIGO_SECRET_MASKING_REGEX,
+    LUMIGO_SECRET_MASKING_REGEX_BACKWARD_COMP,
+    get_omitting_regexes,
+    OMITTING_KEYS_REGEXES,
 )
 import json
 
@@ -250,8 +254,28 @@ def test_omit_keys(value, output):
     assert omit_keys(value) == output
 
 
+def test_get_omitting_regexes(monkeypatch):
+    monkeypatch.setenv(LUMIGO_SECRET_MASKING_REGEX, '[".*evilPlan.*"]')
+    assert [r.pattern for r in get_omitting_regexes()] == [".*evilPlan.*"]
+
+
+def test_get_omitting_regexes_backward_compatibility(monkeypatch):
+    monkeypatch.setenv(LUMIGO_SECRET_MASKING_REGEX_BACKWARD_COMP, '[".*evilPlan.*"]')
+    assert [r.pattern for r in get_omitting_regexes()] == [".*evilPlan.*"]
+
+
+def test_get_omitting_regexes_prefer_new_environment_name(monkeypatch):
+    monkeypatch.setenv(LUMIGO_SECRET_MASKING_REGEX, '[".*evilPlan.*"]')
+    monkeypatch.setenv(LUMIGO_SECRET_MASKING_REGEX_BACKWARD_COMP, '[".*evilPlan2.*"]')
+    assert [r.pattern for r in get_omitting_regexes()] == [".*evilPlan.*"]
+
+
+def test_get_omitting_regexes_fallback(monkeypatch):
+    assert [r.pattern for r in get_omitting_regexes()] == OMITTING_KEYS_REGEXES
+
+
 def test_omit_keys_environment(monkeypatch):
-    monkeypatch.setenv("LUMIGO_BLACKLIST_REGEX", '[".*evilPlan.*"]')
+    monkeypatch.setenv(LUMIGO_SECRET_MASKING_REGEX, '[".*evilPlan.*"]')
     value = {"password": "abc", "evilPlan": {"take": "over", "the": "world"}}
     assert omit_keys(value) == {"password": "abc", "evilPlan": "****"}
 
