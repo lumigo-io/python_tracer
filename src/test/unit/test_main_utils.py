@@ -264,6 +264,12 @@ def test_get_omitting_regexes_backward_compatibility(monkeypatch):
     assert [r.pattern for r in get_omitting_regexes()] == [".*evilPlan.*"]
 
 
+def test_get_omitting_regexes_prefer_new_environment_name(monkeypatch):
+    monkeypatch.setenv(LUMIGO_SECRET_MASKING_REGEX, '[".*evilPlan.*"]')
+    monkeypatch.setenv(LUMIGO_SECRET_MASKING_REGEX_BACKWARD_COMP, '[".*evilPlan2.*"]')
+    assert [r.pattern for r in get_omitting_regexes()] == [".*evilPlan.*"]
+
+
 def test_get_omitting_regexes_fallback(monkeypatch):
     assert [r.pattern for r in get_omitting_regexes()] == OMITTING_KEYS_REGEXES
 
