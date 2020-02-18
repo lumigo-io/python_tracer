@@ -36,6 +36,7 @@ DOMAIN_SCRUBBER_REGEXES = [
     r"secretsmanager\..*\.amazonaws\.com",
     r"ssm\..*\.amazonaws\.com",
     r"kms\..*\.amazonaws\.com",
+    r"sts\..*amazonaws\.com",
 ]
 LUMIGO_SECRET_MASKING_REGEX_BACKWARD_COMP = "LUMIGO_BLACKLIST_REGEX"
 LUMIGO_SECRET_MASKING_REGEX = "LUMIGO_SECRET_MASKING_REGEX"
