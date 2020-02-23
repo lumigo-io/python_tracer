@@ -30,7 +30,7 @@ Add `from lumigo_tracer import report_error`.<br/>
 Then use `report_error("<msg>")` from anywhere in your lambda code.
 
 ### Step Functions
-If this function is part of a step function, you can add the flag `step_function=True`, and we will track the states in the step function as a single transaction.
+If this function is part of a step function, you can add the flag `step_function=True` or environment variable `LUMIGO_STEP_FUNCTION=True`, and we will track the states in the step function as a single transaction.
 ```
 @lumigo_tracer(token='XXX', step_function=True)
 def my_lambda(event, context):

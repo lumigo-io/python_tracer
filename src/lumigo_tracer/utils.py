@@ -88,7 +88,9 @@ def config(
         enhance_print or os.environ.get("LUMIGO_ENHANCED_PRINT", "").lower() == "true"
     )
     Configuration.verbose = verbose and os.environ.get("LUMIGO_VERBOSE", "").lower() != "false"
-    Configuration.is_step_function = step_function
+    Configuration.is_step_function = (
+        step_function or os.environ.get("LUMIGO_STEP_FUNCTION", "").lower() == "true"
+    )
     Configuration.timeout_timer = timeout_timer
     Configuration.send_only_if_error = os.environ.get("SEND_ONLY_IF_ERROR", "").lower() == "true"
     if domains_scrubber:
