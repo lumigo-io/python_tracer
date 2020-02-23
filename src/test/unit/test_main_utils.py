@@ -292,3 +292,17 @@ def test_config_enhanced_print_without_envs(monkeypatch, configuration_value):
     monkeypatch.delenv("LUMIGO_ENHANCED_PRINT", raising=False)
     config(enhance_print=configuration_value)
     assert Configuration.enhanced_print == configuration_value
+
+
+@pytest.mark.parametrize("configuration_value", (True, False))
+def test_config_enhanced_printstep_function_with_envs(monkeypatch, configuration_value):
+    monkeypatch.setenv("LUMIGO_STEP_FUNCTION", "TRUE")
+    config(step_function=configuration_value)
+    assert Configuration.is_step_function is True
+
+
+@pytest.mark.parametrize("configuration_value", (True, False))
+def test_config_enhanced_printstep_function_without_envs(monkeypatch, configuration_value):
+    monkeypatch.delenv("LUMIGO_STEP_FUNCTION", raising=False)
+    config(step_function=configuration_value)
+    assert Configuration.is_step_function == configuration_value
