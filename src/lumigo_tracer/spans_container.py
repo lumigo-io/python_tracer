@@ -31,8 +31,6 @@ MAX_LAMBDA_TIME = 15 * 60 * 1000
 MAX_BODY_SIZE = 1024
 # The buffer that we take before reaching timeout to send the traces to lumigo (seconds)
 TIMEOUT_BUFFER = 0.5
-MAX_TAGS = 50
-MAX_TAG_LEN = 50
 
 
 class SpansContainer:
@@ -212,14 +210,11 @@ class SpansContainer:
             ret_val[LUMIGO_EVENT_KEY] = {STEP_FUNCTION_UID_KEY: message_id}
             get_logger().debug(f"Added key {LUMIGO_EVENT_KEY} to the user's return value")
 
-    def add_tag(self, key: str, value: str) -> bool:
-        key = str(key)
-        value = str(value)
-        tags = self.function_span["tags"]
-        if 0 < len(key) < MAX_TAG_LEN and 0 < len(value) < MAX_TAG_LEN and len(tags) < MAX_TAGS:
-            tags.append({"key": key, "value": value})
-            return True
-        return False
+    def get_tags_len(self) -> int:
+        return len(self.function_span["tags"])
+
+    def add_tag(self, key: str, value: str) -> None:
+        self.function_span["tags"].append({"key": key, "value": value})
 
     def end(self, ret_val=None) -> Optional[int]:
         TimeoutMechanism.stop()

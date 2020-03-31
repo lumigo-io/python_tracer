@@ -310,6 +310,12 @@ def test_config_enhanced_printstep_function_without_envs(monkeypatch, configurat
     assert Configuration.is_step_function == configuration_value
 
 
-def test_warn_client(capsys):
+def test_warn_client_print(capsys):
     warn_client("message")
     assert capsys.readouterr().out.startswith(f"{WARN_CLIENT_PREFIX}: message")
+
+
+def test_warn_client_dont_print(capsys, monkeypatch):
+    monkeypatch.setenv("LUMIGO_WARNINGS", "off")
+    warn_client("message")
+    assert capsys.readouterr().out == ""

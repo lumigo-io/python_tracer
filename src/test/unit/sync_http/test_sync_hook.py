@@ -11,7 +11,7 @@ import logging
 
 import urllib3
 from capturer import CaptureOutput
-from lumigo_tracer import lumigo_tracer, LumigoChalice, utils, add_tag
+from lumigo_tracer import lumigo_tracer, LumigoChalice, utils, add_execution_tag
 from lumigo_tracer.parsers.parser import Parser
 import http.client
 from lumigo_tracer.utils import (
@@ -503,7 +503,7 @@ def test_wrapping_with_tags():
 
     @lumigo_tracer()
     def lambda_test_function(event, context):
-        add_tag(key, value)
+        add_execution_tag(key, value)
         return "ret_value"
 
     result = lambda_test_function({}, SimpleNamespace(aws_request_id="1234"))

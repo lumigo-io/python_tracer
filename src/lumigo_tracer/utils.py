@@ -311,4 +311,5 @@ def omit_keys(value: Any):
 
 
 def warn_client(msg: str) -> None:
-    print(f"{WARN_CLIENT_PREFIX}: {msg}")
+    if os.environ.get("LUMIGO_WARNINGS") != "off":
+        print(f"{WARN_CLIENT_PREFIX}: {msg}")
