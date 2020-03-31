@@ -30,30 +30,30 @@ def test_report_error_without_enhance_print(capsys):
 def test_add_execution_tag():
     key = "my_key"
     value = "my_value"
-    add_execution_tag(key, value)
+    assert add_execution_tag(key, value) is True
     assert SpansContainer.get_span().function_span["tags"] == [{"key": key, "value": value}]
 
 
 def test_add_execution_key_tag_empty(capsys):
-    add_execution_tag("", "value")
+    assert add_execution_tag("", "value") is False
     assert "Unable to add tag: key length" in capsys.readouterr().out
     assert SpansContainer.get_span().function_span["tags"] == []
 
 
 def test_add_execution_value_tag_empty(capsys):
-    add_execution_tag("key", "")
+    assert add_execution_tag("key", "") is False
     assert "Unable to add tag: value length" in capsys.readouterr().out
     assert SpansContainer.get_span().function_span["tags"] == []
 
 
 def test_add_execution_tag_key_pass_max_chars(capsys):
-    add_execution_tag("k" * (MAX_TAG_KEY_LEN + 1), "value")
+    assert add_execution_tag("k" * (MAX_TAG_KEY_LEN + 1), "value") is False
     assert "Unable to add tag: key length" in capsys.readouterr().out
     assert SpansContainer.get_span().function_span["tags"] == []
 
 
 def test_add_execution_tag_value_pass_max_chars(capsys):
-    add_execution_tag("key", "v" * (MAX_TAG_VALUE_LEN + 1))
+    assert add_execution_tag("key", "v" * (MAX_TAG_VALUE_LEN + 1)) is False
     assert "Unable to add tag: value length" in capsys.readouterr().out
     assert SpansContainer.get_span().function_span["tags"] == []
 
@@ -63,7 +63,11 @@ def test_add_execution_tag_pass_max_tags(capsys):
     value = "my_value"
 
     for i in range(MAX_TAGS + 1):
-        add_execution_tag(key, value)
+        result = add_execution_tag(key, value)
+        if i < MAX_TAGS:
+            assert result is True
+        else:
+            assert result is False
 
     assert "Unable to add tag: maximum number of tags" in capsys.readouterr().out
     assert (
@@ -76,6 +80,6 @@ def test_add_execution_tag_exception_catch(capsys):
         def __str__(self):
             raise Exception()
 
-    add_execution_tag("key", ExceptionOnStr())
+    assert add_execution_tag("key", ExceptionOnStr()) is False
     assert "Unable to add tag" in capsys.readouterr().out
     assert SpansContainer.get_span().function_span["tags"] == []
