@@ -17,6 +17,8 @@ from lumigo_tracer.utils import (
     LUMIGO_SECRET_MASKING_REGEX_BACKWARD_COMP,
     get_omitting_regexes,
     OMITTING_KEYS_REGEXES,
+    warn_client,
+    WARN_CLIENT_PREFIX,
 )
 import json
 
@@ -306,3 +308,8 @@ def test_config_enhanced_printstep_function_without_envs(monkeypatch, configurat
     monkeypatch.delenv("LUMIGO_STEP_FUNCTION", raising=False)
     config(step_function=configuration_value)
     assert Configuration.is_step_function == configuration_value
+
+
+def test_warn_client(capsys):
+    warn_client("message")
+    assert capsys.readouterr().out.startswith(f"{WARN_CLIENT_PREFIX}: message")

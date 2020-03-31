@@ -11,7 +11,7 @@ import logging
 
 import urllib3
 from capturer import CaptureOutput
-from lumigo_tracer import lumigo_tracer, LumigoChalice, utils
+from lumigo_tracer import lumigo_tracer, LumigoChalice, utils, add_tag
 from lumigo_tracer.parsers.parser import Parser
 import http.client
 from lumigo_tracer.utils import (
@@ -495,3 +495,17 @@ def test_can_not_wrap_twice(reporter_mock):
     result = lambda_test_function({}, SimpleNamespace(aws_request_id="1234"))
     assert result == "ret_value"
     assert reporter_mock.call_count == 2
+
+
+def test_wrapping_with_tags():
+    key = "my_key"
+    value = "my_value"
+
+    @lumigo_tracer()
+    def lambda_test_function(event, context):
+        add_tag(key, value)
+        return "ret_value"
+
+    result = lambda_test_function({}, SimpleNamespace(aws_request_id="1234"))
+    assert result == "ret_value"
+    assert SpansContainer.get_span().function_span["tags"] == [{"key": key, "value": value}]

@@ -40,6 +40,7 @@ DOMAIN_SCRUBBER_REGEXES = [
 ]
 LUMIGO_SECRET_MASKING_REGEX_BACKWARD_COMP = "LUMIGO_BLACKLIST_REGEX"
 LUMIGO_SECRET_MASKING_REGEX = "LUMIGO_SECRET_MASKING_REGEX"
+WARN_CLIENT_PREFIX = "Lumigo Warning"
 
 _logger: Union[logging.Logger, None] = None
 
@@ -307,3 +308,7 @@ def omit_keys(value: Any):
             for k, v in value.items()
         }
     return value
+
+
+def warn_client(msg: str) -> None:
+    print(f"{WARN_CLIENT_PREFIX}: {msg}")
