@@ -18,8 +18,8 @@ def report_error(msg: str):
 
 def add_execution_tag(key: str, value: str, should_log_errors: bool = True) -> bool:
     """
-    Use this function to tag the current execution with dynamic information, you will be able to query the tags on
-    Lumigo platform.
+    Use this function to add an execution_tag to your function with a dynamic value.
+    This value can be searched within the Lumigo platform.
 
     The maximum number of tags is 50.
     :param key: Length should be between 1 and 50.
