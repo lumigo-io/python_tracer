@@ -7,7 +7,7 @@ from lumigo_tracer.user_utils import (
     MAX_TAG_VALUE_LEN,
     MAX_TAGS,
 )
-from lumigo_tracer.utils import Configuration
+from lumigo_tracer.utils import Configuration, EXECUTION_TAGS_KEY
 
 
 def test_report_error_with_enhance_print(capsys):
@@ -31,31 +31,33 @@ def test_add_execution_tag():
     key = "my_key"
     value = "my_value"
     assert add_execution_tag(key, value) is True
-    assert SpansContainer.get_span().function_span["tags"] == [{"key": key, "value": value}]
+    assert SpansContainer.get_span().function_span[EXECUTION_TAGS_KEY] == [
+        {"key": key, "value": value}
+    ]
 
 
 def test_add_execution_key_tag_empty(capsys):
     assert add_execution_tag("", "value") is False
     assert "Unable to add tag: key length" in capsys.readouterr().out
-    assert SpansContainer.get_span().function_span["tags"] == []
+    assert SpansContainer.get_span().function_span[EXECUTION_TAGS_KEY] == []
 
 
 def test_add_execution_value_tag_empty(capsys):
     assert add_execution_tag("key", "") is False
     assert "Unable to add tag: value length" in capsys.readouterr().out
-    assert SpansContainer.get_span().function_span["tags"] == []
+    assert SpansContainer.get_span().function_span[EXECUTION_TAGS_KEY] == []
 
 
 def test_add_execution_tag_key_pass_max_chars(capsys):
     assert add_execution_tag("k" * (MAX_TAG_KEY_LEN + 1), "value") is False
     assert "Unable to add tag: key length" in capsys.readouterr().out
-    assert SpansContainer.get_span().function_span["tags"] == []
+    assert SpansContainer.get_span().function_span[EXECUTION_TAGS_KEY] == []
 
 
 def test_add_execution_tag_value_pass_max_chars(capsys):
     assert add_execution_tag("key", "v" * (MAX_TAG_VALUE_LEN + 1)) is False
     assert "Unable to add tag: value length" in capsys.readouterr().out
-    assert SpansContainer.get_span().function_span["tags"] == []
+    assert SpansContainer.get_span().function_span[EXECUTION_TAGS_KEY] == []
 
 
 def test_add_execution_tag_pass_max_tags(capsys):
@@ -71,7 +73,8 @@ def test_add_execution_tag_pass_max_tags(capsys):
 
     assert "Unable to add tag: maximum number of tags" in capsys.readouterr().out
     assert (
-        SpansContainer.get_span().function_span["tags"] == [{"key": key, "value": value}] * MAX_TAGS
+        SpansContainer.get_span().function_span[EXECUTION_TAGS_KEY]
+        == [{"key": key, "value": value}] * MAX_TAGS  # noqa
     )
 
 
@@ -82,4 +85,4 @@ def test_add_execution_tag_exception_catch(capsys):
 
     assert add_execution_tag("key", ExceptionOnStr()) is False
     assert "Unable to add tag" in capsys.readouterr().out
-    assert SpansContainer.get_span().function_span["tags"] == []
+    assert SpansContainer.get_span().function_span[EXECUTION_TAGS_KEY] == []

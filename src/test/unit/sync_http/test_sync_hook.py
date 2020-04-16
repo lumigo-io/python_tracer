@@ -19,6 +19,7 @@ from lumigo_tracer.utils import (
     STEP_FUNCTION_UID_KEY,
     LUMIGO_EVENT_KEY,
     _create_request_body,
+    EXECUTION_TAGS_KEY,
 )
 import pytest
 
@@ -508,4 +509,6 @@ def test_wrapping_with_tags():
 
     result = lambda_test_function({}, SimpleNamespace(aws_request_id="1234"))
     assert result == "ret_value"
-    assert SpansContainer.get_span().function_span["tags"] == [{"key": key, "value": value}]
+    assert SpansContainer.get_span().function_span[EXECUTION_TAGS_KEY] == [
+        {"key": key, "value": value}
+    ]

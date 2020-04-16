@@ -19,6 +19,7 @@ from lumigo_tracer.utils import (
     OMITTING_KEYS_REGEXES,
     warn_client,
     WARN_CLIENT_PREFIX,
+    SKIP_SCRUBBING_KEYS,
 )
 import json
 
@@ -250,6 +251,7 @@ def test_format_frame():
         ("5", "5"),
         ([{"password": 1}, {"a": "b"}], [{"password": "****"}, {"a": "b"}]),
         ({None: 1}, {None: 1}),
+        ({SKIP_SCRUBBING_KEYS[0]: {"password": 1}}, {SKIP_SCRUBBING_KEYS[0]: {"password": 1}}),
     ),
 )
 def test_omit_keys(value, output):

@@ -5,7 +5,7 @@ import pytest
 from lumigo_tracer.parsers.http_data_classes import HttpRequest
 from lumigo_tracer.spans_container import SpansContainer, TimeoutMechanism, TIMEOUT_BUFFER
 from lumigo_tracer import utils
-from lumigo_tracer.utils import Configuration
+from lumigo_tracer.utils import Configuration, EXECUTION_TAGS_KEY
 
 
 @pytest.fixture()
@@ -144,7 +144,9 @@ def test_add_tag():
     key = "my_key"
     value = "my_value"
     SpansContainer.get_span().add_tag(key, value)
-    assert SpansContainer.get_span().function_span["tags"] == [{"key": key, "value": value}]
+    assert SpansContainer.get_span().function_span[EXECUTION_TAGS_KEY] == [
+        {"key": key, "value": value}
+    ]
 
 
 def test_get_tags_len():
