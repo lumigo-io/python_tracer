@@ -120,6 +120,8 @@ jobs:
       - run: cd ../integration-tests && ./scripts/parallel_prepare_env.sh
       - run: cd ../integration-tests && ./scripts/parallel_deploy.sh --spec python
       - run: cd ../integration-tests && export testPython=true && npm run test-parallel
+      - store_test_results:
+          path: ../integration-tests/src/test/test-results
 
   deploy:
     <<: *defaults
