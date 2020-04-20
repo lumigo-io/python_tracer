@@ -5,7 +5,7 @@ import pytest
 from lumigo_tracer.parsers.http_data_classes import HttpRequest
 from lumigo_tracer.spans_container import SpansContainer, TimeoutMechanism, TIMEOUT_BUFFER
 from lumigo_tracer import utils
-from lumigo_tracer.utils import Configuration
+from lumigo_tracer.utils import Configuration, EXECUTION_TAGS_KEY
 
 
 @pytest.fixture()
@@ -138,3 +138,19 @@ def test_timeout_mechanism_timeout_occurred_send_updated_spans(monkeypatch, cont
         host="google.com", status_code=200, headers=None, body=b"2"
     )
     assert SpansContainer.get_span().http_span_ids_to_send
+
+
+def test_add_tag():
+    key = "my_key"
+    value = "my_value"
+    SpansContainer.get_span().add_tag(key, value)
+    assert SpansContainer.get_span().function_span[EXECUTION_TAGS_KEY] == [
+        {"key": key, "value": value}
+    ]
+
+
+def test_get_tags_len():
+    assert SpansContainer.get_span().get_tags_len() == 0
+    SpansContainer.get_span().add_tag("k0", "v0")
+    SpansContainer.get_span().add_tag("k1", "v1")
+    assert SpansContainer.get_span().get_tags_len() == 2

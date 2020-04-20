@@ -10,6 +10,7 @@ from contextlib import contextmanager
 from base64 import b64encode
 import inspect
 
+EXECUTION_TAGS_KEY = "lumigo_execution_tags_no_scrub"
 EDGE_HOST = "https://{region}.lumigo-tracer-edge.golumigo.com/api/spans"
 LOG_FORMAT = "#LUMIGO# - %(asctime)s - %(levelname)s - %(message)s"
 SECONDS_TO_TIMEOUT = 0.5
@@ -38,8 +39,10 @@ DOMAIN_SCRUBBER_REGEXES = [
     r"kms\..*\.amazonaws\.com",
     r"sts\..*amazonaws\.com",
 ]
+SKIP_SCRUBBING_KEYS = [EXECUTION_TAGS_KEY]
 LUMIGO_SECRET_MASKING_REGEX_BACKWARD_COMP = "LUMIGO_BLACKLIST_REGEX"
 LUMIGO_SECRET_MASKING_REGEX = "LUMIGO_SECRET_MASKING_REGEX"
+WARN_CLIENT_PREFIX = "Lumigo Warning"
 
 _logger: Union[logging.Logger, None] = None
 
@@ -300,10 +303,18 @@ def omit_keys(value: Any):
             return value
     if isinstance(value, dict):
         regexes = get_omitting_regexes()
-        return {
-            k: omit_keys(v)
-            if not (isinstance(k, str) and any(r.match(k) for r in regexes))
-            else "****"
-            for k, v in value.items()
-        }
+        items = {}
+        for k, v in value.items():
+            if k in SKIP_SCRUBBING_KEYS:
+                items[k] = v
+            elif isinstance(k, str) and any(r.match(k) for r in regexes):
+                items[k] = "****"
+            else:
+                items[k] = omit_keys(v)
+        return items
     return value
+
+
+def warn_client(msg: str) -> None:
+    if os.environ.get("LUMIGO_WARNINGS") != "off":
+        print(f"{WARN_CLIENT_PREFIX}: {msg}")

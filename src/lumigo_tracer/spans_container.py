@@ -14,6 +14,7 @@ from lumigo_tracer.utils import (
     format_frames,
     prepare_large_data,
     omit_keys,
+    EXECUTION_TAGS_KEY,
 )
 from lumigo_tracer import utils
 from lumigo_tracer.parsers.parser import get_parser, HTTP_TYPE, StepFunctionParser
@@ -87,6 +88,7 @@ class SpansContainer:
                     "logGroupName": log_group_name,
                     **(trigger_by or {}),
                 },
+                EXECUTION_TAGS_KEY: [],
             },
             self.base_msg,
         )
@@ -208,6 +210,12 @@ class SpansContainer:
         if isinstance(ret_val, dict):
             ret_val[LUMIGO_EVENT_KEY] = {STEP_FUNCTION_UID_KEY: message_id}
             get_logger().debug(f"Added key {LUMIGO_EVENT_KEY} to the user's return value")
+
+    def get_tags_len(self) -> int:
+        return len(self.function_span[EXECUTION_TAGS_KEY])
+
+    def add_tag(self, key: str, value: str) -> None:
+        self.function_span[EXECUTION_TAGS_KEY].append({"key": key, "value": value})
 
     def end(self, ret_val=None) -> Optional[int]:
         TimeoutMechanism.stop()
