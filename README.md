@@ -2,6 +2,8 @@
 ![Version](https://badge.fury.io/py/lumigo-tracer.svg)
 ![codecov](https://codecov.io/gh/lumigo-io/python_tracer/branch/master/graph/badge.svg?token=6EgXIlefwG)
 
+Supported Runtimes: 3.6, 3.7, 3.8
+
 # How To Use
 ## With Lambda Layers:
 * Use the latest ARN version [from these tables](https://github.com/lumigo-io/python_tracer/tree/master/layers)
