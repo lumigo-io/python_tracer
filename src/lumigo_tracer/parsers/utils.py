@@ -195,10 +195,19 @@ def _is_supported_http_method(event: dict):
         and "headers" in event  # noqa
         and "requestContext" in event  # noqa
         and event.get("requestContext", {}).get("elb") is None  # noqa
+        or event.get("version", "") == "2.0"  # noqa
+        and "headers" in event  # noqa
     )  # noqa
 
 
 def parse_http_method(event: dict):
+    version = event.get("version")
+    if version == "2.0":
+        return _parse_http_method_v2(event)
+    return _parse_http_method_v1(event)
+
+
+def _parse_http_method_v1(event: dict):
     result = {
         "triggeredBy": "apigw",
         "httpMethod": event.get("httpMethod", ""),
@@ -209,6 +218,18 @@ def parse_http_method(event: dict):
         result["api"] = event["headers"].get("Host", "unknown.unknown.unknown")
     if isinstance(event.get("requestContext"), dict):
         result["stage"] = event["requestContext"].get("stage", "unknown")
+    return result
+
+
+def _parse_http_method_v2(event: dict):
+    result = {
+        "triggeredBy": "apigw",
+        "httpMethod": event.get("requestContext", {}).get("http", {}).get("method"),
+        "resource": event.get("requestContext", {}).get("http", {}).get("path"),
+        "messageId": event.get("requestContext", {}).get("requestId", ""),
+        "api": event.get("requestContext", {}).get("domainName", ""),
+        "stage": event.get("requestContext", {}).get("stage", "unknown"),
+    }
     return result
 
 
