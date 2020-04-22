@@ -1,18 +1,29 @@
 import json
 from collections import OrderedDict
+from typing import Dict
 
 from lumigo_tracer.parsers.event_parser import EventParser, EventParseHandler
+
+
+class ExceptionHandler(EventParseHandler):
+    @staticmethod
+    def is_supported(event) -> bool:
+        raise Exception()
+
+    @staticmethod
+    def parse(event) -> Dict:
+        raise Exception()
 
 
 def test_parse_event_not_api_gw():
     event = {"a": 1}
 
-    new_event = EventParser.parse_event(event=event, handlers=[EventParseHandler()])
+    new_event = EventParser.parse_event(event=event, handlers=[ExceptionHandler()])
 
     assert new_event == event
 
 
-def test_parse_event_api_gw():
+def test_parse_event_api_gw_v1():
     not_order_api_gw_event = {
         "resource": "/add-user",
         "path": "/add-user",
@@ -21,7 +32,7 @@ def test_parse_event_api_gw():
             "Accept": "application/json, text/plain, */*",
             "Accept-Encoding": "gzip, deflate, br",
             "Accept-Language": "he-IL,he;q=0.9,en-US;q=0.8,en;q=0.7",
-            "Authorization": "eyJraWQiOiIrbG90QWhYczBhQWFxRnI0Q0MwalVnTGVHRGRKQ2NYRkJOSHNkUFRcL0Jucz0iLCJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJhODcwMDViYi0zMDMwLTQ5NjItYmFlOC00OGNkNjI5YmEyMGIiLCJjdXN0b206Y3VzdG9tZXIiOiJjX2I0ODZlZTVhMDk3MTQiLCJpc3MiOiJodHRwczpcL1wvY29nbml0by1pZHAudXMtd2VzdC0yLmFtYXpvbmF3cy5jb21cL3VzLXdlc3QtMl8yckVBOVp0aDYiLCJjdXN0b206Y3VzdG9tZXItbmFtZSI6IldhbHR5IiwiY29nbml0bzp1c2VybmFtZSI6ImE4NzAwNWJiLTMwMzAtNDk2Mi1iYWU4LTQ4Y2Q2MjliYTIwYiIsImF1ZCI6IjRsaWRjbmVrNTBoaTE4OTk2Z2FkYW9wOGowIiwiZXZlbnRfaWQiOiI5ZmU4MDczNS1mMjY1LTQxZDUtYTdjYS0wNGI4OGMyYTRhNGMiLCJ0b2tlbl91c2UiOiJpZCIsImF1dGhfdGltZSI6MTU4NzAzODc0NCwiZXhwIjoxNTg3MjgzNTc0LCJjdXN0b206cm9sZSI6ImFkbWluIiwiaWF0IjoxNTg3Mjc5OTc0LCJlbWFpbCI6ImRvckB3YWx0eS5jby5pbCJ9.BWDTwhSNIOrKpoeEsdKAJ__CU72O7d_4LtDYBgPLIqvZJXQanAg4LGXXf00aivx0R_rFyZxChZjbzU4UGqbNDU7QpMH8QWWdrjW3oP8SGVH_C62PHO_7NA0iXM3PM6LH1IcmkjDcZ31lprIQ7B9l26lyW5x_VfDvEecE-VjeauYnFjCq1-hOFzn9UDo2rPTn6mg6FE8KMGQdqcXM0HcJhP2NrvnDI5J3_Xh1qai_VtzG70dVISCJ1zMesTtzrpCvRCTJwcEMLVsdbYK4VoK1U9E4SksdGOOc6_8nsMyasKbzeueOsN29YV1_7Oz9BqJeW_7WFZ5UiNc6XNNTnwNj-w",
+            "Authorization": "auth",
             "CloudFront-Forwarded-Proto": "https",
             "CloudFront-Is-Desktop-Viewer": "true",
             "CloudFront-Is-Mobile-Viewer": "false",
@@ -29,10 +40,10 @@ def test_parse_event_api_gw():
             "CloudFront-Is-Tablet-Viewer": "false",
             "CloudFront-Viewer-Country": "IL",
             "content-type": "application/json;charset=UTF-8",
-            "customer_id": "c_b486ee5a09714",
-            "Host": "psqn7b0ev2.execute-api.us-west-2.amazonaws.com",
-            "origin": "https://platform.lumigo.io",
-            "Referer": "https://platform.lumigo.io/users",
+            "customer_id": "c_1111",
+            "Host": "aaaa.execute-api.us-west-2.amazonaws.com",
+            "origin": "https://aaa.io",
+            "Referer": "https://aaa.io/users",
             "sec-fetch-dest": "empty",
             "sec-fetch-mode": "cors",
             "sec-fetch-site": "cross-site",
@@ -48,9 +59,7 @@ def test_parse_event_api_gw():
             "Accept": ["application/json, text/plain, */*"],
             "Accept-Encoding": ["gzip, deflate, br"],
             "Accept-Language": ["he-IL,he;q=0.9,en-US;q=0.8,en;q=0.7"],
-            "Authorization": [
-                "eyJraWQiOiIrbG90QWhYczBhQWFxRnI0Q0MwalVnTGVHRGRKQ2NYRkJOSHNkUFRcL0Jucz0iLCJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJhODcwMDViYi0zMDMwLTQ5NjItYmFlOC00OGNkNjI5YmEyMGIiLCJjdXN0b206Y3VzdG9tZXIiOiJjX2I0ODZlZTVhMDk3MTQiLCJpc3MiOiJodHRwczpcL1wvY29nbml0by1pZHAudXMtd2VzdC0yLmFtYXpvbmF3cy5jb21cL3VzLXdlc3QtMl8yckVBOVp0aDYiLCJjdXN0b206Y3VzdG9tZXItbmFtZSI6IldhbHR5IiwiY29nbml0bzp1c2VybmFtZSI6ImE4NzAwNWJiLTMwMzAtNDk2Mi1iYWU4LTQ4Y2Q2MjliYTIwYiIsImF1ZCI6IjRsaWRjbmVrNTBoaTE4OTk2Z2FkYW9wOGowIiwiZXZlbnRfaWQiOiI5ZmU4MDczNS1mMjY1LTQxZDUtYTdjYS0wNGI4OGMyYTRhNGMiLCJ0b2tlbl91c2UiOiJpZCIsImF1dGhfdGltZSI6MTU4NzAzODc0NCwiZXhwIjoxNTg3MjgzNTc0LCJjdXN0b206cm9sZSI6ImFkbWluIiwiaWF0IjoxNTg3Mjc5OTc0LCJlbWFpbCI6ImRvckB3YWx0eS5jby5pbCJ9.BWDTwhSNIOrKpoeEsdKAJ__CU72O7d_4LtDYBgPLIqvZJXQanAg4LGXXf00aivx0R_rFyZxChZjbzU4UGqbNDU7QpMH8QWWdrjW3oP8SGVH_C62PHO_7NA0iXM3PM6LH1IcmkjDcZ31lprIQ7B9l26lyW5x_VfDvEecE-VjeauYnFjCq1-hOFzn9UDo2rPTn6mg6FE8KMGQdqcXM0HcJhP2NrvnDI5J3_Xh1qai_VtzG70dVISCJ1zMesTtzrpCvRCTJwcEMLVsdbYK4VoK1U9E4SksdGOOc6_8nsMyasKbzeueOsN29YV1_7Oz9BqJeW_7WFZ5UiNc6XNNTnwNj-w"
-            ],
+            "Authorization": ["auth"],
             "CloudFront-Forwarded-Proto": ["https"],
             "CloudFront-Is-Desktop-Viewer": ["true"],
             "CloudFront-Is-Mobile-Viewer": ["false"],
@@ -58,10 +67,10 @@ def test_parse_event_api_gw():
             "CloudFront-Is-Tablet-Viewer": ["false"],
             "CloudFront-Viewer-Country": ["IL"],
             "content-type": ["application/json;charset=UTF-8"],
-            "customer_id": ["c_b486ee5a09714"],
-            "Host": ["psqn7b0ev2.execute-api.us-west-2.amazonaws.com"],
-            "origin": ["https://platform.lumigo.io"],
-            "Referer": ["https://platform.lumigo.io/users"],
+            "customer_id": ["c_1111"],
+            "Host": ["a.execute-api.us-west-2.amazonaws.com"],
+            "origin": ["https://aaa.io"],
+            "Referer": ["https://aaa.io/users"],
             "sec-fetch-dest": ["empty"],
             "sec-fetch-mode": ["cors"],
             "sec-fetch-site": ["cross-site"],
@@ -84,10 +93,10 @@ def test_parse_event_api_gw():
             "authorizer": {
                 "claims": {
                     "sub": "a87005bb-3030-4962-bae8-48cd629ba20b",
-                    "custom:customer": "c_b486ee5a09714",
-                    "iss": "https://cognito-idp.us-west-2.amazonaws.com/us-west-2_2rEA9Zth6",
-                    "custom:customer-name": "Walty",
-                    "cognito:username": "a87005bb-3030-4962-bae8-48cd629ba20b",
+                    "custom:customer": "c_1111",
+                    "iss": "https://cognito-idp.us-west-2.amazonaws.com/us-west-2",
+                    "custom:customer-name": "a",
+                    "cognito:username": "aa",
                     "aud": "4lidcnek50hi18996gadaop8j0",
                     "event_id": "9fe80735-f265-41d5-a7ca-04b88c2a4a4c",
                     "token_use": "id",
@@ -95,7 +104,7 @@ def test_parse_event_api_gw():
                     "exp": "Sun Apr 19 08:06:14 UTC 2020",
                     "custom:role": "admin",
                     "iat": "Sun Apr 19 07:06:14 UTC 2020",
-                    "email": "dor@walty.co.il",
+                    "email": "a@a.com",
                 }
             },
             "resourcePath": "/add-user",
@@ -126,7 +135,7 @@ def test_parse_event_api_gw():
             "domainName": "psqn7b0ev2.execute-api.us-west-2.amazonaws.com",
             "apiId": "psqn7b0ev2",
         },
-        "body": '{"email":"orrduer@gmail.com"}',
+        "body": '{"email":"a@a.com"}',
         "isBase64Encoded": False,
     }
 
@@ -141,15 +150,15 @@ def test_parse_event_api_gw():
                 "queryStringParameters": "1",
                 "multiValueQueryStringParameters": "1",
                 "pathParameters": "1",
-                "body": '{"email":"orrduer@gmail.com"}',
+                "body": '{"email":"a@a.com"}',
                 "requestContext": {
                     "authorizer": {
                         "claims": {
                             "sub": "a87005bb-3030-4962-bae8-48cd629ba20b",
-                            "custom:customer": "c_b486ee5a09714",
-                            "iss": "https://cognito-idp.us-west-2.amazonaws.com/us-west-2_2rEA9Zth6",
-                            "custom:customer-name": "Walty",
-                            "cognito:username": "a87005bb-3030-4962-bae8-48cd629ba20b",
+                            "custom:customer": "c_1111",
+                            "iss": "https://cognito-idp.us-west-2.amazonaws.com/us-west-2",
+                            "custom:customer-name": "a",
+                            "cognito:username": "aa",
                             "aud": "4lidcnek50hi18996gadaop8j0",
                             "event_id": "9fe80735-f265-41d5-a7ca-04b88c2a4a4c",
                             "token_use": "id",
@@ -157,21 +166,96 @@ def test_parse_event_api_gw():
                             "exp": "Sun Apr 19 08:06:14 UTC 2020",
                             "custom:role": "admin",
                             "iat": "Sun Apr 19 07:06:14 UTC 2020",
-                            "email": "dor@walty.co.il",
+                            "email": "a@a.com",
                         }
                     }
                 },
                 "headers": {
-                    "Authorization": "eyJraWQiOiIrbG90QWhYczBhQWFxRnI0Q0MwalVnTGVHRGRKQ2NYRkJOSHNkUFRcL0Jucz0iLCJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJhODcwMDViYi0zMDMwLTQ5NjItYmFlOC00OGNkNjI5YmEyMGIiLCJjdXN0b206Y3VzdG9tZXIiOiJjX2I0ODZlZTVhMDk3MTQiLCJpc3MiOiJodHRwczpcL1wvY29nbml0by1pZHAudXMtd2VzdC0yLmFtYXpvbmF3cy5jb21cL3VzLXdlc3QtMl8yckVBOVp0aDYiLCJjdXN0b206Y3VzdG9tZXItbmFtZSI6IldhbHR5IiwiY29nbml0bzp1c2VybmFtZSI6ImE4NzAwNWJiLTMwMzAtNDk2Mi1iYWU4LTQ4Y2Q2MjliYTIwYiIsImF1ZCI6IjRsaWRjbmVrNTBoaTE4OTk2Z2FkYW9wOGowIiwiZXZlbnRfaWQiOiI5ZmU4MDczNS1mMjY1LTQxZDUtYTdjYS0wNGI4OGMyYTRhNGMiLCJ0b2tlbl91c2UiOiJpZCIsImF1dGhfdGltZSI6MTU4NzAzODc0NCwiZXhwIjoxNTg3MjgzNTc0LCJjdXN0b206cm9sZSI6ImFkbWluIiwiaWF0IjoxNTg3Mjc5OTc0LCJlbWFpbCI6ImRvckB3YWx0eS5jby5pbCJ9.BWDTwhSNIOrKpoeEsdKAJ__CU72O7d_4LtDYBgPLIqvZJXQanAg4LGXXf00aivx0R_rFyZxChZjbzU4UGqbNDU7QpMH8QWWdrjW3oP8SGVH_C62PHO_7NA0iXM3PM6LH1IcmkjDcZ31lprIQ7B9l26lyW5x_VfDvEecE-VjeauYnFjCq1-hOFzn9UDo2rPTn6mg6FE8KMGQdqcXM0HcJhP2NrvnDI5J3_Xh1qai_VtzG70dVISCJ1zMesTtzrpCvRCTJwcEMLVsdbYK4VoK1U9E4SksdGOOc6_8nsMyasKbzeueOsN29YV1_7Oz9BqJeW_7WFZ5UiNc6XNNTnwNj-w",
+                    "Authorization": "auth",
                     "content-type": "application/json;charset=UTF-8",
-                    "customer_id": "c_b486ee5a09714",
-                    "Host": "psqn7b0ev2.execute-api.us-west-2.amazonaws.com",
-                    "origin": "https://platform.lumigo.io",
-                    "Referer": "https://platform.lumigo.io/users",
+                    "customer_id": "c_1111",
+                    "Host": "aaaa.execute-api.us-west-2.amazonaws.com",
+                    "origin": "https://aaa.io",
+                    "Referer": "https://aaa.io/users",
                     "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.163 Safari/537.36",
                 },
                 "stageVariables": None,
                 "isBase64Encoded": False,
+            }
+        )
+    )
+
+
+def test_parse_event_api_gw_v2():
+    not_order_api_gw_event = {
+        "version": "2.0",
+        "routeKey": "ANY /nodejs-apig-function-1G3XMPLZXVXYI",
+        "rawPath": "/default/nodejs-apig-function-1G3XMPLZXVXYI",
+        "rawQueryString": "",
+        "cookies": ["s_fid=7AABXMPL1AFD9BBF-0643XMPL09956DE2", "regStatus=pre-register"],
+        "headers": {
+            "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
+            "accept-encoding": "gzip, deflate, br",
+            "accept-language": "en-US,en;q=0.9",
+            "content-length": "0",
+            "host": "r3pmxmplak.execute-api.us-east-2.amazonaws.com",
+            "sec-fetch-dest": "document",
+            "sec-fetch-mode": "navigate",
+            "sec-fetch-site": "cross-site",
+            "sec-fetch-user": "?1",
+            "upgrade-insecure-requests": "1",
+            "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.132 Safari/537.36",
+            "x-amzn-trace-id": "Root=1-5e6722a7-cc56xmpl46db7ae02d4da47e",
+            "x-forwarded-for": "205.255.255.176",
+            "x-forwarded-port": "443",
+            "x-forwarded-proto": "https",
+        },
+        "requestContext": {
+            "accountId": "123456789012",
+            "apiId": "r3pmxmplak",
+            "domainName": "r3pmxmplak.execute-api.us-east-2.amazonaws.com",
+            "domainPrefix": "r3pmxmplak",
+            "http": {
+                "method": "GET",
+                "path": "/default/nodejs-apig-function-1G3XMPLZXVXYI",
+                "protocol": "HTTP/1.1",
+                "sourceIp": "205.255.255.176",
+                "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.132 Safari/537.36",
+            },
+            "requestId": "JKJaXmPLvHcESHA=",
+            "routeKey": "ANY /nodejs-apig-function-1G3XMPLZXVXYI",
+            "stage": "default",
+            "time": "10/Mar/2020:05:16:23 +0000",
+            "timeEpoch": 1583817383220,
+        },
+        "isBase64Encoded": True,
+    }
+
+    order_api_gw_event = EventParser.parse_event(event=not_order_api_gw_event)
+
+    assert json.dumps(order_api_gw_event) == json.dumps(
+        OrderedDict(
+            {
+                "version": "2.0",
+                "routeKey": "ANY /nodejs-apig-function-1G3XMPLZXVXYI",
+                "rawPath": "/default/nodejs-apig-function-1G3XMPLZXVXYI",
+                "requestContext": {
+                    "http": {
+                        "method": "GET",
+                        "path": "/default/nodejs-apig-function-1G3XMPLZXVXYI",
+                        "protocol": "HTTP/1.1",
+                        "sourceIp": "205.255.255.176",
+                        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.132 Safari/537.36",
+                    }
+                },
+                "headers": {
+                    "content-length": "0",
+                    "host": "r3pmxmplak.execute-api.us-east-2.amazonaws.com",
+                    "upgrade-insecure-requests": "1",
+                    "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.132 Safari/537.36",
+                },
+                "cookies": ["s_fid=7AABXMPL1AFD9BBF-0643XMPL09956DE2", "regStatus=pre-register"],
+                "isBase64Encoded": True,
             }
         )
     )

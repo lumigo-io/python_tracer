@@ -1,5 +1,6 @@
 import os
 import re
+from abc import ABC, abstractmethod
 from collections import OrderedDict
 from typing import Dict, List
 
@@ -9,6 +10,10 @@ from lumigo_tracer.utils import get_logger
 
 API_GW_REGEX = re.compile(r".*execute-api.*amazonaws\.com.*")
 API_GW_KEYS_ORDER = str_to_list(os.environ.get("LUMIGO_API_GW_KEYS_ORDER", "")) or [
+    "version",
+    "routeKey",
+    "rawPath",
+    "rawQueryString",
     "resource",
     "path",
     "httpMethod",
@@ -21,30 +26,48 @@ API_GW_KEYS_ORDER = str_to_list(os.environ.get("LUMIGO_API_GW_KEYS_ORDER", "")) 
 ]
 API_GW_PREFIX_KEYS_HEADERS_DELETE_KEYS = str_to_tuple(
     os.environ.get("LUMIGO_API_GW_PREFIX_KEYS_HEADERS_DELETE_KEYS", "")
-) or ("cookie", "X-Amz", "Accept", "CloudFront", "Via", "X-Forwarded", "sec-")
+) or (
+    "cookie",
+    "X-Amz",
+    "x-amzn",
+    "Accept",
+    "accept",
+    "CloudFront",
+    "cloudfront",
+    "Via",
+    "X-Forwarded",
+    "x-forwarded",
+    "sec-",
+)
 API_GW_REQUEST_CONTEXT_FILTER_KEYS = str_to_list(
     os.environ.get("LUMIGO_API_GW_REQUEST_CONTEXT_FILTER_KEYS", "")
-) or ["authorizer"]
+) or ["authorizer", "http"]
 API_GW_KEYS_DELETE_KEYS = str_to_list(os.environ.get("LUMIGO_API_GW_KEYS_DELETE_KEYS", "")) or [
     "multiValueHeaders"
 ]
 
 
-class EventParseHandler:
-    def is_supported(self, event) -> bool:
+class EventParseHandler(ABC):
+    @staticmethod
+    @abstractmethod
+    def is_supported(event) -> bool:
         raise NotImplementedError()
 
-    def parse(self, event):
+    @staticmethod
+    @abstractmethod
+    def parse(event) -> Dict:
         raise NotImplementedError()
 
 
 class ApiGWHandler(EventParseHandler):
-    def is_supported(self, event) -> bool:
+    @staticmethod
+    def is_supported(event) -> bool:
         if event.get("requestContext") and event.get("requestContext", {}).get("domainName"):
             return API_GW_REGEX.match(event["requestContext"]["domainName"]) is not None
         return False
 
-    def parse(self, event):
+    @staticmethod
+    def parse(event) -> Dict:
         new_event: OrderedDict = OrderedDict()
         # Add order keys
         for order_key in API_GW_KEYS_ORDER:
@@ -63,7 +86,7 @@ class ApiGWHandler(EventParseHandler):
         if new_event.get("headers"):
             delete_headers_keys = [
                 x
-                for x in new_event["headers"].keys()
+                for x in new_event["headers"]
                 if x.startswith(API_GW_PREFIX_KEYS_HEADERS_DELETE_KEYS)
             ]
             for delete_headers_key in delete_headers_keys:
@@ -75,12 +98,10 @@ class ApiGWHandler(EventParseHandler):
         return new_event
 
 
-HANDLERS: List[EventParseHandler] = [ApiGWHandler()]
-
-
 class EventParser:
     @staticmethod
-    def parse_event(event: Dict, handlers: List[EventParseHandler] = HANDLERS):
+    def parse_event(event: Dict, handlers: List[EventParseHandler] = None):
+        handlers = handlers or [ApiGWHandler()]
         for handler in handlers:
             try:
                 if handler.is_supported(event):

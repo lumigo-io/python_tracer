@@ -277,12 +277,18 @@ def should_scrub_domain(url: str) -> bool:
 
 
 def str_to_list(val: str):
-    if val:
-        return val.split(",")
+    try:
+        if val:
+            return val.split(",")
+    except Exception:
+        pass
     return None
 
 
 def str_to_tuple(val: str):
-    if val:
-        return tuple(val.split(","))
+    try:
+        if val:
+            return tuple(val.split(","))
+    except Exception:
+        pass
     return None
