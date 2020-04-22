@@ -13,6 +13,7 @@ from lumigo_tracer.utils import (
     LUMIGO_EVENT_KEY,
     STEP_FUNCTION_UID_KEY,
     lumigo_safe_execute,
+    get_logger,
 )
 
 
@@ -280,8 +281,8 @@ def str_to_list(val: str):
     try:
         if val:
             return val.split(",")
-    except Exception:
-        pass
+    except Exception as e:
+        get_logger().debug(f"Error while convert str to list", exc_info=e)
     return None
 
 
@@ -289,6 +290,6 @@ def str_to_tuple(val: str):
     try:
         if val:
             return tuple(val.split(","))
-    except Exception:
-        pass
+    except Exception as e:
+        get_logger().debug(f"Error while convert str to tuple", exc_info=e)
     return None

@@ -75,22 +75,14 @@ class ApiGWHandler(EventParseHandler):
                 new_event[order_key] = event[order_key]
         # Remove requestContext keys
         if new_event.get("requestContext"):
-            delete_request_context_keys = [
-                x
-                for x in new_event["requestContext"]
-                if x not in API_GW_REQUEST_CONTEXT_FILTER_KEYS
-            ]
-            for delete_request_context_key in delete_request_context_keys:
-                new_event["requestContext"].pop(delete_request_context_key, None)
+            for rc_key in new_event["requestContext"].copy():
+                if rc_key not in API_GW_REQUEST_CONTEXT_FILTER_KEYS:
+                    new_event["requestContext"].pop(rc_key, None)
         # Remove headers keys
         if new_event.get("headers"):
-            delete_headers_keys = [
-                x
-                for x in new_event["headers"]
-                if x.startswith(API_GW_PREFIX_KEYS_HEADERS_DELETE_KEYS)
-            ]
-            for delete_headers_key in delete_headers_keys:
-                new_event["headers"].pop(delete_headers_key, None)
+            for h_key in new_event["headers"].copy():
+                if h_key.startswith(API_GW_PREFIX_KEYS_HEADERS_DELETE_KEYS):
+                    new_event["headers"].pop(h_key, None)
         # Add all other keys
         for key in event.keys():
             if (key not in API_GW_KEYS_ORDER) and (key not in API_GW_KEYS_DELETE_KEYS):
