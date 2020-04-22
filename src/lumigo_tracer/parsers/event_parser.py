@@ -54,7 +54,7 @@ class ApiGWHandler(EventParseHandler):
         if new_event.get("requestContext"):
             delete_request_context_keys = [
                 x
-                for x in new_event["requestContext"].keys()
+                for x in new_event["requestContext"]
                 if x not in API_GW_REQUEST_CONTEXT_FILTER_KEYS
             ]
             for delete_request_context_key in delete_request_context_keys:
