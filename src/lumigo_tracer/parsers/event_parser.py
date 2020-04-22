@@ -7,7 +7,7 @@ from lumigo_tracer.parsers.utils import str_to_tuple, str_to_list
 from lumigo_tracer.utils import get_logger
 
 
-API_GW_REGEX = re.compile(rf".*execute-api.*amazonaws\.com.*")
+API_GW_REGEX = re.compile(r".*execute-api.*amazonaws\.com.*")
 API_GW_KEYS_ORDER = str_to_list(os.environ.get("LUMIGO_API_GW_KEYS_ORDER", "")) or [
     "resource",
     "path",
