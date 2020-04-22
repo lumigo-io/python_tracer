@@ -1,13 +1,13 @@
 import json
 from collections import OrderedDict
 
-from lumigo_tracer.parsers.event_parser import parse_event
+from lumigo_tracer.parsers.event_parser import EventParser, EventParseHandler
 
 
 def test_parse_event_not_api_gw():
     event = {"a": 1}
 
-    new_event = parse_event(event=event)
+    new_event = EventParser.parse_event(event=event, handlers=[EventParseHandler()])
 
     assert new_event == event
 
@@ -130,7 +130,7 @@ def test_parse_event_api_gw():
         "isBase64Encoded": False,
     }
 
-    order_api_gw_event = parse_event(event=not_order_api_gw_event)
+    order_api_gw_event = EventParser.parse_event(event=not_order_api_gw_event)
 
     assert json.dumps(order_api_gw_event) == json.dumps(
         OrderedDict(

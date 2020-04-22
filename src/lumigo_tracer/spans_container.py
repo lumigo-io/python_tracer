@@ -7,7 +7,7 @@ import traceback
 import http.client
 from typing import List, Dict, Tuple, Optional, Callable, Set
 
-from lumigo_tracer.parsers.event_parser import parse_event
+from lumigo_tracer.parsers.event_parser import EventParser
 from lumigo_tracer.utils import (
     Configuration,
     LUMIGO_EVENT_KEY,
@@ -266,7 +266,7 @@ class SpansContainer:
         if Configuration.verbose:
             additional_info.update(
                 {
-                    "event": prepare_large_data(omit_keys(parse_event(event))),
+                    "event": prepare_large_data(omit_keys(EventParser.parse_event(event))),
                     "envs": prepare_large_data(omit_keys(dict(os.environ))),
                 }
             )

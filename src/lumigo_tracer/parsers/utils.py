@@ -274,3 +274,15 @@ def should_scrub_domain(url: str) -> bool:
             if re.match(regex, url, re.IGNORECASE):
                 return True
     return False
+
+
+def str_to_list(val: str):
+    if val:
+        return val.split(",")
+    return None
+
+
+def str_to_tuple(val: str):
+    if val:
+        return tuple(val.split(","))
+    return None
