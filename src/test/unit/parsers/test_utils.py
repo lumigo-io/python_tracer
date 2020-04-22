@@ -317,7 +317,7 @@ def test_str_to_list():
 
 
 def test_str_to_list_exception():
-    assert str_to_list([]) is None
+    assert str_to_list("") is None
 
 
 def test_str_to_tuple():
