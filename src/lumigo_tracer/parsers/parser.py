@@ -219,6 +219,16 @@ class StepFunctionParser(ServerlessAWSParser):
         )
 
 
+class ApiGatewayV2Parser(ServerlessAWSParser):
+    # API-GW V1 covered by ServerlessAWSParser
+
+    def parse_response(self, url: str, status_code: int, headers, body: bytes) -> dict:
+        return recursive_json_join(
+            {"info": {"messageId": headers.get("Apigw-Requestid")}},
+            super().parse_response(url, status_code, headers, body),
+        )
+
+
 def get_parser(url: str, headers: Optional[http.client.HTTPMessage] = None) -> Type[Parser]:
     service = safe_split_get(url, ".", 0)
     if service == "dynamodb":
@@ -234,6 +244,8 @@ def get_parser(url: str, headers: Optional[http.client.HTTPMessage] = None) -> T
     # SQS Legacy Endpoints: https://docs.aws.amazon.com/general/latest/gr/rande.html
     elif service in ("sqs", "sqs-fips") or "queue.amazonaws.com" in url:
         return SqsParser
+    elif "execute-api" in url:
+        return ApiGatewayV2Parser
     elif url.endswith("amazonaws.com") or (headers and headers.get("x-amzn-RequestId")):
         return ServerlessAWSParser
     return Parser

@@ -1,4 +1,4 @@
-from lumigo_tracer.parsers.parser import ServerlessAWSParser, Parser, get_parser
+from lumigo_tracer.parsers.parser import ServerlessAWSParser, Parser, get_parser, ApiGatewayV2Parser
 import http.client
 
 
@@ -18,3 +18,29 @@ def test_get_parser_check_headers():
     headers = http.client.HTTPMessage()
     headers.add_header("x-amzn-requestid", "1234")
     assert get_parser(url, headers) == ServerlessAWSParser
+
+
+def test_get_parser_apigw():
+    url = "execute-api.us-west-2.amazonaws.com"
+    headers = http.client.HTTPMessage()
+    assert get_parser(url, headers) == ApiGatewayV2Parser
+
+
+def test_apigw_parse_response():
+    parser = ApiGatewayV2Parser()
+    headers = http.client.HTTPMessage()
+    headers.add_header("Apigw-Requestid", "LY_66j0dPHcESCg=")
+
+    result = parser.parse_response("dummy", 200, headers, body=b"")
+
+    assert result["info"] == {
+        "messageId": "LY_66j0dPHcESCg=",
+        "httpInfo": {
+            "host": "dummy",
+            "response": {
+                "headers": '{"Apigw-Requestid": "LY_66j0dPHcESCg="}',
+                "body": "",
+                "statusCode": 200,
+            },
+        },
+    }
