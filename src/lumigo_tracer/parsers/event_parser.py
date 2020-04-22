@@ -18,7 +18,6 @@ API_GW_KEYS_ORDER = str_to_list(os.environ.get("LUMIGO_API_GW_KEYS_ORDER", "")) 
     "path",
     "httpMethod",
     "queryStringParameters",
-    "multiValueQueryStringParameters",
     "pathParameters",
     "body",
     "requestContext",

@@ -148,7 +148,6 @@ def test_parse_event_api_gw_v1():
                 "path": "/add-user",
                 "httpMethod": "POST",
                 "queryStringParameters": "1",
-                "multiValueQueryStringParameters": "1",
                 "pathParameters": "1",
                 "body": '{"email":"a@a.com"}',
                 "requestContext": {
@@ -179,6 +178,7 @@ def test_parse_event_api_gw_v1():
                     "Referer": "https://aaa.io/users",
                     "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.163 Safari/537.36",
                 },
+                "multiValueQueryStringParameters": "1",
                 "stageVariables": None,
                 "isBase64Encoded": False,
             }
