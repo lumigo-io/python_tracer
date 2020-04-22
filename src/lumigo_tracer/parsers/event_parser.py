@@ -108,7 +108,7 @@ class EventParser:
                     return handler.parse(event)
             except Exception as e:
                 get_logger().debug(
-                    f"Error while trying to parse with handler {type(handler)} event {event}",
+                    f"Error while trying to parse with handler {handler.__class__.__name__} event {event}",
                     exc_info=e,
                 )
         return event
