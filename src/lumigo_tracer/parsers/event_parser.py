@@ -49,7 +49,7 @@ def _parse_api_gw_event(event: Dict):
     # Add order keys
     for order_key in API_GW_KEYS_ORDER:
         if event.get(order_key):
-            new_event[order_key] = event[order_key]
+            new_event = {k: v for k, v in event.items() if k in API_GW_KEYS_ORDER}
     # Remove requestContext keys
     if new_event.get("requestContext"):
         delete_request_context_keys = [
