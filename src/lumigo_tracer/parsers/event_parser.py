@@ -40,7 +40,7 @@ class EventParseHandler:
 
 class ApiGWHandler(EventParseHandler):
     def is_supported(self, event) -> bool:
-        if event.get("requestContext") and event.get("requestContext").get("domainName"):
+        if event.get("requestContext") and event.get("requestContext", {}).get("domainName"):
             return API_GW_REGEX.match(event["requestContext"]["domainName"]) is not None
         return False
 
