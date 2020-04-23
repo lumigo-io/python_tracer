@@ -31,6 +31,17 @@ Add `from lumigo_tracer import report_error`.<br/>
 
 Then use `report_error("<msg>")` from anywhere in your lambda code.
 
+### Adding Execution Tags
+You can use `add_execution_tag` function to add an execution_tag with a dynamic value.<br/>
+This value can be searched within the Lumigo platform.<br/>
+
+Add `from lumigo_tracer import add_execution_tag`.<br/>
+Then use `add_execution_tag("<key>", "<value>"` from anywhere in your lambda code.<br/>
+Limitation:<br/>
+The maximum number of tags is 50.<br/>
+Key and value length should be between 1 and 50.
+
+
 ### Step Functions
 If this function is part of a step function, you can add the flag `step_function=True` or environment variable `LUMIGO_STEP_FUNCTION=True`, and we will track the states in the step function as a single transaction.
 ```
