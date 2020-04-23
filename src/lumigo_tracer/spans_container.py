@@ -266,7 +266,7 @@ class SpansContainer:
         if Configuration.verbose:
             additional_info.update(
                 {
-                    "event": prepare_large_data(omit_keys(EventParser.parse_event(event))),
+                    "event": prepare_large_data(EventParser.parse_event(omit_keys(event))),
                     "envs": prepare_large_data(omit_keys(dict(os.environ))),
                 }
             )
