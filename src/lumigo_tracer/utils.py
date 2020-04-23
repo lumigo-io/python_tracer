@@ -5,6 +5,7 @@ import re
 import time
 import urllib.request
 from urllib.error import URLError
+from collections import OrderedDict
 from typing import Union, List, Optional, Dict, Any
 from contextlib import contextmanager
 from base64 import b64encode
@@ -245,7 +246,9 @@ def _truncate_locals(f_locals: Dict[str, Any], free_space: int) -> FrameVariable
     return locals_truncated
 
 
-def prepare_large_data(value: Union[str, bytes, dict, None], max_size=MAX_ENTRY_SIZE) -> str:
+def prepare_large_data(
+    value: Union[str, bytes, dict, OrderedDict, None], max_size=MAX_ENTRY_SIZE
+) -> str:
     """
     This function prepare the given value to send it to lumigo.
     You should call to this function if there's a possibility that the value will be big.
@@ -257,7 +260,7 @@ def prepare_large_data(value: Union[str, bytes, dict, None], max_size=MAX_ENTRY_
     :param max_size: The maximum size of the data that we will send
     :return: The value that we will actually send
     """
-    if isinstance(value, dict):
+    if isinstance(value, dict) or isinstance(value, OrderedDict):
         try:
             value = json.dumps(value)
         except Exception:
