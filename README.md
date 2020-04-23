@@ -36,10 +36,10 @@ You can use `add_execution_tag` function to add an execution_tag with a dynamic 
 This value can be searched within the Lumigo platform.<br/>
 
 Add `from lumigo_tracer import add_execution_tag`.<br/>
-Then use `add_execution_tag("<key>", "<value>"` from anywhere in your lambda code.<br/>
-Limitation:<br/>
-The maximum number of tags is 50.<br/>
-Key and value length should be between 1 and 50.
+Then use `add_execution_tag("<key>", "<value>")` from anywhere in your lambda code.<br/>
+Limitation:
+* The maximum number of tags is 50.
+* Key and value length should be between 1 and 50.
 
 
 ### Step Functions
