@@ -25,19 +25,7 @@ API_GW_KEYS_ORDER = str_to_list(os.environ.get("LUMIGO_API_GW_KEYS_ORDER", "")) 
 ]
 API_GW_PREFIX_KEYS_HEADERS_DELETE_KEYS = str_to_tuple(
     os.environ.get("LUMIGO_API_GW_PREFIX_KEYS_HEADERS_DELETE_KEYS", "")
-) or (
-    "cookie",
-    "X-Amz",
-    "x-amzn",
-    "Accept",
-    "accept",
-    "CloudFront",
-    "cloudfront",
-    "Via",
-    "X-Forwarded",
-    "x-forwarded",
-    "sec-",
-)
+) or ("cookie", "x-amz", "accept", "cloudfront", "via", "x-forwarded", "sec-")
 API_GW_REQUEST_CONTEXT_FILTER_KEYS = str_to_list(
     os.environ.get("LUMIGO_API_GW_REQUEST_CONTEXT_FILTER_KEYS", "")
 ) or ["authorizer", "http"]
@@ -75,12 +63,12 @@ class ApiGWHandler(EventParseHandler):
         # Remove requestContext keys
         if new_event.get("requestContext"):
             for rc_key in new_event["requestContext"].copy():
-                if rc_key not in API_GW_REQUEST_CONTEXT_FILTER_KEYS:
+                if rc_key.lower() not in API_GW_REQUEST_CONTEXT_FILTER_KEYS:
                     new_event["requestContext"].pop(rc_key, None)
         # Remove headers keys
         if new_event.get("headers"):
             for h_key in new_event["headers"].copy():
-                if h_key.startswith(API_GW_PREFIX_KEYS_HEADERS_DELETE_KEYS):
+                if h_key.lower().startswith(API_GW_PREFIX_KEYS_HEADERS_DELETE_KEYS):
                     new_event["headers"].pop(h_key, None)
         # Add all other keys
         for key in event.keys():
