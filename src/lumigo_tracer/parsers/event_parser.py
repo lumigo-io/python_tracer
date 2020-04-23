@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from collections import OrderedDict
 from typing import Dict, List
 
-from lumigo_tracer.parsers.utils import str_to_tuple, str_to_list
+from lumigo_tracer.parsers.utils import str_to_list
 from lumigo_tracer.utils import get_logger
 
 
@@ -23,7 +23,7 @@ API_GW_KEYS_ORDER = str_to_list(os.environ.get("LUMIGO_API_GW_KEYS_ORDER", "")) 
     "requestContext",
     "headers",
 ]
-API_GW_PREFIX_KEYS_HEADERS_DELETE_KEYS = str_to_tuple(
+API_GW_PREFIX_KEYS_HEADERS_DELETE_KEYS = str_to_list(
     os.environ.get("LUMIGO_API_GW_PREFIX_KEYS_HEADERS_DELETE_KEYS", "")
 ) or ("cookie", "x-amz", "accept", "cloudfront", "via", "x-forwarded", "sec-")
 API_GW_REQUEST_CONTEXT_FILTER_KEYS = str_to_list(
@@ -68,7 +68,7 @@ class ApiGWHandler(EventParseHandler):
         # Remove headers keys
         if new_event.get("headers"):
             for h_key in new_event["headers"].copy():
-                if h_key.lower().startswith(API_GW_PREFIX_KEYS_HEADERS_DELETE_KEYS):
+                if any(h_key.lower().startswith(s) for s in API_GW_PREFIX_KEYS_HEADERS_DELETE_KEYS):
                     new_event["headers"].pop(h_key, None)
         # Add all other keys
         for key in event.keys():
