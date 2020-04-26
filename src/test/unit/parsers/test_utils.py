@@ -3,7 +3,7 @@ import os
 import pytest
 
 from lumigo_tracer.parsers import utils
-from lumigo_tracer.parsers.utils import should_scrub_domain
+from lumigo_tracer.parsers.utils import should_scrub_domain, str_to_list, str_to_tuple
 from lumigo_tracer.utils import config, Configuration
 
 
@@ -334,3 +334,19 @@ def test_safe_get(d, keys, result_value, default):
 def test_should_scrub_domain(regexes, url, expected):
     Configuration.domains_scrubber = regexes
     assert should_scrub_domain(url) == expected
+
+
+def test_str_to_list():
+    assert str_to_list("a,b,c,d") == ["a", "b", "c", "d"]
+
+
+def test_str_to_list_exception():
+    assert str_to_list("") is None
+
+
+def test_str_to_tuple():
+    assert str_to_tuple("a,b,c,d") == ("a", "b", "c", "d")
+
+
+def test_str_to_tuple_exception():
+    assert str_to_tuple([]) is None
