@@ -34,6 +34,18 @@ API_GW_KEYS_DELETE_KEYS = str_to_list(os.environ.get("LUMIGO_API_GW_KEYS_DELETE_
     "multiValueQueryStringParameters",
 ]
 
+SNS_KEYS_ORDER = str_to_list(os.environ.get("LUMIGO_SNS_KEYS_ORDER", "")) or [
+    "Message",
+    "MessageAttributes",
+    "MessageId",
+]
+
+SQS_KEYS_ORDER = str_to_list(os.environ.get("LUMIGO_SQS_KEYS_ORDER", "")) or [
+    "body",
+    "messageAttributes",
+    "messageId",
+]
+
 
 class EventParseHandler(ABC):
     @staticmethod
@@ -82,10 +94,58 @@ class ApiGWHandler(EventParseHandler):
         return new_event
 
 
+class SNSHandler(EventParseHandler):
+    @staticmethod
+    def is_supported(event) -> bool:
+        if (
+            isinstance(event, dict)
+            and event.get("Records")  # noqa
+            and event.get("Records", [{}])[0].get("EventSource") == "aws:sns"  # noqa
+        ):
+            return True
+        return False
+
+    @staticmethod
+    def parse(event) -> Dict:
+        new_sns_event: OrderedDict = OrderedDict()
+        new_sns_event["Records"] = []
+        # Add order keys
+        for rec in event.get("Records"):
+            new_sns_record_event: OrderedDict = OrderedDict()
+            for key in SNS_KEYS_ORDER:
+                new_sns_record_event[key] = rec["Sns"].get(key)
+            new_sns_event["Records"].append({"Sns": new_sns_record_event})
+        return new_sns_event
+
+
+class SQSHandler(EventParseHandler):
+    @staticmethod
+    def is_supported(event) -> bool:
+        if (
+            isinstance(event, dict)
+            and event.get("Records")  # noqa
+            and event.get("Records", [{}])[0].get("eventSource") == "aws:sqs"  # noqa
+        ):
+            return True
+        return False
+
+    @staticmethod
+    def parse(event) -> Dict:
+        new_sqs_event: OrderedDict = OrderedDict()
+        new_sqs_event["Records"] = []
+        # Add order keys
+        for rec in event.get("Records"):
+            new_sqs_record_event: OrderedDict = OrderedDict()
+            for key in SQS_KEYS_ORDER:
+                new_sqs_record_event[key] = rec.get(key)
+            new_sqs_event["Records"].append(new_sqs_record_event)
+        return new_sqs_event
+
+
 class EventParser:
     @staticmethod
     def parse_event(event: Dict, handlers: List[EventParseHandler] = None):
-        handlers = handlers or [ApiGWHandler()]
+        handlers = handlers or [ApiGWHandler(), SNSHandler(), SQSHandler()]
         for handler in handlers:
             try:
                 if handler.is_supported(event):
