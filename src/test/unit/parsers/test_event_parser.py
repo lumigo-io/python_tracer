@@ -16,7 +16,7 @@ class ExceptionHandler(EventParseHandler):
 
 
 def test_parse_event_not_api_gw_none_check():
-    new_event = EventParser.parse_event(event=None, handlers=[ExceptionHandler()])
+    new_event = EventParser.parse_event(event=None)
 
     assert new_event is None
 

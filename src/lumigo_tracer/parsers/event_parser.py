@@ -51,7 +51,7 @@ class ApiGWHandler(EventParseHandler):
     @staticmethod
     def is_supported(event) -> bool:
         if (
-            event
+            isinstance(event, Dict)
             and event.get("requestContext")  # noqa
             and event.get("requestContext", {}).get("domainName")  # noqa
         ):
