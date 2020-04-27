@@ -15,6 +15,12 @@ class ExceptionHandler(EventParseHandler):
         raise Exception()
 
 
+def test_parse_event_not_api_gw_none_check():
+    new_event = EventParser.parse_event(event=None)
+
+    assert new_event is None
+
+
 def test_parse_event_not_api_gw():
     event = {"a": 1}
 
@@ -178,7 +184,6 @@ def test_parse_event_api_gw_v1():
                     "Referer": "https://aaa.io/users",
                     "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.163 Safari/537.36",
                 },
-                "multiValueQueryStringParameters": "1",
                 "stageVariables": None,
                 "isBase64Encoded": False,
             }

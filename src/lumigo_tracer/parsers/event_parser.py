@@ -30,7 +30,8 @@ API_GW_REQUEST_CONTEXT_FILTER_KEYS = str_to_list(
     os.environ.get("LUMIGO_API_GW_REQUEST_CONTEXT_FILTER_KEYS", "")
 ) or ["authorizer", "http"]
 API_GW_KEYS_DELETE_KEYS = str_to_list(os.environ.get("LUMIGO_API_GW_KEYS_DELETE_KEYS", "")) or [
-    "multiValueHeaders"
+    "multiValueHeaders",
+    "multiValueQueryStringParameters",
 ]
 
 
@@ -49,7 +50,11 @@ class EventParseHandler(ABC):
 class ApiGWHandler(EventParseHandler):
     @staticmethod
     def is_supported(event) -> bool:
-        if event.get("requestContext") and event.get("requestContext", {}).get("domainName"):
+        if (
+            isinstance(event, Dict)
+            and event.get("requestContext")  # noqa
+            and event.get("requestContext", {}).get("domainName")  # noqa
+        ):
             return API_GW_REGEX.match(event["requestContext"]["domainName"]) is not None
         return False
 
