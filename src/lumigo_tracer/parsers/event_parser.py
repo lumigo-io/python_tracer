@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from collections import OrderedDict
 from typing import Dict, List
 
-from lumigo_tracer.parsers.utils import str_to_list
+from lumigo_tracer.parsers.utils import str_to_list, safe_get
 from lumigo_tracer.utils import get_logger
 
 
@@ -97,11 +97,7 @@ class ApiGWHandler(EventParseHandler):
 class SNSHandler(EventParseHandler):
     @staticmethod
     def is_supported(event) -> bool:
-        if (
-            isinstance(event, dict)
-            and event.get("Records")  # noqa
-            and event.get("Records", [{}])[0].get("EventSource") == "aws:sns"  # noqa
-        ):
+        if safe_get(event, ["Records", 0, "EventSource"]) == "aws:sns":
             return True
         return False
 
@@ -113,7 +109,8 @@ class SNSHandler(EventParseHandler):
         for rec in event.get("Records"):
             new_sns_record_event: OrderedDict = OrderedDict()
             for key in SNS_KEYS_ORDER:
-                new_sns_record_event[key] = rec["Sns"].get(key)
+                if rec["Sns"].get(key):
+                    new_sns_record_event[key] = rec["Sns"].get(key)
             new_sns_event["Records"].append({"Sns": new_sns_record_event})
         return new_sns_event
 
@@ -121,11 +118,7 @@ class SNSHandler(EventParseHandler):
 class SQSHandler(EventParseHandler):
     @staticmethod
     def is_supported(event) -> bool:
-        if (
-            isinstance(event, dict)
-            and event.get("Records")  # noqa
-            and event.get("Records", [{}])[0].get("eventSource") == "aws:sqs"  # noqa
-        ):
+        if safe_get(event, ["Records", 0, "eventSource"]) == "aws:sqs":
             return True
         return False
 
@@ -137,7 +130,8 @@ class SQSHandler(EventParseHandler):
         for rec in event.get("Records"):
             new_sqs_record_event: OrderedDict = OrderedDict()
             for key in SQS_KEYS_ORDER:
-                new_sqs_record_event[key] = rec.get(key)
+                if rec.get(key):
+                    new_sqs_record_event[key] = rec.get(key)
             new_sqs_event["Records"].append(new_sqs_record_event)
         return new_sqs_event
 
