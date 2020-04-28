@@ -97,9 +97,7 @@ class ApiGWHandler(EventParseHandler):
 class SNSHandler(EventParseHandler):
     @staticmethod
     def is_supported(event) -> bool:
-        if safe_get(event, ["Records", 0, "EventSource"]) == "aws:sns":
-            return True
-        return False
+        return safe_get(event, ["Records", 0, "EventSource"]) == "aws:sns"
 
     @staticmethod
     def parse(event) -> Dict:
@@ -118,9 +116,7 @@ class SNSHandler(EventParseHandler):
 class SQSHandler(EventParseHandler):
     @staticmethod
     def is_supported(event) -> bool:
-        if safe_get(event, ["Records", 0, "eventSource"]) == "aws:sqs":
-            return True
-        return False
+        return safe_get(event, ["Records", 0, "eventSource"]) == "aws:sqs"
 
     @staticmethod
     def parse(event) -> Dict:
