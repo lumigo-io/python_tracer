@@ -21,7 +21,7 @@ def test_get_parser_check_headers():
 
 
 def test_get_parser_apigw():
-    url = "execute-api.us-west-2.amazonaws.com"
+    url = "https://ne3kjv28fh.execute-api.us-west-2.amazonaws.com/doriaviram"
     headers = http.client.HTTPMessage()
     assert get_parser(url, headers) == ApiGatewayV2Parser
 

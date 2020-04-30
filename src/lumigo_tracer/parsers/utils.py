@@ -196,14 +196,14 @@ def _is_supported_http_method(event: dict):
         and "headers" in event  # noqa
         and "requestContext" in event  # noqa
         and event.get("requestContext", {}).get("elb") is None  # noqa
-        or event.get("version", "") == "2.0"  # noqa
-        and "headers" in event  # noqa
-    )  # noqa
+    ) or (  # noqa
+        event.get("version", "") == "2.0" and "headers" in event  # noqa
+    )  # noqa  # noqa
 
 
 def parse_http_method(event: dict):
     version = event.get("version")
-    if version == "2.0":
+    if version and version.startswith("2.0"):
         return _parse_http_method_v2(event)
     return _parse_http_method_v1(event)
 
