@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from collections import OrderedDict
 from typing import Dict, List
 
-from lumigo_tracer.parsers.utils import str_to_list
+from lumigo_tracer.parsers.utils import str_to_list, safe_get
 from lumigo_tracer.utils import get_logger
 
 
@@ -30,7 +30,20 @@ API_GW_REQUEST_CONTEXT_FILTER_KEYS = str_to_list(
     os.environ.get("LUMIGO_API_GW_REQUEST_CONTEXT_FILTER_KEYS", "")
 ) or ["authorizer", "http"]
 API_GW_KEYS_DELETE_KEYS = str_to_list(os.environ.get("LUMIGO_API_GW_KEYS_DELETE_KEYS", "")) or [
-    "multiValueHeaders"
+    "multiValueHeaders",
+    "multiValueQueryStringParameters",
+]
+
+SNS_KEYS_ORDER = str_to_list(os.environ.get("LUMIGO_SNS_KEYS_ORDER", "")) or [
+    "Message",
+    "MessageAttributes",
+    "MessageId",
+]
+
+SQS_KEYS_ORDER = str_to_list(os.environ.get("LUMIGO_SQS_KEYS_ORDER", "")) or [
+    "body",
+    "messageAttributes",
+    "messageId",
 ]
 
 
@@ -49,7 +62,11 @@ class EventParseHandler(ABC):
 class ApiGWHandler(EventParseHandler):
     @staticmethod
     def is_supported(event) -> bool:
-        if event.get("requestContext") and event.get("requestContext", {}).get("domainName"):
+        if (
+            isinstance(event, Dict)
+            and event.get("requestContext")  # noqa
+            and event.get("requestContext", {}).get("domainName")  # noqa
+        ):
             return API_GW_REGEX.match(event["requestContext"]["domainName"]) is not None
         return False
 
@@ -77,10 +94,48 @@ class ApiGWHandler(EventParseHandler):
         return new_event
 
 
+class SNSHandler(EventParseHandler):
+    @staticmethod
+    def is_supported(event) -> bool:
+        return safe_get(event, ["Records", 0, "EventSource"]) == "aws:sns"
+
+    @staticmethod
+    def parse(event) -> Dict:
+        new_sns_event: OrderedDict = OrderedDict()
+        new_sns_event["Records"] = []
+        # Add order keys
+        for rec in event.get("Records"):
+            new_sns_record_event: OrderedDict = OrderedDict()
+            for key in SNS_KEYS_ORDER:
+                if rec["Sns"].get(key):
+                    new_sns_record_event[key] = rec["Sns"].get(key)
+            new_sns_event["Records"].append({"Sns": new_sns_record_event})
+        return new_sns_event
+
+
+class SQSHandler(EventParseHandler):
+    @staticmethod
+    def is_supported(event) -> bool:
+        return safe_get(event, ["Records", 0, "eventSource"]) == "aws:sqs"
+
+    @staticmethod
+    def parse(event) -> Dict:
+        new_sqs_event: OrderedDict = OrderedDict()
+        new_sqs_event["Records"] = []
+        # Add order keys
+        for rec in event.get("Records"):
+            new_sqs_record_event: OrderedDict = OrderedDict()
+            for key in SQS_KEYS_ORDER:
+                if rec.get(key):
+                    new_sqs_record_event[key] = rec.get(key)
+            new_sqs_event["Records"].append(new_sqs_record_event)
+        return new_sqs_event
+
+
 class EventParser:
     @staticmethod
     def parse_event(event: Dict, handlers: List[EventParseHandler] = None):
-        handlers = handlers or [ApiGWHandler()]
+        handlers = handlers or [ApiGWHandler(), SNSHandler(), SQSHandler()]
         for handler in handlers:
             try:
                 if handler.is_supported(event):
