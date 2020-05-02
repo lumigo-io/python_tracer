@@ -223,8 +223,11 @@ class ApiGatewayV2Parser(ServerlessAWSParser):
     # API-GW V1 covered by ServerlessAWSParser
 
     def parse_response(self, url: str, status_code: int, headers, body: bytes) -> dict:
+        aws_request_id = headers.get("x-amzn-RequestId")
+        apigw_request_id = headers.get("Apigw-Requestid")
+        message_id = aws_request_id or apigw_request_id
         return recursive_json_join(
-            {"info": {"messageId": headers.get("Apigw-Requestid")}},
+            {"info": {"messageId": message_id}},
             super().parse_response(url, status_code, headers, body),
         )
 

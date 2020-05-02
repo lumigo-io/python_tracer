@@ -44,3 +44,24 @@ def test_apigw_parse_response():
             },
         },
     }
+
+
+def test_apigw_parse_response_with_aws_request_id():
+    parser = ApiGatewayV2Parser()
+    headers = http.client.HTTPMessage()
+    headers.add_header("Apigw-Requestid", "LY_66j0dPHcESCg=")
+    headers.add_header("x-amzn-RequestId", "x-amzn-RequestId_LY_66j0dPHcESCg=")
+
+    result = parser.parse_response("dummy", 200, headers, body=b"")
+
+    assert result["info"] == {
+        "messageId": "x-amzn-RequestId_LY_66j0dPHcESCg=",
+        "httpInfo": {
+            "host": "dummy",
+            "response": {
+                "headers": '{"Apigw-Requestid": "LY_66j0dPHcESCg=", "x-amzn-RequestId": "x-amzn-RequestId_LY_66j0dPHcESCg="}',
+                "body": "",
+                "statusCode": 200,
+            },
+        },
+    }
