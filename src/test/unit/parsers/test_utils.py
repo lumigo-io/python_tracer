@@ -261,6 +261,30 @@ def test_recursive_json_join(d1, d2, result):
             },
             {"triggeredBy": "unknown"},
         ),
+        (  # API GW V2
+            {
+                "version": "2.0",
+                "headers": {},
+                "requestContext": {
+                    "domainName": "r3pmxmplak.execute-api.us-east-2.amazonaws.com",
+                    "domainPrefix": "r3pmxmplak",
+                    "http": {
+                        "method": "GET",
+                        "path": "/default/nodejs-apig-function-1G3XMPLZXVXYI",
+                    },
+                    "requestId": "JKJaXmPLvHcESHA=",
+                    "stage": "default",
+                },
+            },
+            {
+                "triggeredBy": "apigw",
+                "httpMethod": "GET",
+                "resource": "/default/nodejs-apig-function-1G3XMPLZXVXYI",
+                "messageId": "JKJaXmPLvHcESHA=",
+                "api": "r3pmxmplak.execute-api.us-east-2.amazonaws.com",
+                "stage": "default",
+            },
+        ),
         ({"bla": "bla2"}, {"triggeredBy": "unknown"}),  # unknown trigger
         (None, None),
     ],
