@@ -62,5 +62,5 @@ cd ../python_tracer
 git add layers/LAYERS36.md
 git add layers/LAYERS37.md
 git commit -m "layers-table: layers md [skip ci]"
-
+git push origin master
 echo "Done"
