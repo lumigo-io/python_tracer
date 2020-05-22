@@ -36,7 +36,7 @@ def safe_get(d: Union[dict, list], keys: List[Union[str, int]], default: Any = N
     return functools.reduce(get_next_val, keys, d)
 
 
-def safe_get_list(l: list, index: Union[int, str], default=None):
+def safe_get_list(lst: list, index: Union[int, str], default=None):
     """
     This function return the organ in the `index` place from the given list.
     If this values doesn't exist, return default.
@@ -46,9 +46,9 @@ def safe_get_list(l: list, index: Union[int, str], default=None):
             index = int(index)
         except ValueError:
             return default
-    if not isinstance(l, Iterable):
+    if not isinstance(lst, Iterable):
         return default
-    return l[index] if len(l) > index else default
+    return lst[index] if len(lst) > index else default
 
 
 def safe_split_get(string: str, sep: str, index: int, default=None) -> str:
@@ -303,7 +303,7 @@ def str_to_list(val: str):
         if val:
             return val.split(",")
     except Exception as e:
-        get_logger().debug(f"Error while convert str to list", exc_info=e)
+        get_logger().debug("Error while convert str to list", exc_info=e)
     return None
 
 
@@ -312,5 +312,5 @@ def str_to_tuple(val: str):
         if val:
             return tuple(val.split(","))
     except Exception as e:
-        get_logger().debug(f"Error while convert str to tuple", exc_info=e)
+        get_logger().debug("Error while convert str to tuple", exc_info=e)
     return None
