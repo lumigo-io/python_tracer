@@ -33,6 +33,21 @@ commands:
             cd ..
             git clone git@github.com:lumigo-io/common-resources.git
 
+  checkout_integration_tests:
+    description: "Checkout integration tests"
+    steps:
+      - run:
+          command: |
+            cd ..
+            git clone git@github.com:lumigo-io/integration-tests.git
+  checkout_dashboard:
+    description: "Checkout Lumigo Platform (dashboard)"
+    steps:
+      - run:
+          command: |
+            cd ..
+            git clone git@github.com:lumigo-io/dashboard.git
+            
   checkout_code:
     description: "Checkout code and test it"
     steps:
