@@ -46,7 +46,7 @@ class ApiGWHandler(EventAutoTagHandler):
 
 class AutoTagEvent:
     @staticmethod
-    def auto_tag_event(event: Dict = None, handlers: List[EventAutoTagHandler] = None):
+    def auto_tag_event(event: Optional[Dict] = None, handlers: Optional[List[EventAutoTagHandler]] = None) -> None:
         if event:
             handlers = handlers or [ApiGWHandler()]
             for handler in handlers:
