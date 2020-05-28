@@ -8,6 +8,7 @@ from functools import wraps
 import importlib.util
 import botocore.awsrequest  # noqa: F401
 
+from lumigo_tracer.auto_tag.auto_tag_event import AutoTagEvent
 from lumigo_tracer.libs.wrapt import wrap_function_wrapper
 from lumigo_tracer.parsers.utils import safe_get_list
 from lumigo_tracer.utils import (
@@ -164,6 +165,7 @@ def _lumigo_tracer(func):
         try:
             if Configuration.enhanced_print:
                 _enhance_output(args, local_print, local_logging_format)
+            AutoTagEvent.auto_tag_event(*args)
             SpansContainer.create_span(*args, force=True)
             SpansContainer.get_span().start(*args)
             wrap_http_calls()
