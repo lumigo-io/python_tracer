@@ -321,3 +321,13 @@ def omit_keys(value: Any):
 def warn_client(msg: str) -> None:
     if os.environ.get("LUMIGO_WARNINGS") != "off":
         print(f"{WARN_CLIENT_PREFIX}: {msg}")
+
+
+def is_api_gw_event(event: dict) -> bool:
+    return bool(
+        isinstance(event, Dict)
+        and event.get("requestContext")  # noqa
+        and event.get("requestContext", {}).get("domainName")  # noqa
+        and event.get("requestContext")  # noqa
+        and event.get("requestContext", {}).get("requestId")  # noqa
+    )

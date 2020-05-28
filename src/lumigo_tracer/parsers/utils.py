@@ -1,7 +1,7 @@
 import json
 import re
 import urllib.parse
-from typing import Tuple, Dict, Union, List, Any
+from typing import Tuple, Dict, Union, List, Any, Optional
 
 from lumigo_tracer.libs import xmltodict
 import functools
@@ -298,7 +298,7 @@ def should_scrub_domain(url: str) -> bool:
     return False
 
 
-def str_to_list(val: str):
+def str_to_list(val: str) -> Optional[List[str]]:
     try:
         if val:
             return val.split(",")
@@ -307,7 +307,7 @@ def str_to_list(val: str):
     return None
 
 
-def str_to_tuple(val: str):
+def str_to_tuple(val: str) -> Optional[Tuple]:
     try:
         if val:
             return tuple(val.split(","))

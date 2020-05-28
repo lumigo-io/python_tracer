@@ -4,8 +4,7 @@ from collections import OrderedDict
 from typing import Dict, List
 
 from lumigo_tracer.parsers.utils import str_to_list, safe_get
-from lumigo_tracer.utils import get_logger
-
+from lumigo_tracer.utils import get_logger, is_api_gw_event
 
 API_GW_KEYS_ORDER = str_to_list(os.environ.get("LUMIGO_API_GW_KEYS_ORDER", "")) or [
     "version",
@@ -60,13 +59,7 @@ class EventParseHandler(ABC):
 class ApiGWHandler(EventParseHandler):
     @staticmethod
     def is_supported(event) -> bool:
-        if (
-            isinstance(event, Dict)
-            and event.get("requestContext")  # noqa
-            and event.get("requestContext", {}).get("domainName")  # noqa
-            and event.get("requestContext")  # noqa
-            and event.get("requestContext", {}).get("requestId")  # noqa
-        ):
+        if is_api_gw_event(event=event):  # noqa
             return True
         return False
 

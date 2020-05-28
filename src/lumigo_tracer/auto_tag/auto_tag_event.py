@@ -1,16 +1,22 @@
 import os
 from abc import ABC, abstractmethod
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 from lumigo_tracer.user_utils import add_execution_tag
 from lumigo_tracer.parsers.utils import str_to_list
-from lumigo_tracer.utils import get_logger
+from lumigo_tracer.utils import get_logger, is_api_gw_event
 
-
-AUTO_TAG_API_GW_HEADERS = str_to_list(os.environ.get("LUMIGO_AUTO_TAG_API_GW_HEADERS", "")) or []
+AUTO_TAG_API_GW_HEADERS: Optional[List[str]] = str_to_list(
+    os.environ.get("LUMIGO_AUTO_TAG_API_GW_HEADERS", "")
+) or []
 
 
 class EventAutoTagHandler(ABC):
+    """
+        EventAutoTagHandler API
+        When adding a new handler update the handlers list under AutoTagEvent.auto_tag_event
+    """
+
     @staticmethod
     @abstractmethod
     def is_supported(event) -> bool:
@@ -26,27 +32,27 @@ class ApiGWHandler(EventAutoTagHandler):
     @staticmethod
     def is_supported(event) -> bool:
         if (
-            len(AUTO_TGA_API_GW_HEADERS) > 0
-            and isinstance(event, Dict)  # noqa
-            and event.get("requestContext")  # noqa
-            and event.get("requestContext", {}).get("domainName")  # noqa
-            and event.get("requestContext")  # noqa
-            and event.get("requestContext", {}).get("requestId")  # noqa
+            AUTO_TAG_API_GW_HEADERS
+            and len(AUTO_TAG_API_GW_HEADERS) > 0  # noqa
+            and is_api_gw_event(event=event)  # noqa
         ):
             return True
         return False
 
     @staticmethod
     def auto_tag(event: dict):
-        headers = event.get("headers", [])
-        for key in AUTO_TGA_API_GW_HEADERS:
-            if key in headers:
-                add_execution_tag(key, headers[key])
+        if AUTO_TAG_API_GW_HEADERS:
+            headers = event.get("headers", [])
+            for key in AUTO_TAG_API_GW_HEADERS:
+                if key in headers:
+                    add_execution_tag(key, headers[key])
 
 
 class AutoTagEvent:
     @staticmethod
-    def auto_tag_event(event: Optional[Dict] = None, handlers: Optional[List[EventAutoTagHandler]] = None) -> None:
+    def auto_tag_event(
+        event: Optional[Dict] = None, handlers: Optional[List[EventAutoTagHandler]] = None
+    ) -> None:
         if event:
             handlers = handlers or [ApiGWHandler()]
             for handler in handlers:

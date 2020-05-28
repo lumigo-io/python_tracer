@@ -165,8 +165,9 @@ def _lumigo_tracer(func):
         try:
             if Configuration.enhanced_print:
                 _enhance_output(args, local_print, local_logging_format)
-            AutoTagEvent.auto_tag_event(*args)
             SpansContainer.create_span(*args, force=True)
+            with lumigo_safe_execute("auto tag"):
+                AutoTagEvent.auto_tag_event(args[0])
             SpansContainer.get_span().start(*args)
             wrap_http_calls()
             try:

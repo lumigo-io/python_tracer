@@ -29,7 +29,7 @@ def test_auto_tag_exception():
 
 
 def test_auto_tag_key_not_in_header(monkeypatch):
-    monkeypatch.setenv("LUMIGO_AUTO_TGA_API_GW_HEADERS", "key_not_exists")
+    set_header_key(monkeypatch, "not-exists")
 
     event = {
         "resource": "/add-user",
@@ -152,7 +152,7 @@ def test_auto_tag_key_not_in_header(monkeypatch):
 
 
 def test_auto_tag_key_in_header(monkeypatch):
-    monkeypatch.setattr(auto_tag_event, "AUTO_TGA_API_GW_HEADERS", ["Accept"])
+    set_header_key(monkeypatch, "Accept")
 
     event = {
         "resource": "/add-user",
@@ -274,3 +274,7 @@ def test_auto_tag_key_in_header(monkeypatch):
     assert SpansContainer.get_span().function_span[EXECUTION_TAGS_KEY] == [
         {"key": "Accept", "value": "application/json, text/plain, */*"}
     ]
+
+
+def set_header_key(monkeypatch, header: str):
+    monkeypatch.setattr(auto_tag_event, "AUTO_TAG_API_GW_HEADERS", [header])
