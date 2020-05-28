@@ -37,7 +37,7 @@ class ApiGWHandler(EventAutoTagHandler):
         return False
 
     @staticmethod
-    def auto_tag(event):
+    def auto_tag(event: dict):
         headers = event.get("headers", [])
         for key in AUTO_TGA_API_GW_HEADERS:
             if key in headers:
