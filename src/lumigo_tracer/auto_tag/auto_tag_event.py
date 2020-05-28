@@ -7,7 +7,7 @@ from lumigo_tracer.parsers.utils import str_to_list
 from lumigo_tracer.utils import get_logger
 
 
-AUTO_TGA_API_GW_HEADERS = str_to_list(os.environ.get("LUMIGO_AUTO_TGA_API_GW_HEADERS", "")) or []
+AUTO_TAG_API_GW_HEADERS = str_to_list(os.environ.get("LUMIGO_AUTO_TAG_API_GW_HEADERS", "")) or []
 
 
 class EventAutoTagHandler(ABC):
