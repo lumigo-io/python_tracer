@@ -328,6 +328,5 @@ def is_api_gw_event(event: dict) -> bool:
         isinstance(event, Dict)
         and event.get("requestContext")  # noqa
         and event.get("requestContext", {}).get("domainName")  # noqa
-        and event.get("requestContext")  # noqa
         and event.get("requestContext", {}).get("requestId")  # noqa
     )
