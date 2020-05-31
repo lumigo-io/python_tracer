@@ -3,7 +3,7 @@ import inspect
 import pytest
 
 from lumigo_tracer.parsers.http_data_classes import HttpRequest
-from lumigo_tracer.spans_container import SpansContainer, TimeoutMechanism, TIMEOUT_BUFFER
+from lumigo_tracer.spans_container import SpansContainer, TimeoutMechanism
 from lumigo_tracer import utils
 from lumigo_tracer.utils import Configuration, EXECUTION_TAGS_KEY
 
@@ -93,7 +93,9 @@ def test_timeout_mechanism_disabled_by_configuration(monkeypatch, context):
 
 def test_timeout_mechanism_too_short_time(monkeypatch, context):
     monkeypatch.setattr(Configuration, "timeout_timer", True)
-    monkeypatch.setattr(context, "get_remaining_time_in_millis", lambda: TIMEOUT_BUFFER / 2)
+    monkeypatch.setattr(
+        context, "get_remaining_time_in_millis", lambda: utils.TIMEOUT_TIMER_BUFFER / 2
+    )
     SpansContainer.create_span()
     SpansContainer.get_span().start(context=context)
 
