@@ -138,8 +138,23 @@ jobs:
       - run: ./scripts/ci_deploy.sh
       - run: cd ../integration-tests && npm i
       - run: sudo npm install -g recursive-install
+      - run: cd ../integration-tests && git rev-parse HEAD > ../commits && cd ../python_tracer && git rev-parse HEAD >> ../commits &&  cd ../lumigo-node && git rev-parse HEAD >> ../commits &&  cd ../java-tracer && git rev-parse HEAD >> ../commits
+      - restore_cache:
+          keys:
+            - IT-{{ .Branch }}-{{ checksum "../commits" }}
       - run: cd ../integration-tests && ./scripts/parallel_prepare_env.sh
       - run: cd ../integration-tests && ./scripts/parallel_deploy.sh --spec python
+      - save_cache:
+          key: IT-{{ .Branch }}-{{ checksum "../commits" }}
+          paths:
+            - ../integration-tests/src/e2e-test/cypress.env.json
+            - ../integration-tests/src/e2e-test/cypress/cf-stack.json
+            - ../integration-tests/.env
+            - ../integration-tests/.env2
+            - ../integration-tests/.env3
+            - ../integration-tests/.deployment_finished.env
+            - ../integration-tests/.deployment_finished.env2
+            - ../integration-tests/.deployment_finished.env3
       - run: cd ../integration-tests && export testPython=true && npm run test-parallel
       - store_test_results:
           path: ../integration-tests/src/test/test-results
