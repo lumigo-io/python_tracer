@@ -1,14 +1,11 @@
 import os
-import re
 from abc import ABC, abstractmethod
 from collections import OrderedDict
 from typing import Dict, List
 
 from lumigo_tracer.parsers.utils import str_to_list, safe_get
-from lumigo_tracer.utils import get_logger
+from lumigo_tracer.utils import get_logger, is_api_gw_event
 
-
-API_GW_REGEX = re.compile(r".*execute-api.*amazonaws\.com.*")
 API_GW_KEYS_ORDER = str_to_list(os.environ.get("LUMIGO_API_GW_KEYS_ORDER", "")) or [
     "version",
     "routeKey",
@@ -62,12 +59,8 @@ class EventParseHandler(ABC):
 class ApiGWHandler(EventParseHandler):
     @staticmethod
     def is_supported(event) -> bool:
-        if (
-            isinstance(event, Dict)
-            and event.get("requestContext")  # noqa
-            and event.get("requestContext", {}).get("domainName")  # noqa
-        ):
-            return API_GW_REGEX.match(event["requestContext"]["domainName"]) is not None
+        if is_api_gw_event(event=event):  # noqa
+            return True
         return False
 
     @staticmethod
