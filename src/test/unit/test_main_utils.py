@@ -20,6 +20,7 @@ from lumigo_tracer.utils import (
     warn_client,
     WARN_CLIENT_PREFIX,
     SKIP_SCRUBBING_KEYS,
+    TIMEOUT_TIMER_BUFFER,
 )
 import json
 
@@ -310,6 +311,12 @@ def test_config_enhanced_printstep_function_without_envs(monkeypatch, configurat
     monkeypatch.delenv("LUMIGO_STEP_FUNCTION", raising=False)
     config(step_function=configuration_value)
     assert Configuration.is_step_function == configuration_value
+
+
+def test_config_timeout_timer_buffer_with_exception(monkeypatch):
+    monkeypatch.setenv("LUMIGO_TIMEOUT_BUFFER", "not float")
+    config()
+    assert Configuration.timeout_timer_buffer == TIMEOUT_TIMER_BUFFER
 
 
 def test_warn_client_print(capsys):

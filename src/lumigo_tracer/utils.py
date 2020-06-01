@@ -100,9 +100,13 @@ def config(
         step_function or os.environ.get("LUMIGO_STEP_FUNCTION", "").lower() == "true"
     )
     Configuration.timeout_timer = timeout_timer
-    Configuration.timeout_timer_buffer = timeout_timer_buffer or float(
-        os.environ.get("LUMIGO_TIMEOUT_BUFFER", TIMEOUT_TIMER_BUFFER)
-    )
+    try:
+        Configuration.timeout_timer_buffer = timeout_timer_buffer or float(
+            os.environ.get("LUMIGO_TIMEOUT_BUFFER", TIMEOUT_TIMER_BUFFER)
+        )
+    except Exception:
+        warn_client("Could not configure LUMIGO_TIMEOUT_BUFFER. Using default value.")
+        Configuration.timeout_timer_buffer = TIMEOUT_TIMER_BUFFER
     Configuration.send_only_if_error = os.environ.get("SEND_ONLY_IF_ERROR", "").lower() == "true"
     if domains_scrubber:
         Configuration.domains_scrubber = domains_scrubber
