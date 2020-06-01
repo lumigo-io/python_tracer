@@ -101,8 +101,8 @@ def config(
     )
     Configuration.timeout_timer = timeout_timer
     try:
-        Configuration.timeout_timer_buffer = timeout_timer_buffer or float(
-            os.environ.get("LUMIGO_TIMEOUT_BUFFER", TIMEOUT_TIMER_BUFFER)
+        Configuration.timeout_timer_buffer = float(  # type: ignore
+            timeout_timer_buffer or os.environ.get("LUMIGO_TIMEOUT_BUFFER", TIMEOUT_TIMER_BUFFER)
         )
     except Exception:
         warn_client("Could not configure LUMIGO_TIMEOUT_BUFFER. Using default value.")
