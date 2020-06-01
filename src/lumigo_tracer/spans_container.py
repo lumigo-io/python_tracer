@@ -31,8 +31,6 @@ from .parsers.http_data_classes import HttpRequest
 _VERSION_PATH = os.path.join(os.path.dirname(__file__), "VERSION")
 MAX_LAMBDA_TIME = 15 * 60 * 1000
 MAX_BODY_SIZE = 1024
-# The buffer that we take before reaching timeout to send the traces to lumigo (seconds)
-TIMEOUT_BUFFER = 0.5
 
 
 class SpansContainer:
@@ -124,10 +122,12 @@ class SpansContainer:
                 get_logger().info("Skip setting timeout timer - Could not get the remaining time.")
                 return
             remaining_time = context.get_remaining_time_in_millis() / 1000
-            if TIMEOUT_BUFFER >= remaining_time:
+            if Configuration.timeout_timer_buffer >= remaining_time:
                 get_logger().debug("Skip setting timeout timer - Too short timeout.")
                 return
-            TimeoutMechanism.start(remaining_time - TIMEOUT_BUFFER, self.handle_timeout)
+            TimeoutMechanism.start(
+                remaining_time - Configuration.timeout_timer_buffer, self.handle_timeout
+            )
 
     def add_request_event(self, parse_params: HttpRequest):
         """

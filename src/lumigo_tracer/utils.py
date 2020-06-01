@@ -44,6 +44,7 @@ SKIP_SCRUBBING_KEYS = [EXECUTION_TAGS_KEY]
 LUMIGO_SECRET_MASKING_REGEX_BACKWARD_COMP = "LUMIGO_BLACKLIST_REGEX"
 LUMIGO_SECRET_MASKING_REGEX = "LUMIGO_SECRET_MASKING_REGEX"
 WARN_CLIENT_PREFIX = "Lumigo Warning"
+TIMEOUT_TIMER_BUFFER = 0.7
 
 _logger: Union[logging.Logger, None] = None
 
@@ -56,6 +57,7 @@ class Configuration:
     enhanced_print: bool = False
     is_step_function: bool = False
     timeout_timer: bool = True
+    timeout_timer_buffer: float = TIMEOUT_TIMER_BUFFER
     send_only_if_error: bool = False
     domains_scrubber: Optional[List[str]] = None
 
@@ -68,6 +70,7 @@ def config(
     enhance_print: bool = False,
     step_function: bool = False,
     timeout_timer: bool = True,
+    timeout_timer_buffer: float = None,
     domains_scrubber: Optional[List[str]] = None,
 ) -> None:
     """
@@ -80,6 +83,7 @@ def config(
     :param enhance_print: Should we add prefix to the print (so the logs will be in the platform).
     :param step_function: Is this function is a part of a step function?
     :param timeout_timer: Should we start a timer to send the traced data before timeout acceded.
+    :param timeout_timer_buffer: The buffer that we take before reaching timeout to send the traces to lumigo (seconds).
     :param domains_scrubber: List of regexes. We will not collect data of requests with hosts that match it.
     """
     if should_report is not None:
@@ -96,6 +100,13 @@ def config(
         step_function or os.environ.get("LUMIGO_STEP_FUNCTION", "").lower() == "true"
     )
     Configuration.timeout_timer = timeout_timer
+    try:
+        Configuration.timeout_timer_buffer = float(  # type: ignore
+            timeout_timer_buffer or os.environ.get("LUMIGO_TIMEOUT_BUFFER", TIMEOUT_TIMER_BUFFER)
+        )
+    except Exception:
+        warn_client("Could not configure LUMIGO_TIMEOUT_BUFFER. Using default value.")
+        Configuration.timeout_timer_buffer = TIMEOUT_TIMER_BUFFER
     Configuration.send_only_if_error = os.environ.get("SEND_ONLY_IF_ERROR", "").lower() == "true"
     if domains_scrubber:
         Configuration.domains_scrubber = domains_scrubber

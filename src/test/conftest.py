@@ -2,7 +2,7 @@ import builtins
 import logging
 
 from lumigo_tracer import utils
-from lumigo_tracer.spans_container import SpansContainer, TIMEOUT_BUFFER
+from lumigo_tracer.spans_container import SpansContainer
 import mock
 import pytest
 
@@ -71,4 +71,4 @@ def capture_all_logs(caplog):
 
 @pytest.fixture
 def context():
-    return mock.Mock(get_remaining_time_in_millis=lambda: TIMEOUT_BUFFER * 1000 * 2)
+    return mock.Mock(get_remaining_time_in_millis=lambda: utils.TIMEOUT_TIMER_BUFFER * 1000 * 2)
