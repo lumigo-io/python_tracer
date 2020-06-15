@@ -484,9 +484,10 @@ def test_omitting_keys():
     span = SpansContainer.get_span()
     assert span.function_span["return_value"] == '{"secret_password": "****"}'
     assert span.function_span["event"] == '{"key": "****"}'
-    assert SpansContainer.get_span().http_spans[0]["info"]["httpInfo"]["request"][
-        "body"
-    ] == json.dumps({"a": "b", "myPassword": "****"})
+    spans = json.loads(_create_request_body(SpansContainer.get_span().http_spans, True))
+    assert spans[0]["info"]["httpInfo"]["request"]["body"] == json.dumps(
+        {"a": "b", "myPassword": "****"}
+    )
 
 
 def test_can_not_wrap_twice(reporter_mock):

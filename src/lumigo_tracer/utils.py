@@ -17,6 +17,7 @@ LOG_FORMAT = "#LUMIGO# - %(asctime)s - %(levelname)s - %(message)s"
 SECONDS_TO_TIMEOUT = 0.5
 LUMIGO_EVENT_KEY = "_lumigo"
 STEP_FUNCTION_UID_KEY = "step_function_uid"
+MIN_SPAN_SIZE = 300
 MAX_SIZE_FOR_REQUEST: int = int(os.environ.get("LUMIGO_MAX_SIZE_FOR_REQUEST", 900_000))
 MAX_VARS_SIZE = 100_000
 MAX_VAR_LEN = 200
@@ -27,11 +28,9 @@ OMITTING_KEYS_REGEXES = [
     ".*key.*",
     ".*secret.*",
     ".*credential.*",
-    ".*passphrase.*",
     "SessionToken",
     "x-amz-security-token",
     "Signature",
-    "Credential",
     "Authorization",
 ]
 DOMAIN_SCRUBBER_REGEXES = [
@@ -136,22 +135,27 @@ def _get_event_base64_size(event) -> int:
 
 
 def _create_request_body(
-    msgs: List[dict], prune_size_flag: bool, max_size: int = MAX_SIZE_FOR_REQUEST
+    msgs: List[dict],
+    prune_size_flag: bool,
+    max_size: int = MAX_SIZE_FOR_REQUEST,
+    min_size: int = MIN_SPAN_SIZE,
 ) -> str:
-    msgs = omit_keys(msgs)  # extra validation
     if not prune_size_flag or _get_event_base64_size(msgs) < max_size:
-        return json.dumps(msgs)
+        return json.dumps(omit_keys(msgs))
 
     end_span = msgs[-1]
     ordered_spans = sorted(msgs[:-1], key=_is_span_has_error, reverse=True)
 
     spans_to_send: list = [end_span]
+    current_size = 0
     for span in ordered_spans:
-        current_size = _get_event_base64_size(spans_to_send)
         span_size = _get_event_base64_size(span)
         if current_size + span_size < max_size:
             spans_to_send.append(span)
-    return json.dumps(spans_to_send)
+            current_size += span_size
+            if current_size + min_size > max_size:
+                break
+    return json.dumps(omit_keys(spans_to_send))
 
 
 def report_json(region: Union[None, str], msgs: List[dict]) -> int:
@@ -298,33 +302,34 @@ def get_omitting_regexes():
     return [re.compile(r, re.IGNORECASE) for r in given_regexes]
 
 
-def omit_keys(value: Any):
+def omit_keys(value: Any, regexes: Optional[List] = None):
     """
     This function omit problematic keys from the given value.
     We do so in the following cases:
     * if the value is dictionary, then we omit values by keys (recursively)
     * if the value is a string of a json. then we parse it to dict and omit keys.
     """
+    if not regexes:
+        regexes = get_omitting_regexes()
     if isinstance(value, list):
-        return [omit_keys(item) for item in value]
+        return [omit_keys(item, regexes) for item in value]
     if isinstance(value, (str, bytes)):
         try:
             parsed_value = json.loads(value)
             if isinstance(parsed_value, dict):
-                return json.dumps(omit_keys(parsed_value))
+                return json.dumps(omit_keys(parsed_value, regexes))
             return value
         except Exception:
             return value
     if isinstance(value, dict):
-        regexes = get_omitting_regexes()
         items = {}
         for k, v in value.items():
             if k in SKIP_SCRUBBING_KEYS:
                 items[k] = v
-            elif isinstance(k, str) and any(r.match(k) for r in regexes):
+            elif isinstance(k, str) and any(r.match(k) for r in regexes):  # type: ignore
                 items[k] = "****"
             else:
-                items[k] = omit_keys(v)
+                items[k] = omit_keys(v, regexes)
         return items
     return value
 

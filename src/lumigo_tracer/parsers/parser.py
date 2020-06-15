@@ -12,7 +12,7 @@ from lumigo_tracer.parsers.utils import (
     safe_get,
     should_scrub_domain,
 )
-from lumigo_tracer.utils import Configuration, prepare_large_data, omit_keys
+from lumigo_tracer.utils import Configuration, prepare_large_data
 from lumigo_tracer.parsers.http_data_classes import HttpRequest
 
 HTTP_TYPE = "http"
@@ -36,9 +36,9 @@ class Parser:
         if Configuration.verbose and parse_params and not should_scrub_domain(parse_params.host):
             additional_info = {
                 "headers": prepare_large_data(
-                    omit_keys(dict(parse_params.headers.items() if parse_params.headers else {}))
+                    dict(parse_params.headers.items() if parse_params.headers else {})
                 ),
-                "body": prepare_large_data(omit_keys(parse_params.body)),
+                "body": prepare_large_data(parse_params.body),
                 "method": parse_params.method,
                 "uri": parse_params.uri,
             }
@@ -65,8 +65,8 @@ class Parser:
     ) -> dict:
         if Configuration.verbose and not should_scrub_domain(url):
             additional_info = {
-                "headers": prepare_large_data(omit_keys(dict(headers.items() if headers else {}))),
-                "body": prepare_large_data(omit_keys(body)),
+                "headers": prepare_large_data(dict(headers.items() if headers else {})),
+                "body": prepare_large_data(body),
                 "statusCode": status_code,
             }
         else:
