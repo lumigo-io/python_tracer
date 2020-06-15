@@ -28,7 +28,8 @@ OMITTING_KEYS_REGEXES = [
     ".*key.*",
     ".*secret.*",
     ".*credential.*",
-    ".*token.*",
+    "SessionToken",
+    "x-amz-security-token",
     "Signature",
     "Authorization",
 ]
