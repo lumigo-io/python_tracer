@@ -2,66 +2,58 @@
 ![Version](https://badge.fury.io/py/lumigo-tracer.svg)
 ![codecov](https://codecov.io/gh/lumigo-io/python_tracer/branch/master/graph/badge.svg?token=6EgXIlefwG)
 
-This is the Python version of Lumigo's tracer library.
+This is lumigo/python_tracer, Lumigo's Python agent for distributed tracing and performance monitoring.
 
-Supported Runtimes: 3.6, 3.7, 3.8
+Supported Python Runtimes: 3.6, 3.7, 3.8
 
-# Using the tracer
-There are three ways to use the tracer with your AWS Lambda functions: using our Lambda Layer, using the Serverless framework, or instrumenting your functions manually.
+# Usage
+The package allows you to pursue automated metric gathering through Lambda Layers, automated metric gathering and instrumentation through the Serverless framework, or manual metric creation and implementation.
 
-## Lambda layers
-Using our Lambda layer lets you automatically instrument your Lambda functions. Simply use the latest ARN [from these tables](https://github.com/lumigo-io/python_tracer/tree/master/layers)
+## With Lambda layers
+* When configuring your Lambda functions, include the appropriate Lambda Layer ARN [from these tables](https://github.com/lumigo-io/python_tracer/tree/master/layers)
 
-## Serverless framework
-When working with Serverless framework, Lumigo provides the [**serverless-lumigo-plugin**](https://github.com/lumigo-io/serverless-lumigo-plugin/blob/master/README.md) for integration. This plugin handles the complexity of integrating the Lumigo tracer with your serverless function.
+*Note* - Lambda Layers are an optional feature. If you decide to use this capability, the list of Lambda layers available is available [here.](https://github.com/lumigo-io/lumigo-node/blob/master/layers).
 
-## Manual
-Manual installation of the Lumigo tracer package requires the following steps:
+## With Serverless framework
+* To configure the Serverless Framework to work with Lumigo, simply install our plugin: [**serverless-lumigo-plugin**](https://github.com/lumigo-io/serverless-lumigo-plugin/blob/master/README.md)
 
-* Install the package: `pip install lumigo_tracer` 
-* Import the package in your Lambda code: `from lumigo_tracer import lumigo_tracer`
-* Wrap your function with the `@lumigo_tracer` or `@lumigo_tracer(token='XXX')` attributes.
 
-Once you've configured the package and added the tracer attribute, your code should resemble the following:
+## Manually
+
+To manually configure Lumigo in your Lambda functions:
+
+* Install the package: 
+
+```bash
+pip install lumigo_tracer
+```
+
+* Import the package in your Lambda code: 
 
 ```python
-@lumigo_tracer(token='XXX')
+`from lumigo_tracer import lumigo_tracer`
+```
+
+* Next, wrap your `handler` in Lumigo's `trace` function (note: replace `YOUR-TOKEN-HERE` with your Lumigo API token):
+
+```python
+@lumigo_tracer(token='YOUR-TOKEN-HERE')
 def my_lambda(event, context):
     print('I can finally troubleshoot!')
 ```
 
+* Your function is now fully instrumented
+
 ## Configuration
-There are several configuration environment variables you can adjust to change how the package behaves:
+`@lumigo/python_tracer` offers several different configuration options. Pass these to the Lambda function as environment variables:
 
-* `LUMIGO_DEBUG=true` - This environment variable controls debug logging. Set it to `true` to enable debug logging output
-* `LUMIGO_SECRET_MASKING_REGEX=["regex1", "regex2"]` - This is a JSON-formatted list of regular expressions that are applied to keys sent by Lumigo. If a key matches one of these regexes, it is not sent. All regular expressions are case-insensitive. The default list of regexes checked is  `[".*pass.*", ".*key.*"]`. All the regexes are case-insensitive.
-* `LUMIGO_DOMAINS_SCRUBBER=[".*secret.*"]` - This is a JSON-formatted list of regular expressions that can be used to prevent Lumigo from sending the entire headers and body of requests to specific domains. This can also be configured in the function decorator `@lumigo_tracer` using the parameter name `domains_scrubber`. The default list of regexes is `["secretsmanager\..*\.amazonaws\.com", "ssm\..*\.amazonaws\.com", "kms\..*\.amazonaws\.com"]`.
-* `LUMIGO_SWITCH_OFF=true` - This is a kill switch that stops all Lumigo-driven behavior when flipped, without needing to change the underlying code. Simply add this environment variable to your function's configuration, and the tracer will be disabled.
-
-### Logging Programmatic Errors
-Lumigo provides the `report_error` function, which you can use to publish error logs that are visible to the entire platform. To log programmatic errors:
-
-* Import the `report_error` function with the following code: `from lumigo_tracer import report_error`
-* Use the `report_error` function with the message you wish to send: `report_error("your-message-here")`
-
-### Adding Execution Tags
-You can use `add_execution_tag` function to add an execution_tag with a dynamic value. These execution tags are searchable within the Lumigo platform, and can allow you to easily classify your function's operations in response to events as they occur. To use execution tags:
-
-* Import the `add_execution_tag` function: `from lumigo_tracer import add_execution_tag`
-* Call the function anywhere in your lambda code: `add_execution_tag("your-key", "your-value)`
-
-Please note the following limitations:
-* The maximum number of tags is 50.
-* Key and value length must be between 1 and 50.
-
+* `LUMIGO_DEBUG=TRUE` - Enables debug logging
+* `LUMIGO_SECRET_MASKING_REGEX=["regex1", "regex2"]` - Prevents Lumigo from sending keys that match the supplied regular expressions. All regular expressions are case-insensitive. By default, Lumigo applies the following regular expressions: `[".*pass.*", ".*key.*", ".*secret.*", ".*credential.*", ".*passphrase.*"]`. 
+* `LUMIGO_DOMAINS_SCRUBBER=[".*secret.*"]` - Prevents Lumigo from collecting both request and response details from a list of domains. This accepts a comma-separated list of regular expressions that is JSON-formatted. By default, the tracer uses `["secretsmanager\..*\.amazonaws\.com", "ssm\..*\.amazonaws\.com", "kms\..*\.amazonaws\.com"]`. **Note** - These defaults are overridden when you define a different list of regular expressions.
+* `LUMIGO_SWITCH_OFF=TRUE` - In the event a critical issue arises, this turns off all actions that Lumigo takes in response to your code. This happens without a deployment, and is picked up on the next function run once the environment variable is present.
 
 ### Step Functions
-When working with step functions, Lumigo gives you the capability to trace all of the states in your step function from within a single transaction. You can enable this functionality in one of two ways:
-
-* Pass `step_function=True` to the `@lumigo_tracer` attribute
-* Set the `LUMIGO_STEP_FUNCTION` environment variable to `True` in your function configuration.
-
-Here's an example of enabling the step_function tracing in a function attribute:
+If your function is part of a set of step functions, you can add the flag `step_function: true` to the Lumigo tracer import. Alternatively, you can configure the step function using an environment variable `LUMIGO_STEP_FUNCTION=True`. When this is active, Lumigo tracks all states in the step function in a single transaction, easing debugging and observability.
 
 ```
 @lumigo_tracer(token='XXX', step_function=True)
@@ -69,11 +61,11 @@ def my_lambda(event, context):
     print('Step function visibility!')
 ```
 
-**Note**: With step function tracing active, the package will add the `_lumigo` key to the return value of your functions. If you have overridden the default `Parameters` configuration in your function, you'll need to add the following to accommodate the lumigo step tracer:
+Note: the tracer adds the key `"_lumigo"` to the return value of the function. 
 
-`"_lumigo.$": "$._lumigo"`
+If you override the `"Parameters"` configuration, add `"_lumigo.$": "$._lumigo"` to ensure this value is still present.
 
-Below is an example state configuration with a modified `parameters` section:
+Below is an example configuration for a Lambda function that is part of a step function that has overridden its parameters:
 
 ```
 "States": {
@@ -93,6 +85,16 @@ Below is an example state configuration with a modified `parameters` section:
 }
 ```
 
+### Logging Programmatic Errors
+Lumigo provides the `report_error` function, which you can use to publish error logs that are visible to the entire platform. To log programmatic errors:
+
+* Import the `report_error` function with the following code: `from lumigo_tracer import report_error`
+* Use the `report_error` function with the message you wish to send: `report_error("your-message-here")`
+
+### Adding Execution Tags
+You can add execution tags to a function with dynamic values using the parameter `addExecutionTag`.
+
+These tags will be searchable from within the Lumigo platform.
 
 # Frameworks
 
