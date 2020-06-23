@@ -14,6 +14,8 @@ The package allows you to pursue automated metric gathering through Lambda Layer
 
 *Note* - Lambda Layers are an optional feature. If you decide to use this capability, the list of Lambda layers available is available [here.](https://github.com/lumigo-io/lumigo-node/blob/master/layers).
 
+Learn more in our [documentation on auto-instrumentation](https://docs.lumigo.io/docs/auto-instrumentation).
+
 ## With Serverless framework
 * To configure the Serverless Framework to work with Lumigo, simply install our plugin: [**serverless-lumigo-plugin**](https://github.com/lumigo-io/serverless-lumigo-plugin/blob/master/README.md)
 
