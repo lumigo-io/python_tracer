@@ -160,8 +160,8 @@ def test_get_tags_len():
 
 def test_aggregating_response_body(dummy_http_request):
     """
-    This test is herre to validate that we're not leaking memory on aggregating response body.
-    Unfortunately python doesn't give us better tools, so we most check the problematic member itself.
+    This test is here to validate that we're not leaking memory on aggregating response body.
+    Unfortunately python doesn't give us better tools, so we must check the problematic member itself.
     """
     SpansContainer.create_span()
     SpansContainer.get_span().add_request_event(dummy_http_request)
