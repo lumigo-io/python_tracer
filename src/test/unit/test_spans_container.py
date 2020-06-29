@@ -5,7 +5,7 @@ import pytest
 from lumigo_tracer.parsers.http_data_classes import HttpRequest
 from lumigo_tracer.spans_container import SpansContainer, TimeoutMechanism
 from lumigo_tracer import utils
-from lumigo_tracer.utils import Configuration, EXECUTION_TAGS_KEY
+from lumigo_tracer.utils import Configuration, EXECUTION_TAGS_KEY, MAX_ENTRY_SIZE
 
 
 @pytest.fixture()
@@ -156,3 +156,19 @@ def test_get_tags_len():
     SpansContainer.get_span().add_tag("k0", "v0")
     SpansContainer.get_span().add_tag("k1", "v1")
     assert SpansContainer.get_span().get_tags_len() == 2
+
+
+def test_aggregating_response_body(dummy_http_request):
+    """
+    This test is here to validate that we're not leaking memory on aggregating response body.
+    Unfortunately python doesn't give us better tools, so we must check the problematic member itself.
+    """
+    SpansContainer.create_span()
+    SpansContainer.get_span().add_request_event(dummy_http_request)
+
+    big_response_chunk = b"leak" * MAX_ENTRY_SIZE
+    for _ in range(10):
+        SpansContainer.get_span().update_event_response(
+            host=None, status_code=200, headers=None, body=big_response_chunk
+        )
+    assert len(SpansContainer.get_span().previous_response_body) <= len(big_response_chunk)
