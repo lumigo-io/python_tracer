@@ -16,6 +16,7 @@ from lumigo_tracer.utils import (
     prepare_large_data,
     omit_keys,
     EXECUTION_TAGS_KEY,
+    MAX_ENTRY_SIZE,
 )
 from lumigo_tracer import utils
 from lumigo_tracer.parsers.parser import get_parser, HTTP_TYPE, StepFunctionParser
@@ -182,7 +183,8 @@ class SpansContainer:
                 self.previous_response_body = b""
 
             parser = get_parser(host, headers)()  # type: ignore
-            self.previous_response_body += body
+            if len(self.previous_response_body) < MAX_ENTRY_SIZE:
+                self.previous_response_body += body
             update = parser.parse_response(  # type: ignore
                 host, status_code, headers, self.previous_response_body
             )
