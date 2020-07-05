@@ -191,10 +191,10 @@ class SpansContainer:
             self.http_spans.append(recursive_json_join(update, last_event))
             self.http_span_ids_to_send.add(update.get("id") or last_event["id"])
 
-    def _add_exception_event(
+    def _create_exception_event(
         self, exc_type: str, message: str, stacktrace: str = "", frames: Optional[List[dict]] = None
     ):
-        self.function_span["error"] = {
+        return {
             "type": exc_type,
             "message": message,
             "stacktrace": stacktrace,
@@ -208,7 +208,7 @@ class SpansContainer:
             message = exception.args[0] if exception.args else None
             if not isinstance(message, str):
                 message = str(message)
-            self._add_exception_event(
+            self.function_span["error"] = self._create_exception_event(
                 exc_type=exception.__class__.__name__,
                 message=message,
                 stacktrace=traceback.format_exc(),
@@ -245,7 +245,7 @@ class SpansContainer:
                 suffix = ""
                 if err.args:
                     suffix = f'Original message: "{err.args[0]}"'
-                self._add_exception_event(
+                self.function_span["error"] = self._create_exception_event(
                     "ReturnValueError",
                     "The lambda will probably fail due to bad return value. " + suffix,
                 )
