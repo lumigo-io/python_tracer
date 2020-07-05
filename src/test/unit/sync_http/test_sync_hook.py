@@ -542,6 +542,7 @@ def test_not_jsonable_return(monkeypatch):
     function_span = SpansContainer.get_span().function_span
     assert function_span["return_value"] is None
     assert function_span["error"]["type"] == "ReturnValueError"
+    # following python's runtime: runtime/lambda_runtime_marshaller.py:27
     expected_message = 'The lambda will probably fail due to bad return value. Original message: "Object of type BufferedWriter is not JSON serializable"'
     assert function_span["error"]["message"] == expected_message
 
