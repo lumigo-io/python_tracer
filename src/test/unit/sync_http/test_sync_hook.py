@@ -532,6 +532,20 @@ def test_wrapping_with_tags_for_api_gw_headers(monkeypatch):
     ]
 
 
+def test_not_jsonable_return(monkeypatch):
+    @lumigo_tracer()
+    def lambda_test_function(event, context):
+        return {"a": open("/tmp/a.txt", "wb")}
+
+    lambda_test_function(api_gw_event(), SimpleNamespace(aws_request_id="1234"))
+
+    function_span = SpansContainer.get_span().function_span
+    assert function_span["return_value"] is None
+    assert function_span["error"]["type"] == "ReturnValueError"
+    expected_message = 'The lambda will probably fail due to bad return value. Original message: "Object of type BufferedWriter is not JSON serializable"'
+    assert function_span["error"]["message"] == expected_message
+
+
 def set_header_key(monkeypatch, header: str):
     monkeypatch.setattr(auto_tag_event, "AUTO_TAG_API_GW_HEADERS", [header])
 
