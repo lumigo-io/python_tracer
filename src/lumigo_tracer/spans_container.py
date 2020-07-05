@@ -191,6 +191,16 @@ class SpansContainer:
             self.http_spans.append(recursive_json_join(update, last_event))
             self.http_span_ids_to_send.add(update.get("id") or last_event["id"])
 
+    def _create_exception_event(
+        self, exc_type: str, message: str, stacktrace: str = "", frames: Optional[List[dict]] = None
+    ):
+        return {
+            "type": exc_type,
+            "message": message,
+            "stacktrace": stacktrace,
+            "frames": frames or [],
+        }
+
     def add_exception_event(
         self, exception: Exception, frames_infos: List[inspect.FrameInfo]
     ) -> None:
@@ -198,12 +208,12 @@ class SpansContainer:
             message = exception.args[0] if exception.args else None
             if not isinstance(message, str):
                 message = str(message)
-            self.function_span["error"] = {
-                "type": exception.__class__.__name__,
-                "message": message,
-                "stacktrace": traceback.format_exc(),
-                "frames": format_frames(frames_infos) if Configuration.verbose else [],
-            }
+            self.function_span["error"] = self._create_exception_event(
+                exc_type=exception.__class__.__name__,
+                message=message,
+                stacktrace=traceback.format_exc(),
+                frames=format_frames(frames_infos) if Configuration.verbose else [],
+            )
 
     def add_step_end_event(self, ret_val):
         message_id = str(uuid.uuid4())
@@ -227,8 +237,19 @@ class SpansContainer:
         self.function_span.update({"ended": int(time.time() * 1000)})
         if Configuration.is_step_function:
             self.add_step_end_event(ret_val)
+        parsed_ret_val = None
         if Configuration.verbose:
-            self.function_span.update({"return_value": prepare_large_data(omit_keys(ret_val))})
+            try:
+                parsed_ret_val = prepare_large_data(omit_keys(ret_val), enforce_jsonify=True)
+            except Exception as err:
+                suffix = ""
+                if err.args:
+                    suffix = f'Original message: "{err.args[0]}"'
+                self.function_span["error"] = self._create_exception_event(
+                    "ReturnValueError",
+                    "The lambda will probably fail due to bad return value. " + suffix,
+                )
+        self.function_span.update({"return_value": parsed_ret_val})
         spans_contain_errors: bool = any(
             _is_span_has_error(s) for s in self.http_spans + [self.function_span]
         )
