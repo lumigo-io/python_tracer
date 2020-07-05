@@ -240,7 +240,7 @@ class SpansContainer:
         parsed_ret_val = None
         if Configuration.verbose:
             try:
-                parsed_ret_val = prepare_large_data(omit_keys(ret_val), raise_exceptions=True)
+                parsed_ret_val = prepare_large_data(omit_keys(ret_val), enforce_jsonify=True)
             except Exception as err:
                 suffix = ""
                 if err.args:
