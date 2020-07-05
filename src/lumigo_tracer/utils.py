@@ -264,7 +264,7 @@ def _truncate_locals(f_locals: Dict[str, Any], free_space: int) -> FrameVariable
 def prepare_large_data(
     value: Union[str, bytes, dict, OrderedDict, None],
     max_size=MAX_ENTRY_SIZE,
-    enforce_jsonify=False,
+    enforce_jsonify: bool = False,
 ) -> str:
     """
     This function prepare the given value to send it to lumigo.
@@ -275,7 +275,7 @@ def prepare_large_data(
 
     :param value: The value we wish to send
     :param max_size: The maximum size of the data that we will send
-    :param enforce_jsonify: Should we accept exception in the jsonify
+    :param enforce_jsonify: Should we raise exception in the jsonify
     :return: The value that we will actually send
     """
     if isinstance(value, dict) or isinstance(value, OrderedDict):
