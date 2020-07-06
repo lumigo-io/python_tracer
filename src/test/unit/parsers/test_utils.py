@@ -332,7 +332,7 @@ def test_safe_get(d, keys, result_value, default):
     [(["secret.*"], "lumigo.io", False), (["not-relevant", "secret.*"], "secret.aws.com", True)],
 )
 def test_should_scrub_domain(regexes, url, expected):
-    Configuration.domains_scrubber = regexes
+    config(domains_scrubber=regexes)
     assert should_scrub_domain(url) == expected
 
 

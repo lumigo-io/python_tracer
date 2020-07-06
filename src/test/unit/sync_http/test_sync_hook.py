@@ -95,7 +95,7 @@ def test_lambda_wrapper_http():
     assert "started" in http_spans[0]
     assert http_spans[0]["started"] > SpansContainer.get_span().function_span["started"]
     assert "ended" in http_spans[0]
-    assert "Content-Length" in http_spans[0]["info"]["httpInfo"]["request"]["headers"]
+    assert "content-length" in http_spans[0]["info"]["httpInfo"]["request"]["headers"]
 
 
 def test_lambda_wrapper_query_with_http_params():
@@ -141,7 +141,7 @@ def test_lambda_wrapper_http_splitted_send():
     http_spans = SpansContainer.get_span().http_spans
     assert http_spans
     assert http_spans[0]["info"]["httpInfo"]["request"]["body"] == "123456"
-    assert "Content-Length" in http_spans[0]["info"]["httpInfo"]["request"]["headers"]
+    assert "content-length" in http_spans[0]["info"]["httpInfo"]["request"]["headers"]
 
 
 def test_lambda_wrapper_no_headers():
@@ -278,7 +278,7 @@ def test_wrapping_json_request():
     assert lambda_test_function() == 1
     http_events = SpansContainer.get_span().http_spans
     assert any(
-        '"Content-Type": "application/json"'
+        '"content-type": "application/json"'
         in event.get("info", {}).get("httpInfo", {}).get("request", {}).get("headers", "")
         for event in http_events
     )
@@ -546,6 +546,21 @@ def test_not_jsonable_return(monkeypatch):
     # following python's runtime: runtime/lambda_runtime_marshaller.py:27
     expected_message = 'The lambda will probably fail due to bad return value. Original message: "Object of type datetime is not JSON serializable"'
     assert function_span["error"]["message"] == expected_message
+
+
+def test_correct_headers_of_send_after_request():
+    @lumigo_tracer()
+    def lambda_test_function(event, context):
+        d = {"a": "b", "myPassword": "123"}
+        conn = http.client.HTTPConnection("www.google.com")
+        conn.request("POST", "/", json.dumps(d), headers={"a": "b"})
+        conn.send(b"GET\r\nc: d\r\n\r\nbody")
+        return {"lumigo": "rulz"}
+
+    lambda_test_function({"key": "24"}, None)
+    spans = SpansContainer.get_span().http_spans
+    assert spans[0]["info"]["httpInfo"]["request"]["headers"] == json.dumps({"a": "b"})
+    assert spans[1]["info"]["httpInfo"]["request"]["headers"] == json.dumps({"c": "d"})
 
 
 def set_header_key(monkeypatch, header: str):

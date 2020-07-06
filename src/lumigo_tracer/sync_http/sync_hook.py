@@ -27,6 +27,7 @@ _KILL_SWITCH = "LUMIGO_SWITCH_OFF"
 CONTEXT_WRAPPED_BY_LUMIGO_KEY = "_wrapped_by_lumigo"
 MAX_READ_SIZE = 1024
 already_wrapped = False
+LUMIGO_HEADERS_HOOK_KEY = "_lumigo_headers_hook"
 
 
 def _request_wrapper(func, instance, args, kwargs):
@@ -51,7 +52,12 @@ def _request_wrapper(func, instance, args, kwargs):
     with lumigo_safe_execute("parse request"):
         if isinstance(data, bytes) and _BODY_HEADER_SPLITTER in data:
             headers, body = data.split(_BODY_HEADER_SPLITTER, 1)
-            if _FLAGS_HEADER_SPLITTER in headers:
+            hooked_headers = getattr(instance, LUMIGO_HEADERS_HOOK_KEY, None)
+            if hooked_headers:
+                # we will get here only if _headers_reminder_wrapper ran first. remove its traces.
+                headers = dict(hooked_headers.items())
+                setattr(instance, LUMIGO_HEADERS_HOOK_KEY, None)
+            elif _FLAGS_HEADER_SPLITTER in headers:
                 request_info, headers = headers.split(_FLAGS_HEADER_SPLITTER, 1)
                 headers = http.client.parse_headers(BytesIO(headers))
                 path_and_query_params = (
@@ -63,6 +69,8 @@ def _request_wrapper(func, instance, args, kwargs):
                 )
                 uri = f"{host}{path_and_query_params}"
                 host = host or headers.get("Host")
+            else:
+                headers = None
 
     with lumigo_safe_execute("add request event"):
         if headers:
@@ -80,6 +88,15 @@ def _request_wrapper(func, instance, args, kwargs):
     return ret_val
 
 
+def _headers_reminder_wrapper(func, instance, args, kwargs):
+    """
+    This is the wrapper of the function `http.client.HTTPConnection.request` that gets the headers.
+    Remember the headers helps us to improve performances on requests that use this flow.
+    """
+    setattr(instance, LUMIGO_HEADERS_HOOK_KEY, kwargs.get("headers"))
+    return func(*args, **kwargs)
+
+
 def _response_wrapper(func, instance, args, kwargs):
     """
     This is the wrapper of the function that can be called only after that the http request was sent.
@@ -87,7 +104,7 @@ def _response_wrapper(func, instance, args, kwargs):
     """
     ret_val = func(*args, **kwargs)
     with lumigo_safe_execute("parse response"):
-        headers = ret_val.headers
+        headers = dict(ret_val.headers.items())
         status_code = ret_val.code
         SpansContainer.get_span().update_event_response(instance.host, status_code, headers, b"")
     return ret_val
@@ -101,7 +118,7 @@ def _read_wrapper(func, instance, args, kwargs):
     if ret_val:
         with lumigo_safe_execute("parse response.read"):
             SpansContainer.get_span().update_event_response(
-                None, instance.code, instance.headers, ret_val
+                None, instance.code, dict(instance.headers.items()), ret_val
             )
     return ret_val
 
@@ -115,7 +132,7 @@ def _read_stream_wrapper_generator(stream_generator, instance):
     for partial_response in stream_generator:
         with lumigo_safe_execute("parse response.read_chunked"):
             SpansContainer.get_span().update_event_response(
-                None, instance.status, instance.headers, partial_response
+                None, instance.status, dict(instance.headers.items()), partial_response
             )
         yield partial_response
 
@@ -281,6 +298,9 @@ def wrap_http_calls():
         with lumigo_safe_execute("wrap http calls"):
             get_logger().debug("wrapping the http request")
             wrap_function_wrapper("http.client", "HTTPConnection.send", _request_wrapper)
+            wrap_function_wrapper(
+                "http.client", "HTTPConnection.request", _headers_reminder_wrapper
+            )
             wrap_function_wrapper("botocore.awsrequest", "AWSRequest.__init__", _putheader_wrapper)
             wrap_function_wrapper("http.client", "HTTPConnection.getresponse", _response_wrapper)
             wrap_function_wrapper("http.client", "HTTPResponse.read", _read_wrapper)

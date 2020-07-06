@@ -61,7 +61,7 @@ class Configuration:
     timeout_timer: bool = True
     timeout_timer_buffer: float = TIMEOUT_TIMER_BUFFER
     send_only_if_error: bool = False
-    domains_scrubber: Optional[List[str]] = None
+    domains_scrubber: Optional[List] = None
 
 
 def config(
@@ -111,17 +111,19 @@ def config(
         Configuration.timeout_timer_buffer = TIMEOUT_TIMER_BUFFER
     Configuration.send_only_if_error = os.environ.get("SEND_ONLY_IF_ERROR", "").lower() == "true"
     if domains_scrubber:
-        Configuration.domains_scrubber = domains_scrubber
+        domains_scrubber_regex = domains_scrubber
     elif "LUMIGO_DOMAINS_SCRUBBER" in os.environ:
         try:
-            Configuration.domains_scrubber = json.loads(os.environ["LUMIGO_DOMAIN_SCRUBBER"])
+            domains_scrubber_regex = json.loads(os.environ["LUMIGO_DOMAIN_SCRUBBER"])
         except Exception:
             get_logger().critical(
                 "Could not parse the specified domains scrubber, shutting down the reporter."
             )
             Configuration.should_report = False
+            domains_scrubber_regex = []
     else:
-        Configuration.domains_scrubber = DOMAIN_SCRUBBER_REGEXES
+        domains_scrubber_regex = DOMAIN_SCRUBBER_REGEXES
+    Configuration.domains_scrubber = [re.compile(r, re.IGNORECASE) for r in domains_scrubber_regex]
 
 
 def _is_span_has_error(span: dict) -> bool:

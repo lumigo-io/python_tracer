@@ -4,7 +4,6 @@ import time
 import uuid
 import signal
 import traceback
-import http.client
 from typing import List, Dict, Tuple, Optional, Callable, Set
 
 from lumigo_tracer.parsers.event_parser import EventParser
@@ -93,7 +92,7 @@ class SpansContainer:
             },
             self.base_msg,
         )
-        self.previous_request: Tuple[Optional[http.client.HTTPMessage], bytes] = (None, b"")
+        self.previous_request: Tuple[Optional[dict], bytes] = (None, b"")
         self.previous_response_body: bytes = b""
         self.http_span_ids_to_send: Set[str] = set()
         self.http_spans: List[Dict] = []
@@ -169,7 +168,7 @@ class SpansContainer:
             self.http_spans[-1]["ended"] = int(time.time() * 1000)
 
     def update_event_response(
-        self, host: Optional[str], status_code: int, headers: http.client.HTTPMessage, body: bytes
+        self, host: Optional[str], status_code: int, headers: dict, body: bytes
     ) -> None:
         """
         :param host: If None, use the host from the last span, otherwise this is the first chuck and we can empty
