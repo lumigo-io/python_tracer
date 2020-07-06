@@ -61,10 +61,12 @@ def test_create_request_body_not_effecting_small_events(dummy_span):
     assert _create_request_body([dummy_span], True, 1_000_000) == json.dumps([dummy_span])
 
 
-def test_create_request_body_keep_function_span(dummy_span, function_end_span):
+def test_create_request_body_keep_function_span_and_filter_other_spans(
+    dummy_span, function_end_span
+):
     expected_result = [dummy_span, dummy_span, dummy_span, function_end_span]
     size = _get_event_base64_size(expected_result)
-    assert _create_request_body(expected_result * 2, True, size, 50) == json.dumps(
+    assert _create_request_body(expected_result * 2, True, size) == json.dumps(
         [function_end_span, dummy_span, dummy_span, dummy_span]
     )
 
@@ -81,7 +83,7 @@ def test_create_request_body_take_error_first(dummy_span, error_span, function_e
         function_end_span,
     ]
     size = _get_event_base64_size(expected_result)
-    assert _create_request_body(input, True, size, 50) == json.dumps(expected_result)
+    assert _create_request_body(input, True, size) == json.dumps(expected_result)
 
 
 @pytest.mark.parametrize(
