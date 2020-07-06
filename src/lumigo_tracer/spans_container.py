@@ -182,7 +182,7 @@ class SpansContainer:
             else:
                 self.previous_response_body = b""
 
-            headers = {k.lower(): v for k, v in headers.items()}
+            headers = {k.lower(): v for k, v in headers.items()} if headers else {}
             parser = get_parser(host, headers)()  # type: ignore
             if len(self.previous_response_body) < MAX_ENTRY_SIZE:
                 self.previous_response_body += body
