@@ -1,3 +1,4 @@
+import decimal
 import json
 import logging
 import os
@@ -269,6 +270,14 @@ def _truncate_locals(f_locals: Dict[str, Any], free_space: int) -> FrameVariable
     return locals_truncated
 
 
+class DecimalEncoder(json.JSONEncoder):
+    # copied from python's runtime: runtime/lambda_runtime_marshaller.py:7-11
+    def default(self, o):
+        if isinstance(o, decimal.Decimal):
+            return float(o)
+        raise TypeError(f"Object of type {o.__class__.__name__} is not JSON serializable")
+
+
 def prepare_large_data(
     value: Union[str, bytes, dict, OrderedDict, None],
     max_size=MAX_ENTRY_SIZE,
@@ -288,7 +297,7 @@ def prepare_large_data(
     """
     if isinstance(value, dict) or isinstance(value, OrderedDict):
         try:
-            value = json.dumps(value)
+            value = json.dumps(value, cls=DecimalEncoder)
         except Exception:
             if enforce_jsonify:
                 raise

@@ -1,4 +1,6 @@
 import inspect
+from decimal import Decimal
+
 import pytest
 from lumigo_tracer.utils import (
     _create_request_body,
@@ -208,6 +210,7 @@ def test_format_frames__check_all_keys_and_values():
         ({"a": set()}, "{'a': set()}"),  # type: ignore
         (b"a", "a"),  # bytes that can be decoded.
         (b"\xff\xfea\x00", "b'\\xff\\xfea\\x00'"),  # bytes that can't be decoded.
+        ({1: Decimal(1)}, '{"1": 1.0}'),  # decimal should be serializeable
     ],
 )
 def test_prepare_large_data(value, output):
