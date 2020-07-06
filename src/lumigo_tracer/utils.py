@@ -17,9 +17,8 @@ LOG_FORMAT = "#LUMIGO# - %(asctime)s - %(levelname)s - %(message)s"
 SECONDS_TO_TIMEOUT = 0.5
 LUMIGO_EVENT_KEY = "_lumigo"
 STEP_FUNCTION_UID_KEY = "step_function_uid"
-TOO_BIG_SPANS_THRESHOLD = (
-    5
-)  # number of spans that are too big to enter the reported message before break
+# number of spans that are too big to enter the reported message before break
+TOO_BIG_SPANS_THRESHOLD = 5
 MAX_SIZE_FOR_REQUEST: int = int(os.environ.get("LUMIGO_MAX_SIZE_FOR_REQUEST", 900_000))
 MAX_VARS_SIZE = 100_000
 MAX_VAR_LEN = 200
@@ -47,7 +46,6 @@ LUMIGO_SECRET_MASKING_REGEX = "LUMIGO_SECRET_MASKING_REGEX"
 WARN_CLIENT_PREFIX = "Lumigo Warning"
 TIMEOUT_TIMER_BUFFER = 0.7
 NUMBER_OF_SPANS_IN_REPORT_OPTIMIZATION = 200
-
 
 _logger: Union[logging.Logger, None] = None
 
@@ -179,7 +177,7 @@ def report_json(region: Union[None, str], msgs: List[dict]) -> int:
     :return: The duration of reporting (in milliseconds),
                 or 0 if we didn't send (due to configuration or fail).
     """
-    get_logger().info(f"reporting the messages: {msgs[:10]}...")
+    get_logger().info(f"reporting the messages: {msgs[:10]}")
     host = Configuration.host or EDGE_HOST.format(region=region)
     duration = 0
     if Configuration.should_report:
@@ -329,7 +327,7 @@ def omit_keys(value: Any, regexes: Optional[List] = None):
         return [omit_keys(item, regexes) for item in value]
     if isinstance(value, (str, bytes)):
         try:
-            # This is an optimization step. Fast identify if it's a dict
+            # This is an optimization step. Fast identify if this is a dict
             if value.startswith("{") if isinstance(value, str) else value.startswith(b"{"):
                 parsed_value = json.loads(value)
                 if isinstance(parsed_value, dict):
