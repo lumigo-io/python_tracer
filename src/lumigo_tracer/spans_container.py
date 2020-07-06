@@ -74,6 +74,7 @@ class SpansContainer:
             "info": {"tracer": {"version": version}, "traceId": {"Root": trace_root}},
             "event": event,
             "envs": envs,
+            "token": Configuration.token,
         }
         self.function_span = recursive_json_join(
             {

@@ -1,3 +1,4 @@
+import decimal
 import json
 import logging
 import os
@@ -17,7 +18,8 @@ LOG_FORMAT = "#LUMIGO# - %(asctime)s - %(levelname)s - %(message)s"
 SECONDS_TO_TIMEOUT = 0.5
 LUMIGO_EVENT_KEY = "_lumigo"
 STEP_FUNCTION_UID_KEY = "step_function_uid"
-MIN_SPAN_SIZE = 300
+# number of spans that are too big to enter the reported message before break
+TOO_BIG_SPANS_THRESHOLD = 5
 MAX_SIZE_FOR_REQUEST: int = int(os.environ.get("LUMIGO_MAX_SIZE_FOR_REQUEST", 900_000))
 MAX_VARS_SIZE = 100_000
 MAX_VAR_LEN = 200
@@ -44,6 +46,7 @@ LUMIGO_SECRET_MASKING_REGEX_BACKWARD_COMP = "LUMIGO_BLACKLIST_REGEX"
 LUMIGO_SECRET_MASKING_REGEX = "LUMIGO_SECRET_MASKING_REGEX"
 WARN_CLIENT_PREFIX = "Lumigo Warning"
 TIMEOUT_TIMER_BUFFER = 0.7
+NUMBER_OF_SPANS_IN_REPORT_OPTIMIZATION = 200
 
 _logger: Union[logging.Logger, None] = None
 
@@ -138,22 +141,30 @@ def _create_request_body(
     msgs: List[dict],
     prune_size_flag: bool,
     max_size: int = MAX_SIZE_FOR_REQUEST,
-    min_size: int = MIN_SPAN_SIZE,
+    too_big_spans_threshold: int = TOO_BIG_SPANS_THRESHOLD,
 ) -> str:
-    if not prune_size_flag or _get_event_base64_size(msgs) < max_size:
+
+    if not prune_size_flag or (
+        len(msgs) < NUMBER_OF_SPANS_IN_REPORT_OPTIMIZATION
+        and _get_event_base64_size(msgs) < max_size  # noqa
+    ):
         return json.dumps(omit_keys(msgs))
 
     end_span = msgs[-1]
     ordered_spans = sorted(msgs[:-1], key=_is_span_has_error, reverse=True)
 
     spans_to_send: list = [end_span]
-    current_size = 0
+    current_size = _get_event_base64_size(end_span)
+    too_big_spans = 0
     for span in ordered_spans:
         span_size = _get_event_base64_size(span)
         if current_size + span_size < max_size:
             spans_to_send.append(span)
             current_size += span_size
-            if current_size + min_size > max_size:
+        else:
+            # This is an optimization step. If the spans are too big, don't try to send them.
+            too_big_spans += 1
+            if too_big_spans == too_big_spans_threshold:
                 break
     return json.dumps(omit_keys(spans_to_send))
 
@@ -167,9 +178,7 @@ def report_json(region: Union[None, str], msgs: List[dict]) -> int:
     :return: The duration of reporting (in milliseconds),
                 or 0 if we didn't send (due to configuration or fail).
     """
-    for msg in msgs:
-        msg["token"] = Configuration.token
-    get_logger().info(f"reporting the messages: {msgs}")
+    get_logger().info(f"reporting the messages: {msgs[:10]}")
     host = Configuration.host or EDGE_HOST.format(region=region)
     duration = 0
     if Configuration.should_report:
@@ -261,6 +270,14 @@ def _truncate_locals(f_locals: Dict[str, Any], free_space: int) -> FrameVariable
     return locals_truncated
 
 
+class DecimalEncoder(json.JSONEncoder):
+    # copied from python's runtime: runtime/lambda_runtime_marshaller.py:7-11
+    def default(self, o):
+        if isinstance(o, decimal.Decimal):
+            return float(o)
+        raise TypeError(f"Object of type {o.__class__.__name__} is not JSON serializable")
+
+
 def prepare_large_data(
     value: Union[str, bytes, dict, OrderedDict, None],
     max_size=MAX_ENTRY_SIZE,
@@ -280,7 +297,7 @@ def prepare_large_data(
     """
     if isinstance(value, dict) or isinstance(value, OrderedDict):
         try:
-            value = json.dumps(value)
+            value = json.dumps(value, cls=DecimalEncoder)
         except Exception:
             if enforce_jsonify:
                 raise
@@ -319,9 +336,11 @@ def omit_keys(value: Any, regexes: Optional[List] = None):
         return [omit_keys(item, regexes) for item in value]
     if isinstance(value, (str, bytes)):
         try:
-            parsed_value = json.loads(value)
-            if isinstance(parsed_value, dict):
-                return json.dumps(omit_keys(parsed_value, regexes))
+            # This is an optimization step. Fast identify if this is a dict
+            if value.startswith("{") if isinstance(value, str) else value.startswith(b"{"):
+                parsed_value = json.loads(value)
+                if isinstance(parsed_value, dict):
+                    return json.dumps(omit_keys(parsed_value, regexes))
             return value
         except Exception:
             return value

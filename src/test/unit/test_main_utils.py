@@ -1,4 +1,6 @@
 import inspect
+from decimal import Decimal
+
 import pytest
 from lumigo_tracer.utils import (
     _create_request_body,
@@ -61,10 +63,12 @@ def test_create_request_body_not_effecting_small_events(dummy_span):
     assert _create_request_body([dummy_span], True, 1_000_000) == json.dumps([dummy_span])
 
 
-def test_create_request_body_keep_function_span(dummy_span, function_end_span):
+def test_create_request_body_keep_function_span_and_filter_other_spans(
+    dummy_span, function_end_span
+):
     expected_result = [dummy_span, dummy_span, dummy_span, function_end_span]
     size = _get_event_base64_size(expected_result)
-    assert _create_request_body(expected_result * 2, True, size, 50) == json.dumps(
+    assert _create_request_body(expected_result * 2, True, size) == json.dumps(
         [function_end_span, dummy_span, dummy_span, dummy_span]
     )
 
@@ -81,7 +85,7 @@ def test_create_request_body_take_error_first(dummy_span, error_span, function_e
         function_end_span,
     ]
     size = _get_event_base64_size(expected_result)
-    assert _create_request_body(input, True, size, 50) == json.dumps(expected_result)
+    assert _create_request_body(input, True, size) == json.dumps(expected_result)
 
 
 @pytest.mark.parametrize(
@@ -206,6 +210,7 @@ def test_format_frames__check_all_keys_and_values():
         ({"a": set()}, "{'a': set()}"),  # type: ignore
         (b"a", "a"),  # bytes that can be decoded.
         (b"\xff\xfea\x00", "b'\\xff\\xfea\\x00'"),  # bytes that can't be decoded.
+        ({1: Decimal(1)}, '{"1": 1.0}'),  # decimal should be serializeable
     ],
 )
 def test_prepare_large_data(value, output):
