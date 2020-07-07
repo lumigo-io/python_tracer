@@ -4,7 +4,6 @@ import time
 import uuid
 import signal
 import traceback
-import http.client
 from typing import List, Dict, Tuple, Optional, Callable, Set
 
 from lumigo_tracer.parsers.event_parser import EventParser
@@ -17,6 +16,7 @@ from lumigo_tracer.utils import (
     omit_keys,
     EXECUTION_TAGS_KEY,
     MAX_ENTRY_SIZE,
+    get_timeout_buffer,
 )
 from lumigo_tracer import utils
 from lumigo_tracer.parsers.parser import get_parser, HTTP_TYPE, StepFunctionParser
@@ -72,8 +72,6 @@ class SpansContainer:
             "region": region,
             "parentId": request_id,
             "info": {"tracer": {"version": version}, "traceId": {"Root": trace_root}},
-            "event": event,
-            "envs": envs,
             "token": Configuration.token,
         }
         self.function_span = recursive_json_join(
@@ -82,6 +80,8 @@ class SpansContainer:
                 "type": "function",
                 "name": name,
                 "runtime": runtime,
+                "event": event,
+                "envs": envs,
                 "memoryAllocated": memory_allocated,
                 "readiness": "cold" if SpansContainer.is_cold else "warm",
                 "info": {
@@ -93,7 +93,7 @@ class SpansContainer:
             },
             self.base_msg,
         )
-        self.previous_request: Tuple[Optional[http.client.HTTPMessage], bytes] = (None, b"")
+        self.previous_request: Tuple[Optional[dict], bytes] = (None, b"")
         self.previous_response_body: bytes = b""
         self.http_span_ids_to_send: Set[str] = set()
         self.http_spans: List[Dict] = []
@@ -124,12 +124,11 @@ class SpansContainer:
                 get_logger().info("Skip setting timeout timer - Could not get the remaining time.")
                 return
             remaining_time = context.get_remaining_time_in_millis() / 1000
-            if Configuration.timeout_timer_buffer >= remaining_time:
+            buffer = get_timeout_buffer(remaining_time)
+            if buffer >= remaining_time or remaining_time < 2:
                 get_logger().debug("Skip setting timeout timer - Too short timeout.")
                 return
-            TimeoutMechanism.start(
-                remaining_time - Configuration.timeout_timer_buffer, self.handle_timeout
-            )
+            TimeoutMechanism.start(remaining_time - buffer, self.handle_timeout)
 
     def add_request_event(self, parse_params: HttpRequest):
         """
@@ -169,7 +168,7 @@ class SpansContainer:
             self.http_spans[-1]["ended"] = int(time.time() * 1000)
 
     def update_event_response(
-        self, host: Optional[str], status_code: int, headers: http.client.HTTPMessage, body: bytes
+        self, host: Optional[str], status_code: int, headers: dict, body: bytes
     ) -> None:
         """
         :param host: If None, use the host from the last span, otherwise this is the first chuck and we can empty
@@ -183,6 +182,7 @@ class SpansContainer:
             else:
                 self.previous_response_body = b""
 
+            headers = {k.lower(): v for k, v in headers.items()} if headers else {}
             parser = get_parser(host, headers)()  # type: ignore
             if len(self.previous_response_body) < MAX_ENTRY_SIZE:
                 self.previous_response_body += body

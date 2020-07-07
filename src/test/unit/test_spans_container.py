@@ -93,9 +93,7 @@ def test_timeout_mechanism_disabled_by_configuration(monkeypatch, context):
 
 def test_timeout_mechanism_too_short_time(monkeypatch, context):
     monkeypatch.setattr(Configuration, "timeout_timer", True)
-    monkeypatch.setattr(
-        context, "get_remaining_time_in_millis", lambda: utils.TIMEOUT_TIMER_BUFFER / 2
-    )
+    monkeypatch.setattr(context, "get_remaining_time_in_millis", lambda: 1000)
     SpansContainer.create_span()
     SpansContainer.get_span().start(context=context)
 

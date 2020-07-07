@@ -23,7 +23,7 @@ TOO_BIG_SPANS_THRESHOLD = 5
 MAX_SIZE_FOR_REQUEST: int = int(os.environ.get("LUMIGO_MAX_SIZE_FOR_REQUEST", 900_000))
 MAX_VARS_SIZE = 100_000
 MAX_VAR_LEN = 200
-MAX_ENTRY_SIZE = 1024
+MAX_ENTRY_SIZE = 2048
 FrameVariables = Dict[str, str]
 OMITTING_KEYS_REGEXES = [
     ".*pass.*",
@@ -45,7 +45,6 @@ SKIP_SCRUBBING_KEYS = [EXECUTION_TAGS_KEY]
 LUMIGO_SECRET_MASKING_REGEX_BACKWARD_COMP = "LUMIGO_BLACKLIST_REGEX"
 LUMIGO_SECRET_MASKING_REGEX = "LUMIGO_SECRET_MASKING_REGEX"
 WARN_CLIENT_PREFIX = "Lumigo Warning"
-TIMEOUT_TIMER_BUFFER = 0.7
 NUMBER_OF_SPANS_IN_REPORT_OPTIMIZATION = 200
 
 _logger: Union[logging.Logger, None] = None
@@ -59,9 +58,9 @@ class Configuration:
     enhanced_print: bool = False
     is_step_function: bool = False
     timeout_timer: bool = True
-    timeout_timer_buffer: float = TIMEOUT_TIMER_BUFFER
+    timeout_timer_buffer: Optional[float] = None
     send_only_if_error: bool = False
-    domains_scrubber: Optional[List[str]] = None
+    domains_scrubber: Optional[List] = None
 
 
 def config(
@@ -72,7 +71,7 @@ def config(
     enhance_print: bool = False,
     step_function: bool = False,
     timeout_timer: bool = True,
-    timeout_timer_buffer: float = None,
+    timeout_timer_buffer: Optional[float] = None,
     domains_scrubber: Optional[List[str]] = None,
 ) -> None:
     """
@@ -85,7 +84,8 @@ def config(
     :param enhance_print: Should we add prefix to the print (so the logs will be in the platform).
     :param step_function: Is this function is a part of a step function?
     :param timeout_timer: Should we start a timer to send the traced data before timeout acceded.
-    :param timeout_timer_buffer: The buffer that we take before reaching timeout to send the traces to lumigo (seconds).
+    :param timeout_timer_buffer: The buffer (seconds) that we take before reaching timeout to send the traces to lumigo.
+        The default is 10% of the duration of the lambda (with upper and lower bounds of 0.5 and 3 seconds).
     :param domains_scrubber: List of regexes. We will not collect data of requests with hosts that match it.
     """
     if should_report is not None:
@@ -103,25 +103,28 @@ def config(
     )
     Configuration.timeout_timer = timeout_timer
     try:
-        Configuration.timeout_timer_buffer = float(  # type: ignore
-            timeout_timer_buffer or os.environ.get("LUMIGO_TIMEOUT_BUFFER", TIMEOUT_TIMER_BUFFER)
-        )
+        if "LUMIGO_TIMEOUT_BUFFER" in os.environ:
+            Configuration.timeout_timer_buffer = float(os.environ["LUMIGO_TIMEOUT_BUFFER"])
+        else:
+            Configuration.timeout_timer_buffer = timeout_timer_buffer
     except Exception:
         warn_client("Could not configure LUMIGO_TIMEOUT_BUFFER. Using default value.")
-        Configuration.timeout_timer_buffer = TIMEOUT_TIMER_BUFFER
+        Configuration.timeout_timer_buffer = None
     Configuration.send_only_if_error = os.environ.get("SEND_ONLY_IF_ERROR", "").lower() == "true"
     if domains_scrubber:
-        Configuration.domains_scrubber = domains_scrubber
+        domains_scrubber_regex = domains_scrubber
     elif "LUMIGO_DOMAINS_SCRUBBER" in os.environ:
         try:
-            Configuration.domains_scrubber = json.loads(os.environ["LUMIGO_DOMAIN_SCRUBBER"])
+            domains_scrubber_regex = json.loads(os.environ["LUMIGO_DOMAIN_SCRUBBER"])
         except Exception:
             get_logger().critical(
                 "Could not parse the specified domains scrubber, shutting down the reporter."
             )
             Configuration.should_report = False
+            domains_scrubber_regex = []
     else:
-        Configuration.domains_scrubber = DOMAIN_SCRUBBER_REGEXES
+        domains_scrubber_regex = DOMAIN_SCRUBBER_REGEXES
+    Configuration.domains_scrubber = [re.compile(r, re.IGNORECASE) for r in domains_scrubber_regex]
 
 
 def _is_span_has_error(span: dict) -> bool:
@@ -233,6 +236,10 @@ def is_aws_environment():
     :return: heuristically determine rather we're running on an aws environment.
     """
     return bool(os.environ.get("LAMBDA_RUNTIME_DIR"))
+
+
+def ensure_str(s: Union[str, bytes]) -> str:
+    return s if isinstance(s, str) else s.decode()
 
 
 def format_frames(frames_infos: List[inspect.FrameInfo]) -> List[dict]:
@@ -369,3 +376,10 @@ def is_api_gw_event(event: dict) -> bool:
         and event.get("requestContext", {}).get("domainName")  # noqa
         and event.get("requestContext", {}).get("requestId")  # noqa
     )
+
+
+def get_timeout_buffer(remaining_time: float):
+    buffer = Configuration.timeout_timer_buffer
+    if not buffer:
+        buffer = max(0.5, min(0.1 * remaining_time, 3))
+    return buffer

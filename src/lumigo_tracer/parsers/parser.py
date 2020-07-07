@@ -1,7 +1,6 @@
 import uuid
 from typing import Type, Optional
 import time
-import http.client
 
 from lumigo_tracer.parsers.utils import (
     safe_split_get,
@@ -35,9 +34,7 @@ class Parser:
     def parse_request(self, parse_params: HttpRequest) -> dict:
         if Configuration.verbose and parse_params and not should_scrub_domain(parse_params.host):
             additional_info = {
-                "headers": prepare_large_data(
-                    dict(parse_params.headers.items() if parse_params.headers else {})
-                ),
+                "headers": prepare_large_data(parse_params.headers),
                 "body": prepare_large_data(parse_params.body),
                 "method": parse_params.method,
                 "uri": parse_params.uri,
@@ -60,12 +57,10 @@ class Parser:
             "started": int(time.time() * 1000),
         }
 
-    def parse_response(
-        self, url: str, status_code: int, headers: Optional[http.client.HTTPMessage], body: bytes
-    ) -> dict:
+    def parse_response(self, url: str, status_code: int, headers: dict, body: bytes) -> dict:
         if Configuration.verbose and not should_scrub_domain(url):
             additional_info = {
-                "headers": prepare_large_data(dict(headers.items() if headers else {})),
+                "headers": prepare_large_data(headers),
                 "body": prepare_large_data(body),
                 "statusCode": status_code,
             }
@@ -85,7 +80,7 @@ class ServerlessAWSParser(Parser):
 
     def parse_response(self, url: str, status_code: int, headers, body: bytes) -> dict:
         additional_info = {}
-        message_id = headers.get("x-amzn-RequestId")
+        message_id = headers.get("x-amzn-requestid")
         if message_id and self.should_add_message_id:
             additional_info["info"] = {"messageId": message_id}
         span_id = headers.get("x-amzn-requestid") or headers.get("x-amz-requestid")
@@ -100,7 +95,7 @@ class DynamoParser(ServerlessAWSParser):
     should_add_message_id = False
 
     def parse_request(self, parse_params: HttpRequest) -> dict:
-        target: str = str(parse_params.headers.get("x-amz-target", ""))  # type: ignore
+        target: str = parse_params.headers.get("x-amz-target", "")
         return recursive_json_join(
             {
                 "info": {
@@ -139,10 +134,8 @@ class LambdaParser(ServerlessAWSParser):
     def parse_request(self, parse_params: HttpRequest) -> dict:
         return recursive_json_join(
             {
-                "name": safe_split_get(
-                    str(parse_params.headers.get("path", "")), "/", 3  # type: ignore
-                ),
-                "invocationType": parse_params.headers.get("x-amz-invocation-type"),  # type: ignore
+                "name": safe_split_get(str(parse_params.headers.get("path", "")), "/", 3),
+                "invocationType": parse_params.headers.get("x-amz-invocation-type"),
             },
             super().parse_request(parse_params),
         )
@@ -223,8 +216,8 @@ class ApiGatewayV2Parser(ServerlessAWSParser):
     # API-GW V1 covered by ServerlessAWSParser
 
     def parse_response(self, url: str, status_code: int, headers, body: bytes) -> dict:
-        aws_request_id = headers.get("x-amzn-RequestId")
-        apigw_request_id = headers.get("Apigw-Requestid")
+        aws_request_id = headers.get("x-amzn-requestid")
+        apigw_request_id = headers.get("apigw-requestid")
         message_id = aws_request_id or apigw_request_id
         return recursive_json_join(
             {"info": {"messageId": message_id}},
@@ -232,7 +225,7 @@ class ApiGatewayV2Parser(ServerlessAWSParser):
         )
 
 
-def get_parser(url: str, headers: Optional[http.client.HTTPMessage] = None) -> Type[Parser]:
+def get_parser(url: str, headers: Optional[dict] = None) -> Type[Parser]:
     service = safe_split_get(url, ".", 0)
     if service == "dynamodb":
         return DynamoParser
@@ -249,6 +242,6 @@ def get_parser(url: str, headers: Optional[http.client.HTTPMessage] = None) -> T
         return SqsParser
     elif "execute-api" in url:
         return ApiGatewayV2Parser
-    elif url.endswith("amazonaws.com") or (headers and headers.get("x-amzn-RequestId")):
+    elif url.endswith("amazonaws.com") or (headers and headers.get("x-amzn-requestid")):
         return ServerlessAWSParser
     return Parser

@@ -136,8 +136,10 @@ def recursive_json_join(d1: dict, d2: dict):
     * if key in d2 and is not dictionary, then the value is d2[key]
     * otherwise, join d1[key] and d2[key]
     """
+    if d1 is None or d2 is None:
+        return d1 or d2
     d = {}
-    for key in itertools.chain(d1.keys(), d2.keys()):
+    for key in set(itertools.chain(d1.keys(), d2.keys())):
         value = d1.get(key, d2.get(key))
         if isinstance(value, dict):
             d[key] = recursive_json_join(d1.get(key, {}), d2.get(key, {}))
@@ -293,7 +295,7 @@ def _parse_streams(event: dict) -> Dict[str, str]:
 def should_scrub_domain(url: str) -> bool:
     if url and Configuration.domains_scrubber:
         for regex in Configuration.domains_scrubber:
-            if re.match(regex, url, re.IGNORECASE):
+            if regex.match(url):
                 return True
     return False
 

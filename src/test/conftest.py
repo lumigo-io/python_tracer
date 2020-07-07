@@ -71,4 +71,4 @@ def capture_all_logs(caplog):
 
 @pytest.fixture
 def context():
-    return mock.Mock(get_remaining_time_in_millis=lambda: utils.TIMEOUT_TIMER_BUFFER * 1000 * 2)
+    return mock.Mock(get_remaining_time_in_millis=lambda: 1000 * 2)
