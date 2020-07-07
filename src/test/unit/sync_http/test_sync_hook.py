@@ -553,7 +553,7 @@ def test_correct_headers_of_send_after_request():
     def lambda_test_function(event, context):
         d = {"a": "b", "myPassword": "123"}
         conn = http.client.HTTPConnection("www.google.com")
-        conn.request("POST", "/", json.dumps(d), headers={"a": "b"})
+        conn.request("POST", "/", json.dumps(d), headers={"a": b"b"})
         conn.send(b"GET\r\nc: d\r\n\r\nbody")
         return {"lumigo": "rulz"}
 

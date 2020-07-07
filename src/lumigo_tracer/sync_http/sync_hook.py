@@ -17,6 +17,7 @@ from lumigo_tracer.utils import (
     get_logger,
     lumigo_safe_execute,
     is_aws_environment,
+    ensure_str,
 )
 from lumigo_tracer.spans_container import SpansContainer, TimeoutMechanism
 from lumigo_tracer.parsers.http_data_classes import HttpRequest
@@ -55,7 +56,7 @@ def _request_wrapper(func, instance, args, kwargs):
             hooked_headers = getattr(instance, LUMIGO_HEADERS_HOOK_KEY, None)
             if hooked_headers:
                 # we will get here only if _headers_reminder_wrapper ran first. remove its traces.
-                headers = dict(hooked_headers.items())
+                headers = {ensure_str(k): ensure_str(v) for k, v in hooked_headers.items()}
                 setattr(instance, LUMIGO_HEADERS_HOOK_KEY, None)
             elif _FLAGS_HEADER_SPLITTER in headers:
                 request_info, headers = headers.split(_FLAGS_HEADER_SPLITTER, 1)

@@ -237,6 +237,10 @@ def is_aws_environment():
     return bool(os.environ.get("LAMBDA_RUNTIME_DIR"))
 
 
+def ensure_str(s: Union[str, bytes]):
+    return s if isinstance(s, str) else s.decode()
+
+
 def format_frames(frames_infos: List[inspect.FrameInfo]) -> List[dict]:
     free_space = MAX_VARS_SIZE
     frames: List[dict] = []
