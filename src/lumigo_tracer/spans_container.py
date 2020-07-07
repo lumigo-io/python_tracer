@@ -16,6 +16,7 @@ from lumigo_tracer.utils import (
     omit_keys,
     EXECUTION_TAGS_KEY,
     MAX_ENTRY_SIZE,
+    get_timeout_buffer,
 )
 from lumigo_tracer import utils
 from lumigo_tracer.parsers.parser import get_parser, HTTP_TYPE, StepFunctionParser
@@ -71,8 +72,6 @@ class SpansContainer:
             "region": region,
             "parentId": request_id,
             "info": {"tracer": {"version": version}, "traceId": {"Root": trace_root}},
-            "event": event,
-            "envs": envs,
             "token": Configuration.token,
         }
         self.function_span = recursive_json_join(
@@ -81,6 +80,8 @@ class SpansContainer:
                 "type": "function",
                 "name": name,
                 "runtime": runtime,
+                "event": event,
+                "envs": envs,
                 "memoryAllocated": memory_allocated,
                 "readiness": "cold" if SpansContainer.is_cold else "warm",
                 "info": {
@@ -123,12 +124,11 @@ class SpansContainer:
                 get_logger().info("Skip setting timeout timer - Could not get the remaining time.")
                 return
             remaining_time = context.get_remaining_time_in_millis() / 1000
-            if Configuration.timeout_timer_buffer >= remaining_time:
+            buffer = get_timeout_buffer(remaining_time)
+            if buffer >= remaining_time or remaining_time < 2:
                 get_logger().debug("Skip setting timeout timer - Too short timeout.")
                 return
-            TimeoutMechanism.start(
-                remaining_time - Configuration.timeout_timer_buffer, self.handle_timeout
-            )
+            TimeoutMechanism.start(remaining_time - buffer, self.handle_timeout)
 
     def add_request_event(self, parse_params: HttpRequest):
         """

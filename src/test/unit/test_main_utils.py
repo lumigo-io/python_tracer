@@ -22,7 +22,7 @@ from lumigo_tracer.utils import (
     warn_client,
     WARN_CLIENT_PREFIX,
     SKIP_SCRUBBING_KEYS,
-    TIMEOUT_TIMER_BUFFER,
+    get_timeout_buffer,
 )
 import json
 
@@ -319,7 +319,7 @@ def test_config_enhanced_printstep_function_without_envs(monkeypatch, configurat
 def test_config_timeout_timer_buffer_with_exception(monkeypatch):
     monkeypatch.setenv("LUMIGO_TIMEOUT_BUFFER", "not float")
     config()
-    assert Configuration.timeout_timer_buffer == TIMEOUT_TIMER_BUFFER
+    assert Configuration.timeout_timer_buffer is None
 
 
 def test_warn_client_print(capsys):
@@ -331,3 +331,12 @@ def test_warn_client_dont_print(capsys, monkeypatch):
     monkeypatch.setenv("LUMIGO_WARNINGS", "off")
     warn_client("message")
     assert capsys.readouterr().out == ""
+
+
+@pytest.mark.parametrize(
+    "remaining_time, conf, expected",
+    ((3, 1, 1), (3, None, 0.5), (10, None, 1), (20, None, 2), (900, None, 3)),
+)
+def test_get_timeout_buffer(remaining_time, conf, expected):
+    Configuration.timeout_timer_buffer = conf
+    assert get_timeout_buffer(remaining_time) == expected
