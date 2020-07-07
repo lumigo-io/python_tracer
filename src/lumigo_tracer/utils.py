@@ -237,7 +237,7 @@ def is_aws_environment():
     return bool(os.environ.get("LAMBDA_RUNTIME_DIR"))
 
 
-def ensure_str(s: Union[str, bytes]):
+def ensure_str(s: Union[str, bytes]) -> str:
     return s if isinstance(s, str) else s.decode()
 
 
