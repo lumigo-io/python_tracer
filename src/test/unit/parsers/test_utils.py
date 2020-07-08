@@ -287,6 +287,60 @@ def test_recursive_json_join(d1, d2, result):
         ),
         ({"bla": "bla2"}, {"triggeredBy": "unknown"}),  # unknown trigger
         (None, None),
+        (  # ddb - modify with keys
+            {
+                "Records": [
+                    {
+                        "eventSourceARN": "arn:aws:dynamodb:us-west-2:723663554526:table/abbbbb/stream/2020-05-25T12:04:49.788",
+                        "eventSource": "aws:dynamodb",
+                        "eventName": "MODIFY",
+                        "dynamodb": {"ApproximateCreationDateTime": 1, "Keys": {"a": "b"}},
+                    }
+                ]
+            },
+            {
+                "triggeredBy": "dynamodb",
+                "messageIds": ["bd722b96a0bfdc0ef6115a2ee60b63f0"],
+                "approxEventCreationTime": 1000,
+                "arn": "arn:aws:dynamodb:us-west-2:723663554526:table/abbbbb/stream/2020-05-25T12:04:49.788",
+            },
+        ),
+        (  # ddb - insert with NewImage
+            {
+                "Records": [
+                    {
+                        "eventSourceARN": "arn:aws:dynamodb:us-west-2:723663554526:table/abbbbb/stream/2020-05-25T12:04:49.788",
+                        "eventSource": "aws:dynamodb",
+                        "eventName": "INSERT",
+                        "dynamodb": {"ApproximateCreationDateTime": 1, "NewImage": {"a": "b"}},
+                    }
+                ]
+            },
+            {
+                "triggeredBy": "dynamodb",
+                "messageIds": ["bd722b96a0bfdc0ef6115a2ee60b63f0"],
+                "approxEventCreationTime": 1000,
+                "arn": "arn:aws:dynamodb:us-west-2:723663554526:table/abbbbb/stream/2020-05-25T12:04:49.788",
+            },
+        ),
+        (  # ddb - insert with only keys
+            {
+                "Records": [
+                    {
+                        "eventSourceARN": "arn:aws:dynamodb:us-west-2:723663554526:table/abbbbb/stream/2020-05-25T12:04:49.788",
+                        "eventSource": "aws:dynamodb",
+                        "eventName": "INSERT",
+                        "dynamodb": {"ApproximateCreationDateTime": 1, "Keys": {"a": "b"}},
+                    }
+                ]
+            },
+            {
+                "triggeredBy": "dynamodb",
+                "messageIds": [],
+                "approxEventCreationTime": 1000,
+                "arn": "arn:aws:dynamodb:us-west-2:723663554526:table/abbbbb/stream/2020-05-25T12:04:49.788",
+            },
+        ),
     ],
 )
 def test_parse_triggered_by(event, output):

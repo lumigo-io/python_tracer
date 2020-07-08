@@ -1,4 +1,5 @@
 import decimal
+import hashlib
 import json
 import logging
 import os
@@ -383,3 +384,9 @@ def get_timeout_buffer(remaining_time: float):
     if not buffer:
         buffer = max(0.5, min(0.1 * remaining_time, 3))
     return buffer
+
+
+def md5hash(d: dict):
+    h = hashlib.md5()
+    h.update(json.dumps(d, sort_keys=True).encode())
+    return h.hexdigest()

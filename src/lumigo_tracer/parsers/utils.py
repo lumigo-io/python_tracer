@@ -14,6 +14,7 @@ from lumigo_tracer.utils import (
     STEP_FUNCTION_UID_KEY,
     lumigo_safe_execute,
     get_logger,
+    md5hash,
 )
 
 
@@ -289,7 +290,20 @@ def _parse_streams(event: dict) -> Dict[str, str]:
         result["messageId"] = event["Records"][0].get("messageId")
     elif triggered_by == "kinesis":
         result["messageId"] = safe_get(event, ["Records", 0, "kinesis", "sequenceNumber"])
+    elif triggered_by == "dynamodb":
+        result.update(_parse_dynamomdb_event(event))
     return result
+
+
+def _parse_dynamomdb_event(event):
+    creation_time = event["Records"][0]["dynamodb"]["ApproximateCreationDateTime"] * 1000
+    mids = []
+    for record in event["Records"]:
+        if record["eventName"] in ("MODIFY", "REMOVE") and record.get("dynamodb", {}).get("Keys"):
+            mids.append(md5hash(record["dynamodb"]["Keys"]))
+        elif record["eventName"] in "INSERT" and record.get("dynamodb", {}).get("NewImage"):
+            mids.append(md5hash(record["dynamodb"]["NewImage"]))
+    return {"messageIds": mids, "approxEventCreationTime": creation_time}
 
 
 def should_scrub_domain(url: str) -> bool:
