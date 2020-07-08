@@ -7,6 +7,7 @@ import os
 
 from lumigo_tracer.sync_http.sync_hook import lumigo_tracer
 from lumigo_tracer.spans_container import SpansContainer
+from lumigo_tracer.utils import md5hash
 
 DEFAULT_USER = "cicd"
 
@@ -83,7 +84,7 @@ def test_dynamo_db(ddb_resource, region):
     assert len(events) == 1
     assert events[0]["info"]["httpInfo"]["host"] == f"dynamodb.{region}.amazonaws.com"
     assert events[0]["info"]["resourceName"] == ddb_resource
-    assert not events[0]["info"].get("messageId")
+    assert events[0]["info"].get("messageId") == md5hash({"key": {"S": "1"}})
     assert "ended" in events[0]
 
 

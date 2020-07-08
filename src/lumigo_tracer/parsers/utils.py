@@ -296,12 +296,15 @@ def _parse_streams(event: dict) -> Dict[str, str]:
 
 
 def _parse_dynamomdb_event(event):
-    creation_time = event["Records"][0]["dynamodb"]["ApproximateCreationDateTime"] * 1000
+    creation_time = (
+        event["Records"][0].get("dynamodb", {}).get("ApproximateCreationDateTime", 0) * 1000
+    )
     mids = []
     for record in event["Records"]:
-        if record["eventName"] in ("MODIFY", "REMOVE") and record.get("dynamodb", {}).get("Keys"):
+        event_name = record.get("eventName")
+        if event_name in ("MODIFY", "REMOVE") and record.get("dynamodb", {}).get("Keys"):
             mids.append(md5hash(record["dynamodb"]["Keys"]))
-        elif record["eventName"] in "INSERT" and record.get("dynamodb", {}).get("NewImage"):
+        elif event_name == "INSERT" and record.get("dynamodb", {}).get("NewImage"):
             mids.append(md5hash(record["dynamodb"]["NewImage"]))
     return {"messageIds": mids, "approxEventCreationTime": creation_time}
 

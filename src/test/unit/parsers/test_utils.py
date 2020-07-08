@@ -157,20 +157,6 @@ def test_recursive_json_join(d1, d2, result):
                 "messageId": "12",
             },
         ),
-        (  # DynamoDB example trigger
-            {
-                "Records": [
-                    {
-                        "eventSourceARN": "arn:aws:dynamodb:us-east-1:123456789:table/dynamodb-table-name",
-                        "eventSource": "aws:dynamodb",
-                    }
-                ]
-            },
-            {
-                "triggeredBy": "dynamodb",
-                "arn": "arn:aws:dynamodb:us-east-1:123456789:table/dynamodb-table-name",
-            },
-        ),
         (  # SQS example trigger
             {
                 "Records": [
