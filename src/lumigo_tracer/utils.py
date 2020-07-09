@@ -386,7 +386,7 @@ def get_timeout_buffer(remaining_time: float):
     return buffer
 
 
-def md5hash(d: dict):
+def md5hash(d: dict) -> str:
     h = hashlib.md5()
     h.update(json.dumps(d, sort_keys=True).encode())
     return h.hexdigest()

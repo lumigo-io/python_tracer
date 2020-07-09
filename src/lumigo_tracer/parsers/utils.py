@@ -17,6 +17,9 @@ from lumigo_tracer.utils import (
     md5hash,
 )
 
+MESSAGE_IDS_KEY = "messageIds"
+TRIGGER_CREATION_TIME_KEY = "approxEventCreationTime"
+
 
 def safe_get(d: Union[dict, list], keys: List[Union[str, int]], default: Any = None) -> Any:
     """
@@ -295,10 +298,12 @@ def _parse_streams(event: dict) -> Dict[str, str]:
     return result
 
 
-def _parse_dynamomdb_event(event):
-    creation_time = (
-        event["Records"][0].get("dynamodb", {}).get("ApproximateCreationDateTime", 0) * 1000
-    )
+def _get_ddb_approx_creation_time_ms(event) -> int:
+    return event["Records"][0].get("dynamodb", {}).get("ApproximateCreationDateTime", 0) * 1000
+
+
+def _parse_dynamomdb_event(event) -> Dict[str, Union[int, List[str]]]:
+    creation_time = _get_ddb_approx_creation_time_ms(event)
     mids = []
     for record in event["Records"]:
         event_name = record.get("eventName")
@@ -306,7 +311,7 @@ def _parse_dynamomdb_event(event):
             mids.append(md5hash(record["dynamodb"]["Keys"]))
         elif event_name == "INSERT" and record.get("dynamodb", {}).get("NewImage"):
             mids.append(md5hash(record["dynamodb"]["NewImage"]))
-    return {"messageIds": mids, "approxEventCreationTime": creation_time}
+    return {MESSAGE_IDS_KEY: mids, TRIGGER_CREATION_TIME_KEY: creation_time}
 
 
 def should_scrub_domain(url: str) -> bool:

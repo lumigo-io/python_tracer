@@ -12,7 +12,7 @@ from lumigo_tracer.parsers.utils import (
     safe_get,
     should_scrub_domain,
 )
-from lumigo_tracer.utils import Configuration, prepare_large_data, md5hash
+from lumigo_tracer.utils import Configuration, prepare_large_data, md5hash, get_logger
 from lumigo_tracer.parsers.http_data_classes import HttpRequest
 
 HTTP_TYPE = "http"
@@ -95,7 +95,8 @@ class ServerlessAWSParser(Parser):
 class DynamoParser(ServerlessAWSParser):
     should_add_message_id = False
 
-    def _extract_message_id(self, body: dict, method: str):
+    @staticmethod
+    def _extract_message_id(body: dict, method: str) -> Optional[str]:
         if method == "PutItem" and body.get("Item"):
             return md5hash(body["Item"])
         elif method in ("UpdateItem", "DeleteItem") and body.get("Key"):
@@ -107,8 +108,10 @@ class DynamoParser(ServerlessAWSParser):
                     return md5hash(first_item[0]["PutRequest"]["Item"])
                 else:
                     return md5hash(first_item[0]["DeleteRequest"]["Key"])
+        return None
 
-    def _extract_table_name(self, body: dict, method: str):
+    @staticmethod
+    def _extract_table_name(body: dict, method: str) -> Optional[str]:
         name = body.get("TableName")
         if not name and method == "BatchWriteItem" and isinstance(body.get("RequestItems"), dict):
             return next(iter(body["RequestItems"]))
@@ -119,7 +122,8 @@ class DynamoParser(ServerlessAWSParser):
         method = safe_split_get(target, ".", 1)
         try:
             parsed_body = json.loads(parse_params.body)
-        except json.JSONDecodeError:
+        except json.JSONDecodeError as e:
+            get_logger().debug("Error while trying to parse ddb request body", exc_info=e)
             parsed_body = {}
 
         return recursive_json_join(

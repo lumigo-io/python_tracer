@@ -137,3 +137,16 @@ def test_dynamodb_parser_sad_flow():
     assert response["info"]["resourceName"] is None
     assert response["info"]["dynamodbMethod"] == "GetItem"
     assert response["info"]["messageId"] is None
+
+
+def test_dynamodb_parser_sad_flow_unsupported_query():
+    parser = DynamoParser()
+    params = HttpRequest(
+        host="",
+        method="POST",
+        uri="",
+        headers={"x-amz-target": "DynamoDB_20120810.BatchWriteItem"},
+        body='{"RequestItems": {}}',
+    )
+    with pytest.raises(Exception):
+        parser.parse_request(params)
