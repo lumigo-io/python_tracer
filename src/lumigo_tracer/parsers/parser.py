@@ -1,3 +1,4 @@
+import json
 import uuid
 from typing import Type, Optional
 import time
@@ -11,7 +12,7 @@ from lumigo_tracer.parsers.utils import (
     safe_get,
     should_scrub_domain,
 )
-from lumigo_tracer.utils import Configuration, prepare_large_data
+from lumigo_tracer.utils import Configuration, prepare_large_data, md5hash, get_logger
 from lumigo_tracer.parsers.http_data_classes import HttpRequest
 
 HTTP_TYPE = "http"
@@ -94,13 +95,43 @@ class ServerlessAWSParser(Parser):
 class DynamoParser(ServerlessAWSParser):
     should_add_message_id = False
 
+    @staticmethod
+    def _extract_message_id(body: dict, method: str) -> Optional[str]:
+        if method == "PutItem" and body.get("Item"):
+            return md5hash(body["Item"])
+        elif method in ("UpdateItem", "DeleteItem") and body.get("Key"):
+            return md5hash(body["Key"])
+        elif method == "BatchWriteItem" and body.get("RequestItems"):
+            first_item = next(iter(body["RequestItems"].values()))
+            if first_item:
+                if first_item[0].get("PutRequest"):
+                    return md5hash(first_item[0]["PutRequest"]["Item"])
+                else:
+                    return md5hash(first_item[0]["DeleteRequest"]["Key"])
+        return None
+
+    @staticmethod
+    def _extract_table_name(body: dict, method: str) -> Optional[str]:
+        name = body.get("TableName")
+        if not name and method == "BatchWriteItem" and isinstance(body.get("RequestItems"), dict):
+            return next(iter(body["RequestItems"]))
+        return name
+
     def parse_request(self, parse_params: HttpRequest) -> dict:
         target: str = parse_params.headers.get("x-amz-target", "")
+        method = safe_split_get(target, ".", 1)
+        try:
+            parsed_body = json.loads(parse_params.body)
+        except json.JSONDecodeError as e:
+            get_logger().debug("Error while trying to parse ddb request body", exc_info=e)
+            parsed_body = {}
+
         return recursive_json_join(
             {
                 "info": {
-                    "resourceName": safe_key_from_json(parse_params.body, "TableName"),
-                    "dynamodbMethod": safe_split_get(target, ".", 1),
+                    "resourceName": self._extract_table_name(parsed_body, method),
+                    "dynamodbMethod": method,
+                    "messageId": self._extract_message_id(parsed_body, method),
                 }
             },
             super().parse_request(parse_params),
