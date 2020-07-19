@@ -12,10 +12,8 @@ from lumigo_tracer.utils import (
     LUMIGO_EVENT_KEY,
     STEP_FUNCTION_UID_KEY,
     format_frames,
-    prepare_large_data,
-    omit_keys,
+    lumigo_dumps,
     EXECUTION_TAGS_KEY,
-    MAX_ENTRY_SIZE,
     get_timeout_buffer,
 )
 from lumigo_tracer import utils
@@ -184,7 +182,7 @@ class SpansContainer:
 
             headers = {k.lower(): v for k, v in headers.items()} if headers else {}
             parser = get_parser(host, headers)()  # type: ignore
-            if len(self.previous_response_body) < MAX_ENTRY_SIZE:
+            if len(self.previous_response_body) < Configuration.max_entry_size:
                 self.previous_response_body += body
             update = parser.parse_response(  # type: ignore
                 host, status_code, headers, self.previous_response_body
@@ -241,7 +239,9 @@ class SpansContainer:
         parsed_ret_val = None
         if Configuration.verbose:
             try:
-                parsed_ret_val = prepare_large_data(omit_keys(ret_val), enforce_jsonify=True)
+                parsed_ret_val = lumigo_dumps(
+                    ret_val, enforce_jsonify=True, max_size=Configuration.max_entry_size
+                )
             except Exception as err:
                 suffix = ""
                 if err.args:
@@ -290,8 +290,10 @@ class SpansContainer:
         if Configuration.verbose:
             additional_info.update(
                 {
-                    "event": prepare_large_data(EventParser.parse_event(omit_keys(event))),
-                    "envs": prepare_large_data(omit_keys(dict(os.environ))),
+                    "event": lumigo_dumps(
+                        EventParser.parse_event(event), Configuration.max_entry_size
+                    ),
+                    "envs": lumigo_dumps(dict(os.environ), Configuration.max_entry_size),
                 }
             )
 

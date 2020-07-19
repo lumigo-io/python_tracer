@@ -1,3 +1,4 @@
+import copy
 import datetime
 import json
 import time
@@ -23,6 +24,7 @@ from lumigo_tracer.utils import (
     LUMIGO_EVENT_KEY,
     _create_request_body,
     EXECUTION_TAGS_KEY,
+    lumigo_dumps,
 )
 import pytest
 
@@ -73,7 +75,7 @@ def test_lambda_wrapper_exception(exc):
     assert function_span["error"]["frames"][0] == {
         "function": "lambda_test_function",
         "fileName": __file__,
-        "variables": {"a": "A", "exc": str(exc)},
+        "variables": {"a": '"A"', "exc": lumigo_dumps(exc, 100)},
     }
     assert not function_span["id"].endswith("_started")
     assert "reporter_rtt" in function_span
@@ -140,7 +142,7 @@ def test_lambda_wrapper_http_splitted_send():
     lambda_test_function()
     http_spans = SpansContainer.get_span().http_spans
     assert http_spans
-    assert http_spans[0]["info"]["httpInfo"]["request"]["body"] == "123456"
+    assert http_spans[0]["info"]["httpInfo"]["request"]["body"] == '"123456"'
     assert "content-length" in http_spans[0]["info"]["httpInfo"]["request"]["headers"]
 
 
@@ -682,3 +684,17 @@ def api_gw_event() -> Dict:
         "body": '{"email":"a@a.com"}',
         "isBase64Encoded": False,
     }
+
+
+@pytest.mark.parametrize(
+    ["given_event"], ([{"hello": "world"}], [api_gw_event()])  # happy flow  # apigw event
+)
+def test_lumigo_doesnt_change_event(given_event):
+    origin_event = copy.deepcopy(given_event)
+
+    @lumigo_tracer()
+    def lambda_test_function(event, context):
+        assert event == origin_event
+        return "ret_value"
+
+    lambda_test_function(given_event, SimpleNamespace(aws_request_id="1234"))

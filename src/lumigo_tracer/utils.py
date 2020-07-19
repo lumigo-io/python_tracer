@@ -13,6 +13,8 @@ from contextlib import contextmanager
 from base64 import b64encode
 import inspect
 
+from lumigo_tracer.libs.custom_json_dump import CustomObjectEncoder
+
 EXECUTION_TAGS_KEY = "lumigo_execution_tags_no_scrub"
 EDGE_HOST = "https://{region}.lumigo-tracer-edge.golumigo.com/api/spans"
 LOG_FORMAT = "#LUMIGO# - %(asctime)s - %(levelname)s - %(message)s"
@@ -24,7 +26,7 @@ TOO_BIG_SPANS_THRESHOLD = 5
 MAX_SIZE_FOR_REQUEST: int = int(os.environ.get("LUMIGO_MAX_SIZE_FOR_REQUEST", 900_000))
 MAX_VARS_SIZE = 100_000
 MAX_VAR_LEN = 200
-MAX_ENTRY_SIZE = 2048
+DEFAULT_MAX_ENTRY_SIZE = 2048
 FrameVariables = Dict[str, str]
 OMITTING_KEYS_REGEXES = [
     ".*pass.*",
@@ -46,6 +48,7 @@ SKIP_SCRUBBING_KEYS = [EXECUTION_TAGS_KEY]
 LUMIGO_SECRET_MASKING_REGEX_BACKWARD_COMP = "LUMIGO_BLACKLIST_REGEX"
 LUMIGO_SECRET_MASKING_REGEX = "LUMIGO_SECRET_MASKING_REGEX"
 WARN_CLIENT_PREFIX = "Lumigo Warning"
+TRUNCATE_SUFFIX = "...[too long]"
 NUMBER_OF_SPANS_IN_REPORT_OPTIMIZATION = 200
 
 _logger: Union[logging.Logger, None] = None
@@ -62,6 +65,7 @@ class Configuration:
     timeout_timer_buffer: Optional[float] = None
     send_only_if_error: bool = False
     domains_scrubber: Optional[List] = None
+    max_entry_size: int = DEFAULT_MAX_ENTRY_SIZE
 
 
 def config(
@@ -74,6 +78,7 @@ def config(
     timeout_timer: bool = True,
     timeout_timer_buffer: Optional[float] = None,
     domains_scrubber: Optional[List[str]] = None,
+    max_entry_size: int = DEFAULT_MAX_ENTRY_SIZE,
 ) -> None:
     """
     This function configure the lumigo wrapper.
@@ -88,6 +93,7 @@ def config(
     :param timeout_timer_buffer: The buffer (seconds) that we take before reaching timeout to send the traces to lumigo.
         The default is 10% of the duration of the lambda (with upper and lower bounds of 0.5 and 3 seconds).
     :param domains_scrubber: List of regexes. We will not collect data of requests with hosts that match it.
+    :param max_entry_size: The maximum size of each entry when sending back the events.
     """
     if should_report is not None:
         Configuration.should_report = should_report
@@ -126,6 +132,7 @@ def config(
     else:
         domains_scrubber_regex = DOMAIN_SCRUBBER_REGEXES
     Configuration.domains_scrubber = [re.compile(r, re.IGNORECASE) for r in domains_scrubber_regex]
+    Configuration.max_entry_size = int(os.environ.get("LUMIGO_MAX_ENTRY_SIZE", max_entry_size))
 
 
 def _is_span_has_error(span: dict) -> bool:
@@ -152,7 +159,7 @@ def _create_request_body(
         len(msgs) < NUMBER_OF_SPANS_IN_REPORT_OPTIMIZATION
         and _get_event_base64_size(msgs) < max_size  # noqa
     ):
-        return json.dumps(omit_keys(msgs))
+        return lumigo_dumps(msgs, max_size=max_size)
 
     end_span = msgs[-1]
     ordered_spans = sorted(msgs[:-1], key=_is_span_has_error, reverse=True)
@@ -170,7 +177,7 @@ def _create_request_body(
             too_big_spans += 1
             if too_big_spans == too_big_spans_threshold:
                 break
-    return json.dumps(omit_keys(spans_to_send))
+    return lumigo_dumps(spans_to_send, max_size=max_size)
 
 
 def report_json(region: Union[None, str], msgs: List[dict]) -> int:
@@ -259,66 +266,30 @@ def format_frame(frame_info: inspect.FrameInfo, free_space: int) -> dict:
         "lineno": frame_info.lineno,
         "fileName": frame_info.filename,
         "function": frame_info.function,
-        "variables": _truncate_locals(omit_keys(frame_info.frame.f_locals), free_space),
+        "variables": _truncate_locals(
+            frame_info.frame.f_locals, free_space, get_omitting_regexes()
+        ),
     }
 
 
-def _truncate_locals(f_locals: Dict[str, Any], free_space: int) -> FrameVariables:
+def _truncate_locals(
+    f_locals: Dict[str, Any], free_space: int, omitting_regexes: list
+) -> FrameVariables:
     """
     Truncate variable part or the entire variable in order to avoid exceeding the maximum frames size.
     :param f_locals: inspect.FrameInfo.frame.f_locals
     """
     locals_truncated: FrameVariables = {}
     for var_name, var_value in f_locals.items():
-        var = {var_name: prepare_large_data(var_value, MAX_VAR_LEN)}
+        if any(r.match(var_name) for r in omitting_regexes):  # type: ignore
+            var = {var_name: "****"}
+        else:
+            var = {var_name: lumigo_dumps(var_value, max_size=MAX_VAR_LEN)}
         free_space -= len(json.dumps(var))
         if free_space <= 0:
             return locals_truncated
         locals_truncated.update(var)
     return locals_truncated
-
-
-class DecimalEncoder(json.JSONEncoder):
-    # copied from python's runtime: runtime/lambda_runtime_marshaller.py:7-11
-    def default(self, o):
-        if isinstance(o, decimal.Decimal):
-            return float(o)
-        raise TypeError(f"Object of type {o.__class__.__name__} is not JSON serializable")
-
-
-def prepare_large_data(
-    value: Union[str, bytes, dict, OrderedDict, None],
-    max_size=MAX_ENTRY_SIZE,
-    enforce_jsonify: bool = False,
-) -> str:
-    """
-    This function prepare the given value to send it to lumigo.
-    You should call to this function if there's a possibility that the value will be big.
-
-    Current logic:
-        Converts the data to str and if it is larger than `max_size`, we truncate it.
-
-    :param value: The value we wish to send
-    :param max_size: The maximum size of the data that we will send
-    :param enforce_jsonify: Should we raise exception in the jsonify
-    :return: The value that we will actually send
-    """
-    if isinstance(value, dict) or isinstance(value, OrderedDict):
-        try:
-            value = json.dumps(value, cls=DecimalEncoder)
-        except Exception:
-            if enforce_jsonify:
-                raise
-    elif isinstance(value, bytes):
-        try:
-            value = value.decode()
-        except Exception:
-            pass
-
-    res = str(value)
-    if len(res) > max_size:
-        return f"{res[:max_size]}...[too long]"
-    return res
 
 
 def get_omitting_regexes():
@@ -329,40 +300,6 @@ def get_omitting_regexes():
     else:
         given_regexes = OMITTING_KEYS_REGEXES
     return [re.compile(r, re.IGNORECASE) for r in given_regexes]
-
-
-def omit_keys(value: Any, regexes: Optional[List] = None):
-    """
-    This function omit problematic keys from the given value.
-    We do so in the following cases:
-    * if the value is dictionary, then we omit values by keys (recursively)
-    * if the value is a string of a json. then we parse it to dict and omit keys.
-    """
-    if not regexes:
-        regexes = get_omitting_regexes()
-    if isinstance(value, list):
-        return [omit_keys(item, regexes) for item in value]
-    if isinstance(value, (str, bytes)):
-        try:
-            # This is an optimization step. Fast identify if this is a dict
-            if value.startswith("{") if isinstance(value, str) else value.startswith(b"{"):
-                parsed_value = json.loads(value)
-                if isinstance(parsed_value, dict):
-                    return json.dumps(omit_keys(parsed_value, regexes))
-            return value
-        except Exception:
-            return value
-    if isinstance(value, dict):
-        items = {}
-        for k, v in value.items():
-            if k in SKIP_SCRUBBING_KEYS:
-                items[k] = v
-            elif isinstance(k, str) and any(r.match(k) for r in regexes):  # type: ignore
-                items[k] = "****"
-            else:
-                items[k] = omit_keys(v, regexes)
-        return items
-    return value
 
 
 def warn_client(msg: str) -> None:
@@ -390,3 +327,77 @@ def md5hash(d: dict) -> str:
     h = hashlib.md5()
     h.update(json.dumps(d, sort_keys=True).encode())
     return h.hexdigest()
+
+
+class LumigoEncoder(CustomObjectEncoder):
+    class OmittedDict(dict):
+        pass
+
+    class OmittedStr(str):
+        pass
+
+    def __init__(self, regexes, enforce_jsonify):
+        self.regexes = regexes
+        self.enforce_jsonify = enforce_jsonify
+        super().__init__()
+
+    def default(self, o):
+        if isinstance(o, decimal.Decimal):
+            # copied from python's runtime: runtime/lambda_runtime_marshaller.py:7-11
+            return float(o)
+        if isinstance(o, bytes):
+            try:
+                return o.decode()
+            except Exception:
+                return str(o)
+        if isinstance(o, dict) and self.regexes:
+            items = {}
+            for k, v in o.items():
+                if k in SKIP_SCRUBBING_KEYS:
+                    items[k] = self.OmittedDict(v)
+                elif isinstance(k, str) and any(r.match(k) for r in self.regexes):  # type: ignore
+                    items[k] = "****"
+                else:
+                    items[k] = v
+            return self.OmittedDict(items)
+        if isinstance(o, (str, bytes)):
+            try:
+                parsed_value = json.loads(o)
+                if isinstance(parsed_value, dict):
+                    return parsed_value
+            except Exception:
+                return self.OmittedStr(o)
+        try:
+            if not self.enforce_jsonify:
+                return str(o)
+        except Exception:
+            pass
+        raise TypeError(f"Object of type {o.__class__.__name__} is not JSON serializable")
+
+    def should_use_original(self, o, cls):
+        if isinstance(o, (OrderedDict, dict, decimal.Decimal)) and not isinstance(
+            o, self.OmittedDict
+        ):
+            return False
+        if isinstance(o, bytes):
+            return False
+        if isinstance(o, str) and not isinstance(o, self.OmittedStr):
+            # This is an optimization step. Fast identify if this is a dict
+            if o.startswith("{"):
+                return False
+        return isinstance(o, cls)
+
+
+def lumigo_dumps(d: Any, max_size, regexes: List = None, enforce_jsonify: bool = False):
+    regexes = regexes or get_omitting_regexes()
+
+    retval = ""
+    try:
+        for chunk in LumigoEncoder(regexes, enforce_jsonify).iterencode(d):
+            retval += chunk
+            if len(retval) > max_size:
+                return LumigoEncoder.OmittedStr(retval[:max_size] + TRUNCATE_SUFFIX)
+    except Exception:
+        if enforce_jsonify:
+            raise
+    return LumigoEncoder.OmittedStr(retval)

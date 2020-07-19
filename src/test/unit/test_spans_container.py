@@ -5,7 +5,7 @@ import pytest
 from lumigo_tracer.parsers.http_data_classes import HttpRequest
 from lumigo_tracer.spans_container import SpansContainer, TimeoutMechanism
 from lumigo_tracer import utils
-from lumigo_tracer.utils import Configuration, EXECUTION_TAGS_KEY, MAX_ENTRY_SIZE
+from lumigo_tracer.utils import Configuration, EXECUTION_TAGS_KEY, DEFAULT_MAX_ENTRY_SIZE
 
 
 @pytest.fixture()
@@ -164,7 +164,7 @@ def test_aggregating_response_body(dummy_http_request):
     SpansContainer.create_span()
     SpansContainer.get_span().add_request_event(dummy_http_request)
 
-    big_response_chunk = b"leak" * MAX_ENTRY_SIZE
+    big_response_chunk = b"leak" * DEFAULT_MAX_ENTRY_SIZE
     for _ in range(10):
         SpansContainer.get_span().update_event_response(
             host=None, status_code=200, headers=None, body=big_response_chunk
