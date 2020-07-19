@@ -2,7 +2,6 @@ import os
 from abc import ABC, abstractmethod
 from collections import OrderedDict
 from typing import Dict, List
-import copy
 
 from lumigo_tracer.parsers.utils import str_to_list, safe_get
 from lumigo_tracer.utils import get_logger, is_api_gw_event
@@ -70,7 +69,7 @@ class ApiGWHandler(EventParseHandler):
         # Add order keys
         for order_key in API_GW_KEYS_ORDER:
             if event.get(order_key):
-                new_event[order_key] = copy.deepcopy(event[order_key])
+                new_event[order_key] = event[order_key]
         # Remove requestContext keys
         if new_event.get("requestContext"):
             for rc_key in new_event["requestContext"].copy():
@@ -84,7 +83,7 @@ class ApiGWHandler(EventParseHandler):
         # Add all other keys
         for key in event.keys():
             if (key not in API_GW_KEYS_ORDER) and (key not in API_GW_KEYS_DELETE_KEYS):
-                new_event[key] = copy.deepcopy(event[key])
+                new_event[key] = event[key]
         return new_event
 
 

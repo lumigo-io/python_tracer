@@ -1,3 +1,4 @@
+import copy
 import inspect
 import os
 import time
@@ -286,6 +287,8 @@ class SpansContainer:
         """
         if cls._span and not force:
             return cls._span
+        # copy the event to ensure that we will not change it
+        event = copy.deepcopy(event)
         additional_info = {}
         if Configuration.verbose:
             additional_info.update(
