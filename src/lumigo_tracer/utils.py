@@ -350,7 +350,9 @@ class LumigoEncoder(CustomObjectEncoder):
                 return o.decode()
             except Exception:
                 return str(o)
-        if isinstance(o, dict) and self.regexes:
+        if isinstance(o, dict):
+            if not self.regexes:
+                return self.OmittedDict(o)
             items = {}
             for k, v in o.items():
                 if k in SKIP_SCRUBBING_KEYS:
@@ -360,7 +362,7 @@ class LumigoEncoder(CustomObjectEncoder):
                 else:
                     items[k] = v
             return self.OmittedDict(items)
-        if isinstance(o, (str, bytes)):
+        if isinstance(o, str):
             try:
                 parsed_value = json.loads(o)
                 if isinstance(parsed_value, dict):
@@ -389,7 +391,7 @@ class LumigoEncoder(CustomObjectEncoder):
 
 
 def lumigo_dumps(d: Any, max_size, regexes: List = None, enforce_jsonify: bool = False):
-    regexes = regexes or get_omitting_regexes()
+    regexes = regexes if regexes is not None else get_omitting_regexes()
 
     retval = ""
     try:

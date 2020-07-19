@@ -1,4 +1,5 @@
 import inspect
+from collections import OrderedDict
 from decimal import Decimal
 
 import pytest
@@ -205,15 +206,13 @@ def test_format_frames__check_all_keys_and_values():
     ("value", "output"),
     [
         ("aa", '"aa"'),  # happy flow - string
-        (None, "null"),
-        ("a" * 101, '"' + "a" * 99 + "...[too long]"),
-        ({"a": "a"}, '{"a": "a"}'),  # dict.
-        # dict that can't be converted to json.
-        ({"a": set()}, '{"a": "set()"}'),  # type: ignore
-        (b"a", '"a"'),  # bytes that can be decoded.
-        (b"\xff\xfea\x00", "\"b'\\\\xff\\\\xfea\\\\x00'\""),  # bytes that can't be decoded.
-        ({1: Decimal(1)}, '{"1": 1.0}'),  # decimal should be serializeable
-        ({"a": "b"}, '{"a": "b"}'),  # simple dict
+        (None, "null"),  # happy flow - None
+        ("a" * 101, '"' + "a" * 99 + "...[too long]"),  # simple long string
+        ({"a": "a"}, '{"a": "a"}'),  # happy flow - dict
+        ({"a": set()}, '{"a": "set()"}'),  # dict that can't be converted to json
+        (b"a", '"a"'),  # bytes that can be decoded
+        (b"\xff\xfea\x00", "\"b'\\\\xff\\\\xfea\\\\x00'\""),  # bytes that can't be decoded
+        ({1: Decimal(1)}, '{"1": 1.0}'),  # decimal should be serializeable  (like in AWS!)
         ({"key": "b"}, '{"key": "****"}'),  # simple omitting
         ({"a": {"key": "b"}}, '{"a": {"key": "****"}}'),  # inner omitting
         ({"a": {"key": "b" * 100}}, '{"a": {"key": "****"}}'),  # long omitting
@@ -223,15 +222,26 @@ def test_format_frames__check_all_keys_and_values():
         ("{1: ", '"{1: "'),  # string which is not json but look like one
         (b'{"password": "abc"}', '{"password": "****"}'),  # omit of bytes
         ({None: 1}, '{"null": 1}'),
-        (
+        (OrderedDict({"a": "b", "key": "123"}), '{"a": "b", "key": "****"}'),  # OrderedDict
+        (  # Skip scrubbing
             {SKIP_SCRUBBING_KEYS[0]: {"password": 1}},
             f'{{"{SKIP_SCRUBBING_KEYS[0]}": {{"password": 1}}}}',
         ),
-        ([{"password": 1}, {"a": "b"}], '[{"password": "****"}, {"a": "b"}]'),
+        ([{"password": 1}, {"a": "b"}], '[{"password": "****"}, {"a": "b"}]'),  # list of dicts
     ],
 )
 def test_lumigo_dumps(value, output):
     assert lumigo_dumps(value, max_size=100) == output
+
+
+def test_lumigo_dumps_enforce_jsonify_raise_error():
+    with pytest.raises(TypeError):
+        assert lumigo_dumps({"a": set()}, max_size=100, enforce_jsonify=True)
+
+
+def test_lumigo_dumps_no_regexes():
+    result = lumigo_dumps({"key": "123"}, max_size=100, enforce_jsonify=True, regexes=[])
+    assert result == '{"key": "123"}'
 
 
 def test_lumigo_dumps_omit_keys_environment(monkeypatch):
