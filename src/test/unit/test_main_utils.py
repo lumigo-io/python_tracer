@@ -209,7 +209,7 @@ def test_format_frames__check_all_keys_and_values():
         (None, "null"),  # happy flow - None
         ("a" * 101, '"' + "a" * 99 + "...[too long]"),  # simple long string
         ({"a": "a"}, '{"a": "a"}'),  # happy flow - dict
-        ({"a": set()}, '{"a": "set()"}'),  # dict that can't be converted to json
+        ({"a": set([1])}, '{"a": "{1}"}'),  # dict that can't be converted to json
         (b"a", '"a"'),  # bytes that can be decoded
         (b"\xff\xfea\x00", "\"b'\\\\xff\\\\xfea\\\\x00'\""),  # bytes that can't be decoded
         ({1: Decimal(1)}, '{"1": 1.0}'),  # decimal should be serializeable  (like in AWS!)
