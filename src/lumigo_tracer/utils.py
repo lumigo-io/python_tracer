@@ -85,7 +85,7 @@ def config(
 
     :param verbose: Whether the tracer should send all the possible information (debug mode)
     :param edge_host: The host to send the events. Leave empty for default.
-    :param should_report: Weather we should send the events. Change to True in the production.
+    :param should_report: Whether we should send the events. Change to True in the production.
     :param token: The token to use when sending back the events.
     :param enhance_print: Should we add prefix to the print (so the logs will be in the platform).
     :param step_function: Is this function is a part of a step function?
