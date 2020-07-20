@@ -35,10 +35,8 @@ class Parser:
     def parse_request(self, parse_params: HttpRequest) -> dict:
         if Configuration.verbose and parse_params and not should_scrub_domain(parse_params.host):
             additional_info = {
-                "headers": lumigo_dumps(
-                    parse_params.headers, max_size=Configuration.max_entry_size
-                ),
-                "body": lumigo_dumps(parse_params.body, max_size=Configuration.max_entry_size),
+                "headers": lumigo_dumps(parse_params.headers),
+                "body": lumigo_dumps(parse_params.body or None),
                 "method": parse_params.method,
                 "uri": parse_params.uri,
             }
@@ -63,8 +61,8 @@ class Parser:
     def parse_response(self, url: str, status_code: int, headers: dict, body: bytes) -> dict:
         if Configuration.verbose and not should_scrub_domain(url):
             additional_info = {
-                "headers": lumigo_dumps(headers, max_size=Configuration.max_entry_size),
-                "body": lumigo_dumps(body, max_size=Configuration.max_entry_size),
+                "headers": lumigo_dumps(headers),
+                "body": lumigo_dumps(body or None),
                 "statusCode": status_code,
             }
         else:

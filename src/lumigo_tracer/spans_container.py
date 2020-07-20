@@ -240,9 +240,7 @@ class SpansContainer:
         parsed_ret_val = None
         if Configuration.verbose:
             try:
-                parsed_ret_val = lumigo_dumps(
-                    ret_val, enforce_jsonify=True, max_size=Configuration.max_entry_size
-                )
+                parsed_ret_val = lumigo_dumps(ret_val, enforce_jsonify=True)
             except Exception as err:
                 suffix = ""
                 if err.args:
@@ -293,10 +291,8 @@ class SpansContainer:
         if Configuration.verbose:
             additional_info.update(
                 {
-                    "event": lumigo_dumps(
-                        EventParser.parse_event(event), Configuration.max_entry_size
-                    ),
-                    "envs": lumigo_dumps(dict(os.environ), Configuration.max_entry_size),
+                    "event": lumigo_dumps(EventParser.parse_event(event)),
+                    "envs": lumigo_dumps(dict(os.environ)),
                 }
             )
 

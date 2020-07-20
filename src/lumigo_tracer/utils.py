@@ -390,8 +390,11 @@ class LumigoEncoder(CustomObjectEncoder):
         return isinstance(o, cls)
 
 
-def lumigo_dumps(d: Any, max_size, regexes: List = None, enforce_jsonify: bool = False):
+def lumigo_dumps(
+    d: Any, max_size: Optional[int] = None, regexes: List = None, enforce_jsonify: bool = False
+):
     regexes = regexes if regexes is not None else get_omitting_regexes()
+    max_size = max_size if max_size is not None else Configuration.max_entry_size
 
     retval = ""
     try:
