@@ -221,6 +221,7 @@ def test_format_frames__check_all_keys_and_values():
         ('{"a": {"key": "b"}}', '{"a": {"key": "****"}}'),  # string with inner omitting
         ("{1: ", '"{1: "'),  # string which is not json but look like one
         (b'{"password": "abc"}', '{"password": "****"}'),  # omit of bytes
+        ({"a": '{"password": 123}'}, '{"a": "{\\"password\\": 123}"}'),  # ignore inner json-string
         ({None: 1}, '{"null": 1}'),
         (OrderedDict({"a": "b", "key": "123"}), '{"a": "b", "key": "****"}'),  # OrderedDict
         (  # Skip scrubbing

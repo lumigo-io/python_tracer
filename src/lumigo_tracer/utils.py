@@ -353,9 +353,6 @@ class LumigoEncoder(CustomObjectEncoder):
     class OmittedDict(dict):
         pass
 
-    class OmittedStr(str):
-        pass
-
     def __init__(self, regexes, enforce_jsonify):
         self.regexes = regexes
         self.enforce_jsonify = enforce_jsonify
@@ -382,31 +379,19 @@ class LumigoEncoder(CustomObjectEncoder):
                 else:
                     items[k] = v
             return self.OmittedDict(items)
-        if isinstance(o, str):
+
+        if not self.enforce_jsonify:
             try:
-                parsed_value = json.loads(o)
-                if isinstance(parsed_value, dict):
-                    return parsed_value
-            except Exception:
-                return self.OmittedStr(o)
-        try:
-            if not self.enforce_jsonify:
                 return str(o)
-        except Exception:
-            pass
+            except Exception:
+                pass
         raise TypeError(f"Object of type {o.__class__.__name__} is not JSON serializable")
 
     def should_use_original(self, o, cls):
-        if isinstance(o, (OrderedDict, dict, decimal.Decimal)) and not isinstance(
+        if isinstance(o, (OrderedDict, dict, decimal.Decimal, bytes)) and not isinstance(
             o, self.OmittedDict
         ):
             return False
-        if isinstance(o, bytes):
-            return False
-        if isinstance(o, str) and not isinstance(o, self.OmittedStr):
-            # This is an optimization step. Fast identify if this is a dict
-            if o.startswith("{"):
-                return False
         return isinstance(o, cls)
 
 
@@ -415,14 +400,18 @@ def lumigo_dumps(
 ):
     regexes = regexes if regexes is not None else get_omitting_regexes()
     max_size = max_size if max_size is not None else Configuration.max_entry_size
-
+    if (isinstance(d, str) and d.startswith("{")) or (isinstance(d, bytes) and d.startswith(b"{")):
+        try:
+            d = json.loads(d)
+        except Exception:
+            pass
     retval = ""
     try:
         for chunk in LumigoEncoder(regexes, enforce_jsonify).iterencode(d):
             retval += chunk
             if len(retval) > max_size:
-                return LumigoEncoder.OmittedStr(retval[:max_size] + TRUNCATE_SUFFIX)
+                return retval[:max_size] + TRUNCATE_SUFFIX
     except Exception:
         if enforce_jsonify:
             raise
-    return LumigoEncoder.OmittedStr(retval)
+    return retval
