@@ -132,6 +132,7 @@ jobs:
 
   integration-test:
     <<: *defaults
+    resource_class: medium+
     steps:
       - checkout_utils
       - checkout_code
