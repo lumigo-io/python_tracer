@@ -173,6 +173,27 @@ def test_recursive_json_join(d1, d2, result):
                 "messageId": "e97ff404-96ca-460e-8ff0-a46012e61826",
             },
         ),
+        (  # SQS example batch trigger
+            {
+                "Records": [
+                    {
+                        "eventSourceARN": "arn:aws:sqs:us-east-1:123456789:sqs-queue-name",
+                        "eventSource": "aws:sqs",
+                        "messageId": "1",
+                    },
+                    {
+                        "eventSourceARN": "arn:aws:sqs:us-east-1:123456789:sqs-queue-name",
+                        "eventSource": "aws:sqs",
+                        "messageId": "2",
+                    },
+                ]
+            },
+            {
+                "triggeredBy": "sqs",
+                "arn": "arn:aws:sqs:us-east-1:123456789:sqs-queue-name",
+                "messageIds": ["1", "2"],
+            },
+        ),
         (  # Step Function
             {
                 "bla": "saart",

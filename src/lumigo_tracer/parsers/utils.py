@@ -17,6 +17,7 @@ from lumigo_tracer.utils import (
     md5hash,
 )
 
+MESSAGE_ID_KEY = "messageId"
 MESSAGE_IDS_KEY = "messageIds"
 TRIGGER_CREATION_TIME_KEY = "approxEventCreationTime"
 
@@ -290,7 +291,7 @@ def _parse_streams(event: dict) -> Dict[str, str]:
     else:
         result["arn"] = event["Records"][0]["eventSourceARN"]
     if triggered_by == "sqs":
-        result["messageId"] = event["Records"][0].get("messageId")
+        result.update(_parse_sqs_event(event))
     elif triggered_by == "kinesis":
         result["messageId"] = safe_get(event, ["Records", 0, "kinesis", "sequenceNumber"])
     elif triggered_by == "dynamodb":
@@ -312,6 +313,11 @@ def _parse_dynamomdb_event(event) -> Dict[str, Union[int, List[str]]]:
         elif event_name == "INSERT" and record.get("dynamodb", {}).get("NewImage"):
             mids.append(md5hash(record["dynamodb"]["NewImage"]))
     return {MESSAGE_IDS_KEY: mids, TRIGGER_CREATION_TIME_KEY: creation_time}
+
+
+def _parse_sqs_event(event) -> Dict[str, Union[int, List[str]]]:
+    mids = [record["messageId"] for record in event["Records"] if record.get("messageId")]
+    return {MESSAGE_IDS_KEY: mids} if len(mids) > 1 else {MESSAGE_ID_KEY: mids[0]}
 
 
 def should_scrub_domain(url: str) -> bool:
