@@ -12,7 +12,7 @@ from lumigo_tracer.parsers.utils import (
     safe_get,
     should_scrub_domain,
 )
-from lumigo_tracer.utils import Configuration, md5hash, get_logger, lumigo_dumps
+from lumigo_tracer.utils import Configuration, lumigo_dumps, md5hash, get_logger
 from lumigo_tracer.parsers.http_data_classes import HttpRequest
 
 HTTP_TYPE = "http"

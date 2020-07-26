@@ -286,9 +286,7 @@ def format_frame(frame_info: inspect.FrameInfo, free_space: int) -> dict:
         "lineno": frame_info.lineno,
         "fileName": frame_info.filename,
         "function": frame_info.function,
-        "variables": _truncate_locals(
-            omit_keys(frame_info.frame.f_locals, max_size=MAX_VAR_LEN), free_space
-        ),
+        "variables": _truncate_locals(omit_keys(frame_info.frame.f_locals), free_space),
     }
 
 
@@ -313,38 +311,6 @@ class DecimalEncoder(json.JSONEncoder):
         if isinstance(o, decimal.Decimal):
             return float(o)
         raise TypeError(f"Object of type {o.__class__.__name__} is not JSON serializable")
-
-
-def prepare_large_data(
-    value: Union[str, bytes, dict, OrderedDict, None], max_size=None, enforce_jsonify: bool = False
-) -> str:
-    """
-    This function prepare the given value to send it to lumigo.
-    You should call to this function if there's a possibility that the value will be big.
-    Current logic:
-        Converts the data to str and if it is larger than `max_size`, we truncate it.
-    :param value: The value we wish to send
-    :param max_size: The maximum size of the data that we will send
-    :param enforce_jsonify: Should we raise exception in the jsonify
-    :return: The value that we will actually send
-    """
-    max_size = max_size if max_size is not None else Configuration.max_entry_size
-    if isinstance(value, dict) or isinstance(value, OrderedDict):
-        try:
-            value = json.dumps(value, cls=DecimalEncoder)
-        except Exception:
-            if enforce_jsonify:
-                raise
-    elif isinstance(value, bytes):
-        try:
-            value = value.decode()
-        except Exception:
-            pass
-
-    res = str(value)
-    if len(res) > max_size:
-        return f"{res[:max_size]}{TRUNCATE_SUFFIX}"
-    return res
 
 
 def get_omitting_regexes():
@@ -407,7 +373,7 @@ def _recursive_omitting(prev_result, item, max_size, regexes, enforce_jsonify):
         d[key] = value
         try:
             current_size = len(value) if isinstance(value, str) else len(json.dumps(value))
-        except Exception:
+        except TypeError:
             if enforce_jsonify:
                 raise
             d[key] = str(value)
@@ -422,10 +388,10 @@ def omit_keys(
     This function omit problematic keys from the given value.
     We do so in the following cases:
     * if the value is dictionary, then we omit values by keys (recursively)
-    * if the value is a string of a json. then we parse it to dict and omit keys.
     """
     regexes = regexes if regexes is not None else get_omitting_regexes()
-    return reduce(  # type: ignore
+    max_size = max_size if max_size is not None else Configuration.max_entry_size
+    return reduce(
         lambda p, i: _recursive_omitting(p, i, max_size, regexes, enforce_jsonify),
         value.items(),
         ({}, 0),
@@ -435,12 +401,14 @@ def omit_keys(
 def lumigo_dumps(
     d: Any, max_size: Optional[int] = None, regexes: List = None, enforce_jsonify: bool = False
 ):
-    try:
-        d = d.decode() if isinstance(d, bytes) else d
-    except Exception:
-        d = str(d)
     regexes = regexes if regexes is not None else get_omitting_regexes()
     max_size = max_size if max_size is not None else Configuration.max_entry_size
+
+    if isinstance(d, bytes):
+        try:
+            d = d.decode()
+        except Exception:
+            d = str(d)
     if isinstance(d, str) and d.startswith("{"):
         try:
             d = json.loads(d)
@@ -455,9 +423,8 @@ def lumigo_dumps(
             if size > max_size:
                 break
         return "[" + ", ".join(organs) + "]"
-    if not isinstance(d, dict):
-        retval = json.dumps(d)
-        return (retval[:max_size] + TRUNCATE_SUFFIX) if len(retval) >= max_size else retval
+    if isinstance(d, dict):
+        d = omit_keys(d, max_size, regexes, enforce_jsonify)
 
-    retval = json.dumps(omit_keys(d, max_size, regexes, enforce_jsonify))
+    retval = json.dumps(d)
     return (retval[:max_size] + TRUNCATE_SUFFIX) if len(retval) >= max_size else retval

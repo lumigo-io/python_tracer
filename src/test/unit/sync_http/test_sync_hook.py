@@ -24,7 +24,6 @@ from lumigo_tracer.utils import (
     LUMIGO_EVENT_KEY,
     _create_request_body,
     EXECUTION_TAGS_KEY,
-    lumigo_dumps,
 )
 import pytest
 
@@ -75,7 +74,7 @@ def test_lambda_wrapper_exception(exc):
     assert function_span["error"]["frames"][0] == {
         "function": "lambda_test_function",
         "fileName": __file__,
-        "variables": {"a": '"A"', "exc": lumigo_dumps(str(exc), 100)},
+        "variables": {"a": '"A"', "exc": f'"{str(exc)}"'},
     }
     assert not function_span["id"].endswith("_started")
     assert "reporter_rtt" in function_span
@@ -662,7 +661,7 @@ def api_gw_event() -> Dict:
             "protocol": "HTTP/1.1",
             "stage": "prod",
             "domainPrefix": "psqn7b0ev2",
-            "requestTimeEpoch": 1587279976628,
+            "requestTimeEpoch": 1_587_279_976_628,
             "requestId": "78542821-ca17-4e83-94ec-96993a9d451d",
             "identity": {
                 "cognitoIdentityPoolId": None,
