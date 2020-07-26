@@ -107,7 +107,6 @@ def test_lambda_wrapper_query_with_http_params():
     http_spans = SpansContainer.get_span().http_spans
 
     assert http_spans
-    print(http_spans[0]["info"]["httpInfo"]["request"])
     assert http_spans[0]["info"]["httpInfo"]["request"]["uri"] == "www.google.com/?q=123"
 
 
@@ -122,7 +121,6 @@ def test_uri_requests():
     http_spans = SpansContainer.get_span().http_spans
 
     assert http_spans
-    print(http_spans[0]["info"]["httpInfo"]["request"])
     assert http_spans[0]["info"]["httpInfo"]["request"]["uri"] == "www.google.com/?q=123"
 
 
