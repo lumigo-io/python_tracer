@@ -75,7 +75,7 @@ def test_lambda_wrapper_exception(exc):
     assert function_span["error"]["frames"][0] == {
         "function": "lambda_test_function",
         "fileName": __file__,
-        "variables": {"a": '"A"', "exc": lumigo_dumps(exc, 100)},
+        "variables": {"a": '"A"', "exc": lumigo_dumps(str(exc), 100)},
     }
     assert not function_span["id"].endswith("_started")
     assert "reporter_rtt" in function_span

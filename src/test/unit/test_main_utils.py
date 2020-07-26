@@ -111,12 +111,12 @@ def test_create_request_body_take_error_first(dummy_span, error_span, function_e
     ],
 )
 def test_frame_truncate_locals(f_locals, expected):
-    assert _truncate_locals(f_locals, MAX_VARS_SIZE, []) == expected
+    assert _truncate_locals(f_locals, MAX_VARS_SIZE) == expected
 
 
 def test_frame_truncate_locals_pass_max_vars_size():
     f_locals = {i: "i" for i in range(MAX_VARS_SIZE * 2)}
-    actual = _truncate_locals(f_locals, MAX_VARS_SIZE, [])
+    actual = _truncate_locals(f_locals, MAX_VARS_SIZE)
     assert len(actual) < MAX_VARS_SIZE
     assert len(actual) > 0
 
@@ -267,7 +267,7 @@ def test_format_frame():
         "function": frame_info.function,
     }
     assert variables["a"] == '"A"'
-    assert variables["password"] == "****"
+    assert variables["password"] == '"****"'
 
 
 def test_get_omitting_regexes(monkeypatch):
