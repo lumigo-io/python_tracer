@@ -5,8 +5,7 @@ import logging
 import os
 import re
 import time
-import urllib.request
-from urllib.error import URLError
+import http.client
 from collections import OrderedDict
 from typing import Union, List, Optional, Dict, Any
 from contextlib import contextmanager
@@ -14,7 +13,8 @@ from base64 import b64encode
 import inspect
 
 EXECUTION_TAGS_KEY = "lumigo_execution_tags_no_scrub"
-EDGE_HOST = "https://{region}.lumigo-tracer-edge.golumigo.com/api/spans"
+EDGE_HOST = "{region}.lumigo-tracer-edge.golumigo.com"
+EDGE_PATH = "/api/spans"
 LOG_FORMAT = "#LUMIGO# - %(asctime)s - %(levelname)s - %(message)s"
 SECONDS_TO_TIMEOUT = 0.5
 LUMIGO_EVENT_KEY = "_lumigo"
@@ -22,6 +22,7 @@ STEP_FUNCTION_UID_KEY = "step_function_uid"
 # number of spans that are too big to enter the reported message before break
 TOO_BIG_SPANS_THRESHOLD = 5
 MAX_SIZE_FOR_REQUEST: int = int(os.environ.get("LUMIGO_MAX_SIZE_FOR_REQUEST", 900_000))
+EDGE_TIMEOUT = float(os.environ.get("LUMIGO_EDGE_TIMEOUT", SECONDS_TO_TIMEOUT))
 MAX_VARS_SIZE = 100_000
 MAX_VAR_LEN = 200
 MAX_ENTRY_SIZE = 2048
@@ -49,6 +50,17 @@ WARN_CLIENT_PREFIX = "Lumigo Warning"
 NUMBER_OF_SPANS_IN_REPORT_OPTIMIZATION = 200
 
 _logger: Union[logging.Logger, None] = None
+
+edge_connection = None
+try:
+    # Try to establish the connection in initialization
+    if os.environ.get("LUMIGO_INITIALIZATION_CONNECTION", "").lower() != "false":
+        edge_connection = http.client.HTTPSConnection(  # type: ignore
+            EDGE_HOST.format(region=os.environ.get("AWS_REGION")), timeout=EDGE_TIMEOUT
+        )
+        edge_connection.connect()
+except Exception:
+    pass
 
 
 class Configuration:
@@ -182,24 +194,32 @@ def report_json(region: Union[None, str], msgs: List[dict]) -> int:
     :return: The duration of reporting (in milliseconds),
                 or 0 if we didn't send (due to configuration or fail).
     """
+    global edge_connection
     get_logger().info(f"reporting the messages: {msgs[:10]}")
     host = Configuration.host or EDGE_HOST.format(region=region)
     duration = 0
+    if not edge_connection or edge_connection.host != host:
+        try:
+            edge_connection = http.client.HTTPSConnection(  # type: ignore
+                host.lstrip("https://").rstrip(EDGE_PATH), timeout=EDGE_TIMEOUT
+            )
+        except Exception as e:
+            get_logger().exception(f"Could not establish connection to {host}", exc_info=e)
+            return duration
     if Configuration.should_report:
         try:
             prune_trace: bool = not os.environ.get("LUMIGO_PRUNE_TRACE_OFF", "").lower() == "true"
             to_send = _create_request_body(msgs, prune_trace).encode()
             start_time = time.time()
-            response = urllib.request.urlopen(
-                urllib.request.Request(host, to_send, headers={"Content-Type": "application/json"}),
-                timeout=float(os.environ.get("LUMIGO_EDGE_TIMEOUT", SECONDS_TO_TIMEOUT)),
+            edge_connection.request(
+                "POST", EDGE_PATH, to_send, headers={"Content-Type": "application/json"}
             )
+            response = edge_connection.getresponse()
+            response.read()  # We most read the response to keep the connection available
             duration = int((time.time() - start_time) * 1000)
             get_logger().info(f"successful reporting, code: {getattr(response, 'code', 'unknown')}")
-        except URLError as e:
-            get_logger().exception(f"Timeout when reporting to {host}", exc_info=e)
         except Exception as e:
-            get_logger().exception(f"could not report json to {host}", exc_info=e)
+            get_logger().exception(f"Could not report json to {host}", exc_info=e)
     return duration
 
 
