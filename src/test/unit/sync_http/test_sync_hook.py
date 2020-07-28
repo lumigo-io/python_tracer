@@ -107,7 +107,20 @@ def test_lambda_wrapper_query_with_http_params():
     http_spans = SpansContainer.get_span().http_spans
 
     assert http_spans
-    print(http_spans[0]["info"]["httpInfo"]["request"])
+    assert http_spans[0]["info"]["httpInfo"]["request"]["uri"] == "www.google.com/?q=123"
+
+
+def test_uri_requests():
+    @lumigo_tracer(token="123")
+    def lambda_test_function():
+        conn = http.client.HTTPConnection("www.google.com")
+        conn.request("POST", "/?q=123", b"123")
+        conn.send(BytesIO(b"456"))
+
+    lambda_test_function()
+    http_spans = SpansContainer.get_span().http_spans
+
+    assert http_spans
     assert http_spans[0]["info"]["httpInfo"]["request"]["uri"] == "www.google.com/?q=123"
 
 
