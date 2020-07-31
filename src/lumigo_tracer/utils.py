@@ -15,6 +15,7 @@ import inspect
 EXECUTION_TAGS_KEY = "lumigo_execution_tags_no_scrub"
 EDGE_HOST = "{region}.lumigo-tracer-edge.golumigo.com"
 EDGE_PATH = "/api/spans"
+HTTPS_PREFIX = "https://"
 LOG_FORMAT = "#LUMIGO# - %(asctime)s - %(levelname)s - %(message)s"
 SECONDS_TO_TIMEOUT = 0.5
 LUMIGO_EVENT_KEY = "_lumigo"
@@ -194,8 +195,8 @@ def establish_connection(host):
 
 
 def prepare_host(host):
-    if host.startswith("https://"):
-        host = host[8:]
+    if host.startswith(HTTPS_PREFIX):
+        host = host[len(HTTPS_PREFIX) :]  # noqa: E203
     if host.endswith(EDGE_PATH):
         host = host[: -len(EDGE_PATH) - 1]
     return host
