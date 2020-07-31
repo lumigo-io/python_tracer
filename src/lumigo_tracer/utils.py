@@ -225,7 +225,9 @@ def report_json(region: Union[None, str], msgs: List[dict]) -> int:
             duration = int((time.time() - start_time) * 1000)
             get_logger().info(f"successful reporting, code: {getattr(response, 'code', 'unknown')}")
         except Exception as e:
-            get_logger().exception(f"Could not report json to {host}", exc_info=e)
+            get_logger().exception(
+                f"Could not report json to {host}. Retrying to establish connection.", exc_info=e
+            )
             edge_connection = establish_connection(host)
     return duration
 
