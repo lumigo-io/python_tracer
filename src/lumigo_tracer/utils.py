@@ -193,6 +193,14 @@ def establish_connection(host):
     return None
 
 
+def prepare_host(host):
+    if host.startswith("https://"):
+        host = host[8:]
+    if host.endswith(EDGE_PATH):
+        host = host[: -len(EDGE_PATH) - 1]
+    return host
+
+
 def report_json(region: Union[None, str], msgs: List[dict]) -> int:
     """
     This function sends the information back to the edge.
@@ -204,9 +212,7 @@ def report_json(region: Union[None, str], msgs: List[dict]) -> int:
     """
     global edge_connection
     get_logger().info(f"reporting the messages: {msgs[:10]}")
-    host = (
-        (Configuration.host or EDGE_HOST.format(region=region)).lstrip("https://").rstrip(EDGE_PATH)
-    )
+    host = prepare_host(Configuration.host or EDGE_HOST.format(region=region))
     duration = 0
     if not edge_connection or edge_connection.host != host:
         edge_connection = establish_connection(host)
