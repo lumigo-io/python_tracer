@@ -185,6 +185,16 @@ def _create_request_body(
     return json.dumps(omit_keys(spans_to_send))
 
 
+def establish_connection(host):
+    try:
+        return http.client.HTTPSConnection(  # type: ignore
+            host.lstrip("https://").rstrip(EDGE_PATH), timeout=EDGE_TIMEOUT
+        )
+    except Exception as e:
+        get_logger().exception(f"Could not establish connection to {host}", exc_info=e)
+    return None
+
+
 def report_json(region: Union[None, str], msgs: List[dict]) -> int:
     """
     This function sends the information back to the edge.
@@ -199,12 +209,8 @@ def report_json(region: Union[None, str], msgs: List[dict]) -> int:
     host = Configuration.host or EDGE_HOST.format(region=region)
     duration = 0
     if not edge_connection or edge_connection.host != host:
-        try:
-            edge_connection = http.client.HTTPSConnection(  # type: ignore
-                host.lstrip("https://").rstrip(EDGE_PATH), timeout=EDGE_TIMEOUT
-            )
-        except Exception as e:
-            get_logger().exception(f"Could not establish connection to {host}", exc_info=e)
+        edge_connection = establish_connection(host)
+        if not edge_connection:
             return duration
     if Configuration.should_report:
         try:
@@ -220,6 +226,7 @@ def report_json(region: Union[None, str], msgs: List[dict]) -> int:
             get_logger().info(f"successful reporting, code: {getattr(response, 'code', 'unknown')}")
         except Exception as e:
             get_logger().exception(f"Could not report json to {host}", exc_info=e)
+            edge_connection = establish_connection(host)
     return duration
 
 
