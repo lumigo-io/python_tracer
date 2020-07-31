@@ -187,9 +187,7 @@ def _create_request_body(
 
 def establish_connection(host):
     try:
-        return http.client.HTTPSConnection(  # type: ignore
-            host.lstrip("https://").rstrip(EDGE_PATH), timeout=EDGE_TIMEOUT
-        )
+        return http.client.HTTPSConnection(host, timeout=EDGE_TIMEOUT)
     except Exception as e:
         get_logger().exception(f"Could not establish connection to {host}", exc_info=e)
     return None
@@ -206,7 +204,9 @@ def report_json(region: Union[None, str], msgs: List[dict]) -> int:
     """
     global edge_connection
     get_logger().info(f"reporting the messages: {msgs[:10]}")
-    host = Configuration.host or EDGE_HOST.format(region=region)
+    host = (
+        (Configuration.host or EDGE_HOST.format(region=region)).lstrip("https://").rstrip(EDGE_PATH)
+    )
     duration = 0
     if not edge_connection or edge_connection.host != host:
         edge_connection = establish_connection(host)
