@@ -346,7 +346,7 @@ def test_get_timeout_buffer(remaining_time, conf, expected):
 
 @pytest.mark.parametrize(
     ["arg", "host"],
-    [("https://a.com", "a.com"), (f"https://b.com/{EDGE_PATH}", "b.com"), ("h.com", "h.com")],
+    [("https://a.com", "a.com"), (f"https://b.com{EDGE_PATH}", "b.com"), ("h.com", "h.com")],
 )
 def test_prepare_host(arg, host):
     assert prepare_host(arg) == host

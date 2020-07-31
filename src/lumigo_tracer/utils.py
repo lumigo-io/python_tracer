@@ -198,7 +198,7 @@ def prepare_host(host):
     if host.startswith(HTTPS_PREFIX):
         host = host[len(HTTPS_PREFIX) :]  # noqa: E203
     if host.endswith(EDGE_PATH):
-        host = host[: -len(EDGE_PATH) - 1]
+        host = host[: -len(EDGE_PATH)]
     return host
 
 
