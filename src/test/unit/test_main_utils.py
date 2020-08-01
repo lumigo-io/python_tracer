@@ -23,6 +23,8 @@ from lumigo_tracer.utils import (
     WARN_CLIENT_PREFIX,
     SKIP_SCRUBBING_KEYS,
     get_timeout_buffer,
+    prepare_host,
+    EDGE_PATH,
 )
 import json
 
@@ -340,3 +342,11 @@ def test_warn_client_dont_print(capsys, monkeypatch):
 def test_get_timeout_buffer(remaining_time, conf, expected):
     Configuration.timeout_timer_buffer = conf
     assert get_timeout_buffer(remaining_time) == expected
+
+
+@pytest.mark.parametrize(
+    ["arg", "host"],
+    [("https://a.com", "a.com"), (f"https://b.com{EDGE_PATH}", "b.com"), ("h.com", "h.com")],
+)
+def test_prepare_host(arg, host):
+    assert prepare_host(arg) == host
