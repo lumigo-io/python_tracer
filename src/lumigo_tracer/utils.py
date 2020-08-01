@@ -17,6 +17,7 @@ import inspect
 EXECUTION_TAGS_KEY = "lumigo_execution_tags_no_scrub"
 EDGE_HOST = "{region}.lumigo-tracer-edge.golumigo.com"
 EDGE_PATH = "/api/spans"
+HTTPS_PREFIX = "https://"
 LOG_FORMAT = "#LUMIGO# - %(asctime)s - %(levelname)s - %(message)s"
 SECONDS_TO_TIMEOUT = 0.5
 LUMIGO_EVENT_KEY = "_lumigo"
@@ -192,6 +193,22 @@ def _create_request_body(
     return json.dumps(spans_to_send)[:max_size]
 
 
+def establish_connection(host):
+    try:
+        return http.client.HTTPSConnection(host, timeout=EDGE_TIMEOUT)
+    except Exception as e:
+        get_logger().exception(f"Could not establish connection to {host}", exc_info=e)
+    return None
+
+
+def prepare_host(host):
+    if host.startswith(HTTPS_PREFIX):
+        host = host[len(HTTPS_PREFIX) :]  # noqa: E203
+    if host.endswith(EDGE_PATH):
+        host = host[: -len(EDGE_PATH)]
+    return host
+
+
 def report_json(region: Union[None, str], msgs: List[dict]) -> int:
     """
     This function sends the information back to the edge.
@@ -203,15 +220,11 @@ def report_json(region: Union[None, str], msgs: List[dict]) -> int:
     """
     global edge_connection
     get_logger().info(f"reporting the messages: {msgs[:10]}")
-    host = Configuration.host or EDGE_HOST.format(region=region)
+    host = prepare_host(Configuration.host or EDGE_HOST.format(region=region))
     duration = 0
     if not edge_connection or edge_connection.host != host:
-        try:
-            edge_connection = http.client.HTTPSConnection(  # type: ignore
-                host.lstrip("https://").rstrip(EDGE_PATH), timeout=EDGE_TIMEOUT
-            )
-        except Exception as e:
-            get_logger().exception(f"Could not establish connection to {host}", exc_info=e)
+        edge_connection = establish_connection(host)
+        if not edge_connection:
             return duration
     if Configuration.should_report:
         try:
@@ -226,7 +239,10 @@ def report_json(region: Union[None, str], msgs: List[dict]) -> int:
             duration = int((time.time() - start_time) * 1000)
             get_logger().info(f"successful reporting, code: {getattr(response, 'code', 'unknown')}")
         except Exception as e:
-            get_logger().exception(f"Could not report json to {host}", exc_info=e)
+            get_logger().exception(
+                f"Could not report json to {host}. Retrying to establish connection.", exc_info=e
+            )
+            edge_connection = establish_connection(host)
     return duration
 
 
