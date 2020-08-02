@@ -5,7 +5,7 @@ import time
 import uuid
 import signal
 import traceback
-from typing import List, Dict, Tuple, Optional, Callable, Set
+from typing import List, Dict, Optional, Callable, Set
 
 from lumigo_tracer.parsers.event_parser import EventParser
 from lumigo_tracer.utils import (
@@ -92,7 +92,7 @@ class SpansContainer:
             },
             self.base_msg,
         )
-        self.previous_request: Tuple[Optional[dict], bytes] = (None, b"")
+        self.previous_request: Optional[HttpRequest] = None
         self.previous_response_body: bytes = b""
         self.http_span_ids_to_send: Set[str] = set()
         self.http_spans: List[Dict] = []
@@ -135,7 +135,7 @@ class SpansContainer:
         """
         parser = get_parser(parse_params.host)()
         msg = parser.parse_request(parse_params)
-        self.previous_request = parse_params.headers, parse_params.body
+        self.previous_request = parse_params
         self.http_spans.append(recursive_json_join(msg, self.base_msg))
         self.http_span_ids_to_send.add(msg["id"])
 
@@ -149,13 +149,12 @@ class SpansContainer:
         """
         if self.http_spans:
             last_event = self.http_spans[-1]
-            if last_event and last_event.get("type") == HTTP_TYPE:
+            if last_event and last_event.get("type") == HTTP_TYPE and self.previous_request:
                 if last_event.get("info", {}).get("httpInfo", {}).get("host") == parse_params.host:
                     if "response" not in last_event["info"]["httpInfo"]:
                         self.http_spans.pop()
-                        prev_headers, prev_body = self.previous_request
-                        body = (prev_body + parse_params.body)[:MAX_BODY_SIZE]
-                        self.add_request_event(parse_params.clone(headers=prev_headers, body=body))
+                        body = (self.previous_request.body + parse_params.body)[:MAX_BODY_SIZE]
+                        self.add_request_event(self.previous_request.clone(body=body))
                         return
         self.add_request_event(parse_params.clone(headers=None))
 
@@ -233,7 +232,7 @@ class SpansContainer:
     def end(self, ret_val=None) -> Optional[int]:
         TimeoutMechanism.stop()
         reported_rtt = None
-        self.previous_request = None, b""
+        self.previous_request = None
         self.function_span.update({"ended": int(time.time() * 1000)})
         if Configuration.is_step_function:
             self.add_step_end_event(ret_val)
