@@ -4,7 +4,7 @@ import json
 import logging
 import os
 import re
-from functools import reduce
+from functools import reduce, lru_cache
 
 import time
 import http.client
@@ -329,6 +329,7 @@ class DecimalEncoder(json.JSONEncoder):
         raise TypeError(f"Object of type {o.__class__.__name__} is not JSON serializable")
 
 
+@lru_cache(maxsize=1)
 def get_omitting_regexes():
     if LUMIGO_SECRET_MASKING_REGEX in os.environ:
         given_regexes = json.loads(os.environ[LUMIGO_SECRET_MASKING_REGEX])
@@ -430,7 +431,9 @@ def lumigo_dumps(
             d = json.loads(d)
         except Exception:
             pass
-    if isinstance(d, list):
+    if isinstance(d, dict):
+        d = omit_keys(d, max_size, regexes, enforce_jsonify)
+    elif isinstance(d, list):
         size = 0
         organs = []
         for a in d:
@@ -439,8 +442,6 @@ def lumigo_dumps(
             if size > max_size:
                 break
         return "[" + ", ".join(organs) + "]"
-    if isinstance(d, dict):
-        d = omit_keys(d, max_size, regexes, enforce_jsonify)
 
     retval = json.dumps(d)
     return (retval[:max_size] + TRUNCATE_SUFFIX) if len(retval) >= max_size else retval

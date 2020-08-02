@@ -36,25 +36,17 @@ class Parser:
         if Configuration.verbose and parse_params and not should_scrub_domain(parse_params.host):
             additional_info = {
                 "headers": lumigo_dumps(parse_params.headers),
-                "body": lumigo_dumps(parse_params.body or None),
+                "body": lumigo_dumps(parse_params.body) if parse_params.body else "",
                 "method": parse_params.method,
                 "uri": parse_params.uri,
             }
         else:
-            additional_info = {
-                "method": parse_params.method if parse_params else "",
-                "body": "The data is not available",
-            }
+            additional_info = {"method": parse_params.method, "body": "The data is not available"}
 
         return {
             "id": str(uuid.uuid4()),
             "type": HTTP_TYPE,
-            "info": {
-                "httpInfo": {
-                    "host": parse_params.host if parse_params else "",
-                    "request": additional_info,
-                }
-            },
+            "info": {"httpInfo": {"host": parse_params.host, "request": additional_info}},
             "started": int(time.time() * 1000),
         }
 
@@ -62,7 +54,7 @@ class Parser:
         if Configuration.verbose and not should_scrub_domain(url):
             additional_info = {
                 "headers": lumigo_dumps(headers),
-                "body": lumigo_dumps(body or None),
+                "body": lumigo_dumps(body) if body else "",
                 "statusCode": status_code,
             }
         else:
