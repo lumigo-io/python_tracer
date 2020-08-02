@@ -41,12 +41,20 @@ class Parser:
                 "uri": parse_params.uri,
             }
         else:
-            additional_info = {"method": parse_params.method, "body": "The data is not available"}
+            additional_info = {
+                "method": parse_params.method if parse_params else None,
+                "body": "The data is not available",
+            }
 
         return {
             "id": str(uuid.uuid4()),
             "type": HTTP_TYPE,
-            "info": {"httpInfo": {"host": parse_params.host, "request": additional_info}},
+            "info": {
+                "httpInfo": {
+                    "host": parse_params.host if parse_params else None,
+                    "request": additional_info,
+                }
+            },
             "started": int(time.time() * 1000),
         }
 

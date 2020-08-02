@@ -45,7 +45,7 @@ def test_apigw_parse_response():
             "host": "dummy",
             "response": {
                 "headers": '{"apigw-requestid": "LY_66j0dPHcESCg="}',
-                "body": "null",
+                "body": "",
                 "statusCode": 200,
             },
         },
@@ -67,7 +67,7 @@ def test_apigw_parse_response_with_aws_request_id():
             "host": "dummy",
             "response": {
                 "headers": '{"apigw-requestid": "LY_66j0dPHcESCg=", "x-amzn-requestid": "x-amzn-requestid_LY_66j0dPHcESCg="}',
-                "body": "null",
+                "body": "",
                 "statusCode": 200,
             },
         },
