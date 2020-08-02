@@ -22,9 +22,9 @@ from lumigo_tracer.utils import (
     WARN_CLIENT_PREFIX,
     SKIP_SCRUBBING_KEYS,
     get_timeout_buffer,
+    lumigo_dumps,
     prepare_host,
     EDGE_PATH,
-    lumigo_dumps,
 )
 import json
 
