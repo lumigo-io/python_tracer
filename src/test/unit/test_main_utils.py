@@ -17,7 +17,6 @@ from lumigo_tracer.utils import (
     LUMIGO_SECRET_MASKING_REGEX,
     LUMIGO_SECRET_MASKING_REGEX_BACKWARD_COMP,
     get_omitting_regexes,
-    OMITTING_KEYS_REGEXES,
     warn_client,
     WARN_CLIENT_PREFIX,
     SKIP_SCRUBBING_KEYS,
@@ -242,8 +241,9 @@ def test_lumigo_dumps_enforce_jsonify_raise_error():
         assert lumigo_dumps({"a": set()}, max_size=100, enforce_jsonify=True)
 
 
-def test_lumigo_dumps_no_regexes():
-    result = lumigo_dumps({"key": "123"}, max_size=100, enforce_jsonify=True, regexes=[])
+def test_lumigo_dumps_no_regexes(monkeypatch):
+    monkeypatch.setenv(LUMIGO_SECRET_MASKING_REGEX, "[]")
+    result = lumigo_dumps({"key": "123"}, max_size=100, enforce_jsonify=True)
     assert result == '{"key": "123"}'
 
 
@@ -274,22 +274,23 @@ def test_format_frame():
 
 def test_get_omitting_regexes(monkeypatch):
     monkeypatch.setenv(LUMIGO_SECRET_MASKING_REGEX, '[".*evilPlan.*"]')
-    assert [r.pattern for r in get_omitting_regexes()] == [".*evilPlan.*"]
+    assert get_omitting_regexes().pattern == "(.*evilPlan.*)"
 
 
 def test_get_omitting_regexes_backward_compatibility(monkeypatch):
     monkeypatch.setenv(LUMIGO_SECRET_MASKING_REGEX_BACKWARD_COMP, '[".*evilPlan.*"]')
-    assert [r.pattern for r in get_omitting_regexes()] == [".*evilPlan.*"]
+    assert get_omitting_regexes().pattern == "(.*evilPlan.*)"
 
 
 def test_get_omitting_regexes_prefer_new_environment_name(monkeypatch):
     monkeypatch.setenv(LUMIGO_SECRET_MASKING_REGEX, '[".*evilPlan.*"]')
     monkeypatch.setenv(LUMIGO_SECRET_MASKING_REGEX_BACKWARD_COMP, '[".*evilPlan2.*"]')
-    assert [r.pattern for r in get_omitting_regexes()] == [".*evilPlan.*"]
+    assert get_omitting_regexes().pattern == "(.*evilPlan.*)"
 
 
 def test_get_omitting_regexes_fallback(monkeypatch):
-    assert [r.pattern for r in get_omitting_regexes()] == OMITTING_KEYS_REGEXES
+    expected = "(.*pass.*|.*key.*|.*secret.*|.*credential.*|SessionToken|x-amz-security-token|Signature|Authorization)"
+    assert get_omitting_regexes().pattern == expected
 
 
 @pytest.mark.parametrize("configuration_value", (True, False))
