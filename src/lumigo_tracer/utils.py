@@ -337,7 +337,7 @@ def get_omitting_regexes():
         given_regexes = json.loads(os.environ[LUMIGO_SECRET_MASKING_REGEX_BACKWARD_COMP])
     else:
         given_regexes = OMITTING_KEYS_REGEXES
-    return [re.compile(r, re.IGNORECASE) for r in given_regexes]
+    return re.compile(fr"({'|'.join(given_regexes)})", re.IGNORECASE)
 
 
 def warn_client(msg: str) -> None:
@@ -377,7 +377,7 @@ def _recursive_omitting(
     if key in SKIP_SCRUBBING_KEYS:
         d[key] = value
         size += len(value) if isinstance(value, str) else len(json.dumps(value))
-    elif isinstance(key, str) and any(r.match(key) for r in regexes):
+    elif isinstance(key, str) and regexes.match(key):
         d[key] = "****"
         size += 4
     elif isinstance(value, (dict, OrderedDict)):
