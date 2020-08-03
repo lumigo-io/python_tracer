@@ -56,7 +56,7 @@ def _request_wrapper(func, instance, args, kwargs):
             hooked_headers = getattr(instance, LUMIGO_HEADERS_HOOK_KEY, None)
             if hooked_headers:
                 # we will get here only if _headers_reminder_wrapper ran first. remove its traces.
-                headers = {ensure_str(k): ensure_str(v) for k, v in hooked_headers.items()}
+                headers = {k: ensure_str(v) for k, v in hooked_headers.items()}
                 setattr(instance, LUMIGO_HEADERS_HOOK_KEY, None)
             elif _FLAGS_HEADER_SPLITTER in headers:
                 request_info, headers = headers.split(_FLAGS_HEADER_SPLITTER, 1)

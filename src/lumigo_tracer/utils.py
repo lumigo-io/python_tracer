@@ -9,7 +9,7 @@ from functools import reduce, lru_cache
 import time
 import http.client
 from collections import OrderedDict
-from typing import Union, List, Optional, Dict, Any
+from typing import Union, List, Optional, Dict, Any, Tuple
 from contextlib import contextmanager
 from base64 import b64encode
 import inspect
@@ -302,7 +302,7 @@ def format_frame(frame_info: inspect.FrameInfo, free_space: int) -> dict:
         "lineno": frame_info.lineno,
         "fileName": frame_info.filename,
         "function": frame_info.function,
-        "variables": _truncate_locals(omit_keys(frame_info.frame.f_locals), free_space),
+        "variables": _truncate_locals(omit_keys(frame_info.frame.f_locals)[0], free_space),
     }
 
 
@@ -367,40 +367,43 @@ def md5hash(d: dict) -> str:
     return h.hexdigest()
 
 
-def _recursive_omitting(prev_result, item, max_size, regexes, enforce_jsonify):
+def _recursive_omitting(
+    prev_result: Tuple[Dict, int], item: Tuple[str, Any], max_size, regexes, enforce_jsonify
+) -> Tuple[Dict, int]:
     key, value = item
     d, size = prev_result
     if size > max_size:
         return d, size
     if key in SKIP_SCRUBBING_KEYS:
         d[key] = value
-        current_size = len(value) if isinstance(value, str) else len(json.dumps(value))
+        size += len(value) if isinstance(value, str) else len(json.dumps(value))
     elif isinstance(key, str) and any(r.match(key) for r in regexes):
         d[key] = "****"
-        current_size = 4
+        size += 4
     elif isinstance(value, (dict, OrderedDict)):
-        d[key], current_size = reduce(
+        d[key], size = reduce(
             lambda p, i: _recursive_omitting(p, i, max_size, regexes, enforce_jsonify),
             value.items(),
-            ({}, 0),
+            ({}, size),
         )
     elif isinstance(value, decimal.Decimal):
-        d[key], current_size = float(value), 5
+        d[key] = float(value)
+        size += 5
     else:
         d[key] = value
         try:
-            current_size = len(value) if isinstance(value, str) else len(json.dumps(value))
+            size += len(value) if isinstance(value, str) else len(json.dumps(value))
         except TypeError:
             if enforce_jsonify:
                 raise
             d[key] = str(value)
-            current_size = len(d[key])
-    return d, size + current_size
+            size += len(d[key])
+    return d, size
 
 
 def omit_keys(
-    value: Any, max_size: Optional[int] = None, regexes: List = None, enforce_jsonify: bool = False
-) -> Dict:
+    value: Dict, max_size: Optional[int] = None, regexes: List = None, enforce_jsonify: bool = False
+) -> Tuple[Dict, bool]:
     """
     This function omit problematic keys from the given value.
     We do so in the following cases:
@@ -408,11 +411,12 @@ def omit_keys(
     """
     regexes = regexes if regexes is not None else get_omitting_regexes()
     max_size = max_size if max_size is not None else Configuration.max_entry_size
-    return reduce(
+    omitted, size = reduce(  # type: ignore
         lambda p, i: _recursive_omitting(p, i, max_size, regexes, enforce_jsonify),
         value.items(),
         ({}, 0),
-    )[0]
+    )
+    return omitted, size > max_size
 
 
 def lumigo_dumps(
@@ -420,6 +424,7 @@ def lumigo_dumps(
 ):
     regexes = regexes if regexes is not None else get_omitting_regexes()
     max_size = max_size if max_size is not None else Configuration.max_entry_size
+    is_truncated = False
 
     if isinstance(d, bytes):
         try:
@@ -432,7 +437,7 @@ def lumigo_dumps(
         except Exception:
             pass
     if isinstance(d, dict):
-        d = omit_keys(d, max_size, regexes, enforce_jsonify)
+        d, is_truncated = omit_keys(d, max_size, regexes, enforce_jsonify)
     elif isinstance(d, list):
         size = 0
         organs = []
@@ -444,4 +449,6 @@ def lumigo_dumps(
         return "[" + ", ".join(organs) + "]"
 
     retval = json.dumps(d)
-    return (retval[:max_size] + TRUNCATE_SUFFIX) if len(retval) >= max_size else retval
+    return (
+        (retval[:max_size] + TRUNCATE_SUFFIX) if len(retval) >= max_size or is_truncated else retval
+    )
