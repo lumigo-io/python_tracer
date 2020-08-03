@@ -12,6 +12,7 @@ from lumigo_tracer.utils import (
     _truncate_locals,
     MAX_VAR_LEN,
     format_frame,
+    omit_keys,
     config,
     Configuration,
     LUMIGO_SECRET_MASKING_REGEX,
@@ -291,6 +292,12 @@ def test_get_omitting_regexes_prefer_new_environment_name(monkeypatch):
 def test_get_omitting_regexes_fallback(monkeypatch):
     expected = "(.*pass.*|.*key.*|.*secret.*|.*credential.*|SessionToken|x-amz-security-token|Signature|Authorization)"
     assert get_omitting_regexes().pattern == expected
+
+
+def test_omit_keys_environment(monkeypatch):
+    monkeypatch.setenv(LUMIGO_SECRET_MASKING_REGEX, '[".*evilPlan.*"]')
+    value = {"password": "abc", "evilPlan": {"take": "over", "the": "world"}}
+    assert omit_keys(value)[0] == {"password": "abc", "evilPlan": "****"}
 
 
 @pytest.mark.parametrize("configuration_value", (True, False))

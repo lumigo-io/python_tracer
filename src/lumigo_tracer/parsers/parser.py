@@ -42,7 +42,7 @@ class Parser:
             }
         else:
             additional_info = {
-                "method": parse_params.method if parse_params else None,
+                "method": parse_params.method if parse_params else "",
                 "body": "The data is not available",
             }
 
@@ -51,7 +51,7 @@ class Parser:
             "type": HTTP_TYPE,
             "info": {
                 "httpInfo": {
-                    "host": parse_params.host if parse_params else None,
+                    "host": parse_params.host if parse_params else "",
                     "request": additional_info,
                 }
             },
