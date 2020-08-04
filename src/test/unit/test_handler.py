@@ -1,4 +1,5 @@
 import importlib
+import traceback
 
 import mock
 import sys
@@ -43,10 +44,14 @@ def test_no_env_handler_error(monkeypatch):
         _handler({}, {})
 
 
-def test_syntax_error_in_original_handler(monkeypatch, context):
-    monkeypatch.setattr(importlib, "import_module", mock.Mock(side_effect=SyntaxError))
+def test_error_in_original_handler_no_extra_exception_log(monkeypatch, context):
+    monkeypatch.setattr(importlib, "import_module", mock.Mock(side_effect=Exception))
     monkeypatch.setenv(ORIGINAL_HANDLER_KEY, "sys.exit")
+    exception_occurred = False
 
-    with pytest.raises(SyntaxError) as err:
+    try:
         _handler({}, context)
-    assert err.value.msg == "Syntax error in the original handler."
+    except Exception:
+        exception_occurred = True
+        assert "another exception occurred" not in traceback.format_exc()
+    assert exception_occurred is True
