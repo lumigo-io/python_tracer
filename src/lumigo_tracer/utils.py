@@ -301,7 +301,7 @@ def format_frame(frame_info: inspect.FrameInfo, free_space: int) -> dict:
         "lineno": frame_info.lineno,
         "fileName": frame_info.filename,
         "function": frame_info.function,
-        "variables": _truncate_locals(omit_keys(frame_info.frame.f_locals)[0], free_space),
+        "variables": _truncate_locals(omit_keys(frame_info.frame.f_locals).d, free_space),
     }
 
 
@@ -428,7 +428,7 @@ def omit_keys(
     in_max_size: Optional[int] = None,
     regexes: Optional[Pattern[str]] = None,
     enforce_jsonify: bool = False,
-) -> Tuple[Dict, bool]:
+) -> IntermediateOmitResult:
     """
     This function omit problematic keys from the given value.
     We do so in the following cases:
@@ -441,7 +441,7 @@ def omit_keys(
         value.items(),
         IntermediateOmitResult({}, max_size),
     )
-    return result.d, result.free_space < 0
+    return result
 
 
 def lumigo_dumps(
@@ -465,7 +465,8 @@ def lumigo_dumps(
         except Exception:
             pass
     if isinstance(d, dict) and regexes:
-        d, is_truncated = omit_keys(d, max_size, regexes, enforce_jsonify)
+        result = omit_keys(d, max_size, regexes, enforce_jsonify)
+        d, is_truncated = result.d, result.free_space <= 0
     elif isinstance(d, list):
         size = 0
         organs = []
