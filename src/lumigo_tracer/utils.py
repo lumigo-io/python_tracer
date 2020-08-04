@@ -368,7 +368,7 @@ def md5hash(d: dict) -> str:
     return h.hexdigest()
 
 
-class IntermediateOmitResult:
+class _IntermediateOmitResult:
     __slots__ = ["d", "free_space"]
 
     def __init__(self, d, free_space):
@@ -377,11 +377,11 @@ class IntermediateOmitResult:
 
 
 def _recursive_omitting(
-    result: IntermediateOmitResult,
+    result: _IntermediateOmitResult,
     item: Tuple[str, Any],
     regex: Optional[Pattern[str]],
     enforce_jsonify: bool,
-) -> IntermediateOmitResult:
+) -> _IntermediateOmitResult:
     """
     This function omitting keys until the given max_size.
     This function should be used in a reduce iteration over dict.items().
@@ -405,7 +405,7 @@ def _recursive_omitting(
         inner_result = reduce(
             lambda p, i: _recursive_omitting(p, i, regex, enforce_jsonify),
             value.items(),
-            IntermediateOmitResult({}, result.free_space),
+            _IntermediateOmitResult({}, result.free_space),
         )
         result.d[key], result.free_space = inner_result.d, inner_result.free_space
     elif isinstance(value, decimal.Decimal):
@@ -428,7 +428,7 @@ def omit_keys(
     in_max_size: Optional[int] = None,
     regexes: Optional[Pattern[str]] = None,
     enforce_jsonify: bool = False,
-) -> IntermediateOmitResult:
+) -> _IntermediateOmitResult:
     """
     This function omit problematic keys from the given value.
     We do so in the following cases:
@@ -439,13 +439,13 @@ def omit_keys(
     result = reduce(
         lambda p, i: _recursive_omitting(p, i, regexes, enforce_jsonify),
         value.items(),
-        IntermediateOmitResult({}, max_size),
+        _IntermediateOmitResult({}, max_size),
     )
     return result
 
 
 def lumigo_dumps(
-    d: Any,
+    d: Union[bytes, str, dict, OrderedDict, list],
     max_size: Optional[int] = None,
     regexes: Optional[Pattern[str]] = None,
     enforce_jsonify: bool = False,

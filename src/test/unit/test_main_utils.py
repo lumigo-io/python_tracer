@@ -1,6 +1,7 @@
 import inspect
 from collections import OrderedDict
 from decimal import Decimal
+import datetime
 
 import pytest
 from lumigo_tracer.utils import (
@@ -225,6 +226,7 @@ def test_format_frames__check_all_keys_and_values():
         (b'{"password": "abc"}', '{"password": "****"}'),  # omit of bytes
         ({"a": '{"password": 123}'}, '{"a": "{\\"password\\": 123}"}'),  # ignore inner json-string
         ({None: 1}, '{"null": 1}'),
+        ({"1": datetime.datetime(1994, 4, 22)}, '{"1": "1994-04-22 00:00:00"}'),
         (OrderedDict({"a": "b", "key": "123"}), '{"a": "b", "key": "****"}'),  # OrderedDict
         (  # Skip scrubbing
             {SKIP_SCRUBBING_KEYS[0]: {"password": 1}},
