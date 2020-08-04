@@ -299,7 +299,7 @@ def test_get_omitting_regexes_fallback(monkeypatch):
 def test_omit_keys_environment(monkeypatch):
     monkeypatch.setenv(LUMIGO_SECRET_MASKING_REGEX, '[".*evilPlan.*"]')
     value = {"password": "abc", "evilPlan": {"take": "over", "the": "world"}}
-    assert omit_keys(value).d == {"password": "abc", "evilPlan": "****"}
+    assert omit_keys(value)[0] == {"password": "abc", "evilPlan": "****"}
 
 
 @pytest.mark.parametrize("configuration_value", (True, False))

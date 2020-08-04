@@ -301,7 +301,7 @@ def format_frame(frame_info: inspect.FrameInfo, free_space: int) -> dict:
         "lineno": frame_info.lineno,
         "fileName": frame_info.filename,
         "function": frame_info.function,
-        "variables": _truncate_locals(omit_keys(frame_info.frame.f_locals).d, free_space),
+        "variables": _truncate_locals(omit_keys(frame_info.frame.f_locals)[0], free_space),
     }
 
 
@@ -368,59 +368,51 @@ def md5hash(d: dict) -> str:
     return h.hexdigest()
 
 
-class _IntermediateOmitResult:
-    __slots__ = ["d", "free_space"]
-
-    def __init__(self, d, free_space):
-        self.d = d
-        self.free_space = free_space
-
-
 def _recursive_omitting(
-    result: _IntermediateOmitResult,
+    prev_result: Tuple[Dict, int],
     item: Tuple[str, Any],
     regex: Optional[Pattern[str]],
     enforce_jsonify: bool,
-) -> _IntermediateOmitResult:
+) -> Tuple[Dict, int]:
     """
     This function omitting keys until the given max_size.
     This function should be used in a reduce iteration over dict.items().
 
-    :param result: the reduce result until the current item
+    :param prev_result: the reduce result until now: the current dict and the remaining space
     :param item: the next yield from the iterator dict.items()
     :param regex: the regex of the keys that we should omit
     :param enforce_jsonify: should we abort if the object can not be jsonify.
     :return: the intermediate result, after adding the current item (recursively).
     """
     key, value = item
-    if result.free_space <= 0:
-        return result
+    d, free_space = prev_result
+    if free_space < 0:
+        return d, free_space
     if key in SKIP_SCRUBBING_KEYS:
-        result.d[key] = value
-        result.free_space -= len(value) if isinstance(value, str) else len(json.dumps(value))
+        d[key] = value
+        free_space -= len(value) if isinstance(value, str) else len(json.dumps(value))
     elif isinstance(key, str) and regex and regex.match(key):
-        result.d[key] = "****"
-        result.free_space -= 4
+        d[key] = "****"
+        free_space -= 4
     elif isinstance(value, (dict, OrderedDict)):
-        inner_result = reduce(
+        d[key], free_space = reduce(
             lambda p, i: _recursive_omitting(p, i, regex, enforce_jsonify),
             value.items(),
-            _IntermediateOmitResult({}, result.free_space),
+            ({}, free_space),
         )
-        result.d[key], result.free_space = inner_result.d, inner_result.free_space
     elif isinstance(value, decimal.Decimal):
-        result.d[key] = float(value)
-        result.free_space -= 5
+        d[key] = float(value)
+        free_space -= 5
     else:
-        result.d[key] = value
+        d[key] = value
         try:
-            result.free_space -= len(value) if isinstance(value, str) else len(json.dumps(value))
+            free_space -= len(value) if isinstance(value, str) else len(json.dumps(value))
         except TypeError:
             if enforce_jsonify:
                 raise
-            result.d[key] = str(value)
-            result.free_space -= len(result.d[key])
-    return result
+            d[key] = str(value)
+            free_space -= len(d[key])
+    return d, free_space
 
 
 def omit_keys(
@@ -428,7 +420,7 @@ def omit_keys(
     in_max_size: Optional[int] = None,
     regexes: Optional[Pattern[str]] = None,
     enforce_jsonify: bool = False,
-) -> _IntermediateOmitResult:
+) -> Tuple[Dict, bool]:
     """
     This function omit problematic keys from the given value.
     We do so in the following cases:
@@ -436,12 +428,12 @@ def omit_keys(
     """
     regexes = regexes or get_omitting_regex()
     max_size = in_max_size or Configuration.max_entry_size
-    result = reduce(
+    omitted, size = reduce(  # type: ignore
         lambda p, i: _recursive_omitting(p, i, regexes, enforce_jsonify),
         value.items(),
-        _IntermediateOmitResult({}, max_size),
+        ({}, max_size),
     )
-    return result
+    return omitted, size < 0
 
 
 def lumigo_dumps(
@@ -465,8 +457,7 @@ def lumigo_dumps(
         except Exception:
             pass
     if isinstance(d, dict) and regexes:
-        result = omit_keys(d, max_size, regexes, enforce_jsonify)
-        d, is_truncated = result.d, result.free_space <= 0
+        d, is_truncated = omit_keys(d, max_size, regexes, enforce_jsonify)
     elif isinstance(d, list):
         size = 0
         organs = []
