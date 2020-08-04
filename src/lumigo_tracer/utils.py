@@ -5,11 +5,10 @@ import logging
 import os
 import re
 from functools import reduce, lru_cache
-
 import time
 import http.client
 from collections import OrderedDict
-from typing import Union, List, Optional, Dict, Any, Tuple
+from typing import Union, List, Optional, Dict, Any, Tuple, Pattern
 from contextlib import contextmanager
 from base64 import b64encode
 import inspect
@@ -330,7 +329,7 @@ class DecimalEncoder(json.JSONEncoder):
 
 
 @lru_cache(maxsize=1)
-def get_omitting_regexes():
+def get_omitting_regex() -> Optional[Pattern[str]]:
     if LUMIGO_SECRET_MASKING_REGEX in os.environ:
         given_regexes = json.loads(os.environ[LUMIGO_SECRET_MASKING_REGEX])
     elif LUMIGO_SECRET_MASKING_REGEX_BACKWARD_COMP in os.environ:
@@ -338,7 +337,7 @@ def get_omitting_regexes():
     else:
         given_regexes = OMITTING_KEYS_REGEXES
     if not given_regexes:
-        return ""
+        return None
     return re.compile(fr"({'|'.join(given_regexes)})", re.IGNORECASE)
 
 
@@ -369,62 +368,89 @@ def md5hash(d: dict) -> str:
     return h.hexdigest()
 
 
+class IntermediateOmitResult:
+    __slots__ = ["d", "free_space"]
+
+    def __init__(self, d, free_space):
+        self.d = d
+        self.free_space = free_space
+
+
 def _recursive_omitting(
-    prev_result: Tuple[Dict, int], item: Tuple[str, Any], max_size, regexes, enforce_jsonify
-) -> Tuple[Dict, int]:
+    result: IntermediateOmitResult,
+    item: Tuple[str, Any],
+    regex: Optional[Pattern[str]],
+    enforce_jsonify: bool,
+) -> IntermediateOmitResult:
+    """
+    This function omitting keys until the given max_size.
+    This function should be used in a reduce iteration over dict.items().
+
+    :param result: the reduce result until the current item
+    :param item: the next yield from the iterator dict.items()
+    :param regex: the regex of the keys that we should omit
+    :param enforce_jsonify: should we abort if the object can not be jsonify.
+    :return: the intermediate result, after adding the current item (recursively).
+    """
     key, value = item
-    d, size = prev_result
-    if size > max_size:
-        return d, size
+    if result.free_space <= 0:
+        return result
     if key in SKIP_SCRUBBING_KEYS:
-        d[key] = value
-        size += len(value) if isinstance(value, str) else len(json.dumps(value))
-    elif isinstance(key, str) and regexes and regexes.match(key):
-        d[key] = "****"
-        size += 4
+        result.d[key] = value
+        result.free_space -= len(value) if isinstance(value, str) else len(json.dumps(value))
+    elif isinstance(key, str) and regex and regex.match(key):
+        result.d[key] = "****"
+        result.free_space -= 4
     elif isinstance(value, (dict, OrderedDict)):
-        d[key], size = reduce(
-            lambda p, i: _recursive_omitting(p, i, max_size, regexes, enforce_jsonify),
+        inner_result = reduce(
+            lambda p, i: _recursive_omitting(p, i, regex, enforce_jsonify),
             value.items(),
-            ({}, size),
+            IntermediateOmitResult({}, result.free_space),
         )
+        result.d[key], result.free_space = inner_result.d, inner_result.free_space
     elif isinstance(value, decimal.Decimal):
-        d[key] = float(value)
-        size += 5
+        result.d[key] = float(value)
+        result.free_space -= 5
     else:
-        d[key] = value
+        result.d[key] = value
         try:
-            size += len(value) if isinstance(value, str) else len(json.dumps(value))
+            result.free_space -= len(value) if isinstance(value, str) else len(json.dumps(value))
         except TypeError:
             if enforce_jsonify:
                 raise
-            d[key] = str(value)
-            size += len(d[key])
-    return d, size
+            result.d[key] = str(value)
+            result.free_space -= len(result.d[key])
+    return result
 
 
 def omit_keys(
-    value: Dict, max_size: Optional[int] = None, regexes: List = None, enforce_jsonify: bool = False
+    value: Dict,
+    in_max_size: Optional[int] = None,
+    regexes: Optional[Pattern[str]] = None,
+    enforce_jsonify: bool = False,
 ) -> Tuple[Dict, bool]:
     """
     This function omit problematic keys from the given value.
     We do so in the following cases:
     * if the value is dictionary, then we omit values by keys (recursively)
     """
-    regexes = regexes if regexes is not None else get_omitting_regexes()
-    max_size = max_size if max_size is not None else Configuration.max_entry_size
-    omitted, size = reduce(  # type: ignore
-        lambda p, i: _recursive_omitting(p, i, max_size, regexes, enforce_jsonify),
+    regexes = regexes or get_omitting_regex()
+    max_size = in_max_size or Configuration.max_entry_size
+    result = reduce(
+        lambda p, i: _recursive_omitting(p, i, regexes, enforce_jsonify),
         value.items(),
-        ({}, 0),
+        IntermediateOmitResult({}, max_size),
     )
-    return omitted, size > max_size
+    return result.d, result.free_space < 0
 
 
 def lumigo_dumps(
-    d: Any, max_size: Optional[int] = None, regexes: List = None, enforce_jsonify: bool = False
+    d: Any,
+    max_size: Optional[int] = None,
+    regexes: Optional[Pattern[str]] = None,
+    enforce_jsonify: bool = False,
 ):
-    regexes = regexes if regexes is not None else get_omitting_regexes()
+    regexes = regexes or get_omitting_regex()
     max_size = max_size if max_size is not None else Configuration.max_entry_size
     is_truncated = False
 
@@ -438,7 +464,7 @@ def lumigo_dumps(
             d = json.loads(d)
         except Exception:
             pass
-    if isinstance(d, dict):
+    if isinstance(d, dict) and regexes:
         d, is_truncated = omit_keys(d, max_size, regexes, enforce_jsonify)
     elif isinstance(d, list):
         size = 0

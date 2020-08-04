@@ -6,7 +6,7 @@ from lumigo_tracer.spans_container import SpansContainer
 import mock
 import pytest
 
-from lumigo_tracer.utils import Configuration, get_omitting_regexes
+from lumigo_tracer.utils import Configuration, get_omitting_regex
 
 
 @pytest.fixture(autouse=True)
@@ -25,7 +25,7 @@ def cancel_timeout_mechanism(monkeypatch):
 
 @pytest.fixture(autouse=True)
 def remove_caches(monkeypatch):
-    get_omitting_regexes.cache_clear()
+    get_omitting_regex.cache_clear()
 
 
 @pytest.yield_fixture(autouse=True)
