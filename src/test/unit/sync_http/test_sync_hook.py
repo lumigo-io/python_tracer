@@ -1,3 +1,4 @@
+import copy
 import datetime
 import json
 import time
@@ -73,7 +74,7 @@ def test_lambda_wrapper_exception(exc):
     assert function_span["error"]["frames"][0] == {
         "function": "lambda_test_function",
         "fileName": __file__,
-        "variables": {"a": "A", "exc": str(exc)},
+        "variables": {"a": '"A"', "exc": f'"{str(exc)}"'},
     }
     assert not function_span["id"].endswith("_started")
     assert "reporter_rtt" in function_span
@@ -153,7 +154,7 @@ def test_lambda_wrapper_http_splitted_send():
     lambda_test_function()
     http_spans = SpansContainer.get_span().http_spans
     assert http_spans
-    assert http_spans[0]["info"]["httpInfo"]["request"]["body"] == "123456"
+    assert http_spans[0]["info"]["httpInfo"]["request"]["body"] == '"123456"'
     assert "content-length" in http_spans[0]["info"]["httpInfo"]["request"]["headers"]
 
 
@@ -673,7 +674,7 @@ def api_gw_event() -> Dict:
             "protocol": "HTTP/1.1",
             "stage": "prod",
             "domainPrefix": "psqn7b0ev2",
-            "requestTimeEpoch": 1587279976628,
+            "requestTimeEpoch": 1_587_279_976_628,
             "requestId": "78542821-ca17-4e83-94ec-96993a9d451d",
             "identity": {
                 "cognitoIdentityPoolId": None,
@@ -695,3 +696,17 @@ def api_gw_event() -> Dict:
         "body": '{"email":"a@a.com"}',
         "isBase64Encoded": False,
     }
+
+
+@pytest.mark.parametrize(
+    ["given_event"], ([{"hello": "world"}], [api_gw_event()])  # happy flow  # apigw event
+)
+def test_lumigo_doesnt_change_event(given_event):
+    origin_event = copy.deepcopy(given_event)
+
+    @lumigo_tracer()
+    def lambda_test_function(event, context):
+        assert event == origin_event
+        return "ret_value"
+
+    lambda_test_function(given_event, SimpleNamespace(aws_request_id="1234"))
