@@ -45,14 +45,13 @@ echo "Uploading to PyPi"
 pip install twine
 twine upload dist/*
 
-
-sudo pip install --upgrade bumpversion
-bumpversion patch --message "{current_version} → {new_version}. Changes: ${changes}"
-
 push_tags
 
 echo "Creating layer latest version arn table md file (LAYERS.md)"
 ../utils/common_bash/create_layer.sh --layer-name lumigo-python-tracer --region ALL --package-folder python --version $(git describe --abbrev=0 --tags) --runtimes "python3.6 python3.7 python3.8"
+
+sudo pip install --upgrade bumpversion
+bumpversion patch --message "{current_version} → {new_version}. Changes: ${changes}"
 
 cd ../larn && npm i -g
 larn -r python3.6 -n layers/LAYERS36 --filter lumigo-python-tracer -p ~/python_tracer
