@@ -48,7 +48,6 @@ def test_error_in_original_handler_no_extra_exception_log(monkeypatch, context):
     monkeypatch.setattr(importlib, "import_module", mock.Mock(side_effect=Exception))
     monkeypatch.setenv(ORIGINAL_HANDLER_KEY, "sys.exit")
     exception_occurred = False
-
     try:
         _handler({}, context)
     except Exception:
