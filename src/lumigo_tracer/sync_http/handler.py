@@ -21,10 +21,4 @@ def _handler(*args, **kwargs):
         raise ValueError(
             "Could not find the original handler. Please follow lumigo's docs: https://docs.lumigo.io/"
         )
-    except SyntaxError:
-        raise SyntaxError("Syntax error in the original handler.")
-    except Exception:
-        raise Exception(
-            "Problem occurred in lumigo's wrapper. Make sure that you followed the docs or contact us."
-        )
     return original_handler(*args, **kwargs)
