@@ -9,6 +9,7 @@ ORIGINAL_HANDLER_KEY = "LUMIGO_ORIGINAL_HANDLER"
 @lumigo_tracer()
 def _handler(*args, **kwargs):
     try:
+        print("test")
         module_name, unit_name = os.environ[ORIGINAL_HANDLER_KEY].rsplit(".", 1)
         importable_name = module_name.replace("/", ".")
         original_handler = getattr(importlib.import_module(importable_name), unit_name)
