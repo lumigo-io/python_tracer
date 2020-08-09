@@ -38,10 +38,14 @@ def _request_wrapper(func, instance, args, kwargs):
     """
     data = safe_get_list(args, 0)
     with lumigo_safe_execute("parse requested streams"):
-        if isinstance(data, BytesIO):
-            current_pos = data.tell()
-            data = data.read(MAX_READ_SIZE)
-            args[0].seek(current_pos)
+        if hasattr(data, "read"):
+            if not hasattr(data, "seek") or not hasattr(data, "tell"):
+                # If we will read this data, then we will change the original behavior
+                data = ""
+            else:
+                current_pos = data.tell()
+                data = data.read(MAX_READ_SIZE)
+                args[0].seek(current_pos)
 
     host, method, headers, body, uri = (
         getattr(instance, "host", None),

@@ -182,6 +182,32 @@ def test_lambda_wrapper_http_non_splitted_send():
     assert len(http_events) == 2
 
 
+def test_catch_file_like_object_sent_on_http():
+    class A:
+        def seek(self, where):
+            pass
+
+        def tell(self):
+            return 1
+
+        def read(self, amount=None):
+            return b"body"
+
+    @lumigo_tracer(token="123")
+    def lambda_test_function():
+        try:
+            http.client.HTTPConnection("www.github.com").send(A())
+        except Exception:
+            # We don't care about errors
+            pass
+
+    lambda_test_function()
+    http_events = SpansContainer.get_span().http_spans
+    assert len(http_events) == 1
+    span = SpansContainer.get_span().http_spans[0]
+    assert span["info"]["httpInfo"]["request"]["body"] == '"body"'
+
+
 def test_kill_switch(monkeypatch):
     monkeypatch.setattr(os, "environ", {"LUMIGO_SWITCH_OFF": "true"})
 
