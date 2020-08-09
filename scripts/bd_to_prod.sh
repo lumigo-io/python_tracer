@@ -43,9 +43,8 @@ bumpversion patch --message "{current_version} → {new_version}. Changes: ${cha
 push_tags
 
 echo "Uploading to PyPi"
-pip install wheel --quiet
+pip install twine wheel --quiet
 python setup.py bdist_wheel
-pip install twine
 twine upload dist/*
 
 echo "Creating lumigo-python-tracer layer"
