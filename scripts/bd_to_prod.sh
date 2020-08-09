@@ -34,10 +34,6 @@ echo "Creating new credential files"
 mkdir -p ~/.aws
 echo ${KEY} | gpg --batch -d --passphrase-fd 0 ${enc_location} > ~/.aws/credentials
 
-echo "Creating dist directory"
-pip install wheel --quiet
-python setup.py bdist_wheel
-
 echo "Getting latest changes from git"
 changes=$(git log $(git describe --tags --abbrev=0)..HEAD --oneline)
 
@@ -47,6 +43,8 @@ bumpversion patch --message "{current_version} → {new_version}. Changes: ${cha
 push_tags
 
 echo "Uploading to PyPi"
+pip install wheel --quiet
+python setup.py bdist_wheel
 pip install twine
 twine upload dist/*
 
