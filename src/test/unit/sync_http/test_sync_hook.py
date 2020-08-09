@@ -182,7 +182,7 @@ def test_lambda_wrapper_http_non_splitted_send():
     assert len(http_events) == 2
 
 
-def test_lambda_file_like_object():
+def test_catch_file_like_object_sent_on_http():
     class A:
         def seek(self, where):
             pass
@@ -198,6 +198,7 @@ def test_lambda_file_like_object():
         try:
             http.client.HTTPConnection("www.github.com").send(A())
         except Exception:
+            # We don't care about errors
             pass
 
     lambda_test_function()

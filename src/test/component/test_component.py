@@ -177,7 +177,9 @@ def test_s3(s3_bucket_resource):
     @lumigo_tracer(token="123")
     def lambda_test_function():
         s3_client = boto3.client("s3")
+        # usecase 1 - create file
         s3_client.put_object(Bucket=s3_bucket_resource, Key="0")
+        # usecase 2 - boto3 creates a file-like object
         s3_client.upload_file(os.path.abspath(__file__), s3_bucket_resource, "test.txt")
 
     lambda_test_function()
