@@ -187,11 +187,11 @@ def test_lambda_wrapper_http_non_splitted_send():
 def test_lambda_wrapper_return_decimal():
     @lumigo_tracer(token="123")
     def lambda_test_function():
-        return {"a": Decimal(1)}
+        return {"a": [Decimal(1)]}
 
     lambda_test_function()
     span = SpansContainer.get_span().function_span
-    assert span["return_value"] == '{"a": 1.0}'
+    assert span["return_value"] == '{"a": [1.0]}'
 
 
 def test_catch_file_like_object_sent_on_http():
