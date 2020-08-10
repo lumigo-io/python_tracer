@@ -157,7 +157,7 @@ def _is_span_has_error(span: dict) -> bool:
 
 
 def _get_event_base64_size(event) -> int:
-    return len(b64encode(json.dumps(event).encode()))
+    return len(b64encode(json.dumps(event, cls=DecimalEncoder).encode()))
 
 
 def _create_request_body(
@@ -171,7 +171,7 @@ def _create_request_body(
         len(msgs) < NUMBER_OF_SPANS_IN_REPORT_OPTIMIZATION
         and _get_event_base64_size(msgs) < max_size  # noqa
     ):
-        return json.dumps(msgs)[:max_size]
+        return json.dumps(msgs, cls=DecimalEncoder)[:max_size]
 
     end_span = msgs[-1]
     ordered_spans = sorted(msgs[:-1], key=_is_span_has_error, reverse=True)
@@ -189,7 +189,7 @@ def _create_request_body(
             too_big_spans += 1
             if too_big_spans == too_big_spans_threshold:
                 break
-    return json.dumps(spans_to_send)[:max_size]
+    return json.dumps(spans_to_send, cls=DecimalEncoder)[:max_size]
 
 
 def establish_connection(host):
@@ -292,7 +292,7 @@ def format_frames(frames_infos: List[inspect.FrameInfo]) -> List[dict]:
         if free_space <= 0 or "lumigo_tracer" in frame_info.filename:
             return frames
         frames.append(format_frame(frame_info, free_space))
-        free_space -= len(json.dumps(frames[-1]))
+        free_space -= len(json.dumps(frames[-1], cls=DecimalEncoder))
     return frames
 
 
@@ -313,7 +313,7 @@ def _truncate_locals(f_locals: Dict[str, Any], free_space: int) -> FrameVariable
     locals_truncated: FrameVariables = {}
     for var_name, var_value in f_locals.items():
         var = {var_name: lumigo_dumps(var_value, max_size=MAX_VAR_LEN)}
-        free_space -= len(json.dumps(var))
+        free_space -= len(json.dumps(var, cls=DecimalEncoder))
         if free_space <= 0:
             return locals_truncated
         locals_truncated.update(var)
@@ -364,7 +364,7 @@ def get_timeout_buffer(remaining_time: float):
 
 def md5hash(d: dict) -> str:
     h = hashlib.md5()
-    h.update(json.dumps(d, sort_keys=True).encode())
+    h.update(json.dumps(d, sort_keys=True, cls=DecimalEncoder).encode())
     return h.hexdigest()
 
 
@@ -390,7 +390,9 @@ def _recursive_omitting(
         return d, free_space
     if key in SKIP_SCRUBBING_KEYS:
         d[key] = value
-        free_space -= len(value) if isinstance(value, str) else len(json.dumps(value))
+        free_space -= (
+            len(value) if isinstance(value, str) else len(json.dumps(value, cls=DecimalEncoder))
+        )
     elif isinstance(key, str) and regex and regex.match(key):
         d[key] = "****"
         free_space -= 4
@@ -406,7 +408,9 @@ def _recursive_omitting(
     else:
         d[key] = value
         try:
-            free_space -= len(value) if isinstance(value, str) else len(json.dumps(value))
+            free_space -= (
+                len(value) if isinstance(value, str) else len(json.dumps(value, cls=DecimalEncoder))
+            )
         except TypeError:
             if enforce_jsonify:
                 raise
@@ -468,7 +472,7 @@ def lumigo_dumps(
                 break
         return "[" + ", ".join(organs) + "]"
 
-    retval = json.dumps(d)
+    retval = json.dumps(d, cls=DecimalEncoder)
     return (
         (retval[:max_size] + TRUNCATE_SUFFIX) if len(retval) >= max_size or is_truncated else retval
     )

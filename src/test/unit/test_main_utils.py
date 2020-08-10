@@ -208,9 +208,9 @@ def test_format_frames__check_all_keys_and_values():
 @pytest.mark.parametrize(
     ("value", "output"),
     [
-        # ("aa", '"aa"'),  # happy flow - string
-        # (None, "null"),  # happy flow - None
-        # ("a" * 101, '"' + "a" * 99 + "...[too long]"),  # simple long string
+        ("aa", '"aa"'),  # happy flow - string
+        (None, "null"),  # happy flow - None
+        ("a" * 101, '"' + "a" * 99 + "...[too long]"),  # simple long string
         ({"a": "a"}, '{"a": "a"}'),  # happy flow - dict
         ({"a": set([1])}, '{"a": "{1}"}'),  # dict that can't be converted to json
         (b"a", '"a"'),  # bytes that can be decoded

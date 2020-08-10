@@ -1,6 +1,8 @@
 import copy
 import datetime
 import json
+from decimal import Decimal
+
 import time
 
 import os
@@ -180,6 +182,16 @@ def test_lambda_wrapper_http_non_splitted_send():
     lambda_test_function()
     http_events = SpansContainer.get_span().http_spans
     assert len(http_events) == 2
+
+
+def test_lambda_wrapper_return_decimal():
+    @lumigo_tracer(token="123")
+    def lambda_test_function():
+        return {"a": Decimal(1)}
+
+    lambda_test_function()
+    span = SpansContainer.get_span().function_span
+    assert span["return_value"] == '{"a": 1.0}'
 
 
 def test_catch_file_like_object_sent_on_http():
