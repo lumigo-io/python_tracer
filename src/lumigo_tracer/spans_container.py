@@ -167,13 +167,17 @@ class SpansContainer:
         if self.http_spans:
             self.http_spans[-1]["ended"] = int(time.time() * 1000)
 
-    def update_event_start_time(self, start_time: Optional[datetime] = None) -> None:
+    def update_event_times(
+        self, start_time: Optional[datetime] = None, end_time: Optional[datetime] = None
+    ) -> None:
         """
         This function assumes synchronous execution - we update the last http event.
         """
         if self.http_spans:
-            timestamp = start_time.timestamp() if start_time else time.time()
-            self.http_spans[-1]["started"] = int(timestamp * 1000)
+            start_timestamp = start_time.timestamp() if start_time else time.time()
+            end_timestamp = end_time.timestamp() if end_time else time.time()
+            self.http_spans[-1]["started"] = int(start_timestamp * 1000)
+            self.http_spans[-1]["ended"] = int(end_timestamp * 1000)
 
     def update_event_response(
         self, host: Optional[str], status_code: int, headers: dict, body: bytes

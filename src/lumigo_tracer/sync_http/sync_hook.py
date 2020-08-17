@@ -112,8 +112,7 @@ def _requests_wrapper(func, instance, args, kwargs):
     start_time = datetime.now()
     ret_val = func(*args, **kwargs)
     with lumigo_safe_execute("requests wrapper time updates"):
-        SpansContainer.get_span().update_event_start_time(start_time)
-        SpansContainer.get_span().update_event_end_time()
+        SpansContainer.get_span().update_event_times(start_time=start_time)
     return ret_val
 
 
