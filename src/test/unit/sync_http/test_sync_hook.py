@@ -90,7 +90,7 @@ def test_lambda_wrapper_http():
     @lumigo_tracer(token="123")
     def lambda_test_function():
         time.sleep(0.01)
-        http.client.HTTPConnection("www.google.com").request("POST", "/123")
+        http.client.HTTPConnection("www.google.com").request("POST", "/")
 
     lambda_test_function()
     http_spans = SpansContainer.get_span().http_spans
@@ -510,7 +510,7 @@ def test_wrapping_requests_times(monkeypatch):
         requests.get("https://www.google.com")
         return start_time
 
-    original_getaddrinfo = socket.getaddrinfo
+    original_getaddrinfo = socket.getaddrinfo  # part of the connection establishment
     monkeypatch.setattr(
         socket,
         "getaddrinfo",
