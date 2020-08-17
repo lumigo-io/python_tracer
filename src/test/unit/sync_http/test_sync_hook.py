@@ -512,11 +512,12 @@ def test_wrapping_requests_times(monkeypatch):
 
     # add delay to the connection establishment process
     original_getaddrinfo = socket.getaddrinfo
-    monkeypatch.setattr(
-        socket,
-        "getaddrinfo",
-        lambda *args, **kwargs: time.sleep(0.1) or original_getaddrinfo(*args, **kwargs),
-    )
+
+    def delayed_getaddrinfo(*args, **kwargs):
+        time.sleep(0.1)
+        return original_getaddrinfo(*args, **kwargs)
+
+    monkeypatch.setattr(socket, "getaddrinfo", delayed_getaddrinfo)
 
     # validate that the added delay didn't affect the start time
     start_time = lambda_test_function({}, None)
