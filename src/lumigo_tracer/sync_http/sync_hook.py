@@ -21,6 +21,7 @@ from lumigo_tracer.utils import (
 )
 from lumigo_tracer.spans_container import SpansContainer, TimeoutMechanism
 from lumigo_tracer.parsers.http_data_classes import HttpRequest
+from collections import namedtuple
 
 _BODY_HEADER_SPLITTER = b"\r\n\r\n"
 _FLAGS_HEADER_SPLITTER = b"\r\n"
@@ -29,6 +30,9 @@ CONTEXT_WRAPPED_BY_LUMIGO_KEY = "_wrapped_by_lumigo"
 MAX_READ_SIZE = 1024
 already_wrapped = False
 LUMIGO_HEADERS_HOOK_KEY = "_lumigo_headers_hook"
+
+
+HookedData = namedtuple("HookedData", ["headers", "path"])
 
 
 def _request_wrapper(func, instance, args, kwargs):
@@ -58,9 +62,10 @@ def _request_wrapper(func, instance, args, kwargs):
         if isinstance(data, bytes) and _BODY_HEADER_SPLITTER in data:
             headers, body = data.split(_BODY_HEADER_SPLITTER, 1)
             hooked_headers = getattr(instance, LUMIGO_HEADERS_HOOK_KEY, None)
-            if hooked_headers:
+            if hooked_headers and hooked_headers.headers:
                 # we will get here only if _headers_reminder_wrapper ran first. remove its traces.
-                headers = {k: ensure_str(v) for k, v in hooked_headers.items()}
+                headers = {k: ensure_str(v) for k, v in hooked_headers.headers.items()}
+                uri = f"{host}{hooked_headers.path}"
                 setattr(instance, LUMIGO_HEADERS_HOOK_KEY, None)
             elif _FLAGS_HEADER_SPLITTER in headers:
                 request_info, headers = headers.split(_FLAGS_HEADER_SPLITTER, 1)
@@ -98,7 +103,12 @@ def _headers_reminder_wrapper(func, instance, args, kwargs):
     This is the wrapper of the function `http.client.HTTPConnection.request` that gets the headers.
     Remember the headers helps us to improve performances on requests that use this flow.
     """
-    setattr(instance, LUMIGO_HEADERS_HOOK_KEY, kwargs.get("headers"))
+    with lumigo_safe_execute("add hooked data"):
+        setattr(
+            instance,
+            LUMIGO_HEADERS_HOOK_KEY,
+            HookedData(headers=kwargs.get("headers"), path=args[1]),
+        )
     return func(*args, **kwargs)
 
 
