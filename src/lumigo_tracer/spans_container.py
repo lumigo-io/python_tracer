@@ -1,6 +1,8 @@
 import copy
 import inspect
 import os
+from datetime import datetime
+
 import time
 import uuid
 import signal
@@ -164,6 +166,14 @@ class SpansContainer:
         """
         if self.http_spans:
             self.http_spans[-1]["ended"] = int(time.time() * 1000)
+
+    def update_event_start_time(self, start_time: Optional[datetime] = None) -> None:
+        """
+        This function assumes synchronous execution - we update the last http event.
+        """
+        if self.http_spans:
+            timestamp = start_time.timestamp() if start_time else time.time()
+            self.http_spans[-1]["started"] = int(timestamp * 1000)
 
     def update_event_response(
         self, host: Optional[str], status_code: int, headers: dict, body: bytes

@@ -1,3 +1,4 @@
+from datetime import datetime
 import inspect
 import logging
 import http.client
@@ -31,7 +32,7 @@ already_wrapped = False
 LUMIGO_HEADERS_HOOK_KEY = "_lumigo_headers_hook"
 
 
-def _request_wrapper(func, instance, args, kwargs):
+def _http_send_wrapper(func, instance, args, kwargs):
     """
     This is the wrapper of the requests. it parses the http's message to conclude the url, headers, and body.
     Finally, it add an event to the span, and run the wrapped function (http.client.HTTPConnection.send).
@@ -100,6 +101,20 @@ def _headers_reminder_wrapper(func, instance, args, kwargs):
     """
     setattr(instance, LUMIGO_HEADERS_HOOK_KEY, kwargs.get("headers"))
     return func(*args, **kwargs)
+
+
+def _requests_wrapper(func, instance, args, kwargs):
+    """
+    This is the wrapper of the function `requests.request`.
+    This function is being wrapped specifically because it initializes the connection by itself and parses the response,
+        which creates a gap from the traditional http.client wrapping.
+    """
+    start_time = datetime.now()
+    ret_val = func(*args, **kwargs)
+    with lumigo_safe_execute("requests wrapper time updates"):
+        SpansContainer.get_span().update_event_start_time(start_time)
+        SpansContainer.get_span().update_event_end_time()
+    return ret_val
 
 
 def _response_wrapper(func, instance, args, kwargs):
@@ -302,7 +317,7 @@ def wrap_http_calls():
     if not already_wrapped:
         with lumigo_safe_execute("wrap http calls"):
             get_logger().debug("wrapping the http request")
-            wrap_function_wrapper("http.client", "HTTPConnection.send", _request_wrapper)
+            wrap_function_wrapper("http.client", "HTTPConnection.send", _http_send_wrapper)
             wrap_function_wrapper(
                 "http.client", "HTTPConnection.request", _headers_reminder_wrapper
             )
@@ -313,4 +328,6 @@ def wrap_http_calls():
                 wrap_function_wrapper(
                     "urllib3.response", "HTTPResponse.read_chunked", _read_stream_wrapper
                 )
+            if importlib.util.find_spec("requests"):
+                wrap_function_wrapper("requests.api", "request", _requests_wrapper)
             already_wrapped = True
