@@ -510,12 +510,15 @@ def test_wrapping_requests_times(monkeypatch):
         requests.get("https://www.google.com")
         return start_time
 
-    original_getaddrinfo = socket.getaddrinfo  # part of the connection establishment
+    # add delay to the connection establishment process
+    original_getaddrinfo = socket.getaddrinfo
     monkeypatch.setattr(
         socket,
         "getaddrinfo",
         lambda *args, **kwargs: time.sleep(0.1) or original_getaddrinfo(*args, **kwargs),
     )
+
+    # validate that the added delay didn't affect the start time
     start_time = lambda_test_function({}, None)
     span = SpansContainer.get_span().http_spans[0]
     assert span["started"] - start_time < 100
