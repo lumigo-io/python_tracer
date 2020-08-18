@@ -78,6 +78,7 @@ class Configuration:
     send_only_if_error: bool = False
     domains_scrubber: Optional[List] = None
     max_entry_size: int = DEFAULT_MAX_ENTRY_SIZE
+    get_key_depth: int = 3
 
 
 def config(
@@ -91,6 +92,7 @@ def config(
     timeout_timer_buffer: Optional[float] = None,
     domains_scrubber: Optional[List[str]] = None,
     max_entry_size: int = DEFAULT_MAX_ENTRY_SIZE,
+    get_key_depth: int = None,
 ) -> None:
     """
     This function configure the lumigo wrapper.
@@ -106,6 +108,7 @@ def config(
         The default is 10% of the duration of the lambda (with upper and lower bounds of 0.5 and 3 seconds).
     :param domains_scrubber: List of regexes. We will not collect data of requests with hosts that match it.
     :param max_entry_size: The maximum size of each entry when sending back the events.
+    :param get_key_depth: Max depth to search the lumigo key in the event (relevant to step functions). default 3.
     """
     if should_report is not None:
         Configuration.should_report = should_report
@@ -117,6 +120,7 @@ def config(
         enhance_print or os.environ.get("LUMIGO_ENHANCED_PRINT", "").lower() == "true"
     )
     Configuration.verbose = verbose and os.environ.get("LUMIGO_VERBOSE", "").lower() != "false"
+    Configuration.get_key_depth = get_key_depth or int(os.environ.get("LUMIGO_EVENT_KEY_DEPTH", 3))
     Configuration.is_step_function = (
         step_function or os.environ.get("LUMIGO_STEP_FUNCTION", "").lower() == "true"
     )
