@@ -201,7 +201,31 @@ def test_recursive_json_join(d1, d2, result):
             },
             {"triggeredBy": "stepFunction", "messageId": "54589cfc-5ed8-4799-8fc0-5b45f6f225d1"},
         ),
-        (
+        (  # Inner Step Function
+            {
+                "bla": "saart",
+                "inner": {"_lumigo": {"step_function_uid": "54589cfc-5ed8-4799-8fc0-5b45f6f225d1"}},
+            },
+            {"triggeredBy": "stepFunction", "messageId": "54589cfc-5ed8-4799-8fc0-5b45f6f225d1"},
+        ),
+        (  # Step Function - too deep
+            {
+                "bla": "saart",
+                "a": {
+                    "b": {
+                        "c": {
+                            "d": {
+                                "_lumigo": {
+                                    "step_function_uid": "54589cfc-5ed8-4799-8fc0-5b45f6f225d1"
+                                }
+                            }
+                        }
+                    }
+                },
+            },
+            {"triggeredBy": "unknown"},
+        ),
+        (  # cloudwatch
             {
                 "id": "cdc73f9d-aea9-11e3-9d5a-835b769c0d9c",
                 "detail-type": "Scheduled Event",
@@ -218,7 +242,7 @@ def test_recursive_json_join(d1, d2, result):
                 "detailType": "Scheduled Event",
             },
         ),
-        (
+        (  # unknown
             {
                 "id": "cdc73f9d-aea9-11e3-9d5a-835b769c0d9c",
                 "detail-type": "Unknown",
@@ -230,7 +254,7 @@ def test_recursive_json_join(d1, d2, result):
             },
             {"triggeredBy": "unknown"},
         ),
-        (
+        (  # cloudwatch
             {
                 "id": "cdc73f9d-aea9-11e3-9d5a-835b769c0d9c",
                 "detail-type": "Scheduled Event",

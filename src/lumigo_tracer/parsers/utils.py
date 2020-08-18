@@ -184,15 +184,15 @@ def _parse_unknown(event: dict):
 
 
 def _is_step_function(event):
-    return Configuration.is_step_function and STEP_FUNCTION_UID_KEY in event.get(
-        LUMIGO_EVENT_KEY, {}
+    return Configuration.is_step_function and STEP_FUNCTION_UID_KEY in recursive_get_key(
+        event, LUMIGO_EVENT_KEY, default={}
     )
 
 
 def _parse_step_function(event: dict):
     result = {
         "triggeredBy": "stepFunction",
-        "messageId": event[LUMIGO_EVENT_KEY][STEP_FUNCTION_UID_KEY],
+        "messageId": recursive_get_key(event, LUMIGO_EVENT_KEY)[STEP_FUNCTION_UID_KEY],
     }
     return result
 
@@ -344,3 +344,18 @@ def str_to_tuple(val: str) -> Optional[Tuple]:
     except Exception as e:
         get_logger().debug("Error while convert str to tuple", exc_info=e)
     return None
+
+
+def recursive_get_key(d: Dict[str, Union[Dict, str]], key, depth=None, default=None):
+    if depth is None:
+        depth = Configuration.get_key_depth
+    if depth == 0:
+        return default
+    if key in d:
+        return d[key]
+    for v in d.values():
+        if isinstance(v, dict):
+            recursive_result = recursive_get_key(v, key, depth - 1, default)
+            if recursive_result:
+                return recursive_result
+    return default
