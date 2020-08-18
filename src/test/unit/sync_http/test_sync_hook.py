@@ -2,9 +2,8 @@ import copy
 import datetime
 import json
 from decimal import Decimal
-
 import time
-
+import http.client
 import os
 import sys
 import urllib
@@ -13,13 +12,16 @@ from io import BytesIO
 from types import SimpleNamespace
 import logging
 from typing import Dict
+import socket
 
+import pytest
 import urllib3
+import requests
 from capturer import CaptureOutput
+
 from lumigo_tracer import lumigo_tracer, LumigoChalice, utils, add_execution_tag
 from lumigo_tracer.auto_tag import auto_tag_event
 from lumigo_tracer.parsers.parser import Parser
-import http.client
 from lumigo_tracer.utils import (
     Configuration,
     STEP_FUNCTION_UID_KEY,
@@ -27,7 +29,6 @@ from lumigo_tracer.utils import (
     _create_request_body,
     EXECUTION_TAGS_KEY,
 )
-import pytest
 
 from lumigo_tracer.spans_container import SpansContainer
 
@@ -500,6 +501,28 @@ def test_wrapping_urlib_stream_get():
     assert event["info"]["httpInfo"]["response"]["body"]
     assert event["info"]["httpInfo"]["response"]["statusCode"] == 200
     assert event["info"]["httpInfo"]["host"] == "www.google.com"
+
+
+def test_wrapping_requests_times(monkeypatch):
+    @lumigo_tracer()
+    def lambda_test_function(event, context):
+        start_time = time.time() * 1000
+        requests.get("https://www.google.com")
+        return start_time
+
+    # add delay to the connection establishment process
+    original_getaddrinfo = socket.getaddrinfo
+
+    def delayed_getaddrinfo(*args, **kwargs):
+        time.sleep(0.1)
+        return original_getaddrinfo(*args, **kwargs)
+
+    monkeypatch.setattr(socket, "getaddrinfo", delayed_getaddrinfo)
+
+    # validate that the added delay didn't affect the start time
+    start_time = lambda_test_function({}, None)
+    span = SpansContainer.get_span().http_spans[0]
+    assert span["started"] - start_time < 100
 
 
 @pytest.mark.parametrize(
