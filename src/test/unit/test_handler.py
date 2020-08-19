@@ -55,3 +55,10 @@ def test_error_in_original_handler_no_extra_exception_log(monkeypatch, context):
         exception_occurred = True
         assert "another exception occurred" not in traceback.format_exc()
     assert exception_occurred is True
+
+
+def test_handler_bad_format(monkeypatch):
+    monkeypatch.setenv(ORIGINAL_HANDLER_KEY, "no_method")
+
+    with pytest.raises(RuntimeError):
+        _handler({}, {})
