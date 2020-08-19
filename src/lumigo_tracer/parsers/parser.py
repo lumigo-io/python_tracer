@@ -165,7 +165,7 @@ class LambdaParser(ServerlessAWSParser):
     def parse_request(self, parse_params: HttpRequest) -> dict:
         return recursive_json_join(
             {
-                "name": safe_split_get(str(parse_params.headers.get("path", "")), "/", 3),
+                "info": {"resourceName": safe_split_get(parse_params.uri, "/", 3)},
                 "invocationType": parse_params.headers.get("x-amz-invocation-type"),
             },
             super().parse_request(parse_params),
