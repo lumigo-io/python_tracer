@@ -186,8 +186,10 @@ def _parse_unknown(event: dict):
 
 
 def _is_step_function(event: Union[List, Dict]):
-    return Configuration.is_step_function and STEP_FUNCTION_UID_KEY in recursive_get_key(
-        event, LUMIGO_EVENT_KEY, default={}
+    return (
+        Configuration.is_step_function
+        and isinstance(event, (list, dict))  # noqa
+        and STEP_FUNCTION_UID_KEY in recursive_get_key(event, LUMIGO_EVENT_KEY, default={})  # noqa
     )
 
 
