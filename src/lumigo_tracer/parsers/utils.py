@@ -364,7 +364,7 @@ def recursive_get_key(d: Union[List, Dict[str, Union[Dict, str]]], key, depth=No
                 return recursive_result
     if isinstance(d, dict):
         for v in d.values():
-            if isinstance(v, dict):
+            if isinstance(v, (list, dict)):
                 recursive_result = recursive_get_key(v, key, depth - 1, default)
                 if recursive_result:
                     return recursive_result
