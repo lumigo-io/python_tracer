@@ -163,6 +163,8 @@ def parse_triggered_by(event: dict):
     """
     with lumigo_safe_execute("triggered by"):
         if not isinstance(event, dict):
+            if _is_step_function(event):
+                return _parse_step_function(event)
             return None
         if _is_supported_http_method(event):
             return parse_http_method(event)
@@ -183,7 +185,7 @@ def _parse_unknown(event: dict):
     return result
 
 
-def _is_step_function(event):
+def _is_step_function(event: Union[List, Dict]):
     return Configuration.is_step_function and STEP_FUNCTION_UID_KEY in recursive_get_key(
         event, LUMIGO_EVENT_KEY, default={}
     )
@@ -346,16 +348,22 @@ def str_to_tuple(val: str) -> Optional[Tuple]:
     return None
 
 
-def recursive_get_key(d: Dict[str, Union[Dict, str]], key, depth=None, default=None):
+def recursive_get_key(d: Union[List, Dict[str, Union[Dict, str]]], key, depth=None, default=None):
     if depth is None:
         depth = Configuration.get_key_depth
     if depth == 0:
         return default
     if key in d:
         return d[key]
-    for v in d.values():
-        if isinstance(v, dict):
+    if isinstance(d, list):
+        for v in d:
             recursive_result = recursive_get_key(v, key, depth - 1, default)
             if recursive_result:
                 return recursive_result
+    if isinstance(d, dict):
+        for v in d.values():
+            if isinstance(v, dict):
+                recursive_result = recursive_get_key(v, key, depth - 1, default)
+                if recursive_result:
+                    return recursive_result
     return default
