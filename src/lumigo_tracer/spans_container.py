@@ -120,7 +120,7 @@ class SpansContainer:
         self.http_span_ids_to_send.clear()
 
     def start_timeout_timer(self, context=None) -> None:
-        if Configuration.timeout_timer and not Configuration.send_only_if_error:
+        if Configuration.timeout_timer:
             if not hasattr(context, "get_remaining_time_in_millis"):
                 get_logger().info("Skip setting timeout timer - Could not get the remaining time.")
                 return
