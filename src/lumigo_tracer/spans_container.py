@@ -133,7 +133,7 @@ class SpansContainer:
 
     def add_request_event(self, parse_params: HttpRequest):
         """
-            This function parses an request event and add it to the span.
+        This function parses an request event and add it to the span.
         """
         parser = get_parser(parse_params.host)()
         msg = parser.parse_request(parse_params)
