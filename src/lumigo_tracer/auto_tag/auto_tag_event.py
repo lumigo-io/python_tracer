@@ -6,15 +6,15 @@ from lumigo_tracer.user_utils import add_execution_tag
 from lumigo_tracer.parsers.utils import str_to_list
 from lumigo_tracer.utils import get_logger, is_api_gw_event
 
-AUTO_TAG_API_GW_HEADERS: Optional[List[str]] = str_to_list(
-    os.environ.get("LUMIGO_AUTO_TAG_API_GW_HEADERS", "")
-) or []
+AUTO_TAG_API_GW_HEADERS: Optional[List[str]] = (
+    str_to_list(os.environ.get("LUMIGO_AUTO_TAG_API_GW_HEADERS", "")) or []
+)
 
 
 class EventAutoTagHandler(ABC):
     """
-        EventAutoTagHandler API
-        When adding a new handler update the handlers list under AutoTagEvent.auto_tag_event
+    EventAutoTagHandler API
+    When adding a new handler update the handlers list under AutoTagEvent.auto_tag_event
     """
 
     @staticmethod

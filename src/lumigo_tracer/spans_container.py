@@ -120,7 +120,7 @@ class SpansContainer:
         self.http_span_ids_to_send.clear()
 
     def start_timeout_timer(self, context=None) -> None:
-        if Configuration.timeout_timer and not Configuration.send_only_if_error:
+        if Configuration.timeout_timer:
             if not hasattr(context, "get_remaining_time_in_millis"):
                 get_logger().info("Skip setting timeout timer - Could not get the remaining time.")
                 return
@@ -133,7 +133,7 @@ class SpansContainer:
 
     def add_request_event(self, parse_params: HttpRequest):
         """
-            This function parses an request event and add it to the span.
+        This function parses an request event and add it to the span.
         """
         parser = get_parser(parse_params.host)()
         msg = parser.parse_request(parse_params)
@@ -199,7 +199,7 @@ class SpansContainer:
             if len(self.previous_response_body) < Configuration.max_entry_size:
                 self.previous_response_body += body
             update = parser.parse_response(  # type: ignore
-                host, status_code, headers, self.previous_response_body
+                host, status_code, headers, self.previous_response_body  # type: ignore
             )
             self.http_spans.append(recursive_json_join(update, last_event))
             self.http_span_ids_to_send.add(update.get("id") or last_event["id"])
