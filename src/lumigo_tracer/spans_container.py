@@ -33,6 +33,7 @@ from .parsers.http_data_classes import HttpRequest
 _VERSION_PATH = os.path.join(os.path.dirname(__file__), "VERSION")
 MAX_LAMBDA_TIME = 15 * 60 * 1000
 MAX_BODY_SIZE = 1024
+FUNCTION_TYPE = "function"
 
 
 class SpansContainer:
@@ -78,7 +79,7 @@ class SpansContainer:
         self.function_span = recursive_json_join(
             {
                 "id": request_id,
-                "type": "function",
+                "type": FUNCTION_TYPE,
                 "name": name,
                 "runtime": runtime,
                 "event": event,
@@ -100,11 +101,15 @@ class SpansContainer:
         self.http_spans: List[Dict] = []
         SpansContainer.is_cold = False
 
-    def start(self, event=None, context=None):
+    def _generate_start_span(self):
         to_send = self.function_span.copy()
         to_send["id"] = f"{to_send['id']}_started"
         to_send["ended"] = to_send["started"]
         to_send["maxFinishTime"] = self.max_finish_time
+        return to_send
+
+    def start(self, event=None, context=None):
+        to_send = self._generate_start_span()
         if not Configuration.send_only_if_error:
             report_duration = utils.report_json(region=self.region, msgs=[to_send])
             self.function_span["reporter_rtt"] = report_duration
@@ -116,6 +121,8 @@ class SpansContainer:
     def handle_timeout(self, *args):
         get_logger().info("The tracer reached the end of the timeout timer")
         to_send = [s for s in self.http_spans if s["id"] in self.http_span_ids_to_send]
+        if Configuration.send_only_if_error:
+            to_send.append(self._generate_start_span())
         utils.report_json(region=self.region, msgs=to_send)
         self.http_span_ids_to_send.clear()
 
