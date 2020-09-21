@@ -89,7 +89,7 @@ def test_spans_container_timeout_mechanism_send_only_on_errors_mode(
 
     SpansContainer.get_span().handle_timeout()
 
-    messages = reporter_mock.call_args_list[0][1]["msgs"]
+    messages = reporter_mock.call_args.kwargs["msgs"]
     assert len(messages) == 2
     assert [m for m in messages if m["type"] == FUNCTION_TYPE and m["id"].endswith("_started")]
     assert [m for m in messages if m["type"] == HTTP_TYPE]
