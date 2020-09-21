@@ -101,7 +101,7 @@ class SpansContainer:
         self.http_spans: List[Dict] = []
         SpansContainer.is_cold = False
 
-    def _generate_start_span(self):
+    def _generate_start_span(self) -> dict:
         to_send = self.function_span.copy()
         to_send["id"] = f"{to_send['id']}_started"
         to_send["ended"] = to_send["started"]
