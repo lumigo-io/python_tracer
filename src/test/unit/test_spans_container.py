@@ -3,8 +3,8 @@ import inspect
 import pytest
 
 from lumigo_tracer.parsers.http_data_classes import HttpRequest
-from lumigo_tracer.spans_container import SpansContainer, TimeoutMechanism
-from lumigo_tracer import utils
+from lumigo_tracer.parsers.parser import HTTP_TYPE
+from lumigo_tracer.spans_container import SpansContainer, TimeoutMechanism, FUNCTION_TYPE
 from lumigo_tracer.utils import Configuration, EXECUTION_TAGS_KEY, DEFAULT_MAX_ENTRY_SIZE
 
 
@@ -13,11 +13,6 @@ def dummy_http_request():
     return HttpRequest(
         host="dummy", method="dummy", uri="dummy", headers={"dummy": "dummy"}, body="dummy"
     )
-
-
-@pytest.fixture(autouse=True)
-def mock_report_json(monkeypatch):
-    monkeypatch.setattr(utils, "report_json", lambda *args, **kwargs: 1)
 
 
 def _is_start_span_sent():
@@ -81,6 +76,23 @@ def test_spans_container_end_function_send_only_on_errors_mode_false_not_effecti
 
     reported_ttl = SpansContainer.get_span().end({})
     assert reported_ttl is not None
+
+
+def test_spans_container_timeout_mechanism_send_only_on_errors_mode(
+    monkeypatch, context, reporter_mock, dummy_http_request
+):
+    monkeypatch.setattr(Configuration, "send_only_if_error", True)
+
+    SpansContainer.create_span()
+    SpansContainer.get_span().start()
+    SpansContainer.get_span().add_request_event(dummy_http_request)
+
+    SpansContainer.get_span().handle_timeout()
+
+    messages = reporter_mock.call_args.kwargs["msgs"]
+    assert len(messages) == 2
+    assert [m for m in messages if m["type"] == FUNCTION_TYPE and m["id"].endswith("_started")]
+    assert [m for m in messages if m["type"] == HTTP_TYPE]
 
 
 def test_timeout_mechanism_disabled_by_configuration(monkeypatch, context):
