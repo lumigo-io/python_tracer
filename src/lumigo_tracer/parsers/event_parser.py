@@ -92,12 +92,12 @@ class S3Handler(EventParseHandler):
         for rec in event.get("Records", []):
             new_s3_record_event: OrderedDict = OrderedDict()
             for key in S3_KEYS_ORDER:
-                if rec.get(key):
+                if rec.get(key) is not None:
                     new_s3_record_event[key] = rec.get(key)
             if rec.get("s3"):
                 new_s3_record_event["s3"] = {}
                 for key in S3_OBJECT_KEYS_ORDER:
-                    if rec["s3"].get(key):
+                    if rec["s3"].get(key) is not None:
                         new_s3_record_event["s3"][key] = rec["s3"].get(key)
             new_event["Records"].append(new_s3_record_event)
         return new_event
@@ -121,10 +121,10 @@ class CloudfrontHandler(EventParseHandler):
             for key in CLOUDFRONT_KEYS_ORDER:
                 if cf_record.get(key):
                     new_cloudfront_record_event[key] = cf_record.get(key)
-            if cf_record.get("request"):
+            if cf_record.get("request") is not None:
                 new_cloudfront_record_event["request"] = {}
                 for key in CLOUDFRONT_REQUEST_KEYS_ORDER:
-                    if cf_record["request"].get(key):
+                    if cf_record["request"].get(key) is not None:
                         new_cloudfront_record_event["request"][key] = cf_record["request"].get(key)
             new_event["Records"].append(new_cloudfront_record_event)
         return new_event

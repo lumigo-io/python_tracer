@@ -475,6 +475,7 @@ def test_parse_cloudfront_event(cloudfront_event):
                             },
                             "clientIp": "176.12.196.206",
                             "method": "GET",
+                            "querystring": "",
                             "uri": "/favicon.ico",
                         },
                     }
