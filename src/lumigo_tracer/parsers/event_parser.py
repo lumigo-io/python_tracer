@@ -97,7 +97,8 @@ class S3Handler(EventParseHandler):
             if rec.get("s3"):
                 new_s3_record_event["s3"] = {}
                 for key in S3_OBJECT_KEYS_ORDER:
-                    new_s3_record_event["s3"][key] = rec["s3"].get(key)
+                    if rec["s3"].get(key):
+                        new_s3_record_event["s3"][key] = rec["s3"].get(key)
             new_event["Records"].append(new_s3_record_event)
         return new_event
 
