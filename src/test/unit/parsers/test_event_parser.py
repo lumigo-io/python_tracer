@@ -431,7 +431,6 @@ def test_parse_s3_event(s3_event):
                         "requestParameters": {"sourceIPAddress": "77.127.93.97"},
                         "s3": {
                             "bucket": {
-                                "name": "testingbuckets3testing",
                                 "arn": "arn:aws:s3:::testingbuckets3testing",
                             },
                             "object": {
