@@ -115,9 +115,7 @@ class S3Handler(EventParseHandler):
 class CloudfrontHandler(EventParseHandler):
     @staticmethod
     def is_supported(event) -> bool:
-        return bool(
-            safe_get(event, ["Records", 0, "cf"], {}).get("config", {}).get("distributionId")
-        )
+        return bool(safe_get(event, ["Records", 0, "cf", "config", "distributionId"], {}))
 
     @staticmethod
     def parse(event) -> Dict:

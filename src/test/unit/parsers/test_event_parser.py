@@ -430,9 +430,7 @@ def test_parse_s3_event(s3_event):
                         "userIdentity": {"principalId": "A2QVTU9T5VMOU3"},
                         "requestParameters": {"sourceIPAddress": "77.127.93.97"},
                         "s3": {
-                            "bucket": {
-                                "arn": "arn:aws:s3:::testingbuckets3testing",
-                            },
+                            "bucket": {"arn": "arn:aws:s3:::testingbuckets3testing"},
                             "object": {
                                 "key": "Screen+Shot+2020-05-27+at+12.37.36.png",
                                 "size": 61211,
