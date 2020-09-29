@@ -33,6 +33,13 @@ def test_spans_container_not_send_start_span_on_send_only_on_errors_mode(monkeyp
     assert _is_start_span_sent() is False
 
 
+def test_spans_container_end_function_got_none_return_value(monkeypatch):
+    SpansContainer.create_span()
+    SpansContainer.get_span().start()
+    SpansContainer.get_span().end(None)
+    assert SpansContainer.get_span().function_span["return_value"] is None
+
+
 def test_spans_container_end_function_not_send_spans_on_send_only_on_errors_mode(
     monkeypatch, dummy_http_request
 ):

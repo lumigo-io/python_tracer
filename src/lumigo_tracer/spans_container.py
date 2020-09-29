@@ -260,7 +260,8 @@ class SpansContainer:
         parsed_ret_val = None
         if Configuration.verbose:
             try:
-                parsed_ret_val = lumigo_dumps(ret_val, enforce_jsonify=True, decimal_safe=True)
+                if ret_val is not None:
+                    parsed_ret_val = lumigo_dumps(ret_val, enforce_jsonify=True, decimal_safe=True)
             except Exception as err:
                 suffix = ""
                 if err.args:
