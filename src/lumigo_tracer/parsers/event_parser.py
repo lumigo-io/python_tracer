@@ -38,9 +38,14 @@ S3_KEYS_ORDER = str_to_list(os.environ.get("LUMIGO_S3_KEYS_ORDER", "")) or [
     "requestParameters",
 ]
 
+S3_BUCKET_KEYS_ORDER = str_to_list(os.environ.get("LUMIGO_S3_BUCKET_KEYS_ORDER", "")) or [
+    "name",
+    "arn",
+]
+
 S3_OBJECT_KEYS_ORDER = str_to_list(os.environ.get("LUMIGO_S3_OBJECT_KEYS_ORDER", "")) or [
-    "bucket",
-    "object",
+    "key",
+    "size",
 ]
 
 API_GW_PREFIX_KEYS_HEADERS_DELETE_KEYS = str_to_list(
@@ -96,9 +101,14 @@ class S3Handler(EventParseHandler):
                     new_s3_record_event[key] = rec.get(key)
             if rec.get("s3"):
                 new_s3_record_event["s3"] = {}
-                for key in S3_OBJECT_KEYS_ORDER:
-                    if rec["s3"].get(key) is not None:
-                        new_s3_record_event["s3"][key] = rec["s3"].get(key)
+                if rec["s3"].get("bucket") is not None:
+                    new_s3_record_event["s3"]["bucket"] = {}
+                    for key in S3_BUCKET_KEYS_ORDER:
+                        new_s3_record_event["s3"]["bucket"][key] = rec["s3"]["bucket"].get(key)
+                if rec["s3"].get("object") is not None:
+                    new_s3_record_event["s3"]["object"] = {}
+                    for key in S3_OBJECT_KEYS_ORDER:
+                        new_s3_record_event["s3"]["object"][key] = rec["s3"]["object"].get(key)
             new_event["Records"].append(new_s3_record_event)
         return new_event
 
