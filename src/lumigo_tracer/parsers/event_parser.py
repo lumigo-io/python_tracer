@@ -125,14 +125,17 @@ class CloudfrontHandler(EventParseHandler):
         for rec in event.get("Records", []):
             cf_record = rec.get("cf", {})
             new_cloudfront_record_event: OrderedDict = OrderedDict()
+            new_cloudfront_record_event["cf"] = {}
             for key in CLOUDFRONT_KEYS_ORDER:
                 if cf_record.get(key):
-                    new_cloudfront_record_event[key] = cf_record.get(key)
+                    new_cloudfront_record_event["cf"][key] = cf_record.get(key)
             if cf_record.get("request") is not None:
-                new_cloudfront_record_event["request"] = {}
+                new_cloudfront_record_event["cf"]["request"] = {}
                 for key in CLOUDFRONT_REQUEST_KEYS_ORDER:
                     if cf_record["request"].get(key) is not None:
-                        new_cloudfront_record_event["request"][key] = cf_record["request"].get(key)
+                        new_cloudfront_record_event["cf"]["request"][key] = cf_record[
+                            "request"
+                        ].get(key)
             new_event["Records"].append(new_cloudfront_record_event)
         return new_event
 
