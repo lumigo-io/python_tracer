@@ -2,6 +2,8 @@ import inspect
 from collections import OrderedDict
 from decimal import Decimal
 import datetime
+import http.client
+from mock import Mock
 
 import pytest
 from lumigo_tracer.utils import (
@@ -26,6 +28,7 @@ from lumigo_tracer.utils import (
     lumigo_dumps,
     prepare_host,
     EDGE_PATH,
+    report_json,
 )
 import json
 
@@ -362,3 +365,18 @@ def test_get_timeout_buffer(remaining_time, conf, expected):
 )
 def test_prepare_host(arg, host):
     assert prepare_host(arg) == host
+
+
+@pytest.mark.parametrize(
+    "errors, final_log", [(ValueError, "ERROR"), ([ValueError, Mock()], "INFO")]
+)
+def test_report_json_retry(monkeypatch, reporter_mock, caplog, errors, final_log):
+    reporter_mock.side_effect = report_json
+    monkeypatch.setattr(Configuration, "host", "force_reconnect")
+    monkeypatch.setattr(Configuration, "should_report", True)
+    monkeypatch.setattr(http.client, "HTTPSConnection", Mock())
+    http.client.HTTPSConnection("force_reconnect").getresponse.side_effect = errors
+
+    report_json(None, [{"a": "b"}])
+
+    assert caplog.records[-1].levelname == final_log
