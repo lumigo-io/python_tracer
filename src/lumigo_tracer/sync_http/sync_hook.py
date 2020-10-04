@@ -11,8 +11,8 @@ import botocore.awsrequest  # noqa: F401
 
 from lumigo_tracer.auto_tag.auto_tag_event import AutoTagEvent
 from lumigo_tracer.libs.wrapt import wrap_function_wrapper
-from lumigo_tracer.parsers.utils import safe_get_list
-from lumigo_tracer.utils import (
+from lumigo_tracer.parsing_utils import safe_get_list
+from lumigo_tracer.lumigo_utils import (
     config,
     Configuration,
     get_logger,

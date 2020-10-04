@@ -9,8 +9,8 @@ import signal
 import traceback
 from typing import List, Dict, Optional, Callable, Set
 
-from lumigo_tracer.parsers.event_parser import EventParser
-from lumigo_tracer.utils import (
+from lumigo_tracer.event.event_dumper import EventDumper
+from lumigo_tracer.lumigo_utils import (
     Configuration,
     LUMIGO_EVENT_KEY,
     STEP_FUNCTION_UID_KEY,
@@ -18,17 +18,14 @@ from lumigo_tracer.utils import (
     lumigo_dumps,
     EXECUTION_TAGS_KEY,
     get_timeout_buffer,
+    get_logger,
+    _is_span_has_error,
 )
-from lumigo_tracer import utils
-from lumigo_tracer.parsers.parser import get_parser, HTTP_TYPE, StepFunctionParser
-from lumigo_tracer.parsers.utils import (
-    parse_trace_id,
-    safe_split_get,
-    recursive_json_join,
-    parse_triggered_by,
-)
-from lumigo_tracer.utils import get_logger, _is_span_has_error
-from .parsers.http_data_classes import HttpRequest
+from lumigo_tracer import lumigo_utils
+from lumigo_tracer.parsers.http_parser import get_parser, HTTP_TYPE, StepFunctionParser
+from lumigo_tracer.parsing_utils import parse_trace_id, safe_split_get, recursive_json_join
+from lumigo_tracer.event.event_trigger import parse_triggered_by
+from lumigo_tracer.parsers.http_data_classes import HttpRequest
 
 _VERSION_PATH = os.path.join(os.path.dirname(__file__), "VERSION")
 MAX_LAMBDA_TIME = 15 * 60 * 1000
@@ -111,7 +108,7 @@ class SpansContainer:
     def start(self, event=None, context=None):
         to_send = self._generate_start_span()
         if not Configuration.send_only_if_error:
-            report_duration = utils.report_json(region=self.region, msgs=[to_send])
+            report_duration = lumigo_utils.report_json(region=self.region, msgs=[to_send])
             self.function_span["reporter_rtt"] = report_duration
             self.http_spans = []
         else:
@@ -123,7 +120,7 @@ class SpansContainer:
         to_send = [s for s in self.http_spans if s["id"] in self.http_span_ids_to_send]
         if Configuration.send_only_if_error:
             to_send.append(self._generate_start_span())
-        utils.report_json(region=self.region, msgs=to_send)
+        lumigo_utils.report_json(region=self.region, msgs=to_send)
         self.http_span_ids_to_send.clear()
 
     def start_timeout_timer(self, context=None) -> None:
@@ -279,7 +276,7 @@ class SpansContainer:
             to_send = [self.function_span] + [
                 s for s in self.http_spans if s["id"] in self.http_span_ids_to_send
             ]
-            reported_rtt = utils.report_json(region=self.region, msgs=to_send)
+            reported_rtt = lumigo_utils.report_json(region=self.region, msgs=to_send)
         else:
             get_logger().debug(
                 "No Spans were sent, `Configuration.send_only_if_error` is on and no span has error"
@@ -311,10 +308,7 @@ class SpansContainer:
         additional_info = {}
         if Configuration.verbose:
             additional_info.update(
-                {
-                    "event": lumigo_dumps(EventParser.parse_event(event)),
-                    "envs": lumigo_dumps(dict(os.environ)),
-                }
+                {"event": EventDumper.dump_event(event), "envs": lumigo_dumps(dict(os.environ))}
             )
 
         trace_root, transaction_id, suffix = parse_trace_id(os.environ.get("_X_AMZN_TRACE_ID", ""))

@@ -467,7 +467,7 @@ def lumigo_dumps(
     regexes: Optional[Pattern[str]] = None,
     enforce_jsonify: bool = False,
     decimal_safe=False,
-):
+) -> str:
     regexes = regexes or get_omitting_regex()
     max_size = max_size if max_size is not None else Configuration.max_entry_size
     is_truncated = False

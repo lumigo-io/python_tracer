@@ -4,8 +4,8 @@ from abc import ABC, abstractmethod
 from collections import OrderedDict
 from typing import Dict, List
 
-from lumigo_tracer.parsers.utils import str_to_list, safe_get
-from lumigo_tracer.utils import get_logger, is_api_gw_event
+from lumigo_tracer.parsing_utils import str_to_list, safe_get
+from lumigo_tracer.lumigo_utils import get_logger, is_api_gw_event, lumigo_dumps
 
 API_GW_KEYS_ORDER = str_to_list(os.environ.get("LUMIGO_API_GW_KEYS_ORDER", "")) or [
     "version",
@@ -53,7 +53,7 @@ class EventParseHandler(ABC):
 
     @staticmethod
     @abstractmethod
-    def parse(event) -> Dict:
+    def parse(event) -> OrderedDict:
         raise NotImplementedError()
 
 
@@ -65,7 +65,7 @@ class ApiGWHandler(EventParseHandler):
         return False
 
     @staticmethod
-    def parse(event) -> Dict:
+    def parse(event) -> OrderedDict:
         new_event: OrderedDict = OrderedDict()
         # Add order keys
         for order_key in API_GW_KEYS_ORDER:
@@ -94,7 +94,7 @@ class SNSHandler(EventParseHandler):
         return safe_get(event, ["Records", 0, "EventSource"]) == "aws:sns"
 
     @staticmethod
-    def parse(event) -> Dict:
+    def parse(event) -> OrderedDict:
         new_sns_event: OrderedDict = OrderedDict()
         new_sns_event["Records"] = []
         # Add order keys
@@ -113,7 +113,7 @@ class SQSHandler(EventParseHandler):
         return safe_get(event, ["Records", 0, "eventSource"]) == "aws:sqs"
 
     @staticmethod
-    def parse(event) -> Dict:
+    def parse(event) -> OrderedDict:
         new_sqs_event: OrderedDict = OrderedDict()
         new_sqs_event["Records"] = []
         # Add order keys
@@ -126,17 +126,17 @@ class SQSHandler(EventParseHandler):
         return new_sqs_event
 
 
-class EventParser:
+class EventDumper:
     @staticmethod
-    def parse_event(event: Dict, handlers: List[EventParseHandler] = None):
+    def dump_event(event: Dict, handlers: List[EventParseHandler] = None) -> str:
         handlers = handlers or [ApiGWHandler(), SNSHandler(), SQSHandler()]
         for handler in handlers:
             try:
                 if handler.is_supported(event):
-                    return handler.parse(event)
+                    return lumigo_dumps(handler.parse(event))
             except Exception as e:
                 get_logger().debug(
                     f"Error while trying to parse with handler {handler.__class__.__name__} event {event}",
                     exc_info=e,
                 )
-        return event
+        return lumigo_dumps(event)

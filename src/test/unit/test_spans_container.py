@@ -3,9 +3,9 @@ import inspect
 import pytest
 
 from lumigo_tracer.parsers.http_data_classes import HttpRequest
-from lumigo_tracer.parsers.parser import HTTP_TYPE
+from lumigo_tracer.parsers.http_parser import HTTP_TYPE
 from lumigo_tracer.spans_container import SpansContainer, TimeoutMechanism, FUNCTION_TYPE
-from lumigo_tracer.utils import Configuration, EXECUTION_TAGS_KEY, DEFAULT_MAX_ENTRY_SIZE
+from lumigo_tracer.lumigo_utils import Configuration, EXECUTION_TAGS_KEY, DEFAULT_MAX_ENTRY_SIZE
 
 
 @pytest.fixture()

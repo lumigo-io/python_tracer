@@ -6,7 +6,7 @@ import http.client
 from mock import Mock
 
 import pytest
-from lumigo_tracer.utils import (
+from lumigo_tracer.lumigo_utils import (
     _create_request_body,
     _is_span_has_error,
     _get_event_base64_size,

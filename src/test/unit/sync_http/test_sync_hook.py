@@ -19,10 +19,10 @@ import urllib3
 import requests
 from capturer import CaptureOutput
 
-from lumigo_tracer import lumigo_tracer, LumigoChalice, utils, add_execution_tag
+from lumigo_tracer import lumigo_tracer, LumigoChalice, lumigo_utils, add_execution_tag
 from lumigo_tracer.auto_tag import auto_tag_event
-from lumigo_tracer.parsers.parser import Parser
-from lumigo_tracer.utils import (
+from lumigo_tracer.parsers.http_parser import Parser
+from lumigo_tracer.lumigo_utils import (
     Configuration,
     STEP_FUNCTION_UID_KEY,
     LUMIGO_EVENT_KEY,
@@ -260,7 +260,7 @@ def test_bad_domains_scrubber(monkeypatch):
         pass
 
     lambda_test_function()
-    assert utils.Configuration.should_report is False
+    assert lumigo_utils.Configuration.should_report is False
 
 
 def test_domains_scrubber_happy_flow(monkeypatch):

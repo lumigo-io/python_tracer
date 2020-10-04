@@ -1,8 +1,7 @@
-import json
 from collections import OrderedDict
-from typing import Dict
 
-from lumigo_tracer.parsers.event_parser import EventParser, EventParseHandler
+from lumigo_tracer.event.event_dumper import EventDumper, EventParseHandler
+from lumigo_tracer.lumigo_utils import lumigo_dumps
 
 
 class ExceptionHandler(EventParseHandler):
@@ -11,22 +10,22 @@ class ExceptionHandler(EventParseHandler):
         raise Exception()
 
     @staticmethod
-    def parse(event) -> Dict:
+    def parse(event) -> OrderedDict:
         raise Exception()
 
 
 def test_parse_event_not_api_gw_none_check():
-    new_event = EventParser.parse_event(event=None)
+    new_event = EventDumper.dump_event(event=None)
 
-    assert new_event is None
+    assert new_event == lumigo_dumps(None)
 
 
 def test_parse_event_not_api_gw():
     event = {"a": 1}
 
-    new_event = EventParser.parse_event(event=event, handlers=[ExceptionHandler()])
+    new_event = EventDumper.dump_event(event=event, handlers=[ExceptionHandler()])
 
-    assert new_event == event
+    assert new_event == lumigo_dumps(event)
 
 
 def test_parse_event_api_gw_v1():
@@ -145,9 +144,9 @@ def test_parse_event_api_gw_v1():
         "isBase64Encoded": False,
     }
 
-    order_api_gw_event = EventParser.parse_event(event=not_order_api_gw_event)
+    order_api_gw_event = EventDumper.dump_event(event=not_order_api_gw_event)
 
-    assert json.dumps(order_api_gw_event) == json.dumps(
+    assert order_api_gw_event == lumigo_dumps(
         OrderedDict(
             {
                 "resource": "/add-user",
@@ -236,9 +235,9 @@ def test_parse_event_api_gw_v2():
         "isBase64Encoded": True,
     }
 
-    order_api_gw_event = EventParser.parse_event(event=not_order_api_gw_event)
+    order_api_gw_event = EventDumper.dump_event(event=not_order_api_gw_event)
 
-    assert json.dumps(order_api_gw_event) == json.dumps(
+    assert order_api_gw_event == lumigo_dumps(
         OrderedDict(
             {
                 "version": "2.0",
@@ -314,9 +313,9 @@ def test_parse_event_sns():
         ]
     }
 
-    order_sns_event = EventParser.parse_event(event=not_order_sns_event)
+    order_sns_event = EventDumper.dump_event(event=not_order_sns_event)
 
-    assert json.dumps(order_sns_event) == json.dumps(
+    assert order_sns_event == lumigo_dumps(
         OrderedDict(
             {
                 "Records": [
@@ -384,9 +383,9 @@ def test_parse_event_sqs():
         ]
     }
 
-    order_sns_event = EventParser.parse_event(event=not_order_sns_event)
+    order_sns_event = EventDumper.dump_event(event=not_order_sns_event)
 
-    assert json.dumps(order_sns_event) == json.dumps(
+    assert order_sns_event == lumigo_dumps(
         OrderedDict(
             {
                 "Records": [

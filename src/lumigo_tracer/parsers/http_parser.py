@@ -3,7 +3,7 @@ import uuid
 from typing import Type, Optional
 import time
 
-from lumigo_tracer.parsers.utils import (
+from lumigo_tracer.parsing_utils import (
     safe_split_get,
     safe_key_from_json,
     safe_key_from_xml,
@@ -12,7 +12,7 @@ from lumigo_tracer.parsers.utils import (
     safe_get,
     should_scrub_domain,
 )
-from lumigo_tracer.utils import Configuration, lumigo_dumps, md5hash, get_logger
+from lumigo_tracer.lumigo_utils import Configuration, lumigo_dumps, md5hash, get_logger
 from lumigo_tracer.parsers.http_data_classes import HttpRequest
 
 HTTP_TYPE = "http"
