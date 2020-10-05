@@ -20,6 +20,7 @@ from lumigo_tracer.lumigo_utils import (
     get_timeout_buffer,
     get_logger,
     _is_span_has_error,
+    create_step_function_span,
 )
 from lumigo_tracer import lumigo_utils
 from lumigo_tracer.parsing_utils import parse_trace_id, safe_split_get, recursive_json_join
@@ -190,11 +191,8 @@ class SpansContainer:
             )
 
     def add_step_end_event(self, ret_val):
-        # TODO
-        from lumigo_tracer.wrappers.http.http_parser import StepFunctionParser
-
         message_id = str(uuid.uuid4())
-        step_function_span = StepFunctionParser().create_span(message_id)
+        step_function_span = create_step_function_span(message_id)
         self.spans.append(recursive_json_join(step_function_span, self.base_msg))
         self.span_ids_to_send.add(step_function_span["id"])
         if isinstance(ret_val, dict):

@@ -4,6 +4,7 @@ import json
 import logging
 import os
 import re
+import uuid
 from functools import reduce, lru_cache
 import time
 import http.client
@@ -369,6 +370,19 @@ def is_api_gw_event(event: dict) -> bool:
         and event.get("requestContext", {}).get("domainName")  # noqa
         and event.get("requestContext", {}).get("requestId")  # noqa
     )
+
+
+def create_step_function_span(message_id: str):
+    return {
+        "id": str(uuid.uuid4()),
+        "type": "http",
+        "info": {
+            "resourceName": "StepFunction",
+            "messageId": message_id,
+            "httpInfo": {"host": "StepFunction", "request": {"method": "", "body": ""}},
+        },
+        "started": int(time.time() * 1000),
+    }
 
 
 def get_timeout_buffer(remaining_time: float):
