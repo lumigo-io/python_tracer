@@ -33,7 +33,7 @@ def test_lambda_wrapper_basic_events(reporter_mock, context):
 
     lambda_test_function({}, context)
     function_span = SpansContainer.get_span().function_span
-    assert not SpansContainer.get_span().http_spans
+    assert not SpansContainer.get_span().spans
     assert "started" in function_span
     assert "ended" in function_span
     assert reporter_mock.call_count == 2
@@ -58,7 +58,7 @@ def test_lambda_wrapper_exception(exc, context):
         assert False
 
     function_span = SpansContainer.get_span().function_span
-    assert not SpansContainer.get_span().http_spans
+    assert not SpansContainer.get_span().spans
     assert function_span.get("error", {}).get("type") == "ValueError"
     # Make sure no lumigo_tracer
     assert len(function_span["error"]["frames"]) == 1
@@ -297,13 +297,13 @@ def test_wrapping_step_function(event, expected_triggered_by, expected_message_i
 
     lambda_test_function(event, context)
     span = SpansContainer.get_span()
-    assert len(span.http_spans) == 1
+    assert len(span.spans) == 1
     assert span.function_span["info"]["triggeredBy"] == expected_triggered_by
     assert span.function_span["info"].get("messageId") == expected_message_id
     return_value = json.loads(span.function_span["return_value"])
     assert return_value["result"] == 1
     assert return_value[LUMIGO_EVENT_KEY][STEP_FUNCTION_UID_KEY]
-    assert span.http_spans[0]["info"]["httpInfo"]["host"] == "StepFunction"
+    assert span.spans[0]["info"]["httpInfo"]["host"] == "StepFunction"
 
 
 def test_omitting_keys(context):
@@ -318,7 +318,7 @@ def test_omitting_keys(context):
     span = SpansContainer.get_span()
     assert span.function_span["return_value"] == '{"secret_password": "****"}'
     assert span.function_span["event"] == '{"key": "****"}'
-    spans = json.loads(_create_request_body(SpansContainer.get_span().http_spans, True))
+    spans = json.loads(_create_request_body(SpansContainer.get_span().spans, True))
     assert spans[0]["info"]["httpInfo"]["request"]["body"] == json.dumps(
         {"a": "b", "myPassword": "****"}
     )

@@ -13,7 +13,7 @@ from lumigo_tracer.lumigo_utils import (
     is_kill_switch_on,
 )
 from lumigo_tracer.spans_container import SpansContainer, TimeoutMechanism
-from lumigo_tracer.sync_http.sync_hook import wrap_http_calls
+from lumigo_tracer.wrappers import wrap
 
 CONTEXT_WRAPPED_BY_LUMIGO_KEY = "_wrapped_by_lumigo"
 
@@ -57,7 +57,7 @@ def _lumigo_tracer(func):
             with lumigo_safe_execute("auto tag"):
                 AutoTagEvent.auto_tag_event(args[0])
             SpansContainer.get_span().start(*args)
-            wrap_http_calls()
+            wrap()
             try:
                 executed = True
                 ret_val = func(*args, **kwargs)

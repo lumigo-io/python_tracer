@@ -22,10 +22,8 @@ from lumigo_tracer.lumigo_utils import (
     _is_span_has_error,
 )
 from lumigo_tracer import lumigo_utils
-from lumigo_tracer.parsers.http_parser import get_parser, HTTP_TYPE, StepFunctionParser
 from lumigo_tracer.parsing_utils import parse_trace_id, safe_split_get, recursive_json_join
 from lumigo_tracer.event.event_trigger import parse_triggered_by
-from lumigo_tracer.parsers.http_data_classes import HttpRequest
 
 _VERSION_PATH = os.path.join(os.path.dirname(__file__), "VERSION")
 MAX_LAMBDA_TIME = 15 * 60 * 1000
@@ -92,10 +90,8 @@ class SpansContainer:
             },
             self.base_msg,
         )
-        self.previous_request: Optional[HttpRequest] = None
-        self.previous_response_body: bytes = b""
-        self.http_span_ids_to_send: Set[str] = set()
-        self.http_spans: List[Dict] = []
+        self.span_ids_to_send: Set[str] = set()
+        self.spans: List[Dict] = []
         SpansContainer.is_cold = False
 
     def _generate_start_span(self) -> dict:
@@ -110,18 +106,18 @@ class SpansContainer:
         if not Configuration.send_only_if_error:
             report_duration = lumigo_utils.report_json(region=self.region, msgs=[to_send])
             self.function_span["reporter_rtt"] = report_duration
-            self.http_spans = []
+            self.spans = []
         else:
             get_logger().debug("Skip sending start because tracer in 'send only if error' mode .")
         self.start_timeout_timer(context)
 
     def handle_timeout(self, *args):
         get_logger().info("The tracer reached the end of the timeout timer")
-        to_send = [s for s in self.http_spans if s["id"] in self.http_span_ids_to_send]
+        to_send = [s for s in self.spans if s["id"] in self.span_ids_to_send]
         if Configuration.send_only_if_error:
             to_send.append(self._generate_start_span())
         lumigo_utils.report_json(region=self.region, msgs=to_send)
-        self.http_span_ids_to_send.clear()
+        self.span_ids_to_send.clear()
 
     def start_timeout_timer(self, context=None) -> None:
         if Configuration.timeout_timer:
@@ -135,41 +131,27 @@ class SpansContainer:
                 return
             TimeoutMechanism.start(remaining_time - buffer, self.handle_timeout)
 
-    def add_request_event(self, parse_params: HttpRequest):
+    def add_span(self, span: dict):
         """
         This function parses an request event and add it to the span.
         """
-        parser = get_parser(parse_params.host)()
-        msg = parser.parse_request(parse_params)
-        self.previous_request = parse_params
-        self.http_spans.append(recursive_json_join(msg, self.base_msg))
-        self.http_span_ids_to_send.add(msg["id"])
+        self.spans.append(recursive_json_join(span, self.base_msg))
+        self.span_ids_to_send.add(span["id"])
 
-    def add_unparsed_request(self, parse_params: HttpRequest):
-        """
-        This function handle the case where we got a request the is not fully formatted as we expected,
-        I.e. there isn't '\r\n' in the request data that <i>logically</i> splits the headers from the body.
+    def get_last_span(self) -> Optional[dict]:
+        if not self.spans:
+            return None
+        return self.spans[-1]
 
-        In that case, we will consider it as a continuance of the previous request if they got the same url,
-            and we didn't get any answer yet.
-        """
-        if self.http_spans:
-            last_event = self.http_spans[-1]
-            if last_event and last_event.get("type") == HTTP_TYPE and self.previous_request:
-                if last_event.get("info", {}).get("httpInfo", {}).get("host") == parse_params.host:
-                    if "response" not in last_event["info"]["httpInfo"]:
-                        self.http_spans.pop()
-                        body = (self.previous_request.body + parse_params.body)[:MAX_BODY_SIZE]
-                        self.add_request_event(self.previous_request.clone(body=body))
-                        return
-        self.add_request_event(parse_params.clone(headers=None))
+    def remove_last_span(self) -> Optional[dict]:
+        return self.spans.pop() if self.spans else None
 
     def update_event_end_time(self) -> None:
         """
         This function assumes synchronous execution - we update the last http event.
         """
-        if self.http_spans:
-            self.http_spans[-1]["ended"] = int(time.time() * 1000)
+        if self.spans:
+            self.spans[-1]["ended"] = int(time.time() * 1000)
 
     def update_event_times(
         self, start_time: Optional[datetime] = None, end_time: Optional[datetime] = None
@@ -177,36 +159,11 @@ class SpansContainer:
         """
         This function assumes synchronous execution - we update the last http event.
         """
-        if self.http_spans:
+        if self.spans:
             start_timestamp = start_time.timestamp() if start_time else time.time()
             end_timestamp = end_time.timestamp() if end_time else time.time()
-            self.http_spans[-1]["started"] = int(start_timestamp * 1000)
-            self.http_spans[-1]["ended"] = int(end_timestamp * 1000)
-
-    def update_event_response(
-        self, host: Optional[str], status_code: int, headers: dict, body: bytes
-    ) -> None:
-        """
-        :param host: If None, use the host from the last span, otherwise this is the first chuck and we can empty
-                            the aggregated response body
-        This function assumes synchronous execution - we update the last http event.
-        """
-        if self.http_spans:
-            last_event = self.http_spans.pop()
-            if not host:
-                host = last_event.get("info", {}).get("httpInfo", {}).get("host", "unknown")
-            else:
-                self.previous_response_body = b""
-
-            headers = {k.lower(): v for k, v in headers.items()} if headers else {}
-            parser = get_parser(host, headers)()  # type: ignore
-            if len(self.previous_response_body) < Configuration.max_entry_size:
-                self.previous_response_body += body
-            update = parser.parse_response(  # type: ignore
-                host, status_code, headers, self.previous_response_body  # type: ignore
-            )
-            self.http_spans.append(recursive_json_join(update, last_event))
-            self.http_span_ids_to_send.add(update.get("id") or last_event["id"])
+            self.spans[-1]["started"] = int(start_timestamp * 1000)
+            self.spans[-1]["ended"] = int(end_timestamp * 1000)
 
     def _create_exception_event(
         self, exc_type: str, message: str, stacktrace: str = "", frames: Optional[List[dict]] = None
@@ -233,10 +190,13 @@ class SpansContainer:
             )
 
     def add_step_end_event(self, ret_val):
+        # TODO
+        from lumigo_tracer.wrappers.http.http_parser import StepFunctionParser
+
         message_id = str(uuid.uuid4())
         step_function_span = StepFunctionParser().create_span(message_id)
-        self.http_spans.append(recursive_json_join(step_function_span, self.base_msg))
-        self.http_span_ids_to_send.add(step_function_span["id"])
+        self.spans.append(recursive_json_join(step_function_span, self.base_msg))
+        self.span_ids_to_send.add(step_function_span["id"])
         if isinstance(ret_val, dict):
             ret_val[LUMIGO_EVENT_KEY] = {STEP_FUNCTION_UID_KEY: message_id}
             get_logger().debug(f"Added key {LUMIGO_EVENT_KEY} to the user's return value")
@@ -269,12 +229,12 @@ class SpansContainer:
                 )
         self.function_span.update({"return_value": parsed_ret_val})
         spans_contain_errors: bool = any(
-            _is_span_has_error(s) for s in self.http_spans + [self.function_span]
+            _is_span_has_error(s) for s in self.spans + [self.function_span]
         )
 
         if (not Configuration.send_only_if_error) or spans_contain_errors:
             to_send = [self.function_span] + [
-                s for s in self.http_spans if s["id"] in self.http_span_ids_to_send
+                s for s in self.spans if s["id"] in self.span_ids_to_send
             ]
             reported_rtt = lumigo_utils.report_json(region=self.region, msgs=to_send)
         else:

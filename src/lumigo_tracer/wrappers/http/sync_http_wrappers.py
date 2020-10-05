@@ -2,13 +2,16 @@ from datetime import datetime
 import http.client
 from io import BytesIO
 import importlib.util
+from typing import Optional
 
 from lumigo_tracer.libs.wrapt import wrap_function_wrapper
-from lumigo_tracer.parsing_utils import safe_get_list
-from lumigo_tracer.lumigo_utils import get_logger, lumigo_safe_execute, ensure_str
-from lumigo_tracer.spans_container import SpansContainer
-from lumigo_tracer.parsers.http_data_classes import HttpRequest
+from lumigo_tracer.parsing_utils import safe_get_list, recursive_json_join
+from lumigo_tracer.lumigo_utils import get_logger, lumigo_safe_execute, ensure_str, Configuration
+from lumigo_tracer.spans_container import SpansContainer, MAX_BODY_SIZE
+from lumigo_tracer.wrappers.http.http_data_classes import HttpRequest, HttpState
 from collections import namedtuple
+
+from lumigo_tracer.wrappers.http.http_parser import get_parser, HTTP_TYPE
 
 _BODY_HEADER_SPLITTER = b"\r\n\r\n"
 _FLAGS_HEADER_SPLITTER = b"\r\n"
@@ -18,6 +21,64 @@ LUMIGO_HEADERS_HOOK_KEY = "_lumigo_headers_hook"
 
 
 HookedData = namedtuple("HookedData", ["headers", "path"])
+
+
+def add_request_event(parse_params: HttpRequest):
+    """
+    This function parses an request event and add it to the span.
+    """
+    parser = get_parser(parse_params.host)()
+    msg = parser.parse_request(parse_params)
+    HttpState.previous_request = parse_params
+    SpansContainer.get_span().add_span(msg)
+
+
+def add_unparsed_request(parse_params: HttpRequest):
+    """
+    This function handle the case where we got a request the is not fully formatted as we expected,
+    I.e. there isn't '\r\n' in the request data that <i>logically</i> splits the headers from the body.
+
+    In that case, we will consider it as a continuance of the previous request if they got the same url,
+        and we didn't get any answer yet.
+    """
+    last_event = SpansContainer.get_span().get_last_span()
+    if last_event:
+        if last_event and last_event.get("type") == HTTP_TYPE and HttpState.previous_request:
+            if last_event.get("info", {}).get("httpInfo", {}).get("host") == parse_params.host:
+                if "response" not in last_event["info"]["httpInfo"]:
+                    SpansContainer.get_span().remove_last_span()
+                    body = (HttpState.previous_request.body + parse_params.body)[:MAX_BODY_SIZE]
+                    add_request_event(HttpState.previous_request.clone(body=body))
+                    return
+    add_request_event(parse_params.clone(headers=None))
+
+
+def update_event_response(
+    host: Optional[str], status_code: int, headers: dict, body: bytes
+) -> None:
+    """
+    :param host: If None, use the host from the last span, otherwise this is the first chuck and we can empty
+                        the aggregated response body
+    This function assumes synchronous execution - we update the last http event.
+    """
+    last_event = SpansContainer.get_span().remove_last_span()
+    if last_event:
+        if not host:
+            host = last_event.get("info", {}).get("httpInfo", {}).get("host", "unknown")
+        else:
+            HttpState.previous_response_body = b""
+
+        headers = {k.lower(): v for k, v in headers.items()} if headers else {}
+        parser = get_parser(host, headers)()  # type: ignore
+        if len(HttpState.previous_response_body) < Configuration.max_entry_size:
+            HttpState.previous_response_body += body
+        update = parser.parse_response(  # type: ignore
+            host, status_code, headers, HttpState.previous_response_body  # type: ignore
+        )
+        SpansContainer.get_span().add_span(recursive_json_join(update, last_event))
+
+
+#   Wrappers  #
 
 
 def _http_send_wrapper(func, instance, args, kwargs):
@@ -69,13 +130,11 @@ def _http_send_wrapper(func, instance, args, kwargs):
 
     with lumigo_safe_execute("add request event"):
         if headers:
-            SpansContainer.get_span().add_request_event(
+            add_request_event(
                 HttpRequest(host=host, method=method, uri=uri, headers=headers, body=body)
             )
         else:
-            SpansContainer.get_span().add_unparsed_request(
-                HttpRequest(host=host, method=method, uri=uri, body=data)
-            )
+            add_unparsed_request(HttpRequest(host=host, method=method, uri=uri, body=data))
 
     ret_val = func(*args, **kwargs)
     with lumigo_safe_execute("add response event"):
@@ -119,7 +178,7 @@ def _response_wrapper(func, instance, args, kwargs):
     with lumigo_safe_execute("parse response"):
         headers = dict(ret_val.headers.items())
         status_code = ret_val.code
-        SpansContainer.get_span().update_event_response(instance.host, status_code, headers, b"")
+        update_event_response(instance.host, status_code, headers, b"")
     return ret_val
 
 
@@ -130,9 +189,7 @@ def _read_wrapper(func, instance, args, kwargs):
     ret_val = func(*args, **kwargs)
     if ret_val:
         with lumigo_safe_execute("parse response.read"):
-            SpansContainer.get_span().update_event_response(
-                None, instance.code, dict(instance.headers.items()), ret_val
-            )
+            update_event_response(None, instance.code, dict(instance.headers.items()), ret_val)
     return ret_val
 
 
@@ -144,7 +201,7 @@ def _read_stream_wrapper(func, instance, args, kwargs):
 def _read_stream_wrapper_generator(stream_generator, instance):
     for partial_response in stream_generator:
         with lumigo_safe_execute("parse response.read_chunked"):
-            SpansContainer.get_span().update_event_response(
+            update_event_response(
                 None, instance.status, dict(instance.headers.items()), partial_response
             )
         yield partial_response

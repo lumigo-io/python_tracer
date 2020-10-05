@@ -8,6 +8,7 @@ import mock
 import pytest
 
 from lumigo_tracer.lumigo_utils import Configuration, get_omitting_regex, get_logger
+from lumigo_tracer.wrappers.http.http_data_classes import HttpState
 
 
 @pytest.fixture(autouse=True)
@@ -36,6 +37,7 @@ def restart_global_span():
     """
     yield
     SpansContainer._span = None
+    HttpState.clear()
 
 
 @pytest.yield_fixture(autouse=True)

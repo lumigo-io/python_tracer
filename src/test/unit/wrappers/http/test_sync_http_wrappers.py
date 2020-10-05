@@ -14,9 +14,11 @@ import requests
 
 from lumigo_tracer import lumigo_tracer, lumigo_utils
 from lumigo_tracer.auto_tag import auto_tag_event
-from lumigo_tracer.lumigo_utils import EXECUTION_TAGS_KEY
-from lumigo_tracer.parsers.http_parser import Parser
+from lumigo_tracer.lumigo_utils import EXECUTION_TAGS_KEY, DEFAULT_MAX_ENTRY_SIZE
+from lumigo_tracer.wrappers.http.http_parser import Parser
 from lumigo_tracer.spans_container import SpansContainer
+from lumigo_tracer.wrappers.http.http_data_classes import HttpState, HttpRequest
+from lumigo_tracer.wrappers.http.sync_http_wrappers import add_request_event, update_event_response
 
 
 def test_lambda_wrapper_http(context):
@@ -26,7 +28,7 @@ def test_lambda_wrapper_http(context):
         http.client.HTTPConnection("www.google.com").request("POST", "/")
 
     lambda_test_function({}, context)
-    http_spans = SpansContainer.get_span().http_spans
+    http_spans = SpansContainer.get_span().spans
     assert http_spans
     assert http_spans[0].get("info", {}).get("httpInfo", {}).get("host") == "www.google.com"
     assert "started" in http_spans[0]
@@ -41,7 +43,7 @@ def test_lambda_wrapper_query_with_http_params(context):
         http.client.HTTPConnection("www.google.com").request("GET", "/?q=123")
 
     lambda_test_function({}, context)
-    http_spans = SpansContainer.get_span().http_spans
+    http_spans = SpansContainer.get_span().spans
 
     assert http_spans
     assert http_spans[0]["info"]["httpInfo"]["request"]["uri"] == "www.google.com/?q=123"
@@ -55,7 +57,7 @@ def test_uri_requests(context):
         conn.send(BytesIO(b"456"))
 
     lambda_test_function({}, context)
-    http_spans = SpansContainer.get_span().http_spans
+    http_spans = SpansContainer.get_span().spans
 
     assert http_spans
     assert http_spans[0]["info"]["httpInfo"]["request"]["uri"] == "www.google.com/?q=123"
@@ -69,7 +71,7 @@ def test_lambda_wrapper_get_response(context):
         conn.getresponse()
 
     lambda_test_function({}, context)
-    http_spans = SpansContainer.get_span().http_spans
+    http_spans = SpansContainer.get_span().spans
 
     assert http_spans
     assert http_spans[0]["info"]["httpInfo"]["response"]["statusCode"] == 200
@@ -88,7 +90,7 @@ def test_lambda_wrapper_http_splitted_send(context):
         conn.send(BytesIO(b"456"))
 
     lambda_test_function({}, context)
-    http_spans = SpansContainer.get_span().http_spans
+    http_spans = SpansContainer.get_span().spans
     assert http_spans
     assert http_spans[0]["info"]["httpInfo"]["request"]["body"] == '"123456"'
     assert "content-length" in http_spans[0]["info"]["httpInfo"]["request"]["headers"]
@@ -100,7 +102,7 @@ def test_lambda_wrapper_no_headers(context):
         http.client.HTTPConnection("www.google.com").send(BytesIO(b"123"))
 
     lambda_test_function({}, context)
-    http_events = SpansContainer.get_span().http_spans
+    http_events = SpansContainer.get_span().spans
     assert len(http_events) == 1
     assert http_events[0].get("info", {}).get("httpInfo", {}).get("host") == "www.google.com"
     assert "started" in http_events[0]
@@ -114,7 +116,7 @@ def test_lambda_wrapper_http_non_splitted_send(context):
         http.client.HTTPConnection("www.github.com").send(BytesIO(b"123"))
 
     lambda_test_function({}, context)
-    http_events = SpansContainer.get_span().http_spans
+    http_events = SpansContainer.get_span().spans
     assert len(http_events) == 2
 
 
@@ -138,9 +140,9 @@ def test_catch_file_like_object_sent_on_http(context):
             pass
 
     lambda_test_function({}, context)
-    http_events = SpansContainer.get_span().http_spans
+    http_events = SpansContainer.get_span().spans
     assert len(http_events) == 1
-    span = SpansContainer.get_span().http_spans[0]
+    span = SpansContainer.get_span().spans[0]
     assert span["info"]["httpInfo"]["request"]["body"] == '"body"'
 
 
@@ -161,7 +163,7 @@ def test_domains_scrubber_happy_flow(monkeypatch, context):
         return http.client.HTTPConnection(host="www.google.com").send(b"\r\n")
 
     lambda_test_function({}, context)
-    http_events = SpansContainer.get_span().http_spans
+    http_events = SpansContainer.get_span().spans
     assert len(http_events) == 1
     assert http_events[0].get("info", {}).get("httpInfo", {}).get("host") == "www.google.com"
     assert "headers" not in http_events[0]["info"]["httpInfo"]["request"]
@@ -179,7 +181,7 @@ def test_domains_scrubber_override_allows_default_domains(monkeypatch, context):
             return
 
     lambda_test_function({}, context)
-    http_events = SpansContainer.get_span().http_spans
+    http_events = SpansContainer.get_span().spans
     assert len(http_events) == 1
     assert http_events[0].get("info", {}).get("httpInfo", {}).get("host") == ssm_url
     assert http_events[0]["info"]["httpInfo"]["request"]["headers"]
@@ -196,7 +198,7 @@ def test_wrapping_json_request(context):
         return 1
 
     assert lambda_test_function({}, context) == 1
-    http_events = SpansContainer.get_span().http_spans
+    http_events = SpansContainer.get_span().spans
     assert any(
         '"content-type": "application/json"'
         in event.get("info", {}).get("httpInfo", {}).get("request", {}).get("headers", "")
@@ -226,8 +228,8 @@ def test_wrapping_urlib_stream_get(context):
         return b"".join(r.stream(32))
 
     lambda_test_function({}, context)
-    assert len(SpansContainer.get_span().http_spans) == 1
-    event = SpansContainer.get_span().http_spans[0]
+    assert len(SpansContainer.get_span().spans) == 1
+    event = SpansContainer.get_span().spans[0]
     assert event["info"]["httpInfo"]["response"]["body"]
     assert event["info"]["httpInfo"]["response"]["statusCode"] == 200
     assert event["info"]["httpInfo"]["host"] == "www.google.com"
@@ -251,7 +253,7 @@ def test_wrapping_requests_times(monkeypatch, context):
 
     # validate that the added delay didn't affect the start time
     start_time = lambda_test_function({}, context)
-    span = SpansContainer.get_span().http_spans[0]
+    span = SpansContainer.get_span().spans[0]
     assert span["started"] - start_time < 100
 
 
@@ -280,7 +282,7 @@ def test_correct_headers_of_send_after_request(context):
         return {"lumigo": "rulz"}
 
     lambda_test_function({"key": "24"}, context)
-    spans = SpansContainer.get_span().http_spans
+    spans = SpansContainer.get_span().spans
     assert spans[0]["info"]["httpInfo"]["request"]["headers"] == json.dumps({"a": "b"})
     assert spans[1]["info"]["httpInfo"]["request"]["headers"] == json.dumps({"c": "d"})
 
@@ -414,3 +416,21 @@ def test_lumigo_doesnt_change_event(given_event):
         return "ret_value"
 
     lambda_test_function(given_event, SimpleNamespace(aws_request_id="1234"))
+
+
+def test_aggregating_response_body():
+    """
+    This test is here to validate that we're not leaking memory on aggregating response body.
+    Unfortunately python doesn't give us better tools, so we must check the problematic member itself.
+    """
+    SpansContainer.create_span()
+    add_request_event(
+        HttpRequest(
+            host="dummy", method="dummy", uri="dummy", headers={"dummy": "dummy"}, body="dummy"
+        )
+    )
+
+    big_response_chunk = b"leak" * DEFAULT_MAX_ENTRY_SIZE
+    for _ in range(10):
+        update_event_response(host=None, status_code=200, headers=None, body=big_response_chunk)
+    assert len(HttpState.previous_response_body) <= len(big_response_chunk)
