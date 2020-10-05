@@ -13,6 +13,7 @@ from lumigo_tracer.parsing_utils import (
     parse_trace_id,
     safe_key_from_query,
     safe_key_from_xml,
+    safe_get_list,
 )
 from lumigo_tracer.lumigo_utils import config, Configuration
 
@@ -23,10 +24,25 @@ from lumigo_tracer.lumigo_utils import config, Configuration
         (("a.b.c", ".", 0), "a"),  # happy flow
         (("a.b.c", ".", 1), "b"),
         (("a.b.c", ".", 5, "d"), "d"),  # return the default
+        ((123, ".", 5, "d"), "d"),  # no string
     ],
 )
 def test_safe_split_get(input_params, expected_output):
     assert safe_split_get(*input_params) == expected_output
+
+
+@pytest.mark.parametrize(
+    ("input_params", "expected_output"),
+    [
+        ((["a", "b"], 1), "b"),  # happy flow
+        (([], 2, 1), 1),  # out of bound index
+        ((["a", "b"], "1", 1), "b"),  # string index
+        ((["a", "b"], "bla", "default"), "default"),  # string index - cant cast
+        ((123, 2, "default"), "default"),  # Non iterable
+    ],
+)
+def test_safe_get_list(input_params, expected_output):
+    assert safe_get_list(*input_params) == expected_output
 
 
 @pytest.mark.parametrize(
@@ -77,6 +93,7 @@ def test_key_from_query(input_params, expected_output):
         ("Root=1-2;", ("1-2", "", ";")),
         ("a;1", ("", "", ";1")),
         ("123", ("", "", "123")),
+        (None, ("", "", "")),
     ],
 )
 def test_parse_trace_id(trace_id, result):
@@ -143,7 +160,7 @@ def test_str_to_list():
 
 
 def test_str_to_list_exception():
-    assert str_to_list("") is None
+    assert str_to_list([1]) is None
 
 
 def test_str_to_tuple():
@@ -151,4 +168,4 @@ def test_str_to_tuple():
 
 
 def test_str_to_tuple_exception():
-    assert str_to_tuple([]) is None
+    assert str_to_tuple([1]) is None
