@@ -229,20 +229,6 @@ class S3Parser(Parser):
         )
 
 
-class StepFunctionParser(ServerlessAWSParser):
-    def create_span(self, message_id: str) -> dict:
-        return recursive_json_join(
-            {
-                "info": {
-                    "resourceName": "StepFunction",
-                    "httpInfo": {"host": "StepFunction"},
-                    "messageId": message_id,
-                }
-            },
-            super().parse_request(None),  # type: ignore
-        )
-
-
 class ApiGatewayV2Parser(ServerlessAWSParser):
     # API-GW V1 covered by ServerlessAWSParser
 
