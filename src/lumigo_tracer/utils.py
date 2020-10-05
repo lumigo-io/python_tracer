@@ -215,23 +215,26 @@ def prepare_host(host):
     return host
 
 
-def report_json(region: Union[None, str], msgs: List[dict]) -> int:
+def report_json(region: Union[None, str], msgs: List[dict], should_retry: bool = True) -> int:
     """
     This function sends the information back to the edge.
 
     :param region: The region to use as default if not configured otherwise.
     :param msgs: the message to send.
+    :param should_retry: False to disable the default retry on unsuccessful sending
     :return: The duration of reporting (in milliseconds),
                 or 0 if we didn't send (due to configuration or fail).
     """
     global edge_connection
     get_logger().info(f"reporting the messages: {msgs[:10]}")
-    host = prepare_host(Configuration.host or EDGE_HOST.format(region=region))
-    duration = 0
-    if not edge_connection or edge_connection.host != host:
-        edge_connection = establish_connection(host)
-        if not edge_connection:
-            return duration
+    host = None
+    with lumigo_safe_execute("report json: establish connection"):
+        host = prepare_host(Configuration.host or EDGE_HOST.format(region=region))
+        duration = 0
+        if not edge_connection or edge_connection.host != host:
+            edge_connection = establish_connection(host)
+            if not edge_connection:
+                return duration
     if Configuration.should_report:
         try:
             prune_trace: bool = not os.environ.get("LUMIGO_PRUNE_TRACE_OFF", "").lower() == "true"
@@ -245,10 +248,12 @@ def report_json(region: Union[None, str], msgs: List[dict]) -> int:
             duration = int((time.time() - start_time) * 1000)
             get_logger().info(f"successful reporting, code: {getattr(response, 'code', 'unknown')}")
         except Exception as e:
-            get_logger().exception(
-                f"Could not report json to {host}. Retrying to establish connection.", exc_info=e
-            )
-            edge_connection = establish_connection(host)
+            if should_retry:
+                get_logger().exception(f"Could not report to {host}. Retrying.", exc_info=e)
+                edge_connection = establish_connection(host)
+                report_json(region, msgs, should_retry=False)
+            else:
+                get_logger().exception("Could not report: A span was lost.", exc_info=e)
     return duration
 
 
