@@ -5,7 +5,7 @@ import pytest
 import os
 
 
-from lumigo_tracer.sync_http.sync_hook import lumigo_tracer
+from lumigo_tracer.tracer import lumigo_tracer
 from lumigo_tracer.spans_container import SpansContainer
 from lumigo_tracer.lumigo_utils import md5hash
 

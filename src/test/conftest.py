@@ -1,12 +1,13 @@
 import builtins
 import logging
+from types import SimpleNamespace
 
 from lumigo_tracer import lumigo_utils
 from lumigo_tracer.spans_container import SpansContainer
 import mock
 import pytest
 
-from lumigo_tracer.lumigo_utils import Configuration, get_omitting_regex
+from lumigo_tracer.lumigo_utils import Configuration, get_omitting_regex, get_logger
 
 
 @pytest.fixture(autouse=True)
@@ -72,8 +73,9 @@ def pytest_collection_modifyitems(config, items):
 @pytest.fixture(autouse=True)
 def capture_all_logs(caplog):
     caplog.set_level(logging.DEBUG, logger="lumigo")
+    get_logger().propagate = True
 
 
 @pytest.fixture
 def context():
-    return mock.Mock(get_remaining_time_in_millis=lambda: 1000 * 2)
+    return SimpleNamespace(aws_request_id="1234", get_remaining_time_in_millis=lambda: 1000 * 2)
