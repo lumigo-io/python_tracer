@@ -16,7 +16,6 @@ from lumigo_tracer.wrappers.http.http_parser import get_parser, HTTP_TYPE
 _BODY_HEADER_SPLITTER = b"\r\n\r\n"
 _FLAGS_HEADER_SPLITTER = b"\r\n"
 MAX_READ_SIZE = 1024
-already_wrapped = False
 LUMIGO_HEADERS_HOOK_KEY = "_lumigo_headers_hook"
 
 
@@ -218,24 +217,17 @@ def _putheader_wrapper(func, instance, args, kwargs):
 
 
 def wrap_http_calls():
-    global already_wrapped
-    if not already_wrapped:
-        with lumigo_safe_execute("wrap http calls"):
-            get_logger().debug("wrapping the http request")
-            wrap_function_wrapper("http.client", "HTTPConnection.send", _http_send_wrapper)
+    with lumigo_safe_execute("wrap http calls"):
+        get_logger().debug("wrapping the http request")
+        wrap_function_wrapper("http.client", "HTTPConnection.send", _http_send_wrapper)
+        wrap_function_wrapper("http.client", "HTTPConnection.request", _headers_reminder_wrapper)
+        if importlib.util.find_spec("botocore"):
+            wrap_function_wrapper("botocore.awsrequest", "AWSRequest.__init__", _putheader_wrapper)
+        wrap_function_wrapper("http.client", "HTTPConnection.getresponse", _response_wrapper)
+        wrap_function_wrapper("http.client", "HTTPResponse.read", _read_wrapper)
+        if importlib.util.find_spec("urllib3"):
             wrap_function_wrapper(
-                "http.client", "HTTPConnection.request", _headers_reminder_wrapper
+                "urllib3.response", "HTTPResponse.read_chunked", _read_stream_wrapper
             )
-            if importlib.util.find_spec("botocore"):
-                wrap_function_wrapper(
-                    "botocore.awsrequest", "AWSRequest.__init__", _putheader_wrapper
-                )
-            wrap_function_wrapper("http.client", "HTTPConnection.getresponse", _response_wrapper)
-            wrap_function_wrapper("http.client", "HTTPResponse.read", _read_wrapper)
-            if importlib.util.find_spec("urllib3"):
-                wrap_function_wrapper(
-                    "urllib3.response", "HTTPResponse.read_chunked", _read_stream_wrapper
-                )
-            if importlib.util.find_spec("requests"):
-                wrap_function_wrapper("requests.api", "request", _requests_wrapper)
-            already_wrapped = True
+        if importlib.util.find_spec("requests"):
+            wrap_function_wrapper("requests.api", "request", _requests_wrapper)
