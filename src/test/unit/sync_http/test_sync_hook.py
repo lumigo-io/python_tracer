@@ -375,7 +375,7 @@ def test_lumigo_chalice():
 
 def test_lumigo_chalice_create_extra_lambdas(monkeypatch):
     # mimic aws env
-    monkeypatch.setitem(os.environ, "LAMBDA_RUNTIME_DIR", "true")
+    monkeypatch.setitem(os.environ, "AWS_LAMBDA_FUNCTION_VERSION", "true")
 
     class Chalice:
         """

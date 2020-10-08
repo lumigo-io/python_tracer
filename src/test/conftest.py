@@ -6,7 +6,7 @@ from lumigo_tracer.spans_container import SpansContainer
 import mock
 import pytest
 
-from lumigo_tracer.utils import Configuration, get_omitting_regex
+from lumigo_tracer.utils import Configuration, get_omitting_regex, get_logger
 
 
 @pytest.fixture(autouse=True)
@@ -72,6 +72,7 @@ def pytest_collection_modifyitems(config, items):
 @pytest.fixture(autouse=True)
 def capture_all_logs(caplog):
     caplog.set_level(logging.DEBUG, logger="lumigo")
+    get_logger().propagate = True
 
 
 @pytest.fixture
