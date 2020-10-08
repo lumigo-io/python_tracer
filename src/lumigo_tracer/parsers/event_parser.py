@@ -38,9 +38,7 @@ S3_KEYS_ORDER = str_to_list(os.environ.get("LUMIGO_S3_KEYS_ORDER", "")) or [
     "requestParameters",
 ]
 
-S3_BUCKET_KEYS_ORDER = str_to_list(os.environ.get("LUMIGO_S3_BUCKET_KEYS_ORDER", "")) or [
-    "arn",
-]
+S3_BUCKET_KEYS_ORDER = str_to_list(os.environ.get("LUMIGO_S3_BUCKET_KEYS_ORDER", "")) or ["arn"]
 
 S3_OBJECT_KEYS_ORDER = str_to_list(os.environ.get("LUMIGO_S3_OBJECT_KEYS_ORDER", "")) or [
     "key",

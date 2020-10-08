@@ -52,8 +52,10 @@ WARN_CLIENT_PREFIX = "Lumigo Warning"
 TRUNCATE_SUFFIX = "...[too long]"
 NUMBER_OF_SPANS_IN_REPORT_OPTIMIZATION = 200
 DEFAULT_KEY_DEPTH = 4
+LUMIGO_TOKEN_KEY = "LUMIGO_TRACER_TOKEN"
+KILL_SWITCH = "LUMIGO_SWITCH_OFF"
 
-_logger: Union[logging.Logger, None] = None
+_logger: Dict[str, logging.Logger] = {}
 
 edge_connection = None
 try:
@@ -116,7 +118,7 @@ def config(
     elif not is_aws_environment():
         Configuration.should_report = False
     Configuration.host = edge_host or os.environ.get("LUMIGO_TRACER_HOST", "")
-    Configuration.token = token or os.environ.get("LUMIGO_TRACER_TOKEN", "")
+    Configuration.token = token or os.environ.get(LUMIGO_TOKEN_KEY, "")
     Configuration.enhanced_print = (
         enhance_print or os.environ.get("LUMIGO_ENHANCED_PRINT", "").lower() == "true"
     )
@@ -234,6 +236,7 @@ def report_json(region: Union[None, str], msgs: List[dict], should_retry: bool =
         if not edge_connection or edge_connection.host != host:
             edge_connection = establish_connection(host)
             if not edge_connection:
+                get_logger().warning("Can not establish connection. Skip sending span.")
                 return duration
     if Configuration.should_report:
         try:
@@ -257,7 +260,7 @@ def report_json(region: Union[None, str], msgs: List[dict], should_retry: bool =
     return duration
 
 
-def get_logger():
+def get_logger(logger_name="lumigo"):
     """
     This function returns lumigo's logger.
     The logger streams the logs to the stderr in format the explicitly say that those are lumigo's logs.
@@ -266,16 +269,17 @@ def get_logger():
     Add the environment variable `LUMIGO_DEBUG=true` to activate it.
     """
     global _logger
-    if not _logger:
-        _logger = logging.getLogger("lumigo")
+    if logger_name not in _logger:
+        _logger[logger_name] = logging.getLogger(logger_name)
+        _logger[logger_name].propagate = False
         handler = logging.StreamHandler()
         handler.setFormatter(logging.Formatter(LOG_FORMAT))
         if os.environ.get("LUMIGO_DEBUG", "").lower() == "true":
-            _logger.setLevel(logging.DEBUG)
+            _logger[logger_name].setLevel(logging.DEBUG)
         else:
-            _logger.setLevel(logging.CRITICAL)
-        _logger.addHandler(handler)
-    return _logger
+            _logger[logger_name].setLevel(logging.CRITICAL)
+        _logger[logger_name].addHandler(handler)
+    return _logger[logger_name]
 
 
 @contextmanager
@@ -290,7 +294,7 @@ def is_aws_environment():
     """
     :return: heuristically determine rather we're running on an aws environment.
     """
-    return bool(os.environ.get("LAMBDA_RUNTIME_DIR"))
+    return bool(os.environ.get("AWS_LAMBDA_FUNCTION_VERSION"))
 
 
 def ensure_str(s: Union[str, bytes]) -> str:
@@ -500,3 +504,7 @@ def lumigo_dumps(
     return (
         (retval[:max_size] + TRUNCATE_SUFFIX) if len(retval) >= max_size or is_truncated else retval
     )
+
+
+def is_kill_switch_on():
+    return str(os.environ.get(KILL_SWITCH, "")).lower() == "true"

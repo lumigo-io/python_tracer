@@ -3,11 +3,9 @@ import inspect
 import logging
 import http.client
 from io import BytesIO
-import os
 import builtins
 from functools import wraps
 import importlib.util
-import botocore.awsrequest  # noqa: F401
 
 from lumigo_tracer.auto_tag.auto_tag_event import AutoTagEvent
 from lumigo_tracer.libs.wrapt import wrap_function_wrapper
@@ -19,6 +17,7 @@ from lumigo_tracer.utils import (
     lumigo_safe_execute,
     is_aws_environment,
     ensure_str,
+    is_kill_switch_on,
 )
 from lumigo_tracer.spans_container import SpansContainer, TimeoutMechanism
 from lumigo_tracer.parsers.http_data_classes import HttpRequest
@@ -26,7 +25,6 @@ from collections import namedtuple
 
 _BODY_HEADER_SPLITTER = b"\r\n\r\n"
 _FLAGS_HEADER_SPLITTER = b"\r\n"
-_KILL_SWITCH = "LUMIGO_SWITCH_OFF"
 CONTEXT_WRAPPED_BY_LUMIGO_KEY = "_wrapped_by_lumigo"
 MAX_READ_SIZE = 1024
 already_wrapped = False
@@ -198,7 +196,7 @@ def _add_wrap_flag_to_context(*args):
 def _lumigo_tracer(func):
     @wraps(func)
     def lambda_wrapper(*args, **kwargs):
-        if str(os.environ.get(_KILL_SWITCH, "")).lower() == "true":
+        if is_kill_switch_on():
             return func(*args, **kwargs)
 
         if _is_context_already_wrapped(*args):
@@ -330,7 +328,10 @@ def wrap_http_calls():
             wrap_function_wrapper(
                 "http.client", "HTTPConnection.request", _headers_reminder_wrapper
             )
-            wrap_function_wrapper("botocore.awsrequest", "AWSRequest.__init__", _putheader_wrapper)
+            if importlib.util.find_spec("botocore"):
+                wrap_function_wrapper(
+                    "botocore.awsrequest", "AWSRequest.__init__", _putheader_wrapper
+                )
             wrap_function_wrapper("http.client", "HTTPConnection.getresponse", _response_wrapper)
             wrap_function_wrapper("http.client", "HTTPResponse.read", _read_wrapper)
             if importlib.util.find_spec("urllib3"):

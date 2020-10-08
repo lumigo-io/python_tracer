@@ -29,6 +29,8 @@ from lumigo_tracer.utils import (
     prepare_host,
     EDGE_PATH,
     report_json,
+    is_kill_switch_on,
+    KILL_SWITCH,
 )
 import json
 
@@ -380,3 +382,9 @@ def test_report_json_retry(monkeypatch, reporter_mock, caplog, errors, final_log
     report_json(None, [{"a": "b"}])
 
     assert caplog.records[-1].levelname == final_log
+
+
+@pytest.mark.parametrize("env, expected", [("True", True), ("other", False), (123, False)])
+def test_is_kill_switch_on(monkeypatch, env, expected):
+    monkeypatch.setenv(KILL_SWITCH, env)
+    assert is_kill_switch_on() == expected
