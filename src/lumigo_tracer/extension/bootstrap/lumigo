@@ -1,0 +1,11 @@
+#!/bin/sh
+
+set -eo pipefail
+
+# python runtime initialization
+if [[ $LD_LIBRARY_PATH != *python* ]]; then
+  export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/opt/python-runtime/var/lang/lib
+  export PYTHONPATH=$PYTHONPATH:/opt/extension-python-modules:/opt/python-runtime/var/runtime
+fi
+
+/opt/python-runtime/var/lang/bin/python3.7 /opt/extension-python-modules/lumigo_tracer/extension/main.py &

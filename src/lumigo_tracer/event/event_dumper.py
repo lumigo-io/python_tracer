@@ -21,6 +21,30 @@ API_GW_KEYS_ORDER = str_to_list(os.environ.get("LUMIGO_API_GW_KEYS_ORDER", "")) 
     "requestContext",
     "headers",
 ]
+
+CLOUDFRONT_KEYS_ORDER = str_to_list(os.environ.get("LUMIGO_CLOUDFRONT_KEYS_ORDER", "")) or [
+    "config"
+]
+
+CLOUDFRONT_REQUEST_KEYS_ORDER = str_to_list(
+    os.environ.get("LUMIGO_CLOUDFRONT_REQUEST_KEYS_ORDER", "")
+) or ["body", "clientIp", "method", "querystring", "uri"]
+
+S3_KEYS_ORDER = str_to_list(os.environ.get("LUMIGO_S3_KEYS_ORDER", "")) or [
+    "awsRegion",
+    "eventTime",
+    "eventName",
+    "userIdentity",
+    "requestParameters",
+]
+
+S3_BUCKET_KEYS_ORDER = str_to_list(os.environ.get("LUMIGO_S3_BUCKET_KEYS_ORDER", "")) or ["arn"]
+
+S3_OBJECT_KEYS_ORDER = str_to_list(os.environ.get("LUMIGO_S3_OBJECT_KEYS_ORDER", "")) or [
+    "key",
+    "size",
+]
+
 API_GW_PREFIX_KEYS_HEADERS_DELETE_KEYS = str_to_list(
     os.environ.get("LUMIGO_API_GW_PREFIX_KEYS_HEADERS_DELETE_KEYS", "")
 ) or ("cookie", "x-amz", "accept", "cloudfront", "via", "x-forwarded", "sec-")
@@ -57,12 +81,67 @@ class EventParseHandler(ABC):
         raise NotImplementedError()
 
 
+class S3Handler(EventParseHandler):
+    @staticmethod
+    def is_supported(event) -> bool:
+        return safe_get(event, ["Records", 0, "eventSource"]) == "aws:s3"
+
+    @staticmethod
+    def parse(event) -> OrderedDict:
+        new_event: OrderedDict = OrderedDict()
+        new_event["Records"] = []
+
+        for rec in event.get("Records", []):
+            new_s3_record_event: OrderedDict = OrderedDict()
+            for key in S3_KEYS_ORDER:
+                if rec.get(key) is not None:
+                    new_s3_record_event[key] = rec.get(key)
+            if rec.get("s3"):
+                new_s3_record_event["s3"] = {}
+                if rec["s3"].get("bucket") is not None:
+                    new_s3_record_event["s3"]["bucket"] = {}
+                    for key in S3_BUCKET_KEYS_ORDER:
+                        new_s3_record_event["s3"]["bucket"][key] = rec["s3"]["bucket"].get(key)
+                if rec["s3"].get("object") is not None:
+                    new_s3_record_event["s3"]["object"] = {}
+                    for key in S3_OBJECT_KEYS_ORDER:
+                        new_s3_record_event["s3"]["object"][key] = rec["s3"]["object"].get(key)
+            new_event["Records"].append(new_s3_record_event)
+        return new_event
+
+
+class CloudfrontHandler(EventParseHandler):
+    @staticmethod
+    def is_supported(event) -> bool:
+        return bool(safe_get(event, ["Records", 0, "cf", "config", "distributionId"], {}))
+
+    @staticmethod
+    def parse(event) -> OrderedDict:
+        new_event: OrderedDict = OrderedDict()
+        new_event["Records"] = []
+
+        for rec in event.get("Records", []):
+            cf_record = rec.get("cf", {})
+            new_cloudfront_record_event: OrderedDict = OrderedDict()
+            new_cloudfront_record_event["cf"] = {}
+            for key in CLOUDFRONT_KEYS_ORDER:
+                if cf_record.get(key):
+                    new_cloudfront_record_event["cf"][key] = cf_record.get(key)
+            if cf_record.get("request") is not None:
+                new_cloudfront_record_event["cf"]["request"] = {}
+                for key in CLOUDFRONT_REQUEST_KEYS_ORDER:
+                    if cf_record["request"].get(key) is not None:
+                        new_cloudfront_record_event["cf"]["request"][key] = cf_record[
+                            "request"
+                        ].get(key)
+            new_event["Records"].append(new_cloudfront_record_event)
+        return new_event
+
+
 class ApiGWHandler(EventParseHandler):
     @staticmethod
     def is_supported(event) -> bool:
-        if is_api_gw_event(event=event):  # noqa
-            return True
-        return False
+        return is_api_gw_event(event=event)
 
     @staticmethod
     def parse(event) -> OrderedDict:
@@ -129,7 +208,13 @@ class SQSHandler(EventParseHandler):
 class EventDumper:
     @staticmethod
     def dump_event(event: Dict, handlers: List[EventParseHandler] = None) -> str:
-        handlers = handlers or [ApiGWHandler(), SNSHandler(), SQSHandler()]
+        handlers = handlers or [
+            ApiGWHandler(),
+            SNSHandler(),
+            SQSHandler(),
+            S3Handler(),
+            CloudfrontHandler(),
+        ]
         for handler in handlers:
             try:
                 if handler.is_supported(event):
