@@ -1,6 +1,13 @@
 from collections import OrderedDict
+import json
+import pytest
 
-from lumigo_tracer.event.event_dumper import EventDumper, EventParseHandler
+from lumigo_tracer.event.event_dumper import (
+    EventDumper,
+    EventParseHandler,
+    CloudfrontHandler,
+    S3Handler,
+)
 from lumigo_tracer.lumigo_utils import lumigo_dumps
 
 
@@ -403,3 +410,161 @@ def test_parse_event_sqs():
             }
         )
     )
+
+
+def test_is_s3_event(s3_event):
+    assert S3Handler().is_supported(s3_event) is True
+
+
+def test_parse_s3_event(s3_event):
+    ordered_s3_event = EventDumper.dump_event(event=s3_event)
+    assert json.dumps(ordered_s3_event) == json.dumps(
+        OrderedDict(
+            {
+                "Records": [
+                    {
+                        "awsRegion": "us-west-2",
+                        "eventTime": "2020-09-24T12:00:12.137Z",
+                        "eventName": "ObjectCreated:Put",
+                        "userIdentity": {"principalId": "A2QVTU9T5VMOU3"},
+                        "requestParameters": {"sourceIPAddress": "77.127.93.97"},
+                        "s3": {
+                            "bucket": {"arn": "arn:aws:s3:::testingbuckets3testing"},
+                            "object": {
+                                "key": "Screen+Shot+2020-05-27+at+12.37.36.png",
+                                "size": 61211,
+                            },
+                        },
+                    }
+                ]
+            }
+        )
+    )
+
+
+def test_is_cloudfront_event(cloudfront_event):
+    assert CloudfrontHandler().is_supported(cloudfront_event) is True
+
+
+def test_parse_cloudfront_event(cloudfront_event):
+    ordered_cloudfront_event = EventDumper.dump_event(event=cloudfront_event)
+    assert json.dumps(ordered_cloudfront_event) == json.dumps(
+        OrderedDict(
+            {
+                "Records": [
+                    {
+                        "cf": {
+                            "config": {
+                                "distributionDomainName": "d3f1hyel7d5adt.cloudfront.net",
+                                "distributionId": "E8PDQHVQH1V0Q",
+                                "eventType": "origin-request",
+                                "requestId": "hnql0vH8VDvTTLGwmKn337OH08mMiV5sTPsYGyBqCKgCXPZbfNqYlw==",
+                            },
+                            "request": {
+                                "body": {
+                                    "action": "read-only",
+                                    "data": "",
+                                    "encoding": "base64",
+                                    "inputTruncated": False,
+                                },
+                                "clientIp": "176.12.196.206",
+                                "method": "GET",
+                                "querystring": "",
+                                "uri": "/favicon.ico",
+                            },
+                        }
+                    }
+                ]
+            }
+        )
+    )
+
+
+@pytest.fixture
+def s3_event():
+    return {
+        "Records": [
+            {
+                "eventVersion": "2.1",
+                "eventSource": "aws:s3",
+                "awsRegion": "us-west-2",
+                "eventTime": "2020-09-24T12:00:12.137Z",
+                "eventName": "ObjectCreated:Put",
+                "userIdentity": {"principalId": "A2QVTU9T5VMOU3"},
+                "requestParameters": {"sourceIPAddress": "77.127.93.97"},
+                "responseElements": {
+                    "x-amz-request-id": "318F33BA8C4CBDC5",
+                    "x-amz-id-2": "VyRyYV/2vjikRUkRoH2WPH6M5WcAjNSGXG8Qtd1uEfbklnTusaDEz/jQPdLQgf2tZLjRuq4MgZFcVFpQJgZLJfiGUoh7IBhU",
+                },
+                "s3": {
+                    "s3SchemaVersion": "1.0",
+                    "configurationId": "a078ca2d-53a8-45d4-a621-260a439876d8",
+                    "bucket": {
+                        "name": "testingbuckets3testing",
+                        "ownerIdentity": {"principalId": "A2QVTU9T5VMOU3"},
+                        "arn": "arn:aws:s3:::testingbuckets3testing",
+                    },
+                    "object": {
+                        "key": "Screen+Shot+2020-05-27+at+12.37.36.png",
+                        "size": 61211,
+                        "eTag": "714ee5196a5c0a6e6b9019caa7b6e970",
+                        "sequencer": "005F6C8A510EE02021",
+                    },
+                },
+            }
+        ]
+    }
+
+
+@pytest.fixture
+def cloudfront_event():
+    return {
+        "Records": [
+            {
+                "cf": {
+                    "config": {
+                        "distributionDomainName": "d3f1hyel7d5adt.cloudfront.net",
+                        "distributionId": "E8PDQHVQH1V0Q",
+                        "eventType": "origin-request",
+                        "requestId": "hnql0vH8VDvTTLGwmKn337OH08mMiV5sTPsYGyBqCKgCXPZbfNqYlw==",
+                    },
+                    "request": {
+                        "body": {
+                            "action": "read-only",
+                            "data": "",
+                            "encoding": "base64",
+                            "inputTruncated": False,
+                        },
+                        "clientIp": "176.12.196.206",
+                        "headers": {
+                            "x-forwarded-for": [
+                                {"key": "X-Forwarded-For", "value": "176.12.196.206"}
+                            ],
+                            "user-agent": [{"key": "User-Agent", "value": "Amazon CloudFront"}],
+                            "via": [
+                                {
+                                    "key": "Via",
+                                    "value": "1.1 67f7ae71b3a190dab6b84c5ceb7fd5e0.cloudfront.net (CloudFront)",
+                                }
+                            ],
+                            "accept-encoding": [{"key": "Accept-Encoding", "value": "gzip"}],
+                            "host": [
+                                {"key": "Host", "value": "my-cloudfront-demo-test.s3.amazonaws.com"}
+                            ],
+                        },
+                        "method": "GET",
+                        "origin": {
+                            "s3": {
+                                "authMethod": "none",
+                                "customHeaders": {},
+                                "domainName": "my-cloudfront-demo-test.s3.amazonaws.com",
+                                "path": "",
+                            }
+                        },
+                        "querystring": "",
+                        "uri": "/favicon.ico",
+                    },
+                }
+            }
+        ]
+    }
