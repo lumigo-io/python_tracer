@@ -3,8 +3,8 @@ from abc import ABC, abstractmethod
 from typing import Dict, List, Optional
 
 from lumigo_tracer.user_utils import add_execution_tag
-from lumigo_tracer.parsers.utils import str_to_list
-from lumigo_tracer.utils import get_logger, is_api_gw_event
+from lumigo_tracer.parsing_utils import str_to_list
+from lumigo_tracer.lumigo_utils import get_logger, is_api_gw_event
 
 AUTO_TAG_API_GW_HEADERS: Optional[List[str]] = (
     str_to_list(os.environ.get("LUMIGO_AUTO_TAG_API_GW_HEADERS", "")) or []

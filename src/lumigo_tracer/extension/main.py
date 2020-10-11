@@ -5,7 +5,7 @@ import http.client
 from lumigo_tracer.extension.extension_utils import get_extension_logger
 from lumigo_tracer.extension.extension import LumigoExtension
 from lumigo_tracer.extension.lambda_service import LambdaService
-from lumigo_tracer.utils import is_kill_switch_on, lumigo_safe_execute, config
+from lumigo_tracer.lumigo_utils import is_kill_switch_on, lumigo_safe_execute, config
 
 STOP_EXTENSION_KEY = "LUMIGO_EXTENSION_STOP"
 LUMIGO_EXTENSION_NAME = "lumigo"

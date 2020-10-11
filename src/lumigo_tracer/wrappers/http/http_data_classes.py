@@ -1,4 +1,5 @@
 from copy import deepcopy
+from typing import Optional
 
 
 class HttpRequest:
@@ -20,3 +21,13 @@ class HttpRequest:
         for k, v in kwargs.items():
             setattr(clone_obj, k, v)
         return clone_obj
+
+
+class HttpState:
+    previous_request: Optional[HttpRequest] = None
+    previous_response_body: bytes = b""
+
+    @staticmethod
+    def clear():
+        HttpState.previous_request = None
+        HttpState.previous_response_body = b""

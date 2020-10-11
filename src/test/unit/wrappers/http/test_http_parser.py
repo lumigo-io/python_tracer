@@ -2,8 +2,8 @@ import json
 
 import pytest
 
-from lumigo_tracer.parsers.http_data_classes import HttpRequest
-from lumigo_tracer.parsers.parser import (
+from lumigo_tracer.wrappers.http.http_data_classes import HttpRequest
+from lumigo_tracer.wrappers.http.http_parser import (
     ServerlessAWSParser,
     Parser,
     get_parser,

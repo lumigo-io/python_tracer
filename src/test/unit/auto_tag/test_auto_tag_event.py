@@ -1,7 +1,7 @@
 from lumigo_tracer.auto_tag import auto_tag_event
 from lumigo_tracer.auto_tag.auto_tag_event import EventAutoTagHandler, AutoTagEvent
 from lumigo_tracer.spans_container import SpansContainer
-from lumigo_tracer.utils import EXECUTION_TAGS_KEY
+from lumigo_tracer.lumigo_utils import EXECUTION_TAGS_KEY
 
 
 class ExceptionHandler(EventAutoTagHandler):
