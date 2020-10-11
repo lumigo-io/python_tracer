@@ -1,5 +1,4 @@
 from collections import OrderedDict
-import json
 import pytest
 
 from lumigo_tracer.event.event_dumper import (
@@ -418,7 +417,7 @@ def test_is_s3_event(s3_event):
 
 def test_parse_s3_event(s3_event):
     ordered_s3_event = EventDumper.dump_event(event=s3_event)
-    assert json.dumps(ordered_s3_event) == json.dumps(
+    assert ordered_s3_event == lumigo_dumps(
         OrderedDict(
             {
                 "Records": [
@@ -448,7 +447,7 @@ def test_is_cloudfront_event(cloudfront_event):
 
 def test_parse_cloudfront_event(cloudfront_event):
     ordered_cloudfront_event = EventDumper.dump_event(event=cloudfront_event)
-    assert json.dumps(ordered_cloudfront_event) == json.dumps(
+    assert ordered_cloudfront_event == lumigo_dumps(
         OrderedDict(
             {
                 "Records": [
