@@ -1,3 +1,5 @@
+from typing import Dict
+
 import time
 import uuid
 
@@ -14,11 +16,15 @@ if not monitoring:
 else:
 
     class LumigoMongoMonitoring(monitoring.CommandListener):  # type: ignore
+        request_to_span_id: Dict[str, str] = {}
+
         def started(self, event):
             with lumigo_safe_execute("pymongo started"):
+                span_id = str(uuid.uuid4())
+                LumigoMongoMonitoring.request_to_span_id[event.request_id] = span_id
                 SpansContainer.get_span().add_span(
                     {
-                        "id": str(uuid.uuid4()),
+                        "id": span_id,
                         "started": int(time.time() / 1000),
                         "databaseName": event.database_name,
                         "commandName": event.command_name,
@@ -31,26 +37,28 @@ else:
 
         def succeeded(self, event):
             with lumigo_safe_execute("pymongo succeed"):
-                last_span = SpansContainer.get_span().get_last_span()
-                if not last_span or last_span.get("mongoRequestId") != event.request_id:
+                if event.request_id not in LumigoMongoMonitoring.request_to_span_id:
                     get_logger().warning("Mongo span ended without a record on its start")
                     return
-                last_span.update(
+                span_id = LumigoMongoMonitoring.request_to_span_id.pop(event.request_id)
+                span = SpansContainer.get_span().get_span_by_id(span_id)
+                span.update(
                     {
-                        "ended": last_span["started"] + (event.duration_micros / 1000),
+                        "ended": span["started"] + (event.duration_micros / 1000),
                         "response": lumigo_dumps(event.reply),
                     }
                 )
 
         def failed(self, event):
-            with lumigo_safe_execute("pymongo succeed"):
-                last_span = SpansContainer.get_span().get_last_span()
-                if not last_span or last_span.get("mongoRequestId") != event.request_id:
+            with lumigo_safe_execute("pymongo failed"):
+                if event.request_id not in LumigoMongoMonitoring.request_to_span_id:
                     get_logger().warning("Mongo span ended without a record on its start")
                     return
-                last_span.update(
+                span_id = LumigoMongoMonitoring.request_to_span_id.pop(event.request_id)
+                span = SpansContainer.get_span().get_span_by_id(span_id)
+                span.update(
                     {
-                        "ended": last_span["started"] + (event.duration_micros / 1000),
+                        "ended": span["started"] + (event.duration_micros / 1000),
                         "error": lumigo_dumps(event.failure),
                     }
                 )

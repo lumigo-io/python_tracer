@@ -62,3 +62,28 @@ def test_pymongo_error(monkeypatch, start_event, fail_event):
     assert spans[0]["ended"] > spans[0]["started"]
     assert spans[0]["error"] == '{"code": 500}'
     assert "response" not in spans[0]
+
+
+def test_pymongo_concurrent_events(monkeypatch, start_event, success_event):
+    monitor = LumigoMongoMonitoring()
+    monitor.started(start_event)
+    monitor.started(
+        SimpleNamespace(
+            database_name="dname",
+            command_name="cname",
+            command="cmd",
+            request_id="rid2",
+            operation_id="oid",
+            connection_id="cid",
+        )
+    )
+    monitor.succeeded(success_event)
+
+    spans = SpansContainer.get_span().spans
+    assert len(spans) == 2
+    assert spans[0]["mongoRequestId"] == "rid"
+    assert spans[0]["ended"] > spans[0]["started"]
+    assert spans[0]["response"] == '{"code": 200}'
+
+    assert spans[1]["mongoRequestId"] == "rid2"
+    assert "ended" not in spans[1]

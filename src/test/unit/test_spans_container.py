@@ -152,3 +152,12 @@ def test_get_tags_len():
     SpansContainer.get_span().add_tag("k0", "v0")
     SpansContainer.get_span().add_tag("k1", "v1")
     assert SpansContainer.get_span().get_tags_len() == 2
+
+
+def test_get_span_by_id():
+    container = SpansContainer.get_span()
+    container.add_span({"id": 1, "extra": "a"})
+    container.add_span({"id": 2, "extra": "b"})
+    container.add_span({"id": 3, "extra": "c"})
+    assert SpansContainer.get_span().get_span_by_id(2)["extra"] == "b"
+    assert SpansContainer.get_span().get_span_by_id(5) is None

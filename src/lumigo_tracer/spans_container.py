@@ -144,6 +144,12 @@ class SpansContainer:
             return None
         return self.spans[-1]
 
+    def get_span_by_id(self, span_id: str) -> Optional[dict]:
+        for span in self.spans:
+            if span.get("id") == span_id:
+                return span
+        return None
+
     def remove_last_span(self) -> Optional[dict]:
         return self.spans.pop() if self.spans else None
 
