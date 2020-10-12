@@ -17,6 +17,7 @@ else:
 
     class LumigoMongoMonitoring(monitoring.CommandListener):  # type: ignore
         request_to_span_id: Dict[str, str] = {}
+        MONGO_SPAN = "mongoDb"
 
         def started(self, event):
             with lumigo_safe_execute("pymongo started"):
@@ -25,6 +26,7 @@ else:
                 SpansContainer.get_span().add_span(
                     {
                         "id": span_id,
+                        "type": self.MONGO_SPAN,
                         "started": int(time.time() / 1000),
                         "databaseName": event.database_name,
                         "commandName": event.command_name,
