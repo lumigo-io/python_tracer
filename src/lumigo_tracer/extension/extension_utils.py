@@ -3,7 +3,7 @@ import os
 import urllib.request
 from typing import Optional, Dict
 
-from lumigo_tracer.utils import get_logger, lumigo_safe_execute
+from lumigo_tracer.lumigo_utils import get_logger, lumigo_safe_execute
 
 
 def get_current_cpu_time() -> Optional[int]:

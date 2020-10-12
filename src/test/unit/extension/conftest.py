@@ -3,7 +3,7 @@ import signal
 import time
 from mock import mock_open, patch, Mock
 
-from lumigo_tracer.utils import LUMIGO_TOKEN_KEY
+from lumigo_tracer.lumigo_utils import LUMIGO_TOKEN_KEY
 from lumigo_tracer.extension.lambda_service import LambdaService
 
 

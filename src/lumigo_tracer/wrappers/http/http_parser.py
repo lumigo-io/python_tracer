@@ -3,7 +3,7 @@ import uuid
 from typing import Type, Optional
 import time
 
-from lumigo_tracer.parsers.utils import (
+from lumigo_tracer.parsing_utils import (
     safe_split_get,
     safe_key_from_json,
     safe_key_from_xml,
@@ -12,8 +12,8 @@ from lumigo_tracer.parsers.utils import (
     safe_get,
     should_scrub_domain,
 )
-from lumigo_tracer.utils import Configuration, lumigo_dumps, md5hash, get_logger
-from lumigo_tracer.parsers.http_data_classes import HttpRequest
+from lumigo_tracer.lumigo_utils import Configuration, lumigo_dumps, md5hash, get_logger
+from lumigo_tracer.wrappers.http.http_data_classes import HttpRequest
 
 HTTP_TYPE = "http"
 
@@ -226,20 +226,6 @@ class S3Parser(Parser):
         return recursive_json_join(
             {"info": {"messageId": headers.get("x-amz-request-id")}},
             super().parse_response(url, status_code, headers, body),
-        )
-
-
-class StepFunctionParser(ServerlessAWSParser):
-    def create_span(self, message_id: str) -> dict:
-        return recursive_json_join(
-            {
-                "info": {
-                    "resourceName": "StepFunction",
-                    "httpInfo": {"host": "StepFunction"},
-                    "messageId": message_id,
-                }
-            },
-            super().parse_request(None),  # type: ignore
         )
 
 

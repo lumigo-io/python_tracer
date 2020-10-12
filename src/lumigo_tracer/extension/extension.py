@@ -5,10 +5,10 @@ from typing import Dict, Optional, List, Union
 from datetime import datetime
 
 from lumigo_tracer.extension.extension_utils import get_current_bandwidth, get_extension_logger
-from lumigo_tracer import utils
+from lumigo_tracer import lumigo_utils
 from lumigo_tracer.extension.lambda_service import LambdaService
 from lumigo_tracer.extension.sampler import Sampler
-from lumigo_tracer.utils import lumigo_safe_execute
+from lumigo_tracer.lumigo_utils import lumigo_safe_execute
 
 SPAN_TYPE = "extensionExecutionEnd"
 
@@ -49,7 +49,7 @@ class LumigoExtension:
 
     def _finish_previous_invocation(self, current_bandwidth: Optional[int]):
         self.sampler.stop_sampling()
-        token = os.environ.get(utils.LUMIGO_TOKEN_KEY)
+        token = os.environ.get(lumigo_utils.LUMIGO_TOKEN_KEY)
         if not token:
             get_extension_logger().warning(
                 f"Skip sending data: No token was found. Request id: {self.request_id}"
@@ -71,4 +71,4 @@ class LumigoExtension:
             networkBytesUsed=current_bandwidth - self.bandwidth,
             cpuUsageTime=[s.dump() for s in self.sampler.get_samples()],
         )
-        utils.report_json(os.environ.get("AWS_REGION", "us-east-1"), msgs=[asdict(span)])
+        lumigo_utils.report_json(os.environ.get("AWS_REGION", "us-east-1"), msgs=[asdict(span)])

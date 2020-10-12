@@ -3,7 +3,7 @@ import time
 from mock import mock_open, patch
 
 from lumigo_tracer.extension.extension import LumigoExtension
-from lumigo_tracer.utils import LUMIGO_TOKEN_KEY
+from lumigo_tracer.lumigo_utils import LUMIGO_TOKEN_KEY
 
 
 @pytest.fixture(autouse=True)

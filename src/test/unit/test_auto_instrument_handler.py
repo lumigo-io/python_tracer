@@ -6,7 +6,7 @@ import sys
 import os
 
 import pytest
-from lumigo_tracer.sync_http.handler import _handler, ORIGINAL_HANDLER_KEY
+from lumigo_tracer.auto_instrument_handler import _handler, ORIGINAL_HANDLER_KEY
 
 
 def test_happy_flow(monkeypatch):

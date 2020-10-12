@@ -5,7 +5,7 @@ from mock import Mock
 from types import SimpleNamespace
 
 from lumigo_tracer.extension.main import start_extension_loop, register, main, STOP_EXTENSION_KEY
-from lumigo_tracer.utils import KILL_SWITCH
+from lumigo_tracer.lumigo_utils import KILL_SWITCH
 
 
 def test_extension_loop_happy_flow(mock_linux_files, reporter_mock, monkeypatch, lambda_service):

@@ -1,20 +1,22 @@
 import builtins
 import logging
+from types import SimpleNamespace
 
-from lumigo_tracer import utils
+from lumigo_tracer import lumigo_utils
 from lumigo_tracer.spans_container import SpansContainer
 import mock
 import pytest
 
-from lumigo_tracer.utils import Configuration, get_omitting_regex, get_logger
+from lumigo_tracer.lumigo_utils import Configuration, get_omitting_regex, get_logger
+from lumigo_tracer.wrappers.http.http_data_classes import HttpState
 
 
 @pytest.fixture(autouse=True)
 def reporter_mock(monkeypatch):
-    utils.Configuration.should_report = False
-    reporter_mock = mock.Mock(utils.report_json)
+    lumigo_utils.Configuration.should_report = False
+    reporter_mock = mock.Mock(lumigo_utils.report_json)
     reporter_mock.return_value = 123
-    monkeypatch.setattr(utils, "report_json", reporter_mock)
+    monkeypatch.setattr(lumigo_utils, "report_json", reporter_mock)
     return reporter_mock
 
 
@@ -35,6 +37,7 @@ def restart_global_span():
     """
     yield
     SpansContainer._span = None
+    HttpState.clear()
 
 
 @pytest.yield_fixture(autouse=True)
@@ -52,8 +55,8 @@ def verbose_logger():
     """
     This fixture make sure that we will see all the log in the tests.
     """
-    utils.get_logger().setLevel(logging.DEBUG)
-    utils.config(should_report=False, verbose=True)
+    lumigo_utils.get_logger().setLevel(logging.DEBUG)
+    lumigo_utils.config(should_report=False, verbose=True)
 
 
 def pytest_addoption(parser):
@@ -77,4 +80,4 @@ def capture_all_logs(caplog):
 
 @pytest.fixture
 def context():
-    return mock.Mock(get_remaining_time_in_millis=lambda: 1000 * 2)
+    return SimpleNamespace(aws_request_id="1234", get_remaining_time_in_millis=lambda: 1000 * 2)

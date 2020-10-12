@@ -1,5 +1,5 @@
 from lumigo_tracer.spans_container import SpansContainer
-from lumigo_tracer.utils import Configuration, warn_client
+from lumigo_tracer.lumigo_utils import Configuration, warn_client
 
 LUMIGO_REPORT_ERROR_STRING = "[LUMIGO_LOG]"
 MAX_TAGS = 50
