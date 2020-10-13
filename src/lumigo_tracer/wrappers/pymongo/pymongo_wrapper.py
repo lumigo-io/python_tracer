@@ -27,7 +27,7 @@ else:
                     {
                         "id": span_id,
                         "type": self.MONGO_SPAN,
-                        "started": int(time.time() / 1000),
+                        "started": int(time.time() * 1000),
                         "databaseName": event.database_name,
                         "commandName": event.command_name,
                         "request": lumigo_dumps(event.command),
