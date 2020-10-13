@@ -9,8 +9,7 @@ from lumigo_tracer.wrappers.redis.redis_wrapper import execute_command_wrapper, 
 @pytest.fixture
 def instance():
     return SimpleNamespace(
-        connection_pool=SimpleNamespace(connection_kwargs={"Host": "bla", "Port": 5000}),
-        command_stack=None,
+        connection_pool=SimpleNamespace(connection_kwargs={"host": "lumigo"}), command_stack=None
     )
 
 
@@ -19,12 +18,13 @@ def func(*args, **kwargs):
 
 
 def test_execute_command_wrapper_happy_flow(instance):
-    execute_command_wrapper(func, instance, ["SET", {"a": 1}], {})
+    execute_command_wrapper(func, instance, ["SET", {"a": 1}, "b"], {})
 
     spans = SpansContainer.get_span().spans
     assert len(spans) == 1
     assert spans[0]["requestCommand"] == "SET"
-    assert spans[0]["requestArgs"] == '{"a": 1}'
+    assert spans[0]["requestArgs"] == '[{"a": 1}, "b"]'
+    assert spans[0]["connectionOptions"] == {"host": "lumigo", "port": None}
     assert spans[0]["ended"] >= spans[0]["started"]
     assert spans[0]["response"] == "true"
     assert "error" not in spans[0]
@@ -56,7 +56,7 @@ def test_execute_wrapper_happy_flow(instance, monkeypatch):
     spans = SpansContainer.get_span().spans
     assert len(spans) == 1
     assert spans[0]["requestCommand"] == '["SET", "GET"]'
-    assert spans[0]["requestArgs"] == '[{"a": 1}, "a"]'
+    assert spans[0]["requestArgs"] == '[[{"a": 1}], ["a"]]'
     assert spans[0]["ended"] >= spans[0]["started"]
     assert spans[0]["response"] == "true"
     assert "error" not in spans[0]
