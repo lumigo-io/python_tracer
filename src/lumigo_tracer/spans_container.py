@@ -205,7 +205,7 @@ class SpansContainer:
     def add_tag(self, key: str, value: str) -> None:
         self.function_span[EXECUTION_TAGS_KEY].append({"key": key, "value": value})
 
-    def end(self, ret_val=None) -> Optional[int]:
+    def end(self, event: Optional[dict], ret_val=None) -> Optional[int]:
         TimeoutMechanism.stop()
         reported_rtt = None
         self.previous_request = None
@@ -226,6 +226,12 @@ class SpansContainer:
                     "The lambda will probably fail due to bad return value. " + suffix,
                 )
         self.function_span.update({"return_value": parsed_ret_val})
+        if _is_span_has_error(self.function_span):
+            self.function_span["envs"] = _get_envs_for_span(has_error=True)
+            if event:
+                self.function_span["event"] = EventDumper.dump_event(
+                    copy.deepcopy(event), has_error=True
+                )
         spans_contain_errors: bool = any(
             _is_span_has_error(s) for s in self.spans + [self.function_span]
         )
@@ -266,7 +272,7 @@ class SpansContainer:
         additional_info = {}
         if Configuration.verbose:
             additional_info.update(
-                {"event": EventDumper.dump_event(event), "envs": lumigo_dumps(dict(os.environ))}
+                {"event": EventDumper.dump_event(event), "envs": _get_envs_for_span()}
             )
 
         trace_root, transaction_id, suffix = parse_trace_id(os.environ.get("_X_AMZN_TRACE_ID", ""))
@@ -307,3 +313,7 @@ class TimeoutMechanism:
     @staticmethod
     def is_activated():
         return Configuration.timeout_timer and signal.getsignal(signal.SIGALRM) != signal.SIG_DFL
+
+
+def _get_envs_for_span(has_error: bool = False) -> str:
+    return lumigo_dumps(dict(os.environ), Configuration.get_max_entry_size(has_error))

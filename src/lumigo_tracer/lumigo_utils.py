@@ -84,6 +84,12 @@ class Configuration:
     max_entry_size: int = DEFAULT_MAX_ENTRY_SIZE
     get_key_depth: int = DEFAULT_KEY_DEPTH
 
+    @staticmethod
+    def get_max_entry_size(has_error: bool = False) -> int:
+        if has_error:
+            return Configuration.max_entry_size * 2
+        return Configuration.max_entry_size
+
 
 def config(
     edge_host: str = "",
