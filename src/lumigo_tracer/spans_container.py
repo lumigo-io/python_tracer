@@ -268,7 +268,6 @@ class SpansContainer:
             additional_info.update(
                 {"event": EventDumper.dump_event(event), "envs": lumigo_dumps(dict(os.environ))}
             )
-
         trace_root, transaction_id, suffix = parse_trace_id(os.environ.get("_X_AMZN_TRACE_ID", ""))
         remaining_time = getattr(context, "get_remaining_time_in_millis", lambda: MAX_LAMBDA_TIME)()
         cls._span = SpansContainer(
