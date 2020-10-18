@@ -66,8 +66,7 @@ def _lumigo_tracer(func):
                     SpansContainer.get_span().add_exception_event(e, inspect.trace())
                 raise
             finally:
-                event = args[0] if len(args) > 0 else None
-                SpansContainer.get_span().end(event, ret_val)
+                SpansContainer.get_span().end(ret_val, *args)
                 if Configuration.enhanced_print:
                     builtins.print = local_print
                     logging.Formatter.format = local_logging_format

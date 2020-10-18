@@ -1,5 +1,6 @@
 import copy
 import inspect
+import json
 
 import pytest
 
@@ -84,7 +85,7 @@ def test_spans_container_end_function_send_only_on_errors_mode_false_not_effecti
 
 
 def test_spans_container_end_function_with_error_double_size_limit(monkeypatch, dummy_span):
-    long_string = "v" * Configuration.get_max_entry_size() * 3
+    long_string = "v" * int(Configuration.get_max_entry_size() * 1.5)
     monkeypatch.setenv("LONG_STRING", long_string)
     event = {"k": long_string}
     SpansContainer.create_span(event)
@@ -92,11 +93,11 @@ def test_spans_container_end_function_with_error_double_size_limit(monkeypatch, 
     start_span = copy.deepcopy(SpansContainer.get_span().function_span)
     SpansContainer.get_span().add_exception_event(Exception("Some Error"), inspect.trace())
 
-    SpansContainer.get_span().end(event)
+    SpansContainer.get_span().end(event=event)
 
     end_span = SpansContainer.get_span().function_span
-    assert len(end_span["event"]) > len(start_span["event"]) * 1.8 + 1
-    assert len(end_span["envs"]) > len(start_span["envs"]) * 1.8 + 1
+    assert len(end_span["event"]) > len(start_span["event"])
+    assert end_span["event"] == json.dumps(event)
 
 
 def test_spans_container_timeout_mechanism_send_only_on_errors_mode(

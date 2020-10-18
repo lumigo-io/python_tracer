@@ -205,7 +205,7 @@ class SpansContainer:
     def add_tag(self, key: str, value: str) -> None:
         self.function_span[EXECUTION_TAGS_KEY].append({"key": key, "value": value})
 
-    def end(self, event: Optional[dict], ret_val=None) -> Optional[int]:
+    def end(self, ret_val=None, event: Optional[dict] = None, context=None) -> Optional[int]:
         TimeoutMechanism.stop()
         reported_rtt = None
         self.previous_request = None
@@ -227,11 +227,7 @@ class SpansContainer:
                 )
         self.function_span.update({"return_value": parsed_ret_val})
         if _is_span_has_error(self.function_span):
-            self.function_span["envs"] = _get_envs_for_span(has_error=True)
-            if event:
-                self.function_span["event"] = EventDumper.dump_event(
-                    copy.deepcopy(event), has_error=True
-                )
+            self._set_error_extra_data(event)
         spans_contain_errors: bool = any(
             _is_span_has_error(s) for s in self.spans + [self.function_span]
         )
@@ -246,6 +242,13 @@ class SpansContainer:
                 "No Spans were sent, `Configuration.send_only_if_error` is on and no span has error"
             )
         return reported_rtt
+
+    def _set_error_extra_data(self, event):
+        self.function_span["envs"] = _get_envs_for_span(has_error=True)
+        if event:
+            self.function_span["event"] = EventDumper.dump_event(
+                copy.deepcopy(event), has_error=True
+            )
 
     def get_patched_root(self):
         root = safe_split_get(self.trace_root, "-", 0)

@@ -1,3 +1,4 @@
+import json
 from collections import OrderedDict
 import pytest
 
@@ -480,10 +481,12 @@ def test_parse_cloudfront_event(cloudfront_event):
 
 
 def test_dump_event_has_error_should_double_limit_size():
-    event = {"k": "v" * Configuration.get_max_entry_size() * 3}
+    long_string = "v" * int(Configuration.get_max_entry_size() * 1.5)
+    event = {"k": long_string}
     result_no_error = EventDumper.dump_event(event)
     result_has_error = EventDumper.dump_event(event, has_error=True)
-    assert len(result_has_error) > len(result_no_error) * 1.8 + 1
+    assert len(result_has_error) > len(result_no_error)
+    assert result_has_error == json.dumps(event)
 
 
 @pytest.fixture
