@@ -388,3 +388,11 @@ def test_report_json_retry(monkeypatch, reporter_mock, caplog, errors, final_log
 def test_is_kill_switch_on(monkeypatch, env, expected):
     monkeypatch.setenv(KILL_SWITCH, env)
     assert is_kill_switch_on() == expected
+
+
+def test_get_max_entry_size_default(monkeypatch):
+    assert Configuration.get_max_entry_size() == 2048
+
+
+def test_get_max_entry_size_has_error():
+    assert Configuration.get_max_entry_size(has_error=True) == 4096
