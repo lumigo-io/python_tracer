@@ -55,6 +55,7 @@ NUMBER_OF_SPANS_IN_REPORT_OPTIMIZATION = 200
 DEFAULT_KEY_DEPTH = 4
 LUMIGO_TOKEN_KEY = "LUMIGO_TRACER_TOKEN"
 KILL_SWITCH = "LUMIGO_SWITCH_OFF"
+ERROR_SIZE_LIMIT_MULTIPLIER = 2
 
 _logger: Dict[str, logging.Logger] = {}
 
@@ -87,7 +88,7 @@ class Configuration:
     @staticmethod
     def get_max_entry_size(has_error: bool = False) -> int:
         if has_error:
-            return Configuration.max_entry_size * 2
+            return Configuration.max_entry_size * ERROR_SIZE_LIMIT_MULTIPLIER
         return Configuration.max_entry_size
 
 
