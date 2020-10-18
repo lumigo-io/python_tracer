@@ -86,6 +86,7 @@ def _http_send_wrapper(func, instance, args, kwargs):
     Finally, it add an event to the span, and run the wrapped function (http.client.HTTPConnection.send).
     """
     data = safe_get_list(args, 0)
+
     with lumigo_safe_execute("parse requested streams"):
         if hasattr(data, "read"):
             if not hasattr(data, "seek") or not hasattr(data, "tell"):
