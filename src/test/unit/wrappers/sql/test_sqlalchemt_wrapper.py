@@ -1,4 +1,5 @@
 import pytest
+from lumigo_tracer.lumigo_utils import DEFAULT_MAX_ENTRY_SIZE
 from sqlalchemy.exc import OperationalError
 
 from lumigo_tracer.spans_container import SpansContainer
@@ -32,11 +33,11 @@ def test_happy_flow(context, db):
     http_spans = SpansContainer.get_span().spans
 
     assert len(http_spans) == 2
-    assert http_spans[0]["query"] == "INSERT INTO users (name) VALUES (?)"
+    assert http_spans[0]["query"] == '"INSERT INTO users (name) VALUES (?)"'
     assert http_spans[0]["values"] == '["saart"]'
     assert http_spans[0]["ended"] >= http_spans[0]["started"]
 
-    assert http_spans[1]["query"] == "SELECT users.id, users.name \nFROM users"
+    assert http_spans[1]["query"] == '"SELECT users.id, users.name \\nFROM users"'
     assert http_spans[1]["values"] == "[]"
     assert http_spans[0]["ended"] >= http_spans[0]["started"]
 
@@ -56,8 +57,22 @@ def test_non_existing_table(context, db):
     http_spans = SpansContainer.get_span().spans
 
     assert len(http_spans) == 1
-    assert http_spans[0]["query"] == "SELECT others.id \nFROM others"
+    assert http_spans[0]["query"] == '"SELECT others.id \\nFROM others"'
     assert (
         http_spans[0]["error"] == '{"type": "OperationalError", "args": ["no such table: others"]}'
     )
     assert http_spans[0]["ended"] >= http_spans[0]["started"]
+
+
+def test_pruning_long_strings(context, db):
+    @lumigo_tracer(token="123")
+    def lambda_test_function(event, context):
+        engine = create_engine(db)
+        conn = engine.connect()
+        conn.execute(Users.insert().values(name="a" * (DEFAULT_MAX_ENTRY_SIZE * 5)))
+
+    lambda_test_function({}, context)
+    http_spans = SpansContainer.get_span().spans
+
+    assert len(http_spans) == 1
+    assert len(http_spans[0]["values"]) <= DEFAULT_MAX_ENTRY_SIZE * 2

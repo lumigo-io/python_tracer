@@ -23,12 +23,12 @@ def _before_cursor_execute(conn, cursor, statement, parameters, context, execute
             "type": SQL_SPAN,
             "started": int(time.time() * 1000),
             "connectionParameters": {
-                "host": conn.engine.url.host,
+                "host": conn.engine.url.host or conn.engine.url.database,
                 "port": conn.engine.url.port,
                 "database": conn.engine.url.database,
                 "user": conn.engine.url.username,
             },
-            "query": statement,
+            "query": lumigo_dumps(statement),
             "values": lumigo_dumps(parameters),
         }
     )
