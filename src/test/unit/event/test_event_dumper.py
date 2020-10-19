@@ -1,3 +1,4 @@
+import json
 from collections import OrderedDict
 import pytest
 
@@ -7,7 +8,7 @@ from lumigo_tracer.event.event_dumper import (
     CloudfrontHandler,
     S3Handler,
 )
-from lumigo_tracer.lumigo_utils import lumigo_dumps
+from lumigo_tracer.lumigo_utils import lumigo_dumps, Configuration
 
 
 class ExceptionHandler(EventParseHandler):
@@ -477,6 +478,15 @@ def test_parse_cloudfront_event(cloudfront_event):
             }
         )
     )
+
+
+def test_dump_event_has_error_should_double_limit_size():
+    long_string = "v" * int(Configuration.get_max_entry_size() * 1.5)
+    event = {"k": long_string}
+    result_no_error = EventDumper.dump_event(event)
+    result_has_error = EventDumper.dump_event(event, has_error=True)
+    assert len(result_has_error) > len(result_no_error)
+    assert result_has_error == json.dumps(event)
 
 
 @pytest.fixture

@@ -5,7 +5,7 @@ from collections import OrderedDict
 from typing import Dict, List
 
 from lumigo_tracer.parsing_utils import str_to_list, safe_get
-from lumigo_tracer.lumigo_utils import get_logger, is_api_gw_event, lumigo_dumps
+from lumigo_tracer.lumigo_utils import get_logger, is_api_gw_event, lumigo_dumps, Configuration
 
 API_GW_KEYS_ORDER = str_to_list(os.environ.get("LUMIGO_API_GW_KEYS_ORDER", "")) or [
     "version",
@@ -207,7 +207,10 @@ class SQSHandler(EventParseHandler):
 
 class EventDumper:
     @staticmethod
-    def dump_event(event: Dict, handlers: List[EventParseHandler] = None) -> str:
+    def dump_event(
+        event: Dict, handlers: List[EventParseHandler] = None, has_error: bool = False
+    ) -> str:
+        max_size = Configuration.get_max_entry_size(has_error)
         handlers = handlers or [
             ApiGWHandler(),
             SNSHandler(),
@@ -218,10 +221,10 @@ class EventDumper:
         for handler in handlers:
             try:
                 if handler.is_supported(event):
-                    return lumigo_dumps(handler.parse(event))
+                    return lumigo_dumps(handler.parse(event), max_size)
             except Exception as e:
                 get_logger().debug(
                     f"Error while trying to parse with handler {handler.__class__.__name__} event {event}",
                     exc_info=e,
                 )
-        return lumigo_dumps(event)
+        return lumigo_dumps(event, max_size)
