@@ -7,7 +7,6 @@ from io import BytesIO
 from types import SimpleNamespace
 from typing import Dict
 import socket
-from importlib import reload
 
 import pytest
 import urllib3
@@ -439,41 +438,34 @@ def test_aggregating_response_body():
 
 
 def test_double_request_size_limit_on_error_status_code(context, monkeypatch):
-    import http.client
-    import lumigo_tracer
-
-    http.client = reload(http.client)
-    lumigo_tracer = reload(lumigo_tracer)
-    lumigo_tracer.wrappers.already_wrapped = False
-
     d = {"a": "v" * int(Configuration.get_max_entry_size() * 1.5)}
-    original_getresponse = http.client.HTTPConnection.getresponse
+    original_begin = http.client.HTTPResponse.begin
 
-    def mocked_get_response(*args, status_code=None, **kwargs):
-        response = original_getresponse(*args, **kwargs)
-        response.code = status_code
-        return response
+    def mocked_begin(*args, **kwargs):
+        """
+        We need this in order to mock the status code of the response
+        """
+        return_value = original_begin(*args, **kwargs)
+        response_self = args[0]
+        response_self.code = status_code
+        return return_value
 
-    monkeypatch.setattr(http.client.HTTPConnection, "getresponse", mocked_get_response)
+    monkeypatch.setattr(http.client.HTTPResponse, "begin", mocked_begin)
 
     @lumigo_tracer.lumigo_tracer(token="123")
-    def http_no_error(event, context):
+    def lambda_test_function(event, context):
         conn = http.client.HTTPConnection("www.google.com")
         conn.request("GET", "/", json.dumps(d), headers=d)
-        conn.getresponse(status_code=200)
+        conn.getresponse()
 
-    http_no_error({}, context)
+    status_code = 200
+    lambda_test_function({}, context)
     http_span_no_error = copy.deepcopy(SpansContainer.get_span().spans[-1])
 
-    @lumigo_tracer.lumigo_tracer(token="123")
-    def http_with_error(event, context):
-        conn = http.client.HTTPConnection("www.google.com")
-        conn.request("GET", "/", json.dumps(d), headers=d)
-        conn.getresponse(status_code=500)
-
-    http_with_error({}, context)
-
+    status_code = 400
+    lambda_test_function({}, context)
     http_span_with_error = SpansContainer.get_span().spans[-1]
+
     http_info_no_error = http_span_no_error["info"]["httpInfo"]
     http_info_with_error = http_span_with_error["info"]["httpInfo"]
     request_with_error = http_info_with_error["request"]

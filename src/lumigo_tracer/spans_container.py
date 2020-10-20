@@ -326,7 +326,3 @@ class TimeoutMechanism:
 
 def _get_envs_for_span(has_error: bool = False) -> str:
     return lumigo_dumps(dict(os.environ), Configuration.get_max_entry_size(has_error))
-
-
-def get_max_possible_size() -> int:
-    return Configuration.get_max_entry_size(True)

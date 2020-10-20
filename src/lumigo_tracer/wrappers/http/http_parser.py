@@ -17,6 +17,7 @@ from lumigo_tracer.lumigo_utils import (
     md5hash,
     get_logger,
     get_current_ms_time,
+    is_error_code,
 )
 from lumigo_tracer.wrappers.http.http_data_classes import HttpRequest
 
@@ -64,7 +65,7 @@ class Parser:
         }
 
     def parse_response(self, url: str, status_code: int, headers: dict, body: bytes) -> dict:
-        max_size = Configuration.get_max_entry_size(status_code >= 400)
+        max_size = Configuration.get_max_entry_size(has_error=is_error_code(status_code))
         if Configuration.verbose and not should_scrub_domain(url):
             additional_info = {
                 "headers": lumigo_dumps(headers, max_size),

@@ -12,8 +12,10 @@ from lumigo_tracer.lumigo_utils import (
     ensure_str,
     Configuration,
     lumigo_dumps,
+    get_size_upper_bound,
+    is_error_code,
 )
-from lumigo_tracer.spans_container import SpansContainer, get_max_possible_size
+from lumigo_tracer.spans_container import SpansContainer
 from lumigo_tracer.wrappers.http.http_data_classes import HttpRequest, HttpState
 from collections import namedtuple
 
@@ -52,7 +54,7 @@ def add_unparsed_request(parse_params: HttpRequest):
                 if "response" not in last_event["info"]["httpInfo"]:
                     SpansContainer.get_span().pop_last_span()
                     body = (HttpState.previous_request.body + parse_params.body)[
-                        : get_max_possible_size()
+                        : get_size_upper_bound()
                     ]
                     add_request_event(HttpState.previous_request.clone(body=body))
                     return
@@ -75,25 +77,31 @@ def update_event_response(
         else:
             HttpState.previous_response_body = b""
 
-        has_error = status_code >= 400
+        has_error = is_error_code(status_code)
         headers = {k.lower(): v for k, v in headers.items()} if headers else {}
         parser = get_parser(host, headers)()  # type: ignore
         if len(HttpState.previous_response_body) < Configuration.get_max_entry_size(has_error):
             HttpState.previous_response_body += body
-        if has_error and HttpState.previous_request and http_info.get("request"):
-            max_size = Configuration.get_max_entry_size(True)
-            http_info["request"].update(
-                {
-                    "body": lumigo_dumps(HttpState.previous_request.body, max_size)
-                    if HttpState.previous_request.body
-                    else "",
-                    "headers": lumigo_dumps(HttpState.previous_request.headers, max_size),
-                }
-            )
+        if has_error:
+            _update_request_data_increased_size_limit(http_info)
         update = parser.parse_response(  # type: ignore
             host, status_code, headers, HttpState.previous_response_body  # type: ignore
         )
         SpansContainer.get_span().add_span(recursive_json_join(update, last_event))
+
+
+def _update_request_data_increased_size_limit(http_info: dict) -> None:
+    if not HttpState.previous_request or not http_info.get("request"):
+        return
+    max_size = Configuration.get_max_entry_size(True)
+    http_info["request"].update(
+        {
+            "body": lumigo_dumps(HttpState.previous_request.body, max_size)
+            if HttpState.previous_request.body
+            else "",
+            "headers": lumigo_dumps(HttpState.previous_request.headers, max_size),
+        }
+    )
 
 
 #   Wrappers  #
@@ -112,7 +120,7 @@ def _http_send_wrapper(func, instance, args, kwargs):
                 data = ""
             else:
                 current_pos = data.tell()
-                data = data.read(get_max_possible_size())
+                data = data.read(get_size_upper_bound())
                 args[0].seek(current_pos)
 
     host, method, headers, body, uri = (

@@ -31,6 +31,8 @@ from lumigo_tracer.lumigo_utils import (
     report_json,
     is_kill_switch_on,
     KILL_SWITCH,
+    is_error_code,
+    get_size_upper_bound,
 )
 import json
 
@@ -396,3 +398,14 @@ def test_get_max_entry_size_default(monkeypatch):
 
 def test_get_max_entry_size_has_error():
     assert Configuration.get_max_entry_size(has_error=True) == 4096
+
+
+def test_get_size_upper_bound():
+    assert get_size_upper_bound() == 4096
+
+
+@pytest.mark.parametrize(
+    ("status_code", "is_error"), [(0, False), (200, False), (400, False), (500, False)]
+)
+def test_is_error_code(status_code, is_error) -> bool:
+    return is_error_code(status_code) is is_error

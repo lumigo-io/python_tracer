@@ -536,3 +536,11 @@ def lumigo_dumps(
 
 def is_kill_switch_on():
     return str(os.environ.get(KILL_SWITCH, "")).lower() == "true"
+
+
+def get_size_upper_bound() -> int:
+    return Configuration.get_max_entry_size(True)
+
+
+def is_error_code(status_code: int) -> bool:
+    return status_code >= 400
