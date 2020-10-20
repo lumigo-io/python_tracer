@@ -1,10 +1,13 @@
 import importlib
-
-import time
 import uuid
 
 from lumigo_tracer.libs.wrapt import wrap_function_wrapper
-from lumigo_tracer.lumigo_utils import lumigo_safe_execute, get_logger, lumigo_dumps
+from lumigo_tracer.lumigo_utils import (
+    lumigo_safe_execute,
+    get_logger,
+    lumigo_dumps,
+    get_current_ms_time,
+)
 from lumigo_tracer.spans_container import SpansContainer
 
 try:
@@ -21,7 +24,7 @@ def _before_cursor_execute(conn, cursor, statement, parameters, context, execute
         {
             "id": str(uuid.uuid4()),
             "type": SQL_SPAN,
-            "started": int(time.time() * 1000),
+            "started": get_current_ms_time(),
             "connectionParameters": {
                 "host": conn.engine.url.host or conn.engine.url.database,
                 "port": conn.engine.url.port,
@@ -39,7 +42,7 @@ def _after_cursor_execute(conn, cursor, statement, parameters, context, executem
     if not span:
         get_logger().warning("Redis span ended without a record on its start")
         return
-    span.update({"ended": int(time.time() * 1000), "response": ""})
+    span.update({"ended": get_current_ms_time(), "response": ""})
 
 
 def _handle_error(context):
@@ -49,7 +52,7 @@ def _handle_error(context):
         return
     span.update(
         {
-            "ended": int(time.time() * 1000),
+            "ended": get_current_ms_time(),
             "error": lumigo_dumps(
                 {
                     "type": context.original_exception.__class__.__name__,
