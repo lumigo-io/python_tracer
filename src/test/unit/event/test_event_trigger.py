@@ -176,7 +176,7 @@ from lumigo_tracer.lumigo_utils import Configuration
                 "resources": [],
                 "detail": {"a": 0.024995371455989845},
             },
-            {"messageId": "f0f73aaa-e64f-a550-5be2-850898090583"},
+            {"triggeredBy": "eventBridge", "messageId": "f0f73aaa-e64f-a550-5be2-850898090583"},
         ),
         (  # cloudwatch
             {
