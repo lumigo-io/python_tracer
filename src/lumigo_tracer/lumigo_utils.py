@@ -305,7 +305,7 @@ def is_aws_environment():
     return bool(os.environ.get("AWS_LAMBDA_FUNCTION_VERSION"))
 
 
-def get_current_ms_time():
+def get_current_ms_time() -> int:
     """
     :return: the current time in milliseconds
     """
