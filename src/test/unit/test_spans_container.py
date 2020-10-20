@@ -5,7 +5,12 @@ import json
 import pytest
 
 from lumigo_tracer.wrappers.http.http_parser import HTTP_TYPE
-from lumigo_tracer.spans_container import SpansContainer, TimeoutMechanism, FUNCTION_TYPE
+from lumigo_tracer.spans_container import (
+    SpansContainer,
+    TimeoutMechanism,
+    FUNCTION_TYPE,
+    get_max_possible_size,
+)
 from lumigo_tracer.lumigo_utils import Configuration, EXECUTION_TAGS_KEY
 
 
@@ -179,3 +184,7 @@ def test_get_span_by_id():
     container.add_span({"id": 3, "extra": "c"})
     assert SpansContainer.get_span().get_span_by_id(2)["extra"] == "b"
     assert SpansContainer.get_span().get_span_by_id(5) is None
+
+
+def test_get_max_possible_size():
+    assert get_max_possible_size() == 4096

@@ -29,7 +29,6 @@ from lumigo_tracer.event.event_trigger import parse_triggered_by
 
 _VERSION_PATH = os.path.join(os.path.dirname(__file__), "VERSION")
 MAX_LAMBDA_TIME = 15 * 60 * 1000
-MAX_BODY_SIZE = 1024
 FUNCTION_TYPE = "function"
 
 
@@ -151,7 +150,7 @@ class SpansContainer:
                 return span
         return None
 
-    def remove_last_span(self) -> Optional[dict]:
+    def pop_last_span(self) -> Optional[dict]:
         return self.spans.pop() if self.spans else None
 
     def update_event_end_time(self) -> None:
@@ -327,3 +326,7 @@ class TimeoutMechanism:
 
 def _get_envs_for_span(has_error: bool = False) -> str:
     return lumigo_dumps(dict(os.environ), Configuration.get_max_entry_size(has_error))
+
+
+def get_max_possible_size() -> int:
+    return Configuration.get_max_entry_size(True)
