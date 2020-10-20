@@ -134,7 +134,7 @@ def _is_event_bridge(event: dict):
 
 
 def _parse_event_bridge(event: dict):
-    return {"messageId": event["id"]}
+    return {"triggeredBy": "eventBridge", "messageId": event["id"]}
 
 
 def _is_supported_cw(event: dict):
