@@ -305,6 +305,13 @@ def is_aws_environment():
     return bool(os.environ.get("AWS_LAMBDA_FUNCTION_VERSION"))
 
 
+def get_current_ms_time():
+    """
+    :return: the current time in milliseconds
+    """
+    return int(time.time() * 1000)
+
+
 def ensure_str(s: Union[str, bytes]) -> str:
     return s if isinstance(s, str) else s.decode()
 
@@ -388,7 +395,7 @@ def create_step_function_span(message_id: str):
             "messageId": message_id,
             "httpInfo": {"host": "StepFunction", "request": {"method": "", "body": ""}},
         },
-        "started": int(time.time() * 1000),
+        "started": get_current_ms_time(),
     }
 
 
@@ -487,7 +494,7 @@ def aws_dump(d: Any, decimal_safe=False, **kwargs) -> str:
 
 
 def lumigo_dumps(
-    d: Optional[Union[bytes, str, dict, OrderedDict, list]],
+    d: Union[bytes, str, dict, OrderedDict, list, None],
     max_size: Optional[int] = None,
     regexes: Optional[Pattern[str]] = None,
     enforce_jsonify: bool = False,

@@ -9,6 +9,7 @@ already_wrapped = False
 def wrap(force: bool = False):
     global already_wrapped
     if not already_wrapped:
+        # Never wrap http calls twice - it will create duplicate body
         wrap_http_calls()
     if force or not already_wrapped:
         wrap_pymongo()
