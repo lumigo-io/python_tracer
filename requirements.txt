@@ -7,3 +7,4 @@ capturer==2.4
 attrs==19.1.0
 requests==2.24.0
 pymongo==3.11.0
+redispy==3.0.0

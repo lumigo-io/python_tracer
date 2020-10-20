@@ -1,9 +1,12 @@
 from typing import Dict
-
-import time
 import uuid
 
-from lumigo_tracer.lumigo_utils import lumigo_safe_execute, get_logger, lumigo_dumps
+from lumigo_tracer.lumigo_utils import (
+    lumigo_safe_execute,
+    get_logger,
+    lumigo_dumps,
+    get_current_ms_time,
+)
 from lumigo_tracer.spans_container import SpansContainer
 
 try:
@@ -27,7 +30,7 @@ else:
                     {
                         "id": span_id,
                         "type": self.MONGO_SPAN,
-                        "started": int(time.time() * 1000),
+                        "started": get_current_ms_time(),
                         "databaseName": event.database_name,
                         "commandName": event.command_name,
                         "request": lumigo_dumps(event.command),
