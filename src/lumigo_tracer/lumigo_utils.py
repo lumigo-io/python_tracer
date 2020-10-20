@@ -494,7 +494,7 @@ def aws_dump(d: Any, decimal_safe=False, **kwargs) -> str:
 
 
 def lumigo_dumps(
-    d: Optional[Union[bytes, str, dict, OrderedDict, list, None]],
+    d: Union[bytes, str, dict, OrderedDict, list, None],
     max_size: Optional[int] = None,
     regexes: Optional[Pattern[str]] = None,
     enforce_jsonify: bool = False,
