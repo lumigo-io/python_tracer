@@ -218,7 +218,7 @@ def _putheader_wrapper(func, instance, args, kwargs):
 
 def wrap_http_calls():
     with lumigo_safe_execute("wrap http calls"):
-        get_logger().debug("wrapping the http request")
+        get_logger().debug("wrapping http requests")
         wrap_function_wrapper("http.client", "HTTPConnection.send", _http_send_wrapper)
         wrap_function_wrapper("http.client", "HTTPConnection.request", _headers_reminder_wrapper)
         if importlib.util.find_spec("botocore"):

@@ -1,7 +1,6 @@
 import json
 import uuid
 from typing import Type, Optional
-import time
 
 from lumigo_tracer.parsing_utils import (
     safe_split_get,
@@ -12,7 +11,13 @@ from lumigo_tracer.parsing_utils import (
     safe_get,
     should_scrub_domain,
 )
-from lumigo_tracer.lumigo_utils import Configuration, lumigo_dumps, md5hash, get_logger
+from lumigo_tracer.lumigo_utils import (
+    Configuration,
+    lumigo_dumps,
+    md5hash,
+    get_logger,
+    get_current_ms_time,
+)
 from lumigo_tracer.wrappers.http.http_data_classes import HttpRequest
 
 HTTP_TYPE = "http"
@@ -55,7 +60,7 @@ class Parser:
                     "request": additional_info,
                 }
             },
-            "started": int(time.time() * 1000),
+            "started": get_current_ms_time(),
         }
 
     def parse_response(self, url: str, status_code: int, headers: dict, body: bytes) -> dict:
@@ -71,7 +76,7 @@ class Parser:
         return {
             "type": HTTP_TYPE,
             "info": {"httpInfo": {"host": url, "response": additional_info}},
-            "ended": int(time.time() * 1000),
+            "ended": get_current_ms_time(),
         }
 
 

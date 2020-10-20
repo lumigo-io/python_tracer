@@ -21,6 +21,7 @@ from lumigo_tracer.lumigo_utils import (
     get_logger,
     _is_span_has_error,
     create_step_function_span,
+    get_current_ms_time,
 )
 from lumigo_tracer import lumigo_utils
 from lumigo_tracer.parsing_utils import parse_trace_id, safe_split_get, recursive_json_join
@@ -158,7 +159,7 @@ class SpansContainer:
         This function assumes synchronous execution - we update the last http event.
         """
         if self.spans:
-            self.spans[-1]["ended"] = int(time.time() * 1000)
+            self.spans[-1]["ended"] = get_current_ms_time()
 
     def update_event_times(
         self, start_time: Optional[datetime] = None, end_time: Optional[datetime] = None
@@ -215,7 +216,7 @@ class SpansContainer:
         TimeoutMechanism.stop()
         reported_rtt = None
         self.previous_request = None
-        self.function_span.update({"ended": int(time.time() * 1000)})
+        self.function_span.update({"ended": get_current_ms_time()})
         if Configuration.is_step_function:
             self.add_step_end_event(ret_val)
         parsed_ret_val = None
@@ -287,7 +288,7 @@ class SpansContainer:
         trace_root, transaction_id, suffix = parse_trace_id(os.environ.get("_X_AMZN_TRACE_ID", ""))
         remaining_time = getattr(context, "get_remaining_time_in_millis", lambda: MAX_LAMBDA_TIME)()
         cls._span = SpansContainer(
-            started=int(time.time() * 1000),
+            started=get_current_ms_time(),
             name=os.environ.get("AWS_LAMBDA_FUNCTION_NAME"),
             runtime=os.environ.get("AWS_EXECUTION_ENV"),
             region=os.environ.get("AWS_REGION"),
@@ -300,7 +301,7 @@ class SpansContainer:
             request_id=getattr(context, "aws_request_id", ""),
             account=safe_split_get(getattr(context, "invoked_function_arn", ""), ":", 4, ""),
             trigger_by=parse_triggered_by(event),
-            max_finish_time=int(time.time() * 1000) + remaining_time,
+            max_finish_time=get_current_ms_time() + remaining_time,
             **additional_info,
         )
         return cls._span
