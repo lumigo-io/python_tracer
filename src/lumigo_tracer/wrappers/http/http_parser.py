@@ -229,6 +229,38 @@ class S3Parser(Parser):
         )
 
 
+class EventBridgeParser(Parser):
+    def parse_request(self, parse_params: HttpRequest) -> dict:
+        try:
+            parsed_body = json.loads(parse_params.body)
+        except json.JSONDecodeError as e:
+            get_logger().debug("Error while trying to parse eventBridge request body", exc_info=e)
+            parsed_body = {}
+        resource_names = set()
+        if isinstance(parsed_body.get("Entries"), list):
+            resource_names = {
+                e["EventBusName"] for e in parsed_body["Entries"] if e.get("EventBusName")
+            }
+        return recursive_json_join(
+            {"info": {"resourceName": ",".join(resource_names) or None}},
+            super().parse_request(parse_params),
+        )
+
+    def parse_response(self, url: str, status_code: int, headers, body: bytes) -> dict:
+        try:
+            parsed_body = json.loads(body)
+        except json.JSONDecodeError as e:
+            get_logger().debug("Error while trying to parse eventBridge request body", exc_info=e)
+            parsed_body = {}
+        message_ids = []
+        if isinstance(parsed_body.get("Entries"), list):
+            message_ids = [e["EventId"] for e in parsed_body["Entries"] if e.get("EventId")]
+        return recursive_json_join(
+            {"info": {"messageIds": message_ids}},
+            super().parse_response(url, status_code, headers, body),
+        )
+
+
 class ApiGatewayV2Parser(ServerlessAWSParser):
     # API-GW V1 covered by ServerlessAWSParser
 

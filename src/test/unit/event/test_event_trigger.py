@@ -165,6 +165,19 @@ from lumigo_tracer.lumigo_utils import Configuration
             },
             {"triggeredBy": "unknown"},
         ),
+        (  # EventBridge - happy flow
+            {
+                "version": "0",
+                "id": "f0f73aaa-e64f-a550-5be2-850898090583",
+                "detail-type": "string",
+                "source": "source_lambda",
+                "time": "2020-10-19T13:34:29Z",
+                "region": "us-west-2",
+                "resources": [],
+                "detail": {"a": 0.024995371455989845},
+            },
+            {"messageId": "f0f73aaa-e64f-a550-5be2-850898090583"},
+        ),
         (  # cloudwatch
             {
                 "id": "cdc73f9d-aea9-11e3-9d5a-835b769c0d9c",

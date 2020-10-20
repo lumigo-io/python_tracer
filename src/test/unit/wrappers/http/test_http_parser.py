@@ -9,6 +9,7 @@ from lumigo_tracer.wrappers.http.http_parser import (
     get_parser,
     ApiGatewayV2Parser,
     DynamoParser,
+    EventBridgeParser,
 )
 
 
@@ -150,3 +151,68 @@ def test_dynamodb_parser_sad_flow_unsupported_query():
     )
     with pytest.raises(Exception):
         parser.parse_request(params)
+
+
+def test_event_bridge_parser_request_happy_flow():
+    parser = EventBridgeParser()
+    params = HttpRequest(
+        host="",
+        method="POST",
+        uri="",
+        headers={},
+        body=json.dumps(
+            {
+                "Entries": [
+                    {
+                        "Source": "source_lambda",
+                        "Resources": [],
+                        "DetailType": "string",
+                        "Detail": '{"a": 1}',
+                        "EventBusName": "name1",
+                    },
+                    {
+                        "Source": "source_lambda",
+                        "Resources": [],
+                        "DetailType": "string",
+                        "Detail": '{"a": 2}',
+                        "EventBusName": "name1",
+                    },
+                    {
+                        "Source": "source_lambda",
+                        "Resources": [],
+                        "DetailType": "string",
+                        "Detail": '{"a": 3}',
+                        "EventBusName": "name2",
+                    },
+                ]
+            }
+        ),
+    )
+    response = parser.parse_request(params)
+    assert response["info"]["resourceName"] == "name1,name2"
+
+
+def test_event_bridge_parser_request_sad_flow():
+    parser = EventBridgeParser()
+    params = HttpRequest(host="", method="POST", uri="", headers={}, body="not a json")
+    response = parser.parse_request(params)
+    assert response["info"]["resourceName"] is None
+
+
+def test_event_bridge_parser_response_happy_flow():
+    parser = EventBridgeParser()
+    response = parser.parse_response(
+        "",
+        200,
+        {},
+        body=json.dumps(
+            {"Entries": [{"EventId": "1-2-3-4"}, {"EventId": "6-7-8-9"}], "FailedEntryCount": 0}
+        ).encode(),
+    )
+    assert response["info"]["messageIds"] == ["1-2-3-4", "6-7-8-9"]
+
+
+def test_event_bridge_parser_response_sad_flow():
+    parser = EventBridgeParser()
+    response = parser.parse_response("", 200, {}, body=b"not a json")
+    assert not response["info"]["messageIds"]
