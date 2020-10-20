@@ -78,22 +78,22 @@ def update_event_response(
             HttpState.previous_response_body = b""
 
         has_error = is_error_code(status_code)
+        max_size = Configuration.get_max_entry_size(has_error)
         headers = {k.lower(): v for k, v in headers.items()} if headers else {}
         parser = get_parser(host, headers)()  # type: ignore
-        if len(HttpState.previous_response_body) < Configuration.get_max_entry_size(has_error):
+        if len(HttpState.previous_response_body) < max_size:
             HttpState.previous_response_body += body
         if has_error:
-            _update_request_data_increased_size_limit(http_info)
+            _update_request_data_increased_size_limit(http_info, max_size)
         update = parser.parse_response(  # type: ignore
             host, status_code, headers, HttpState.previous_response_body  # type: ignore
         )
         SpansContainer.get_span().add_span(recursive_json_join(update, last_event))
 
 
-def _update_request_data_increased_size_limit(http_info: dict) -> None:
+def _update_request_data_increased_size_limit(http_info: dict, max_size: int) -> None:
     if not HttpState.previous_request or not http_info.get("request"):
         return
-    max_size = Configuration.get_max_entry_size(True)
     http_info["request"].update(
         {
             "body": lumigo_dumps(HttpState.previous_request.body, max_size)
