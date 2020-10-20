@@ -405,7 +405,7 @@ def test_get_size_upper_bound():
 
 
 @pytest.mark.parametrize(
-    ("status_code", "is_error"), [(0, False), (200, False), (400, False), (500, False)]
+    ("status_code", "is_error"), [(0, False), (200, False), (400, True), (500, True)]
 )
-def test_is_error_code(status_code, is_error) -> bool:
-    return is_error_code(status_code) is is_error
+def test_is_error_code(status_code, is_error):
+    assert is_error_code(status_code) is is_error
