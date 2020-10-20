@@ -189,7 +189,7 @@ def test_event_bridge_parser_request_happy_flow():
         ),
     )
     response = parser.parse_request(params)
-    assert response["info"]["resourceName"] == "name1,name2"
+    assert response["info"]["resourceName"] in ("name1,name2", "name2,name1")
 
 
 def test_event_bridge_parser_request_sad_flow():
