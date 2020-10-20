@@ -1,11 +1,14 @@
-import pytest
-from lumigo_tracer.lumigo_utils import DEFAULT_MAX_ENTRY_SIZE
-from sqlalchemy.exc import OperationalError
+import uuid
 
-from lumigo_tracer.spans_container import SpansContainer
-from lumigo_tracer.tracer import lumigo_tracer
+import pytest
+
+from sqlalchemy.exc import OperationalError
 from sqlalchemy import create_engine, Table, Column, Integer, String, MetaData
 from sqlalchemy.sql import select
+
+from lumigo_tracer.lumigo_utils import DEFAULT_MAX_ENTRY_SIZE
+from lumigo_tracer.spans_container import SpansContainer
+from lumigo_tracer.tracer import lumigo_tracer
 
 
 md = MetaData()
@@ -76,3 +79,17 @@ def test_pruning_long_strings(context, db):
 
     assert len(http_spans) == 1
     assert len(http_spans[0]["values"]) <= DEFAULT_MAX_ENTRY_SIZE * 2
+
+
+def test_exception_in_wrapper(context, db, monkeypatch):
+    @lumigo_tracer(token="123")
+    def lambda_test_function(event, context):
+        engine = create_engine(db)
+        conn = engine.connect()
+        conn.execute(Users.insert().values(name="a" * (DEFAULT_MAX_ENTRY_SIZE * 5)))
+
+    monkeypatch.setattr(uuid, "uuid4", lambda: 1 / 0)
+
+    lambda_test_function({}, context)  # No exception
+
+    assert not SpansContainer.get_span().spans

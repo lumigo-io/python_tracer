@@ -20,47 +20,50 @@ SQL_SPAN = "mySql"
 
 
 def _before_cursor_execute(conn, cursor, statement, parameters, context, executemany):
-    SpansContainer.get_span().add_span(
-        {
-            "id": str(uuid.uuid4()),
-            "type": SQL_SPAN,
-            "started": get_current_ms_time(),
-            "connectionParameters": {
-                "host": conn.engine.url.host or conn.engine.url.database,
-                "port": conn.engine.url.port,
-                "database": conn.engine.url.database,
-                "user": conn.engine.url.username,
-            },
-            "query": lumigo_dumps(statement),
-            "values": lumigo_dumps(parameters),
-        }
-    )
+    with lumigo_safe_execute("handle sqlalchemy before execute"):
+        SpansContainer.get_span().add_span(
+            {
+                "id": str(uuid.uuid4()),
+                "type": SQL_SPAN,
+                "started": get_current_ms_time(),
+                "connectionParameters": {
+                    "host": conn.engine.url.host or conn.engine.url.database,
+                    "port": conn.engine.url.port,
+                    "database": conn.engine.url.database,
+                    "user": conn.engine.url.username,
+                },
+                "query": lumigo_dumps(statement),
+                "values": lumigo_dumps(parameters),
+            }
+        )
 
 
 def _after_cursor_execute(conn, cursor, statement, parameters, context, executemany):
-    span = SpansContainer.get_span().get_last_span()
-    if not span:
-        get_logger().warning("Redis span ended without a record on its start")
-        return
-    span.update({"ended": get_current_ms_time(), "response": ""})
+    with lumigo_safe_execute("handle sqlalchemy after execute"):
+        span = SpansContainer.get_span().get_last_span()
+        if not span:
+            get_logger().warning("Redis span ended without a record on its start")
+            return
+        span.update({"ended": get_current_ms_time(), "response": ""})
 
 
 def _handle_error(context):
-    span = SpansContainer.get_span().get_last_span()
-    if not span:
-        get_logger().warning("Redis span ended without a record on its start")
-        return
-    span.update(
-        {
-            "ended": get_current_ms_time(),
-            "error": lumigo_dumps(
-                {
-                    "type": context.original_exception.__class__.__name__,
-                    "args": context.original_exception.args,
-                }
-            ),
-        }
-    )
+    with lumigo_safe_execute("handle sqlalchemy error"):
+        span = SpansContainer.get_span().get_last_span()
+        if not span:
+            get_logger().warning("Redis span ended without a record on its start")
+            return
+        span.update(
+            {
+                "ended": get_current_ms_time(),
+                "error": lumigo_dumps(
+                    {
+                        "type": context.original_exception.__class__.__name__,
+                        "args": context.original_exception.args,
+                    }
+                ),
+            }
+        )
 
 
 def execute_wrapper(func, instance, args, kwargs):
@@ -74,7 +77,7 @@ def execute_wrapper(func, instance, args, kwargs):
 
 def wrap_sqlalchemy():
     with lumigo_safe_execute("wrap sqlalchemy"):
-        if importlib.util.find_spec("sqlalchemy"):
+        if importlib.util.find_spec("sqlalchemy") and listen:
             get_logger().debug("wrapping sqlalchemy")
             wrap_function_wrapper(
                 "sqlalchemy.engine.strategies", "DefaultEngineStrategy.create", execute_wrapper
