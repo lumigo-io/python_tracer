@@ -1,6 +1,7 @@
 import json
 
 import pytest
+from lumigo_tracer.lumigo_utils import Configuration
 
 from lumigo_tracer.wrappers.http.http_data_classes import HttpRequest
 from lumigo_tracer.wrappers.http.http_parser import (
@@ -150,3 +151,16 @@ def test_dynamodb_parser_sad_flow_unsupported_query():
     )
     with pytest.raises(Exception):
         parser.parse_request(params)
+
+
+def test_double_response_size_limit_on_error_status_code():
+    d = {"a": "v" * int(Configuration.get_max_entry_size() * 1.5)}
+    info_no_error = Parser().parse_response("www.google.com", 200, d, json.dumps(d))
+    response_no_error = info_no_error["info"]["httpInfo"]["response"]
+    info_with_error = Parser().parse_response("www.google.com", 500, d, json.dumps(d))
+    response_with_error = info_with_error["info"]["httpInfo"]["response"]
+
+    assert len(response_with_error["headers"]) > len(response_no_error["headers"])
+    assert response_with_error["headers"] == json.dumps(d)
+    assert len(response_with_error["body"]) > len(response_no_error["body"])
+    assert response_with_error["body"] == json.dumps(d)
