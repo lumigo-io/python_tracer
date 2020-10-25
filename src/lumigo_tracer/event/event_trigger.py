@@ -122,14 +122,14 @@ def _parse_sns(event: dict):
 
 def _is_event_bridge(event: dict):
     return (
-        "version" in event
-        and "id" in event  # noqa: W503
-        and "detail-type" in event  # noqa: W503
-        and "source" in event  # noqa: W503
-        and "time" in event  # noqa: W503
-        and "region" in event  # noqa: W503
-        and "resources" in event  # noqa: W503
-        and "detail" in event  # noqa: W503
+        isinstance(event.get("version"), str)
+        and isinstance(event.get("id"), str)  # noqa: W503
+        and isinstance(event.get("detail-type"), str)  # noqa: W503
+        and isinstance(event.get("source"), str)  # noqa: W503
+        and isinstance(event.get("time"), str)  # noqa: W503
+        and isinstance(event.get("region"), str)  # noqa: W503
+        and isinstance(event.get("resources"), list)  # noqa: W503
+        and isinstance(event.get("detail"), dict)  # noqa: W503
     )
 
 
