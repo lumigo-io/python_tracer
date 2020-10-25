@@ -249,7 +249,7 @@ class EventBridgeParser(Parser):
                 e["EventBusName"] for e in parsed_body["Entries"] if e.get("EventBusName")
             }
         return recursive_json_join(
-            {"info": {"resourceName": ",".join(resource_names) or None}},
+            {"info": {"resourceNames": list(resource_names) or None}},
             super().parse_request(parse_params),
         )
 

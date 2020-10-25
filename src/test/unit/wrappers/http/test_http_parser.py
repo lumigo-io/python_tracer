@@ -203,14 +203,14 @@ def test_event_bridge_parser_request_happy_flow():
         ),
     )
     response = parser.parse_request(params)
-    assert response["info"]["resourceName"] in ("name1,name2", "name2,name1")
+    assert set(response["info"]["resourceNames"]) == {"name2", "name1"}
 
 
 def test_event_bridge_parser_request_sad_flow():
     parser = EventBridgeParser()
     params = HttpRequest(host="", method="POST", uri="", headers={}, body="not a json")
     response = parser.parse_request(params)
-    assert response["info"]["resourceName"] is None
+    assert response["info"]["resourceNames"] is None
 
 
 def test_event_bridge_parser_response_happy_flow():
