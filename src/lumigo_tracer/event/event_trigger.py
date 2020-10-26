@@ -37,6 +37,8 @@ def parse_triggered_by(event: dict):
             return _parse_cw(event)
         elif _is_step_function(event):
             return _parse_step_function(event)
+        elif _is_event_bridge(event):
+            return _parse_event_bridge(event)
 
     return _parse_unknown(event)
 
@@ -116,6 +118,23 @@ def _parse_sns(event: dict):
         "arn": event["Records"][0]["Sns"]["TopicArn"],
         "messageId": event["Records"][0]["Sns"].get("MessageId"),
     }
+
+
+def _is_event_bridge(event: dict):
+    return (
+        isinstance(event.get("version"), str)
+        and isinstance(event.get("id"), str)  # noqa: W503
+        and isinstance(event.get("detail-type"), str)  # noqa: W503
+        and isinstance(event.get("source"), str)  # noqa: W503
+        and isinstance(event.get("time"), str)  # noqa: W503
+        and isinstance(event.get("region"), str)  # noqa: W503
+        and isinstance(event.get("resources"), list)  # noqa: W503
+        and isinstance(event.get("detail"), dict)  # noqa: W503
+    )
+
+
+def _parse_event_bridge(event: dict):
+    return {"triggeredBy": "eventBridge", "messageId": event["id"]}
 
 
 def _is_supported_cw(event: dict):
