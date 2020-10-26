@@ -241,7 +241,9 @@ class EventBridgeParser(Parser):
         try:
             parsed_body = json.loads(parse_params.body)
         except json.JSONDecodeError as e:
-            get_logger().debug("Error while trying to parse eventBridge request body", exc_info=e)
+            get_logger().exception(
+                "Error while trying to parse eventBridge request body", exc_info=e
+            )
             parsed_body = {}
         resource_names = set()
         if isinstance(parsed_body.get("Entries"), list):
@@ -291,6 +293,8 @@ def get_parser(url: str, headers: Optional[dict] = None) -> Type[Parser]:
         return LambdaParser
     elif service == "kinesis":
         return KinesisParser
+    elif service == "events":
+        return EventBridgeParser
     elif safe_split_get(url, ".", 1) == "s3":
         return S3Parser
     # SQS Legacy Endpoints: https://docs.aws.amazon.com/general/latest/gr/rande.html

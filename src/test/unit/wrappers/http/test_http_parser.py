@@ -25,7 +25,7 @@ def test_serverless_aws_parser_fallback_doesnt_change():
 
 
 def test_get_parser_check_headers():
-    url = "api.rti.dev.toyota.com"
+    url = "api.dev.com"
     headers = {"x-amzn-requestid": "1234"}
     assert get_parser(url, headers) == ServerlessAWSParser
 
