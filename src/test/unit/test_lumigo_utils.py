@@ -33,8 +33,8 @@ from lumigo_tracer.lumigo_utils import (
     KILL_SWITCH,
     is_error_code,
     get_size_upper_bound,
-    is_arn,
-    extract_name_from_arn,
+    is_aws_arn,
+    extract_function_name_from_arn,
 )
 import json
 
@@ -415,12 +415,19 @@ def test_is_error_code(status_code, is_error):
 
 @pytest.mark.parametrize(
     ("arn", "is_arn_result"),
-    [("not-arn", False), ("arn:aws:lambda:region:876841109798:function:function-name", True,)],
+    [
+        ("not-arn", False),
+        (None, False),
+        ("arn:aws:lambda:region:876841109798:function:function-name", True,),
+    ],
 )
-def test_is_arn(arn, is_arn_result):
-    assert is_arn(arn) is is_arn_result
+def test_is_aws_arn(arn, is_arn_result):
+    assert is_aws_arn(arn) is is_arn_result
 
 
 def test_extract_name_from_arn():
     name = "function-name"
-    assert extract_name_from_arn(f"arn:aws:lambda:region:123847209798:function:{name}") == name
+    assert (
+        extract_function_name_from_arn(f"arn:aws:lambda:region:123847209798:function:{name}")
+        == name  # noqa
+    )
