@@ -550,5 +550,5 @@ def is_arn(string_to_validate: str) -> bool:
     return string_to_validate.startswith("arn:aws:")
 
 
-def extract_resource_name_from_arn(arn: str) -> str:
+def extract_name_from_arn(arn: str) -> str:
     return arn.split(":")[6]

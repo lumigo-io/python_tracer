@@ -34,7 +34,7 @@ from lumigo_tracer.lumigo_utils import (
     is_error_code,
     get_size_upper_bound,
     is_arn,
-    extract_resource_name_from_arn,
+    extract_name_from_arn,
 )
 import json
 
@@ -415,19 +415,12 @@ def test_is_error_code(status_code, is_error):
 
 @pytest.mark.parametrize(
     ("arn", "is_arn_result"),
-    [
-        ("not-arn", False),
-        ("arn:aws:lambda:eu-central-1:876841109798:function:service-prod-accessRedis", True,),
-    ],
+    [("not-arn", False), ("arn:aws:lambda:region:876841109798:function:function-name", True,)],
 )
 def test_is_arn(arn, is_arn_result):
     assert is_arn(arn) is is_arn_result
 
 
-def test_extract_resource_name_from_arn():
-    assert (
-        extract_resource_name_from_arn(
-            "arn:aws:lambda:eu-central-1:123847209798:function:service-prod-accessRedis"
-        )
-        == "service-prod-accessRedis"  # noqa
-    )
+def test_extract_name_from_arn():
+    name = "function-name"
+    assert extract_name_from_arn(f"arn:aws:lambda:region:123847209798:function:{name}") == name

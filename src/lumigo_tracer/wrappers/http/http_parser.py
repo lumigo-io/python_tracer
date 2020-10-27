@@ -20,7 +20,7 @@ from lumigo_tracer.lumigo_utils import (
     get_current_ms_time,
     is_error_code,
     is_arn,
-    extract_resource_name_from_arn,
+    extract_name_from_arn,
 )
 from lumigo_tracer.wrappers.http.http_data_classes import HttpRequest
 
@@ -177,7 +177,7 @@ class LambdaParser(ServerlessAWSParser):
         return recursive_json_join(
             {
                 "info": {
-                    "resourceName": extract_resource_name_from_arn(decoded_uri)
+                    "resourceName": extract_name_from_arn(decoded_uri)
                     if is_arn(decoded_uri)
                     else decoded_uri
                 },
