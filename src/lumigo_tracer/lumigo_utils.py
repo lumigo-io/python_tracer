@@ -544,3 +544,11 @@ def get_size_upper_bound() -> int:
 
 def is_error_code(status_code: int) -> bool:
     return status_code >= 400
+
+
+def is_arn(string_to_validate: str) -> bool:
+    return string_to_validate.startswith("arn:aws:")
+
+
+def extract_resource_name_from_arn(arn: str) -> str:
+    return arn.split(":")[6]

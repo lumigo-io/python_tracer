@@ -1,6 +1,7 @@
 import json
 import uuid
 from typing import Type, Optional
+from urllib.parse import unquote
 
 from lumigo_tracer.parsing_utils import (
     safe_split_get,
@@ -18,6 +19,8 @@ from lumigo_tracer.lumigo_utils import (
     get_logger,
     get_current_ms_time,
     is_error_code,
+    is_arn,
+    extract_resource_name_from_arn,
 )
 from lumigo_tracer.wrappers.http.http_data_classes import HttpRequest
 
@@ -170,9 +173,14 @@ class SnsParser(ServerlessAWSParser):
 
 class LambdaParser(ServerlessAWSParser):
     def parse_request(self, parse_params: HttpRequest) -> dict:
+        decoded_uri = safe_split_get(unquote(parse_params.uri), "/", 3)
         return recursive_json_join(
             {
-                "info": {"resourceName": safe_split_get(parse_params.uri, "/", 3)},
+                "info": {
+                    "resourceName": extract_resource_name_from_arn(decoded_uri)
+                    if is_arn(decoded_uri)
+                    else decoded_uri
+                },
                 "invocationType": parse_params.headers.get("x-amz-invocation-type"),
             },
             super().parse_request(parse_params),
