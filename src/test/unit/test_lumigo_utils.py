@@ -33,6 +33,7 @@ from lumigo_tracer.lumigo_utils import (
     KILL_SWITCH,
     is_error_code,
     get_size_upper_bound,
+    is_aws_arn,
 )
 import json
 
@@ -409,3 +410,15 @@ def test_get_size_upper_bound():
 )
 def test_is_error_code(status_code, is_error):
     assert is_error_code(status_code) is is_error
+
+
+@pytest.mark.parametrize(
+    ("arn", "is_arn_result"),
+    [
+        ("not-arn", False),
+        (None, False),
+        ("arn:aws:lambda:region:876841109798:function:function-name", True),
+    ],
+)
+def test_is_aws_arn(arn, is_arn_result):
+    assert is_aws_arn(arn) is is_arn_result

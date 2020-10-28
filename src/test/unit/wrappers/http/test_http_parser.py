@@ -11,6 +11,7 @@ from lumigo_tracer.wrappers.http.http_parser import (
     ApiGatewayV2Parser,
     DynamoParser,
     EventBridgeParser,
+    LambdaParser,
 )
 
 
@@ -74,6 +75,28 @@ def test_apigw_parse_response_with_aws_request_id():
             },
         },
     }
+
+
+@pytest.mark.parametrize(
+    "uri, resource_name",
+    [
+        (
+            "lambda.us-west-2.amazonaws.com/2015-03-31/functions/my-function/invocations?Qualifier=1",
+            "my-function",
+        ),
+        (
+            "lambda.eu-central-1.amazonaws.com/2015-03-31/functions/arn%3Aaws%3Alambda%3Aeu-central-1%3A123847209798%3Afunction%3Aservice-prod-accessRedis/invocations",
+            "service-prod-accessRedis",
+        ),
+    ],
+)
+def test_lambda_parser_resource_name(uri, resource_name):
+    parser = LambdaParser()
+    params = HttpRequest(
+        host="", method="POST", uri=uri, headers={}, body=json.dumps({"hello": "world"})
+    )
+    response = parser.parse_request(params)
+    assert response["info"]["resourceName"] == resource_name
 
 
 @pytest.mark.parametrize(

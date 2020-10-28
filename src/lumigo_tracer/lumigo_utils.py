@@ -544,3 +544,7 @@ def get_size_upper_bound() -> int:
 
 def is_error_code(status_code: int) -> bool:
     return status_code >= 400
+
+
+def is_aws_arn(string_to_validate: Optional[str]) -> bool:
+    return bool(string_to_validate and string_to_validate.startswith("arn:aws:"))
