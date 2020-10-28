@@ -418,7 +418,7 @@ def test_is_error_code(status_code, is_error):
     [
         ("not-arn", False),
         (None, False),
-        ("arn:aws:lambda:region:876841109798:function:function-name", True,),
+        ("arn:aws:lambda:region:876841109798:function:function-name", True),
     ],
 )
 def test_is_aws_arn(arn, is_arn_result):

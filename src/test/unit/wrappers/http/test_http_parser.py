@@ -93,7 +93,7 @@ def test_apigw_parse_response_with_aws_request_id():
 def test_lambda_parser_resource_name(uri, resource_name):
     parser = LambdaParser()
     params = HttpRequest(
-        host="", method="POST", uri=uri, headers={}, body=json.dumps({"hello": "world"}),
+        host="", method="POST", uri=uri, headers={}, body=json.dumps({"hello": "world"})
     )
     response = parser.parse_request(params)
     assert response["info"]["resourceName"] == resource_name
