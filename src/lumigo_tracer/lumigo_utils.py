@@ -14,8 +14,6 @@ from contextlib import contextmanager
 from base64 import b64encode
 import inspect
 
-from lumigo_tracer.parsing_utils import safe_split_get
-
 EXECUTION_TAGS_KEY = "lumigo_execution_tags_no_scrub"
 EDGE_HOST = "{region}.lumigo-tracer-edge.golumigo.com"
 EDGE_PATH = "/api/spans"
@@ -550,7 +548,3 @@ def is_error_code(status_code: int) -> bool:
 
 def is_aws_arn(string_to_validate: Optional[str]) -> bool:
     return bool(string_to_validate and string_to_validate.startswith("arn:aws:"))
-
-
-def extract_function_name_from_arn(arn: str) -> str:
-    return safe_split_get(arn, ":", 6)

@@ -187,3 +187,7 @@ def recursive_get_key(d: Union[List, Dict[str, Union[Dict, str]]], key, depth=No
                 if recursive_result:
                     return recursive_result
     return default
+
+
+def extract_function_name_from_arn(arn: str) -> str:
+    return safe_split_get(arn, ":", 6)

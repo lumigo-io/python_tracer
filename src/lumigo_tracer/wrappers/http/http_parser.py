@@ -11,6 +11,7 @@ from lumigo_tracer.parsing_utils import (
     recursive_json_join,
     safe_get,
     should_scrub_domain,
+    extract_function_name_from_arn,
 )
 from lumigo_tracer.lumigo_utils import (
     Configuration,
@@ -20,7 +21,6 @@ from lumigo_tracer.lumigo_utils import (
     get_current_ms_time,
     is_error_code,
     is_aws_arn,
-    extract_function_name_from_arn,
 )
 from lumigo_tracer.wrappers.http.http_data_classes import HttpRequest
 

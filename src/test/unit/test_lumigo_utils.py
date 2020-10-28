@@ -34,7 +34,6 @@ from lumigo_tracer.lumigo_utils import (
     is_error_code,
     get_size_upper_bound,
     is_aws_arn,
-    extract_function_name_from_arn,
 )
 import json
 
@@ -423,11 +422,3 @@ def test_is_error_code(status_code, is_error):
 )
 def test_is_aws_arn(arn, is_arn_result):
     assert is_aws_arn(arn) is is_arn_result
-
-
-def test_extract_name_from_arn():
-    name = "function-name"
-    assert (
-        extract_function_name_from_arn(f"arn:aws:lambda:region:123847209798:function:{name}")
-        == name  # noqa
-    )

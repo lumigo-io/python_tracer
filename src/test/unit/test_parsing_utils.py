@@ -14,6 +14,7 @@ from lumigo_tracer.parsing_utils import (
     safe_key_from_query,
     safe_key_from_xml,
     safe_get_list,
+    extract_function_name_from_arn,
 )
 from lumigo_tracer.lumigo_utils import config, Configuration
 
@@ -169,3 +170,11 @@ def test_str_to_tuple():
 
 def test_str_to_tuple_exception():
     assert str_to_tuple([1]) is None
+
+
+def test_extract_name_from_arn():
+    name = "function-name"
+    assert (
+        extract_function_name_from_arn(f"arn:aws:lambda:region:123847209798:function:{name}")
+        == name  # noqa
+    )
