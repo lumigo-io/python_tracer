@@ -2,57 +2,73 @@
 ![Version](https://badge.fury.io/py/lumigo-tracer.svg)
 ![codecov](https://codecov.io/gh/lumigo-io/python_tracer/branch/master/graph/badge.svg?token=6EgXIlefwG)
 
-Supported Runtimes: 3.6, 3.7, 3.8
+This is lumigo/python_tracer, Lumigo's Python agent for distributed tracing and performance monitoring.
 
-# How To Use
-## With Lambda Layers:
-* Use the latest ARN version [from these tables](https://github.com/lumigo-io/python_tracer/tree/master/layers)
-## With Serverless framework:
-* Install the [**serverless-lumigo-plugin**](https://github.com/lumigo-io/serverless-lumigo-plugin/blob/master/README.md)
+Supported Python Runtimes: 3.6, 3.7, 3.8
+
+# Usage
+The package allows you to pursue automated metric gathering through Lambda Layers, automated metric gathering and instrumentation through the Serverless framework, or manual metric creation and implementation.
+
+## With Lambda layers
+* When configuring your Lambda functions, include the appropriate Lambda Layer ARN [from these tables](https://github.com/lumigo-io/python_tracer/tree/master/layers)
+
+*Note* - Lambda Layers are an optional feature. If you decide to use this capability, the list of Lambda layers available is available [here.](https://github.com/lumigo-io/lumigo-node/blob/master/layers).
+
+Learn more in our [documentation on auto-instrumentation](https://docs.lumigo.io/docs/auto-instrumentation).
+
+## With Serverless framework
+* To configure the Serverless Framework to work with Lumigo, simply install our plugin: [**serverless-lumigo-plugin**](https://github.com/lumigo-io/serverless-lumigo-plugin/blob/master/README.md)
+
+
 ## Manually
-* install with `pip install lumigo_tracer` <br/> 
-* import using `from lumigo_tracer import lumigo_tracer`
-* wrap you lambda function using `@lumigo_tracer` or `@lumigo_tracer(token='XXX')`. As an example, your lambda should look like: 
+
+To manually configure Lumigo in your Lambda functions:
+
+* Install the package: 
+
+```bash
+pip install lumigo_tracer
 ```
-@lumigo_tracer(token='XXX')
+
+* Import the package in your Lambda code: 
+
+```python
+`from lumigo_tracer import lumigo_tracer`
+```
+
+* Next, wrap your `handler` in Lumigo's `trace` function (note: replace `YOUR-TOKEN-HERE` with your Lumigo API token):
+
+```python
+@lumigo_tracer(token='YOUR-TOKEN-HERE')
 def my_lambda(event, context):
     print('I can finally troubleshoot!')
 ```
 
+* Your function is now fully instrumented
+
 ## Configuration
-* You can turn on the debug logs by setting the environment variable `LUMIGO_DEBUG=true`
-* You can prevent lumigo from sending keys that answer specific regexes by defining `LUMIGO_SECRET_MASKING_REGEX=["regex1", "regex2"]`. By default, we use the default regexes `[".*pass.*", ".*key.*"]`. All the regexes are case-insensitive.
-* Similarly, you can prevent lumigo from sending the entire headers and body of specific domains using the environment variable `LUMIGO_DOMAINS_SCRUBBER=[".*secret.*"]` (give it a list which is a json parsable), or by specify the list of regexes with the key `domains_scrubber` in the tracer's decorator. By default, we will use `["secretsmanager\..*\.amazonaws\.com", "ssm\..*\.amazonaws\.com", "kms\..*\.amazonaws\.com"]`.
-* In case of need, there is a kill switch, that stops all the interventions of lumigo immediately, without changing the code. Simply add an environment variable `LUMIGO_SWITCH_OFF=true`.
+`@lumigo/python_tracer` offers several different configuration options. Pass these to the Lambda function as environment variables:
 
-### Logging Programmatic Errors
-You can use `report_error` function to write logs which will be visible in the platform.<br/>
-Add `from lumigo_tracer import report_error`.<br/>
-
-Then use `report_error("<msg>")` from anywhere in your lambda code.
-
-### Adding Execution Tags
-You can use `add_execution_tag` function to add an execution_tag with a dynamic value.<br/>
-This value can be searched within the Lumigo platform.<br/>
-
-Add `from lumigo_tracer import add_execution_tag`.<br/>
-Then use `add_execution_tag("<key>", "<value>")` from anywhere in your lambda code.<br/>
-Limitation:
-* The maximum number of tags is 50.
-* Key and value length should be between 1 and 50.
-
+* `LUMIGO_DEBUG=TRUE` - Enables debug logging
+* `LUMIGO_SECRET_MASKING_REGEX=["regex1", "regex2"]` - Prevents Lumigo from sending keys that match the supplied regular expressions. All regular expressions are case-insensitive. By default, Lumigo applies the following regular expressions: `[".*pass.*", ".*key.*", ".*secret.*", ".*credential.*", ".*passphrase.*"]`. 
+* `LUMIGO_DOMAINS_SCRUBBER=[".*secret.*"]` - Prevents Lumigo from collecting both request and response details from a list of domains. This accepts a comma-separated list of regular expressions that is JSON-formatted. By default, the tracer uses `["secretsmanager\..*\.amazonaws\.com", "ssm\..*\.amazonaws\.com", "kms\..*\.amazonaws\.com"]`. **Note** - These defaults are overridden when you define a different list of regular expressions.
+* `LUMIGO_SWITCH_OFF=TRUE` - In the event a critical issue arises, this turns off all actions that Lumigo takes in response to your code. This happens without a deployment, and is picked up on the next function run once the environment variable is present.
 
 ### Step Functions
-If this function is part of a step function, you can add the flag `step_function=True` or environment variable `LUMIGO_STEP_FUNCTION=True`, and we will track the states in the step function as a single transaction.
+If your function is part of a set of step functions, you can add the flag `step_function: true` to the Lumigo tracer import. Alternatively, you can configure the step function using an environment variable `LUMIGO_STEP_FUNCTION=True`. When this is active, Lumigo tracks all states in the step function in a single transaction, easing debugging and observability.
+
 ```
 @lumigo_tracer(token='XXX', step_function=True)
 def my_lambda(event, context):
     print('Step function visibility!')
 ```
-Note: we will add the key `"_lumigo"` to the return value of the function. 
 
-If you override the `"Parameters"` configuration, simply add `"_lumigo.$": "$._lumigo"`. <br/>
-For example:
+Note: the tracer adds the key `"_lumigo"` to the return value of the function. 
+
+If you override the `"Parameters"` configuration, add `"_lumigo.$": "$._lumigo"` to ensure this value is still present.
+
+Below is an example configuration for a Lambda function that is part of a step function that has overridden its parameters:
+
 ```
 "States": {
     "state1": {
@@ -71,40 +87,67 @@ For example:
 }
 ```
 
+### Logging Programmatic Errors
+Lumigo provides the `report_error` function, which you can use to publish error logs that are visible to the entire platform. To log programmatic errors:
+
+* Import the `report_error` function with the following code: `from lumigo_tracer import report_error`
+* Use the `report_error` function with the message you wish to send: `report_error("your-message-here")`
+
+### Adding Execution Tags
+You can add execution tags to a function with dynamic values using the parameter `addExecutionTag`.
+
+These tags will be searchable from within the Lumigo platform.
 
 # Frameworks
+
+In addition to native code integration, Lumigo also provides tools for integrating with popular Python frameworks.
+
 ## Chalice
-* In chalice, you should add the following lines to the your file:
-```
-from lumigo_tracer import LumigoChalice
-...
+
+To work with the `lumigo_tracer` in a Chalice-driven function, perform the following:
+* Import the `LumigoChalice` tracer: `from lumigo_tracer import LumigoChalice`
+* Encapsulate your Chalice app within the LumigoChalice wrapper:
+
+```python
 app = Chalice(app_name='chalice')
 app = LumigoChalice(app, token="XXX")
 ```
 
 ## Sentry/Raven Lambda Integration
-Add our decorator beneath the Raven decorator
-```
-from lumigo_tracer import lumigo_tracer
-...
+To integrate the `lumigo_tracer` with Raven, perform the following:
+
+* Include the ` lumigo_tracer` attribute in your code: `from lumigo_tracer import lumigo_tracer`
+* Include the `@lumigo_tracer` decorator **beneath** the Raven decorator:
+
+```python
 @RavenLambdaWrapper()
 @lumigo_tracer(token='XXX')
 def lambda_handler (event, context):  return  {
  'statusCode' :  200,
  'body' : json.dumps( 'Hi!' ) }
 ```
-# How To Contribute
-Prepare your machine
-----
-* Create a virtualenv `virtualenv venv -p python3`
-* Activate the virtualenv by running `. venv/bin/activate`
-* Run `pip install -r requirements.txt` to install dependencies.
-* `cd src` and `python setup.py develop`.
-* If you use pycharm, make sure to change its virtualenv through the PyCharm -> Preferences -> Project -> Interpreter under the menu
-* Run `pre-commit install` in your repository to install pre-commits hooks.
 
-Test
-----
-* To run the unit tests, run `py.test` in the root folder.
-* To deploy the services for the component tests, move to the root test directory and run `sls deploy`. This can be performed only once if the resources doesn't change.
-* To run the component tests, run `py.test --all`.
+# Contributing
+
+Contributions to this project are welcome from all! Below are a couple pointers on how to prepare your machine, as well as some information on testing.
+
+## Preparing your machine
+Getting your machine ready to develop against the package is a straightforward process:
+
+1. Clone this repository, and open a CLI in the cloned directory
+1. Create a virtual environment for the project `virtualenv venv -p python3`
+1. Activate the virtualenv: `. venv/bin/activate`
+1. Install dependencies: `pip install -r requirements.txt`
+1. Navigate to the source directory: `cd src` and 
+1. Run the setup script: `python setup.py develop`.
+1. Run `pre-commit install` in your repository to install pre-commit hooks
+
+**Note**: If you are using pycharm, ensure that you set it to use the virtualenv virtual environment manager. This is available in the menu under PyCharm -> Preferences -> Project -> Interpreter
+
+
+## Running the test suite
+We've provided an easy way to run the unit test suite:
+
+* To run all unit tests, simply run `py.test` in the root folder.
+* To deploy services for component tests, run `sls deploy` from the root test directory. This only needs to take place when the resources change.
+* To run component tests, add the `--all` flag: `py.test --all`
