@@ -8,13 +8,7 @@ import functools
 import itertools
 from collections.abc import Iterable
 
-from lumigo_tracer.utils import (
-    Configuration,
-    LUMIGO_EVENT_KEY,
-    STEP_FUNCTION_UID_KEY,
-    lumigo_safe_execute,
-    get_logger,
-)
+from lumigo_tracer.lumigo_utils import Configuration, get_logger
 
 
 def safe_get(d: Union[dict, list], keys: List[Union[str, int]], default: Any = None) -> Any:
@@ -128,7 +122,7 @@ def parse_trace_id(trace_id_str: str) -> Tuple[str, str, str]:
     return root, safe_split_get(root, "-", 2, default=""), suffix
 
 
-def recursive_json_join(d1: dict, d2: dict):
+def recursive_json_join(d1: Optional[dict], d2: Optional[dict]):
     """
     This function return the recursive joint dictionary, which means that for every (item, key) in the result
      dictionary it holds that:
@@ -136,164 +130,22 @@ def recursive_json_join(d1: dict, d2: dict):
     * if key in d2 and is not dictionary, then the value is d2[key]
     * otherwise, join d1[key] and d2[key]
     """
+    if d1 is None or d2 is None:
+        return d1 or d2
     d = {}
-    for key in itertools.chain(d1.keys(), d2.keys()):
+    for key in set(itertools.chain(d1.keys(), d2.keys())):
         value = d1.get(key, d2.get(key))
         if isinstance(value, dict):
-            d[key] = recursive_json_join(d1.get(key, {}), d2.get(key, {}))
+            d[key] = recursive_json_join(d1.get(key), d2.get(key))  # type: ignore
         else:
             d[key] = value
     return d
 
 
-def parse_triggered_by(event: dict):
-    """
-    This function parses the event and build the dictionary that describes the given event.
-
-    The current possible values are:
-    * {triggeredBy: unknown}
-    * {triggeredBy: apigw, api: <host>, resource: <>, httpMethod: <>, stage: <>, identity: <>, referer: <>}
-    """
-    with lumigo_safe_execute("triggered by"):
-        if not isinstance(event, dict):
-            return None
-        if _is_supported_http_method(event):
-            return parse_http_method(event)
-        elif _is_supported_sns(event):
-            return _parse_sns(event)
-        elif _is_supported_streams(event):
-            return _parse_streams(event)
-        elif _is_supported_cw(event):
-            return _parse_cw(event)
-        elif _is_step_function(event):
-            return _parse_step_function(event)
-
-    return _parse_unknown(event)
-
-
-def _parse_unknown(event: dict):
-    result = {"triggeredBy": "unknown"}
-    return result
-
-
-def _is_step_function(event):
-    return Configuration.is_step_function and STEP_FUNCTION_UID_KEY in event.get(
-        LUMIGO_EVENT_KEY, {}
-    )
-
-
-def _parse_step_function(event: dict):
-    result = {
-        "triggeredBy": "stepFunction",
-        "messageId": event[LUMIGO_EVENT_KEY][STEP_FUNCTION_UID_KEY],
-    }
-    return result
-
-
-def _is_supported_http_method(event: dict):
-    return (
-        "httpMethod" in event  # noqa
-        and "headers" in event  # noqa
-        and "requestContext" in event  # noqa
-        and event.get("requestContext", {}).get("elb") is None  # noqa
-    ) or (  # noqa
-        event.get("version", "") == "2.0" and "headers" in event  # noqa
-    )  # noqa  # noqa
-
-
-def parse_http_method(event: dict):
-    version = event.get("version")
-    if version and version.startswith("2.0"):
-        return _parse_http_method_v2(event)
-    return _parse_http_method_v1(event)
-
-
-def _parse_http_method_v1(event: dict):
-    result = {
-        "triggeredBy": "apigw",
-        "httpMethod": event.get("httpMethod", ""),
-        "resource": event.get("resource", ""),
-        "messageId": event.get("requestContext", {}).get("requestId", ""),
-    }
-    if isinstance(event.get("headers"), dict):
-        result["api"] = event["headers"].get("Host", "unknown.unknown.unknown")
-    if isinstance(event.get("requestContext"), dict):
-        result["stage"] = event["requestContext"].get("stage", "unknown")
-    return result
-
-
-def _parse_http_method_v2(event: dict):
-    result = {
-        "triggeredBy": "apigw",
-        "httpMethod": event.get("requestContext", {}).get("http", {}).get("method"),
-        "resource": event.get("requestContext", {}).get("http", {}).get("path"),
-        "messageId": event.get("requestContext", {}).get("requestId", ""),
-        "api": event.get("requestContext", {}).get("domainName", ""),
-        "stage": event.get("requestContext", {}).get("stage", "unknown"),
-    }
-    return result
-
-
-def _is_supported_sns(event: dict):
-    return event.get("Records", [{}])[0].get("EventSource") == "aws:sns"
-
-
-def _parse_sns(event: dict):
-    return {
-        "triggeredBy": "sns",
-        "arn": event["Records"][0]["Sns"]["TopicArn"],
-        "messageId": event["Records"][0]["Sns"].get("MessageId"),
-    }
-
-
-def _is_supported_cw(event: dict):
-    return event.get("detail-type") == "Scheduled Event" and "source" in event and "time" in event
-
-
-def _parse_cw(event: dict):
-    resource = event.get("resources", ["/unknown"])[0].split("/")[1]
-    return {
-        "triggeredBy": "cloudwatch",
-        "resource": resource,
-        "region": event.get("region"),
-        "detailType": event.get("detail-type"),
-    }
-
-
-def _is_supported_streams(event: dict):
-    return event.get("Records", [{}])[0].get("eventSource") in [
-        "aws:kinesis",
-        "aws:dynamodb",
-        "aws:sqs",
-        "aws:s3",
-    ]
-
-
-def _parse_streams(event: dict) -> Dict[str, str]:
-    """
-    :return: {"triggeredBy": str, "arn": str}
-    If has messageId, return also: {"messageId": str}
-    """
-    triggered_by = event["Records"][0]["eventSource"].split(":")[1]
-    result = {"triggeredBy": triggered_by}
-    if triggered_by == "s3":
-        result["arn"] = event["Records"][0]["s3"]["bucket"]["arn"]
-        result["messageId"] = (
-            event["Records"][0].get("responseElements", {}).get("x-amz-request-id")
-        )
-    else:
-        result["arn"] = event["Records"][0]["eventSourceARN"]
-    if triggered_by == "sqs":
-        result["messageId"] = event["Records"][0].get("messageId")
-    elif triggered_by == "kinesis":
-        result["messageId"] = safe_get(event, ["Records", 0, "kinesis", "sequenceNumber"])
-    return result
-
-
 def should_scrub_domain(url: str) -> bool:
     if url and Configuration.domains_scrubber:
         for regex in Configuration.domains_scrubber:
-            if re.match(regex, url, re.IGNORECASE):
+            if regex.match(url):
                 return True
     return False
 
@@ -314,3 +166,28 @@ def str_to_tuple(val: str) -> Optional[Tuple]:
     except Exception as e:
         get_logger().debug("Error while convert str to tuple", exc_info=e)
     return None
+
+
+def recursive_get_key(d: Union[List, Dict[str, Union[Dict, str]]], key, depth=None, default=None):
+    if depth is None:
+        depth = Configuration.get_key_depth
+    if depth == 0:
+        return default
+    if key in d:
+        return d[key]
+    if isinstance(d, list):
+        for v in d:
+            recursive_result = recursive_get_key(v, key, depth - 1, default)
+            if recursive_result:
+                return recursive_result
+    if isinstance(d, dict):
+        for v in d.values():
+            if isinstance(v, (list, dict)):
+                recursive_result = recursive_get_key(v, key, depth - 1, default)
+                if recursive_result:
+                    return recursive_result
+    return default
+
+
+def extract_function_name_from_arn(arn: str) -> str:
+    return safe_split_get(arn, ":", 6)

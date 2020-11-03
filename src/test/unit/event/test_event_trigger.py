@@ -1,89 +1,7 @@
-import os
-
 import pytest
 
-from lumigo_tracer.parsers import utils
-from lumigo_tracer.parsers.utils import should_scrub_domain, str_to_list, str_to_tuple
-from lumigo_tracer.utils import config, Configuration
-
-
-@pytest.mark.parametrize(
-    ("input_params", "expected_output"),
-    [
-        (("a.b.c", ".", 0), "a"),  # happy flow
-        (("a.b.c", ".", 1), "b"),
-        (("a.b.c", ".", 5, "d"), "d"),  # return the default
-    ],
-)
-def test_safe_split_get(input_params, expected_output):
-    assert utils.safe_split_get(*input_params) == expected_output
-
-
-@pytest.mark.parametrize(
-    ("input_params", "expected_output"),
-    [
-        ((b'{"a": "b"}', "a"), "b"),  # happy flow
-        ((b'{"a": "b"}', "c"), None),  # return the default
-        ((b"<a>b</a>", "c"), None),  # not a json
-    ],
-)
-def test_key_from_json(input_params, expected_output):
-    assert utils.safe_key_from_json(*input_params) == expected_output
-
-
-@pytest.mark.parametrize(
-    ("input_params", "expected_output"),
-    [
-        ((b"<a>b</a>", "a"), "b"),  # happy flow - one parameter
-        ((b"<a><b>c</b><d></d></a>", "a/b"), "c"),  # happy flow - longer path
-        ((b"<a>b</a>", "c"), None),  # not existing key
-        ((b"<a><b>c</b></a>", "a/e"), None),  # not existing sub-key
-        ((b'{"a": "b"}', "c"), None),  # not an xml
-    ],
-)
-def test_key_from_xml(input_params, expected_output):
-    assert utils.safe_key_from_xml(*input_params) == expected_output
-
-
-@pytest.mark.parametrize(
-    ("input_params", "expected_output"),
-    [
-        ((b"a=b", "a"), "b"),  # happy flow - one parameter
-        ((b"a=b&c=d", "c"), "d"),  # happy flow - multiple parameters
-        ((b"a=b&c=d", "e"), None),  # not existing key
-        ((b'{"a": "b"}', "c"), None),  # not an query, no '&'
-        ((b"a&b", "a"), None),  # not an query, with '&'
-    ],
-)
-def test_key_from_query(input_params, expected_output):
-    assert utils.safe_key_from_query(*input_params) == expected_output
-
-
-@pytest.mark.parametrize(
-    ("trace_id", "result"),
-    [
-        ("Root=1-2-3;Parent=34;Sampled=0", ("1-2-3", "3", ";Parent=34;Sampled=0")),  # happy flow
-        ("Root=1-2-3;", ("1-2-3", "3", ";")),
-        ("Root=1-2;", ("1-2", "", ";")),
-        ("a;1", ("", "", ";1")),
-        ("123", ("", "", "123")),
-    ],
-)
-def test_parse_trace_id(trace_id, result):
-    assert utils.parse_trace_id(trace_id) == result
-
-
-@pytest.mark.parametrize(
-    ("d1", "d2", "result"),
-    [
-        ({1: 2}, {3: 4}, {1: 2, 3: 4}),  # happy flow
-        ({1: 2}, {1: 3}, {1: 2}),  # same key twice
-        ({1: {2: 3}}, {4: 5}, {1: {2: 3}, 4: 5}),  # dictionary in d1 and nothing in d2
-        ({1: {2: 3}}, {1: {4: 5}}, {1: {2: 3, 4: 5}}),  # merge two inner dictionaries
-    ],
-)
-def test_recursive_json_join(d1, d2, result):
-    assert utils.recursive_json_join(d1, d2) == result
+from lumigo_tracer.event.event_trigger import parse_triggered_by
+from lumigo_tracer.lumigo_utils import Configuration
 
 
 @pytest.mark.parametrize(
@@ -157,20 +75,6 @@ def test_recursive_json_join(d1, d2, result):
                 "messageId": "12",
             },
         ),
-        (  # DynamoDB example trigger
-            {
-                "Records": [
-                    {
-                        "eventSourceARN": "arn:aws:dynamodb:us-east-1:123456789:table/dynamodb-table-name",
-                        "eventSource": "aws:dynamodb",
-                    }
-                ]
-            },
-            {
-                "triggeredBy": "dynamodb",
-                "arn": "arn:aws:dynamodb:us-east-1:123456789:table/dynamodb-table-name",
-            },
-        ),
         (  # SQS example trigger
             {
                 "Records": [
@@ -187,6 +91,27 @@ def test_recursive_json_join(d1, d2, result):
                 "messageId": "e97ff404-96ca-460e-8ff0-a46012e61826",
             },
         ),
+        (  # SQS example batch trigger
+            {
+                "Records": [
+                    {
+                        "eventSourceARN": "arn:aws:sqs:us-east-1:123456789:sqs-queue-name",
+                        "eventSource": "aws:sqs",
+                        "messageId": "1",
+                    },
+                    {
+                        "eventSourceARN": "arn:aws:sqs:us-east-1:123456789:sqs-queue-name",
+                        "eventSource": "aws:sqs",
+                        "messageId": "2",
+                    },
+                ]
+            },
+            {
+                "triggeredBy": "sqs",
+                "arn": "arn:aws:sqs:us-east-1:123456789:sqs-queue-name",
+                "messageIds": ["1", "2"],
+            },
+        ),
         (  # Step Function
             {
                 "bla": "saart",
@@ -194,7 +119,66 @@ def test_recursive_json_join(d1, d2, result):
             },
             {"triggeredBy": "stepFunction", "messageId": "54589cfc-5ed8-4799-8fc0-5b45f6f225d1"},
         ),
-        (
+        (  # Inner Step Function
+            {
+                "bla": "saart",
+                "inner": {"_lumigo": {"step_function_uid": "54589cfc-5ed8-4799-8fc0-5b45f6f225d1"}},
+            },
+            {"triggeredBy": "stepFunction", "messageId": "54589cfc-5ed8-4799-8fc0-5b45f6f225d1"},
+        ),
+        (  # Step Function from list
+            [
+                {
+                    "bla": "saart",
+                    "inner": {
+                        "_lumigo": {"step_function_uid": "54589cfc-5ed8-4799-8fc0-5b45f6f225d1"}
+                    },
+                },
+                {"something": "else"},
+            ],
+            {"triggeredBy": "stepFunction", "messageId": "54589cfc-5ed8-4799-8fc0-5b45f6f225d1"},
+        ),
+        (  # Step Function from inner list
+            {
+                "bla": "saart",
+                "inner": [
+                    {"_lumigo": {"step_function_uid": "54589cfc-5ed8-4799-8fc0-5b45f6f225d1"}},
+                    {"something": "else"},
+                ],
+            },
+            {"triggeredBy": "stepFunction", "messageId": "54589cfc-5ed8-4799-8fc0-5b45f6f225d1"},
+        ),
+        (  # Step Function - too deep
+            {
+                "bla": "saart",
+                "a": {
+                    "b": {
+                        "c": {
+                            "d": {
+                                "_lumigo": {
+                                    "step_function_uid": "54589cfc-5ed8-4799-8fc0-5b45f6f225d1"
+                                }
+                            }
+                        }
+                    }
+                },
+            },
+            {"triggeredBy": "unknown"},
+        ),
+        (  # EventBridge - happy flow
+            {
+                "version": "0",
+                "id": "f0f73aaa-e64f-a550-5be2-850898090583",
+                "detail-type": "string",
+                "source": "source_lambda",
+                "time": "2020-10-19T13:34:29Z",
+                "region": "us-west-2",
+                "resources": [],
+                "detail": {"a": 0.024995371455989845},
+            },
+            {"triggeredBy": "eventBridge", "messageId": "f0f73aaa-e64f-a550-5be2-850898090583"},
+        ),
+        (  # cloudwatch
             {
                 "id": "cdc73f9d-aea9-11e3-9d5a-835b769c0d9c",
                 "detail-type": "Scheduled Event",
@@ -211,7 +195,7 @@ def test_recursive_json_join(d1, d2, result):
                 "detailType": "Scheduled Event",
             },
         ),
-        (
+        (  # unknown
             {
                 "id": "cdc73f9d-aea9-11e3-9d5a-835b769c0d9c",
                 "detail-type": "Unknown",
@@ -223,7 +207,7 @@ def test_recursive_json_join(d1, d2, result):
             },
             {"triggeredBy": "unknown"},
         ),
-        (
+        (  # cloudwatch
             {
                 "id": "cdc73f9d-aea9-11e3-9d5a-835b769c0d9c",
                 "detail-type": "Scheduled Event",
@@ -287,66 +271,62 @@ def test_recursive_json_join(d1, d2, result):
         ),
         ({"bla": "bla2"}, {"triggeredBy": "unknown"}),  # unknown trigger
         (None, None),
+        (  # ddb - modify with keys
+            {
+                "Records": [
+                    {
+                        "eventSourceARN": "arn:aws:dynamodb:us-west-2:723663554526:table/abbbbb/stream/2020-05-25T12:04:49.788",
+                        "eventSource": "aws:dynamodb",
+                        "eventName": "MODIFY",
+                        "dynamodb": {"ApproximateCreationDateTime": 1, "Keys": {"a": "b"}},
+                    }
+                ]
+            },
+            {
+                "triggeredBy": "dynamodb",
+                "messageIds": ["bd722b96a0bfdc0ef6115a2ee60b63f0"],
+                "approxEventCreationTime": 1000,
+                "arn": "arn:aws:dynamodb:us-west-2:723663554526:table/abbbbb/stream/2020-05-25T12:04:49.788",
+            },
+        ),
+        (  # ddb - insert with NewImage
+            {
+                "Records": [
+                    {
+                        "eventSourceARN": "arn:aws:dynamodb:us-west-2:723663554526:table/abbbbb/stream/2020-05-25T12:04:49.788",
+                        "eventSource": "aws:dynamodb",
+                        "eventName": "INSERT",
+                        "dynamodb": {"ApproximateCreationDateTime": 1, "NewImage": {"a": "b"}},
+                    }
+                ]
+            },
+            {
+                "triggeredBy": "dynamodb",
+                "messageIds": ["bd722b96a0bfdc0ef6115a2ee60b63f0"],
+                "approxEventCreationTime": 1000,
+                "arn": "arn:aws:dynamodb:us-west-2:723663554526:table/abbbbb/stream/2020-05-25T12:04:49.788",
+            },
+        ),
+        (  # ddb - insert with only keys
+            {
+                "Records": [
+                    {
+                        "eventSourceARN": "arn:aws:dynamodb:us-west-2:723663554526:table/abbbbb/stream/2020-05-25T12:04:49.788",
+                        "eventSource": "aws:dynamodb",
+                        "eventName": "INSERT",
+                        "dynamodb": {"ApproximateCreationDateTime": 1, "Keys": {"a": "b"}},
+                    }
+                ]
+            },
+            {
+                "triggeredBy": "dynamodb",
+                "messageIds": [],
+                "approxEventCreationTime": 1000,
+                "arn": "arn:aws:dynamodb:us-west-2:723663554526:table/abbbbb/stream/2020-05-25T12:04:49.788",
+            },
+        ),
     ],
 )
 def test_parse_triggered_by(event, output):
     Configuration.is_step_function = True
-    assert utils.parse_triggered_by(event) == output
-
-
-def test_config_with_verbose_param_with_no_env_verbose_verbose_is_false():
-    config(verbose=False)
-
-    assert Configuration.verbose is False
-
-
-def test_config_no_verbose_param_and_no_env_verbose_is_true():
-    config()
-
-    assert Configuration.verbose
-
-
-def test_config_no_verbose_param_and_with_env_verbose_equals_to_false_verbose_is_false(monkeypatch):
-    monkeypatch.setattr(os, "environ", {"LUMIGO_VERBOSE": "FALSE"})
-    config()
-
-    assert Configuration.verbose is False
-
-
-@pytest.mark.parametrize(
-    ("d", "keys", "result_value", "default"),
-    [
-        ({"k": ["a", "b"]}, ["k", 1], "b", None),  # Happy flow.
-        ({"k": ["a"]}, ["k", 1], "default", "default"),  # List index out of range.
-        ({"k": "a"}, ["b"], "default", "default"),  # Key doesn't exist.
-        ({"k": "a"}, [1], "default", "default"),  # Wrong key type.
-        ({"k": "a"}, ["k", 0, 1], "default", "default"),  # Wrong keys length.
-    ],
-)
-def test_safe_get(d, keys, result_value, default):
-    assert utils.safe_get(d, keys, default) == result_value
-
-
-@pytest.mark.parametrize(
-    ("regexes", "url", "expected"),
-    [(["secret.*"], "lumigo.io", False), (["not-relevant", "secret.*"], "secret.aws.com", True)],
-)
-def test_should_scrub_domain(regexes, url, expected):
-    Configuration.domains_scrubber = regexes
-    assert should_scrub_domain(url) == expected
-
-
-def test_str_to_list():
-    assert str_to_list("a,b,c,d") == ["a", "b", "c", "d"]
-
-
-def test_str_to_list_exception():
-    assert str_to_list("") is None
-
-
-def test_str_to_tuple():
-    assert str_to_tuple("a,b,c,d") == ("a", "b", "c", "d")
-
-
-def test_str_to_tuple_exception():
-    assert str_to_tuple([]) is None
+    assert parse_triggered_by(event) == output

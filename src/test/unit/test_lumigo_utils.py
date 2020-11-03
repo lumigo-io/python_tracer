@@ -1,6 +1,12 @@
 import inspect
+from collections import OrderedDict
+from decimal import Decimal
+import datetime
+import http.client
+from mock import Mock
+
 import pytest
-from lumigo_tracer.utils import (
+from lumigo_tracer.lumigo_utils import (
     _create_request_body,
     _is_span_has_error,
     _get_event_base64_size,
@@ -8,19 +14,26 @@ from lumigo_tracer.utils import (
     format_frames,
     _truncate_locals,
     MAX_VAR_LEN,
-    prepare_large_data,
     format_frame,
     omit_keys,
     config,
     Configuration,
     LUMIGO_SECRET_MASKING_REGEX,
     LUMIGO_SECRET_MASKING_REGEX_BACKWARD_COMP,
-    get_omitting_regexes,
-    OMITTING_KEYS_REGEXES,
+    get_omitting_regex,
     warn_client,
     WARN_CLIENT_PREFIX,
     SKIP_SCRUBBING_KEYS,
-    TIMEOUT_TIMER_BUFFER,
+    get_timeout_buffer,
+    lumigo_dumps,
+    prepare_host,
+    EDGE_PATH,
+    report_json,
+    is_kill_switch_on,
+    KILL_SWITCH,
+    is_error_code,
+    get_size_upper_bound,
+    is_aws_arn,
 )
 import json
 
@@ -61,10 +74,12 @@ def test_create_request_body_not_effecting_small_events(dummy_span):
     assert _create_request_body([dummy_span], True, 1_000_000) == json.dumps([dummy_span])
 
 
-def test_create_request_body_keep_function_span(dummy_span, function_end_span):
+def test_create_request_body_keep_function_span_and_filter_other_spans(
+    dummy_span, function_end_span
+):
     expected_result = [dummy_span, dummy_span, dummy_span, function_end_span]
     size = _get_event_base64_size(expected_result)
-    assert _create_request_body(expected_result * 2, True, size, 50) == json.dumps(
+    assert _create_request_body(expected_result * 2, True, size) == json.dumps(
         [function_end_span, dummy_span, dummy_span, dummy_span]
     )
 
@@ -81,26 +96,29 @@ def test_create_request_body_take_error_first(dummy_span, error_span, function_e
         function_end_span,
     ]
     size = _get_event_base64_size(expected_result)
-    assert _create_request_body(input, True, size, 50) == json.dumps(expected_result)
+    assert _create_request_body(input, True, size) == json.dumps(expected_result)
 
 
 @pytest.mark.parametrize(
     ("f_locals", "expected"),
     [
         ({}, {}),  # Empty.
-        ({"a": "b"}, {"a": "b"}),  # Short.
-        ({"a": "b" * (MAX_VAR_LEN + 1)}, {"a": "b" * MAX_VAR_LEN + "...[too long]"}),  # Long.
+        ({"a": "b"}, {"a": '"b"'}),  # Short.
+        (
+            {"a": "b" * (MAX_VAR_LEN + 1)},
+            {"a": '"' + "b" * (MAX_VAR_LEN - 1) + "...[too long]"},
+        ),  # Long.
         # Some short, some long.
         (
             {"l1": "l" * (MAX_VAR_LEN + 1), "s1": "s", "l2": "l" * (MAX_VAR_LEN + 1), "s2": "s"},
             {
-                "l1": "l" * MAX_VAR_LEN + "...[too long]",
-                "s1": "s",
-                "l2": "l" * MAX_VAR_LEN + "...[too long]",
-                "s2": "s",
+                "l1": '"' + "l" * (MAX_VAR_LEN - 1) + "...[too long]",
+                "s1": '"s"',
+                "l2": '"' + "l" * (MAX_VAR_LEN - 1) + "...[too long]",
+                "s2": '"s"',
             },
         ),
-        ({"a": ["b", "c"]}, {"a": str(["b", "c"])}),  # Not str.
+        ({"a": ["b", "c"]}, {"a": '["b", "c"]'}),  # Not str.
     ],
 )
 def test_frame_truncate_locals(f_locals, expected):
@@ -133,9 +151,9 @@ def test_format_frames():
     assert frames[0]["function"] == "func_b"
     assert frames[0]["variables"] == {"one": "1", "zero": "0"}
     assert frames[1]["function"] == "func_a"
-    assert frames[1]["variables"]["a"] == "A"
+    assert frames[1]["variables"]["a"] == '"A"'
     assert frames[2]["function"] == "test_format_frames"
-    assert frames[2]["variables"]["e"] == "E"
+    assert frames[2]["variables"]["e"] == '"E"'
 
 
 def test_format_frames__max_recursion():
@@ -174,7 +192,7 @@ def test_format_frames__huge_var():
     except Exception:
         frames = format_frames(inspect.trace())
 
-    assert frames[0]["variables"]["a"] == "A" * MAX_VAR_LEN + "...[too long]"
+    assert frames[0]["variables"]["a"] == '"' + "A" * (MAX_VAR_LEN - 1) + "...[too long]"
 
 
 def test_format_frames__check_all_keys_and_values():
@@ -190,7 +208,7 @@ def test_format_frames__check_all_keys_and_values():
     assert frames[0] == {
         "function": "func",
         "fileName": __file__,
-        "variables": {"a": "A"},
+        "variables": {"a": '"A"'},
         "lineno": frames[1]["lineno"] - 3,
     }
 
@@ -198,18 +216,52 @@ def test_format_frames__check_all_keys_and_values():
 @pytest.mark.parametrize(
     ("value", "output"),
     [
-        ("aa", "aa"),  # happy flow
-        (None, "None"),  # same key twice
-        ("a" * 21, "a" * 20 + "...[too long]"),
-        ({"a": "a"}, '{"a": "a"}'),  # dict.
-        # dict that can't be converted to json.
-        ({"a": set()}, "{'a': set()}"),  # type: ignore
-        (b"a", "a"),  # bytes that can be decoded.
-        (b"\xff\xfea\x00", "b'\\xff\\xfea\\x00'"),  # bytes that can't be decoded.
+        ("aa", '"aa"'),  # happy flow - string
+        (None, "null"),  # happy flow - None
+        ("a" * 101, '"' + "a" * 99 + "...[too long]"),  # simple long string
+        ({"a": "a"}, '{"a": "a"}'),  # happy flow - dict
+        ({"a": set([1])}, '{"a": "{1}"}'),  # dict that can't be converted to json
+        (b"a", '"a"'),  # bytes that can be decoded
+        (b"\xff\xfea\x00", "\"b'\\\\xff\\\\xfea\\\\x00'\""),  # bytes that can't be decoded
+        ({1: Decimal(1)}, '{"1": 1.0}'),  # decimal should be serializeable  (like in AWS!)
+        ({"key": "b"}, '{"key": "****"}'),  # simple omitting
+        ({"a": {"key": "b"}}, '{"a": {"key": "****"}}'),  # inner omitting
+        ({"a": {"key": "b" * 100}}, '{"a": {"key": "****"}}'),  # long omitting
+        ({"a": "b" * 300}, f'{{"a": "{"b" * 93}...[too long]'),  # long key
+        ('{"a": "b"}', '{"a": "b"}'),  # string which is a simple json
+        ('{"a": {"key": "b"}}', '{"a": {"key": "****"}}'),  # string with inner omitting
+        ("{1: ", '"{1: "'),  # string which is not json but look like one
+        (b'{"password": "abc"}', '{"password": "****"}'),  # omit of bytes
+        ({"a": '{"password": 123}'}, '{"a": "{\\"password\\": 123}"}'),  # ignore inner json-string
+        ({None: 1}, '{"null": 1}'),
+        ({"1": datetime.datetime(1994, 4, 22)}, '{"1": "1994-04-22 00:00:00"}'),
+        (OrderedDict({"a": "b", "key": "123"}), '{"a": "b", "key": "****"}'),  # OrderedDict
+        (  # Skip scrubbing
+            {SKIP_SCRUBBING_KEYS[0]: {"password": 1}},
+            f'{{"{SKIP_SCRUBBING_KEYS[0]}": {{"password": 1}}}}',
+        ),
+        ([{"password": 1}, {"a": "b"}], '[{"password": "****"}, {"a": "b"}]'),  # list of dicts
     ],
 )
-def test_prepare_large_data(value, output):
-    assert prepare_large_data(value, 20) == output
+def test_lumigo_dumps(value, output):
+    assert lumigo_dumps(value, max_size=100) == output
+
+
+def test_lumigo_dumps_enforce_jsonify_raise_error():
+    with pytest.raises(TypeError):
+        assert lumigo_dumps({"a": set()}, max_size=100, enforce_jsonify=True)
+
+
+def test_lumigo_dumps_no_regexes(monkeypatch):
+    monkeypatch.setenv(LUMIGO_SECRET_MASKING_REGEX, "[]")
+    result = lumigo_dumps({"key": "123"}, max_size=100, enforce_jsonify=True)
+    assert result == '{"key": "123"}'
+
+
+def test_lumigo_dumps_omit_keys_environment(monkeypatch):
+    monkeypatch.setenv(LUMIGO_SECRET_MASKING_REGEX, '[".*evilPlan.*"]')
+    value = {"password": "abc", "evilPlan": {"take": "over", "the": "world"}}
+    assert lumigo_dumps(value, max_size=100) == '{"password": "abc", "evilPlan": "****"}'
 
 
 def test_format_frame():
@@ -227,60 +279,35 @@ def test_format_frame():
         "fileName": frame_info.filename,
         "function": frame_info.function,
     }
-    assert variables["a"] == "A"
-    assert variables["password"] == "****"
-
-
-@pytest.mark.parametrize(
-    ["value", "output"],
-    (
-        (
-            {"hello": "world", "inner": {"check": "abc"}},
-            {"hello": "world", "inner": {"check": "abc"}},
-        ),
-        ({"hello": "world", "password": "abc"}, {"hello": "world", "password": "****"}),
-        ({"hello": "world", "secretPassword": "abc"}, {"hello": "world", "secretPassword": "****"}),
-        (
-            {"hello": "world", "inner": {"secretPassword": "abc"}},
-            {"hello": "world", "inner": {"secretPassword": "****"}},
-        ),
-        ('{"hello": "world", "password": "abc"}', '{"hello": "world", "password": "****"}'),
-        (b'{"hello": "world", "password": "abc"}', '{"hello": "world", "password": "****"}'),
-        ('{"hello": "w', '{"hello": "w'),
-        ("5", "5"),
-        ([{"password": 1}, {"a": "b"}], [{"password": "****"}, {"a": "b"}]),
-        ({None: 1}, {None: 1}),
-        ({SKIP_SCRUBBING_KEYS[0]: {"password": 1}}, {SKIP_SCRUBBING_KEYS[0]: {"password": 1}}),
-    ),
-)
-def test_omit_keys(value, output):
-    assert omit_keys(value) == output
+    assert variables["a"] == '"A"'
+    assert variables["password"] == '"****"'
 
 
 def test_get_omitting_regexes(monkeypatch):
     monkeypatch.setenv(LUMIGO_SECRET_MASKING_REGEX, '[".*evilPlan.*"]')
-    assert [r.pattern for r in get_omitting_regexes()] == [".*evilPlan.*"]
+    assert get_omitting_regex().pattern == "(.*evilPlan.*)"
 
 
 def test_get_omitting_regexes_backward_compatibility(monkeypatch):
     monkeypatch.setenv(LUMIGO_SECRET_MASKING_REGEX_BACKWARD_COMP, '[".*evilPlan.*"]')
-    assert [r.pattern for r in get_omitting_regexes()] == [".*evilPlan.*"]
+    assert get_omitting_regex().pattern == "(.*evilPlan.*)"
 
 
 def test_get_omitting_regexes_prefer_new_environment_name(monkeypatch):
     monkeypatch.setenv(LUMIGO_SECRET_MASKING_REGEX, '[".*evilPlan.*"]')
     monkeypatch.setenv(LUMIGO_SECRET_MASKING_REGEX_BACKWARD_COMP, '[".*evilPlan2.*"]')
-    assert [r.pattern for r in get_omitting_regexes()] == [".*evilPlan.*"]
+    assert get_omitting_regex().pattern == "(.*evilPlan.*)"
 
 
 def test_get_omitting_regexes_fallback(monkeypatch):
-    assert [r.pattern for r in get_omitting_regexes()] == OMITTING_KEYS_REGEXES
+    expected = "(.*pass.*|.*key.*|.*secret.*|.*credential.*|SessionToken|x-amz-security-token|Signature|Authorization)"
+    assert get_omitting_regex().pattern == expected
 
 
 def test_omit_keys_environment(monkeypatch):
     monkeypatch.setenv(LUMIGO_SECRET_MASKING_REGEX, '[".*evilPlan.*"]')
     value = {"password": "abc", "evilPlan": {"take": "over", "the": "world"}}
-    assert omit_keys(value) == {"password": "abc", "evilPlan": "****"}
+    assert omit_keys(value)[0] == {"password": "abc", "evilPlan": "****"}
 
 
 @pytest.mark.parametrize("configuration_value", (True, False))
@@ -314,7 +341,7 @@ def test_config_enhanced_printstep_function_without_envs(monkeypatch, configurat
 def test_config_timeout_timer_buffer_with_exception(monkeypatch):
     monkeypatch.setenv("LUMIGO_TIMEOUT_BUFFER", "not float")
     config()
-    assert Configuration.timeout_timer_buffer == TIMEOUT_TIMER_BUFFER
+    assert Configuration.timeout_timer_buffer is None
 
 
 def test_warn_client_print(capsys):
@@ -326,3 +353,72 @@ def test_warn_client_dont_print(capsys, monkeypatch):
     monkeypatch.setenv("LUMIGO_WARNINGS", "off")
     warn_client("message")
     assert capsys.readouterr().out == ""
+
+
+@pytest.mark.parametrize(
+    "remaining_time, conf, expected",
+    ((3, 1, 1), (3, None, 0.5), (10, None, 1), (20, None, 2), (900, None, 3)),
+)
+def test_get_timeout_buffer(remaining_time, conf, expected):
+    Configuration.timeout_timer_buffer = conf
+    assert get_timeout_buffer(remaining_time) == expected
+
+
+@pytest.mark.parametrize(
+    ["arg", "host"],
+    [("https://a.com", "a.com"), (f"https://b.com{EDGE_PATH}", "b.com"), ("h.com", "h.com")],
+)
+def test_prepare_host(arg, host):
+    assert prepare_host(arg) == host
+
+
+@pytest.mark.parametrize(
+    "errors, final_log", [(ValueError, "ERROR"), ([ValueError, Mock()], "INFO")]
+)
+def test_report_json_retry(monkeypatch, reporter_mock, caplog, errors, final_log):
+    reporter_mock.side_effect = report_json
+    monkeypatch.setattr(Configuration, "host", "force_reconnect")
+    monkeypatch.setattr(Configuration, "should_report", True)
+    monkeypatch.setattr(http.client, "HTTPSConnection", Mock())
+    http.client.HTTPSConnection("force_reconnect").getresponse.side_effect = errors
+
+    report_json(None, [{"a": "b"}])
+
+    assert caplog.records[-1].levelname == final_log
+
+
+@pytest.mark.parametrize("env, expected", [("True", True), ("other", False), ("123", False)])
+def test_is_kill_switch_on(monkeypatch, env, expected):
+    monkeypatch.setenv(KILL_SWITCH, env)
+    assert is_kill_switch_on() == expected
+
+
+def test_get_max_entry_size_default(monkeypatch):
+    assert Configuration.get_max_entry_size() == 2048
+
+
+def test_get_max_entry_size_has_error():
+    assert Configuration.get_max_entry_size(has_error=True) == 4096
+
+
+def test_get_size_upper_bound():
+    assert get_size_upper_bound() == 4096
+
+
+@pytest.mark.parametrize(
+    ("status_code", "is_error"), [(0, False), (200, False), (400, True), (500, True)]
+)
+def test_is_error_code(status_code, is_error):
+    assert is_error_code(status_code) is is_error
+
+
+@pytest.mark.parametrize(
+    ("arn", "is_arn_result"),
+    [
+        ("not-arn", False),
+        (None, False),
+        ("arn:aws:lambda:region:876841109798:function:function-name", True),
+    ],
+)
+def test_is_aws_arn(arn, is_arn_result):
+    assert is_aws_arn(arn) is is_arn_result

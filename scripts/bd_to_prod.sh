@@ -34,23 +34,21 @@ echo "Creating new credential files"
 mkdir -p ~/.aws
 echo ${KEY} | gpg --batch -d --passphrase-fd 0 ${enc_location} > ~/.aws/credentials
 
-echo "Creating lumigo-python-tracer layer"
-./scripts/prepare_layer_files.sh
-
 echo "Getting latest changes from git"
 changes=$(git log $(git describe --tags --abbrev=0)..HEAD --oneline)
-
-
 
 sudo pip install --upgrade bumpversion
 bumpversion patch --message "{current_version} → {new_version}. Changes: ${changes}"
 
+push_tags
 
 echo "Uploading to PyPi"
-pip install twine
+pip install twine wheel --quiet
+python setup.py bdist_wheel
 twine upload dist/*
 
-push_tags
+echo "Creating lumigo-python-tracer layer"
+./scripts/prepare_layer_files.sh
 
 echo "Creating layer latest version arn table md file (LAYERS.md)"
 ../utils/common_bash/create_layer.sh --layer-name lumigo-python-tracer --region ALL --package-folder python --version $(git describe --abbrev=0 --tags) --runtimes "python3.6 python3.7 python3.8"

@@ -1,133 +1,21 @@
 import inspect
 import logging
-import http.client
-from io import BytesIO
-import os
 import builtins
 from functools import wraps
-import importlib.util
-import botocore.awsrequest  # noqa: F401
 
 from lumigo_tracer.auto_tag.auto_tag_event import AutoTagEvent
-from lumigo_tracer.libs.wrapt import wrap_function_wrapper
-from lumigo_tracer.parsers.utils import safe_get_list
-from lumigo_tracer.utils import (
+from lumigo_tracer.lumigo_utils import (
     config,
     Configuration,
     get_logger,
     lumigo_safe_execute,
     is_aws_environment,
+    is_kill_switch_on,
 )
 from lumigo_tracer.spans_container import SpansContainer, TimeoutMechanism
-from lumigo_tracer.parsers.http_data_classes import HttpRequest
+from lumigo_tracer.wrappers import wrap
 
-_BODY_HEADER_SPLITTER = b"\r\n\r\n"
-_FLAGS_HEADER_SPLITTER = b"\r\n"
-_KILL_SWITCH = "LUMIGO_SWITCH_OFF"
 CONTEXT_WRAPPED_BY_LUMIGO_KEY = "_wrapped_by_lumigo"
-MAX_READ_SIZE = 1024
-already_wrapped = False
-
-
-def _request_wrapper(func, instance, args, kwargs):
-    """
-    This is the wrapper of the requests. it parses the http's message to conclude the url, headers, and body.
-    Finally, it add an event to the span, and run the wrapped function (http.client.HTTPConnection.send).
-    """
-    data = safe_get_list(args, 0)
-    with lumigo_safe_execute("parse requested streams"):
-        if isinstance(data, BytesIO):
-            current_pos = data.tell()
-            data = data.read(MAX_READ_SIZE)
-            args[0].seek(current_pos)
-
-    host, method, headers, body, uri = (
-        getattr(instance, "host", None),
-        getattr(instance, "_method", None),
-        None,
-        None,
-        None,
-    )
-    with lumigo_safe_execute("parse request"):
-        if isinstance(data, bytes) and _BODY_HEADER_SPLITTER in data:
-            headers, body = data.split(_BODY_HEADER_SPLITTER, 1)
-            if _FLAGS_HEADER_SPLITTER in headers:
-                request_info, headers = headers.split(_FLAGS_HEADER_SPLITTER, 1)
-                headers = http.client.parse_headers(BytesIO(headers))
-                path_and_query_params = (
-                    # Parse path from request info, remove method (GET | POST) and http version (HTTP/1.1)
-                    request_info.decode("ascii")
-                    .replace(method, "")
-                    .replace(instance._http_vsn_str, "")
-                    .strip()
-                )
-                uri = f"{host}{path_and_query_params}"
-                host = host or headers.get("Host")
-
-    with lumigo_safe_execute("add request event"):
-        if headers:
-            SpansContainer.get_span().add_request_event(
-                HttpRequest(host=host, method=method, uri=uri, headers=headers, body=body)
-            )
-        else:
-            SpansContainer.get_span().add_unparsed_request(
-                HttpRequest(host=host, method=method, uri=uri, body=data)
-            )
-
-    ret_val = func(*args, **kwargs)
-    with lumigo_safe_execute("add response event"):
-        SpansContainer.get_span().update_event_end_time()
-    return ret_val
-
-
-def _response_wrapper(func, instance, args, kwargs):
-    """
-    This is the wrapper of the function that can be called only after that the http request was sent.
-    Note that we don't examine the response data because it may change the original behaviour (ret_val.peek()).
-    """
-    ret_val = func(*args, **kwargs)
-    with lumigo_safe_execute("parse response"):
-        headers = ret_val.headers
-        status_code = ret_val.code
-        SpansContainer.get_span().update_event_response(instance.host, status_code, headers, b"")
-    return ret_val
-
-
-def _read_wrapper(func, instance, args, kwargs):
-    """
-    This is the wrapper of the function that can be called only after `getresponse` was called.
-    """
-    ret_val = func(*args, **kwargs)
-    if ret_val:
-        with lumigo_safe_execute("parse response.read"):
-            SpansContainer.get_span().update_event_response(
-                None, instance.code, instance.headers, ret_val
-            )
-    return ret_val
-
-
-def _read_stream_wrapper(func, instance, args, kwargs):
-    ret_val = func(*args, **kwargs)
-    return _read_stream_wrapper_generator(ret_val, instance)
-
-
-def _read_stream_wrapper_generator(stream_generator, instance):
-    for partial_response in stream_generator:
-        with lumigo_safe_execute("parse response.read_chunked"):
-            SpansContainer.get_span().update_event_response(
-                None, instance.status, instance.headers, partial_response
-            )
-        yield partial_response
-
-
-def _putheader_wrapper(func, instance, args, kwargs):
-    """
-    This is the wrapper of the function that called after that the http request was sent.
-    Note that we don't examine the response data because it may change the original behaviour (ret_val.peek()).
-    """
-    kwargs["headers"]["X-Amzn-Trace-Id"] = SpansContainer.get_span().get_patched_root()
-    ret_val = func(*args, **kwargs)
-    return ret_val
 
 
 def _is_context_already_wrapped(*args) -> bool:
@@ -152,7 +40,7 @@ def _add_wrap_flag_to_context(*args):
 def _lumigo_tracer(func):
     @wraps(func)
     def lambda_wrapper(*args, **kwargs):
-        if str(os.environ.get(_KILL_SWITCH, "")).lower() == "true":
+        if is_kill_switch_on():
             return func(*args, **kwargs)
 
         if _is_context_already_wrapped(*args):
@@ -169,7 +57,7 @@ def _lumigo_tracer(func):
             with lumigo_safe_execute("auto tag"):
                 AutoTagEvent.auto_tag_event(args[0])
             SpansContainer.get_span().start(*args)
-            wrap_http_calls()
+            wrap()
             try:
                 executed = True
                 ret_val = func(*args, **kwargs)
@@ -178,7 +66,7 @@ def _lumigo_tracer(func):
                     SpansContainer.get_span().add_exception_event(e, inspect.trace())
                 raise
             finally:
-                SpansContainer.get_span().end(ret_val)
+                SpansContainer.get_span().end(ret_val, *args)
                 if Configuration.enhanced_print:
                     builtins.print = local_print
                     logging.Formatter.format = local_logging_format
@@ -273,19 +161,3 @@ class LumigoChalice:
         if len(args) < 2 and "context" not in kwargs:
             kwargs["context"] = getattr(getattr(self.app, "current_request", None), "context", None)
         return self.lumigo_app(*args, **kwargs)
-
-
-def wrap_http_calls():
-    global already_wrapped
-    if not already_wrapped:
-        with lumigo_safe_execute("wrap http calls"):
-            get_logger().debug("wrapping the http request")
-            wrap_function_wrapper("http.client", "HTTPConnection.send", _request_wrapper)
-            wrap_function_wrapper("botocore.awsrequest", "AWSRequest.__init__", _putheader_wrapper)
-            wrap_function_wrapper("http.client", "HTTPConnection.getresponse", _response_wrapper)
-            wrap_function_wrapper("http.client", "HTTPResponse.read", _read_wrapper)
-            if importlib.util.find_spec("urllib3"):
-                wrap_function_wrapper(
-                    "urllib3.response", "HTTPResponse.read_chunked", _read_stream_wrapper
-                )
-            already_wrapped = True

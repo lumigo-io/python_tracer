@@ -1,9 +1,9 @@
+import json
 import uuid
 from typing import Type, Optional
-import time
-import http.client
+from urllib.parse import unquote
 
-from lumigo_tracer.parsers.utils import (
+from lumigo_tracer.parsing_utils import (
     safe_split_get,
     safe_key_from_json,
     safe_key_from_xml,
@@ -11,9 +11,18 @@ from lumigo_tracer.parsers.utils import (
     recursive_json_join,
     safe_get,
     should_scrub_domain,
+    extract_function_name_from_arn,
 )
-from lumigo_tracer.utils import Configuration, prepare_large_data
-from lumigo_tracer.parsers.http_data_classes import HttpRequest
+from lumigo_tracer.lumigo_utils import (
+    Configuration,
+    lumigo_dumps,
+    md5hash,
+    get_logger,
+    get_current_ms_time,
+    is_error_code,
+    is_aws_arn,
+)
+from lumigo_tracer.wrappers.http.http_data_classes import HttpRequest
 
 HTTP_TYPE = "http"
 
@@ -35,10 +44,8 @@ class Parser:
     def parse_request(self, parse_params: HttpRequest) -> dict:
         if Configuration.verbose and parse_params and not should_scrub_domain(parse_params.host):
             additional_info = {
-                "headers": prepare_large_data(
-                    dict(parse_params.headers.items() if parse_params.headers else {})
-                ),
-                "body": prepare_large_data(parse_params.body),
+                "headers": lumigo_dumps(parse_params.headers),
+                "body": lumigo_dumps(parse_params.body) if parse_params.body else "",
                 "method": parse_params.method,
                 "uri": parse_params.uri,
             }
@@ -57,16 +64,15 @@ class Parser:
                     "request": additional_info,
                 }
             },
-            "started": int(time.time() * 1000),
+            "started": get_current_ms_time(),
         }
 
-    def parse_response(
-        self, url: str, status_code: int, headers: Optional[http.client.HTTPMessage], body: bytes
-    ) -> dict:
+    def parse_response(self, url: str, status_code: int, headers: dict, body: bytes) -> dict:
+        max_size = Configuration.get_max_entry_size(has_error=is_error_code(status_code))
         if Configuration.verbose and not should_scrub_domain(url):
             additional_info = {
-                "headers": prepare_large_data(dict(headers.items() if headers else {})),
-                "body": prepare_large_data(body),
+                "headers": lumigo_dumps(headers, max_size),
+                "body": lumigo_dumps(body, max_size) if body else "",
                 "statusCode": status_code,
             }
         else:
@@ -75,7 +81,7 @@ class Parser:
         return {
             "type": HTTP_TYPE,
             "info": {"httpInfo": {"host": url, "response": additional_info}},
-            "ended": int(time.time() * 1000),
+            "ended": get_current_ms_time(),
         }
 
 
@@ -85,7 +91,7 @@ class ServerlessAWSParser(Parser):
 
     def parse_response(self, url: str, status_code: int, headers, body: bytes) -> dict:
         additional_info = {}
-        message_id = headers.get("x-amzn-RequestId")
+        message_id = headers.get("x-amzn-requestid")
         if message_id and self.should_add_message_id:
             additional_info["info"] = {"messageId": message_id}
         span_id = headers.get("x-amzn-requestid") or headers.get("x-amz-requestid")
@@ -99,13 +105,43 @@ class ServerlessAWSParser(Parser):
 class DynamoParser(ServerlessAWSParser):
     should_add_message_id = False
 
+    @staticmethod
+    def _extract_message_id(body: dict, method: str) -> Optional[str]:
+        if method == "PutItem" and body.get("Item"):
+            return md5hash(body["Item"])
+        elif method in ("UpdateItem", "DeleteItem") and body.get("Key"):
+            return md5hash(body["Key"])
+        elif method == "BatchWriteItem" and body.get("RequestItems"):
+            first_item = next(iter(body["RequestItems"].values()))
+            if first_item:
+                if first_item[0].get("PutRequest"):
+                    return md5hash(first_item[0]["PutRequest"]["Item"])
+                else:
+                    return md5hash(first_item[0]["DeleteRequest"]["Key"])
+        return None
+
+    @staticmethod
+    def _extract_table_name(body: dict, method: str) -> Optional[str]:
+        name = body.get("TableName")
+        if not name and method == "BatchWriteItem" and isinstance(body.get("RequestItems"), dict):
+            return next(iter(body["RequestItems"]))
+        return name
+
     def parse_request(self, parse_params: HttpRequest) -> dict:
-        target: str = str(parse_params.headers.get("x-amz-target", ""))  # type: ignore
+        target: str = parse_params.headers.get("x-amz-target", "")
+        method = safe_split_get(target, ".", 1)
+        try:
+            parsed_body = json.loads(parse_params.body)
+        except json.JSONDecodeError as e:
+            get_logger().debug("Error while trying to parse ddb request body", exc_info=e)
+            parsed_body = {}
+
         return recursive_json_join(
             {
                 "info": {
-                    "resourceName": safe_key_from_json(parse_params.body, "TableName"),
-                    "dynamodbMethod": safe_split_get(target, ".", 1),
+                    "resourceName": self._extract_table_name(parsed_body, method),
+                    "dynamodbMethod": method,
+                    "messageId": self._extract_message_id(parsed_body, method),
                 }
             },
             super().parse_request(parse_params),
@@ -137,12 +173,15 @@ class SnsParser(ServerlessAWSParser):
 
 class LambdaParser(ServerlessAWSParser):
     def parse_request(self, parse_params: HttpRequest) -> dict:
+        decoded_uri = safe_split_get(unquote(parse_params.uri), "/", 3)
         return recursive_json_join(
             {
-                "name": safe_split_get(
-                    str(parse_params.headers.get("path", "")), "/", 3  # type: ignore
-                ),
-                "invocationType": parse_params.headers.get("x-amz-invocation-type"),  # type: ignore
+                "info": {
+                    "resourceName": extract_function_name_from_arn(decoded_uri)
+                    if is_aws_arn(decoded_uri)
+                    else decoded_uri
+                },
+                "invocationType": parse_params.headers.get("x-amz-invocation-type"),
             },
             super().parse_request(parse_params),
         )
@@ -164,7 +203,7 @@ class KinesisParser(ServerlessAWSParser):
     @staticmethod
     def _extract_message_id(response_body: bytes) -> Optional[str]:
         return safe_key_from_json(response_body, "SequenceNumber") or safe_get(  # type: ignore
-            safe_key_from_json(response_body, "Records", []), [0, "SequenceNumber"]
+            safe_key_from_json(response_body, "Records", []), [0, "SequenceNumber"]  # type: ignore
         )
 
 
@@ -205,17 +244,37 @@ class S3Parser(Parser):
         )
 
 
-class StepFunctionParser(ServerlessAWSParser):
-    def create_span(self, message_id: str) -> dict:
+class EventBridgeParser(Parser):
+    def parse_request(self, parse_params: HttpRequest) -> dict:
+        try:
+            parsed_body = json.loads(parse_params.body)
+        except json.JSONDecodeError as e:
+            get_logger().exception(
+                "Error while trying to parse eventBridge request body", exc_info=e
+            )
+            parsed_body = {}
+        resource_names = set()
+        if isinstance(parsed_body.get("Entries"), list):
+            resource_names = {
+                e["EventBusName"] for e in parsed_body["Entries"] if e.get("EventBusName")
+            }
         return recursive_json_join(
-            {
-                "info": {
-                    "resourceName": "StepFunction",
-                    "httpInfo": {"host": "StepFunction"},
-                    "messageId": message_id,
-                }
-            },
-            super().parse_request(None),  # type: ignore
+            {"info": {"resourceNames": list(resource_names) or None}},
+            super().parse_request(parse_params),
+        )
+
+    def parse_response(self, url: str, status_code: int, headers, body: bytes) -> dict:
+        try:
+            parsed_body = json.loads(body)
+        except json.JSONDecodeError as e:
+            get_logger().debug("Error while trying to parse eventBridge request body", exc_info=e)
+            parsed_body = {}
+        message_ids = []
+        if isinstance(parsed_body.get("Entries"), list):
+            message_ids = [e["EventId"] for e in parsed_body["Entries"] if e.get("EventId")]
+        return recursive_json_join(
+            {"info": {"messageIds": message_ids}},
+            super().parse_response(url, status_code, headers, body),
         )
 
 
@@ -223,8 +282,8 @@ class ApiGatewayV2Parser(ServerlessAWSParser):
     # API-GW V1 covered by ServerlessAWSParser
 
     def parse_response(self, url: str, status_code: int, headers, body: bytes) -> dict:
-        aws_request_id = headers.get("x-amzn-RequestId")
-        apigw_request_id = headers.get("Apigw-Requestid")
+        aws_request_id = headers.get("x-amzn-requestid")
+        apigw_request_id = headers.get("apigw-requestid")
         message_id = aws_request_id or apigw_request_id
         return recursive_json_join(
             {"info": {"messageId": message_id}},
@@ -232,7 +291,7 @@ class ApiGatewayV2Parser(ServerlessAWSParser):
         )
 
 
-def get_parser(url: str, headers: Optional[http.client.HTTPMessage] = None) -> Type[Parser]:
+def get_parser(url: str, headers: Optional[dict] = None) -> Type[Parser]:
     service = safe_split_get(url, ".", 0)
     if service == "dynamodb":
         return DynamoParser
@@ -242,6 +301,8 @@ def get_parser(url: str, headers: Optional[http.client.HTTPMessage] = None) -> T
         return LambdaParser
     elif service == "kinesis":
         return KinesisParser
+    elif service == "events":
+        return EventBridgeParser
     elif safe_split_get(url, ".", 1) == "s3":
         return S3Parser
     # SQS Legacy Endpoints: https://docs.aws.amazon.com/general/latest/gr/rande.html
@@ -249,6 +310,6 @@ def get_parser(url: str, headers: Optional[http.client.HTTPMessage] = None) -> T
         return SqsParser
     elif "execute-api" in url:
         return ApiGatewayV2Parser
-    elif url.endswith("amazonaws.com") or (headers and headers.get("x-amzn-RequestId")):
+    elif url.endswith("amazonaws.com") or (headers and headers.get("x-amzn-requestid")):
         return ServerlessAWSParser
     return Parser

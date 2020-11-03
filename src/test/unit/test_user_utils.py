@@ -7,7 +7,7 @@ from lumigo_tracer.user_utils import (
     MAX_TAG_VALUE_LEN,
     MAX_TAGS,
 )
-from lumigo_tracer.utils import Configuration, EXECUTION_TAGS_KEY
+from lumigo_tracer.lumigo_utils import Configuration, EXECUTION_TAGS_KEY
 
 
 def test_report_error_with_enhance_print(capsys):
