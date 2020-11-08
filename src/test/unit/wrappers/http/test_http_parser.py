@@ -191,7 +191,21 @@ def test_double_response_size_limit_on_error_status_code():
     assert response_with_error["body"] == json.dumps(d)
 
 
-def test_appsync_parser_happy_flow():
+def test_appsync_response_parser_happy_flow():
+    parser = AppSyncParser()
+    params = HttpRequest(
+        host="f6lddidc25cgfnropjv2fjuud4.appsync-api.us-west-2.amazonaws.com/graphql",
+        method="POST",
+        uri="",
+        headers={},
+        body=json.dumps({}),
+    )
+
+    response = parser.parse_request(params)
+    assert response["info"]["resourceName"] == "f6lddidc25cgfnropjv2fjuud4"
+
+
+def test_appsync_request_parser_happy_flow():
     parser = AppSyncParser()
     response = parser.parse_response(
         "",

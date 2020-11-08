@@ -279,6 +279,12 @@ class EventBridgeParser(Parser):
 
 
 class AppSyncParser(ServerlessAWSParser):
+    def parse_request(self, parse_params: HttpRequest) -> dict:
+        return recursive_json_join(
+            {"info": {"resourceName": safe_split_get(parse_params.host, ".", 0)}},
+            super().parse_request(parse_params),
+        )
+
     def parse_response(self, url: str, status_code: int, headers, body: bytes) -> dict:
         trace_id = headers.get("x-amzn-trace-id")
         return recursive_json_join(
