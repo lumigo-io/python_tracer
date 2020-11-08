@@ -136,8 +136,8 @@ def _is_event_bridge(event: dict):
 
 
 def _is_appsync(event: dict) -> bool:
-    host = event.get("context", {}).get("request", {}).get("headers", {}).get("host")
-    return host and "appsync-api" in host
+    host = safe_get(event, ["context", "request", "headers", "host"])
+    return host and isinstance(host, str) and "appsync-api" in host
 
 
 def _parse_event_bridge(event: dict):
@@ -145,9 +145,12 @@ def _parse_event_bridge(event: dict):
 
 
 def _parse_appsync(event: dict) -> dict:
-    headers = event.get("context", {}).get("request", {}).get("headers", {})
-    api_id = headers.get("host", "").split(".")[0]
-    message_id = headers.get("x-amzn-trace-id", "=").split("=")[1]
+    headers = safe_get(event, ["context", "request", "headers"])
+    host = headers.get("host")
+    api_id = host.split(".")[0] if host and isinstance(host, str) else None
+    trace_id = headers.get("x-amzn-trace-id")
+    splitted_trace_id = trace_id.split("=") if trace_id and isinstance(trace_id, str) else None
+    message_id = splitted_trace_id[-1] if splitted_trace_id else None
     return {"triggeredBy": "appsync", "apiId": api_id, "messageId": message_id}
 
 
