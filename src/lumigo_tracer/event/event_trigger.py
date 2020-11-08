@@ -39,6 +39,8 @@ def parse_triggered_by(event: dict):
             return _parse_step_function(event)
         elif _is_event_bridge(event):
             return _parse_event_bridge(event)
+        elif _is_appsync(event):
+            return _parse_appsync(event)
 
     return _parse_unknown(event)
 
@@ -133,8 +135,20 @@ def _is_event_bridge(event: dict):
     )
 
 
+def _is_appsync(event: dict) -> bool:
+    host = event.get("context", {}).get("request", {}).get("headers", {}).get("host")
+    return host and "appsync-api" in host
+
+
 def _parse_event_bridge(event: dict):
     return {"triggeredBy": "eventBridge", "messageId": event["id"]}
+
+
+def _parse_appsync(event: dict) -> dict:
+    headers = event.get("context", {}).get("request", {}).get("headers", {})
+    api_id = headers.get("host", "").split(".")[0]
+    message_id = headers.get("x-amzn-trace-id", "=").split("=")[1]
+    return {"triggeredBy": "appsync", "apiId": api_id, "messageId": message_id}
 
 
 def _is_supported_cw(event: dict):
