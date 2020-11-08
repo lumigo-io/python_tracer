@@ -12,6 +12,7 @@ from lumigo_tracer.wrappers.http.http_parser import (
     DynamoParser,
     EventBridgeParser,
     LambdaParser,
+    AppSyncParser,
 )
 
 
@@ -188,6 +189,17 @@ def test_double_response_size_limit_on_error_status_code():
     assert response_with_error["headers"] == json.dumps(d)
     assert len(response_with_error["body"]) > len(response_no_error["body"])
     assert response_with_error["body"] == json.dumps(d)
+
+
+def test_appsync_parser_happy_flow():
+    parser = AppSyncParser()
+    response = parser.parse_response(
+        "",
+        200,
+        {"x-amzn-trace-id": "Root=1-5fa8110b-619f0a2b45b845882a55c051"},
+        body=json.dumps({}).encode(),
+    )
+    assert response["info"]["messageId"] == "1-5fa8110b-619f0a2b45b845882a55c051"
 
 
 def test_event_bridge_parser_request_happy_flow():

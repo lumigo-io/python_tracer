@@ -278,6 +278,15 @@ class EventBridgeParser(Parser):
         )
 
 
+class AppSyncParser(ServerlessAWSParser):
+    def parse_response(self, url: str, status_code: int, headers, body: bytes) -> dict:
+        trace_id = headers.get("x-amzn-trace-id")
+        return recursive_json_join(
+            {"info": {"messageId": safe_split_get(trace_id, "=", -1)}},
+            super().parse_response(url, status_code, headers, body),
+        )
+
+
 class ApiGatewayV2Parser(ServerlessAWSParser):
     # API-GW V1 covered by ServerlessAWSParser
 
@@ -303,6 +312,8 @@ def get_parser(url: str, headers: Optional[dict] = None) -> Type[Parser]:
         return KinesisParser
     elif service == "events":
         return EventBridgeParser
+    elif "appsync-api" in url:
+        return AppSyncParser
     elif safe_split_get(url, ".", 1) == "s3":
         return S3Parser
     # SQS Legacy Endpoints: https://docs.aws.amazon.com/general/latest/gr/rande.html

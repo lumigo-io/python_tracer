@@ -1,6 +1,6 @@
 from typing import Union, List, Dict
 
-from lumigo_tracer.parsing_utils import recursive_get_key, safe_get
+from lumigo_tracer.parsing_utils import recursive_get_key, safe_get, safe_split_get
 from lumigo_tracer.lumigo_utils import (
     lumigo_safe_execute,
     Configuration,
@@ -147,10 +147,9 @@ def _parse_event_bridge(event: dict):
 def _parse_appsync(event: dict) -> dict:
     headers = safe_get(event, ["context", "request", "headers"])
     host = headers.get("host")
-    api_id = host.split(".")[0] if isinstance(host, str) else None
+    api_id = safe_split_get(host, ".", 0)
     trace_id = headers.get("x-amzn-trace-id")
-    splitted_trace_id = trace_id.split("=") if isinstance(trace_id, str) else None
-    message_id = splitted_trace_id[-1] if splitted_trace_id else None
+    message_id = safe_split_get(trace_id, "=", -1)
     return {"triggeredBy": "appsync", "apiId": api_id, "messageId": message_id}
 
 
