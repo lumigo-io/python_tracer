@@ -147,11 +147,9 @@ def _parse_event_bridge(event: dict):
 def _parse_appsync(event: dict) -> dict:
     headers = safe_get(event, ["context", "request", "headers"])
     host = headers.get("host")
-    api_id = safe_split_get(host, ".", 0)
-    region = safe_split_get(host, ".", 2)
     trace_id = headers.get("x-amzn-trace-id")
     message_id = safe_split_get(trace_id, "=", -1)
-    return {"triggeredBy": "appsync", "api": api_id, "region": region, "messageId": message_id}
+    return {"triggeredBy": "appsync", "api": host, "messageId": message_id}
 
 
 def _is_supported_cw(event: dict):
