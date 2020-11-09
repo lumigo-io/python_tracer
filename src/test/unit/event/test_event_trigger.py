@@ -191,7 +191,8 @@ from lumigo_tracer.lumigo_utils import Configuration
             },
             {
                 "triggeredBy": "appsync",
-                "apiId": "oookuwqyrfhy7eexerofkmlbfm",
+                "api": "oookuwqyrfhy7eexerofkmlbfm",
+                "region": "eu-west-1",
                 "messageId": "1-5fa161de-275509e254bf71cc48fd66d0",
             },
         ),
