@@ -137,6 +137,8 @@ def _is_event_bridge(event: dict):
 
 def _is_appsync(event: dict) -> bool:
     host = safe_get(event, ["context", "request", "headers", "host"])
+    if not host:
+        host = safe_get(event, ["request", "headers", "host"])
     return isinstance(host, str) and "appsync-api" in host
 
 
@@ -146,6 +148,8 @@ def _parse_event_bridge(event: dict):
 
 def _parse_appsync(event: dict) -> dict:
     headers = safe_get(event, ["context", "request", "headers"])
+    if not headers:
+        headers = safe_get(event, ["request", "headers"])
     host = headers.get("host")
     trace_id = headers.get("x-amzn-trace-id")
     message_id = safe_split_get(trace_id, "=", -1)

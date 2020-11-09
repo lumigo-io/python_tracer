@@ -195,6 +195,21 @@ from lumigo_tracer.lumigo_utils import Configuration
                 "messageId": "1-5fa161de-275509e254bf71cc48fd66d0",
             },
         ),
+        (  # AppSync - happy flow - different event struct
+            {
+                "request": {
+                    "headers": {
+                        "x-amzn-trace-id": "Root=1-5fa161de-275509e254bf71cc48fd66d0",
+                        "host": "oookuwqyrfhy7eexerofkmlbfm.appsync-api.eu-west-1.amazonaws.com",
+                    }
+                },
+            },
+            {
+                "triggeredBy": "appsync",
+                "api": "oookuwqyrfhy7eexerofkmlbfm.appsync-api.eu-west-1.amazonaws.com",
+                "messageId": "1-5fa161de-275509e254bf71cc48fd66d0",
+            },
+        ),
         (  # cloudwatch
             {
                 "id": "cdc73f9d-aea9-11e3-9d5a-835b769c0d9c",
