@@ -1,6 +1,6 @@
 from typing import Union, List, Dict
 
-from lumigo_tracer.parsing_utils import recursive_get_key, safe_get
+from lumigo_tracer.parsing_utils import recursive_get_key, safe_get, safe_split_get
 from lumigo_tracer.lumigo_utils import (
     lumigo_safe_execute,
     Configuration,
@@ -39,6 +39,8 @@ def parse_triggered_by(event: dict):
             return _parse_step_function(event)
         elif _is_event_bridge(event):
             return _parse_event_bridge(event)
+        elif _is_appsync(event):
+            return _parse_appsync(event)
 
     return _parse_unknown(event)
 
@@ -133,8 +135,25 @@ def _is_event_bridge(event: dict):
     )
 
 
+def _is_appsync(event: dict) -> bool:
+    host = safe_get(event, ["context", "request", "headers", "host"])
+    if not host:
+        host = safe_get(event, ["request", "headers", "host"])
+    return isinstance(host, str) and "appsync-api" in host
+
+
 def _parse_event_bridge(event: dict):
     return {"triggeredBy": "eventBridge", "messageId": event["id"]}
+
+
+def _parse_appsync(event: dict) -> dict:
+    headers = safe_get(event, ["context", "request", "headers"])
+    if not headers:
+        headers = safe_get(event, ["request", "headers"])
+    host = headers.get("host")
+    trace_id = headers.get("x-amzn-trace-id")
+    message_id = safe_split_get(trace_id, "=", -1)
+    return {"triggeredBy": "appsync", "api": host, "messageId": message_id}
 
 
 def _is_supported_cw(event: dict):
