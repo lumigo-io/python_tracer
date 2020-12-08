@@ -3,8 +3,10 @@ import json
 from collections import Counter
 from typing import Callable, Any, List, Dict, Tuple, Optional
 
-from lumigo_tracer import boto
-from lumigo_tracer.logger import get_logger
+try:
+    import boto3
+except Exception:
+    boto3 = None
 
 
 MAX_ITEM_SIZE = 1_048_576
@@ -17,6 +19,22 @@ ALLOW_RETRY_ERROR_CODES = [
     "ProvisionedThroughputExceededException",
     "RequestExpired",
 ]
+
+
+def _get_boto_client(
+    service: str,
+    region: Optional[str] = None,
+    aws_access_key_id: Optional[str] = None,
+    aws_secret_access_key: Optional[str] = None,
+):
+    if not boto3:
+        return None
+    return boto3.client(
+        service,
+        region_name=region,
+        aws_access_key_id=aws_access_key_id,
+        aws_secret_access_key=aws_secret_access_key,
+    )
 
 
 class KinesisService:
@@ -32,6 +50,7 @@ class KinesisService:
         self,
         stream_name: str,
         region: str,
+        logger,
         max_batch_size: int = MAX_KINESIS_BATCH_SIZE,
         partition_key_function: Callable[[Any], str] = lambda _: str(random.random()),
         aws_access_key_id: Optional[str] = None,
@@ -39,19 +58,20 @@ class KinesisService:
     ):
         self.stream_name = stream_name
         self.region = region
+        self.logger = logger
         self.partition_key_function = partition_key_function
         self.max_batch_size = max_batch_size
         self.aws_access_key_id = aws_access_key_id
         self.aws_secret_access_key = aws_secret_access_key
 
         if self.max_batch_size > MAX_KINESIS_BATCH_SIZE:
-            get_logger().warning(
+            self.logger.warning(
                 f"Max kinesis batch size can't be more than MAX_KINESIS_BATCH_SIZE, got: {max_batch_size}"
             )
             self.max_batch_size = MAX_KINESIS_BATCH_SIZE
 
     def _get_stream_client(self) -> Any:
-        return boto.get_boto_client(
+        return _get_boto_client(
             service="kinesis",
             region=self.region,
             aws_access_key_id=self.aws_access_key_id,
@@ -67,7 +87,7 @@ class KinesisService:
     def send(self, events: List[Any]) -> Optional[Dict]:
         client_kinesis = self._get_stream_client()
         if not client_kinesis:
-            get_logger().error("Unable create a Kinesis client. Unable to send.")
+            self.logger.error("Unable create a Kinesis client. Unable to send.")
             return None
         response_records: List = []
         records_to_write: List = []
@@ -80,11 +100,11 @@ class KinesisService:
             else:
                 event_size = len(json.dumps(event))
             # Understand the encoding 64 cost
-            get_logger().debug(
+            self.logger.debug(
                 f"Event before sending to Kinesis. Size: {event_size * ENCODED_64_COST}. Type: {type(event.get('Data'))}"
             )
             if event_size > MAX_ITEM_SIZE:
-                get_logger().error(f"Event is too big, skipping... Size: {event_size}")
+                self.logger.error(f"Event is too big, skipping... Size: {event_size}")
                 continue
             records_to_write.append(event)
             if len(raw_events) == 0 or len(records_to_write) == self.max_batch_size:
@@ -108,7 +128,7 @@ class KinesisService:
                         "records_to_write": events_log,
                         "error": str(err),
                     }
-                    get_logger().error(f"Unexpected error in send to kinesis. {log_extra}")
+                    self.logger.error(f"Unexpected error in send to kinesis. {log_extra}")
                 records_to_write.clear()
         self._log_end(response_records, len(events))
         return {"records": response_records, "retried_items_count": retry_items_len}
@@ -143,9 +163,9 @@ class KinesisService:
             "is_missing_events": is_missing_events,
         }
         if is_missing_events:
-            get_logger().warning(f"Push to kinesis partially successful. {log_extra}")
+            self.logger.warning(f"Push to kinesis partially successful. {log_extra}")
         else:
-            get_logger().info(f"Push to kinesis successfully done. {log_extra}")
+            self.logger.info(f"Push to kinesis successfully done. {log_extra}")
 
     def _log_iteration(self, retry_items, bad_items, total_items_len):
         failed_len = len(retry_items) + len(bad_items)
@@ -160,4 +180,4 @@ class KinesisService:
             "retried_kinesis_records_by_error_code": retry_items_sum,
             "number_of_success_kinesis_records": success_len,
         }
-        get_logger().info(f"There were kinesis records writes. {log_extra}")
+        self.logger.info(f"There were kinesis records writes. {log_extra}")

@@ -1,6 +1,7 @@
 import decimal
 import hashlib
 import json
+import logging
 import os
 import re
 import uuid
@@ -13,13 +14,13 @@ from contextlib import contextmanager
 from base64 import b64encode
 import inspect
 
-from lumigo_tracer.kinesis_service import KinesisService
-from lumigo_tracer.logger import get_logger
+from lumigo_tracer.libs.kinesis_service import KinesisService
 
 EXECUTION_TAGS_KEY = "lumigo_execution_tags_no_scrub"
 EDGE_HOST = "{region}.lumigo-tracer-edge.golumigo.com"
 EDGE_PATH = "/api/spans"
 HTTPS_PREFIX = "https://"
+LOG_FORMAT = "#LUMIGO# - %(asctime)s - %(levelname)s - %(message)s"
 SECONDS_TO_TIMEOUT = 0.5
 LUMIGO_EVENT_KEY = "_lumigo"
 STEP_FUNCTION_UID_KEY = "step_function_uid"
@@ -60,6 +61,7 @@ ERROR_SIZE_LIMIT_MULTIPLIER = 2
 CHINA_REGION = "cn-northwest-1"
 EDGE_KINESIS_STREAM_NAME = "prod_trc-inges-edge_edge-kinesis-stream"
 
+_logger: Dict[str, logging.Logger] = {}
 
 edge_connection = None
 try:
@@ -313,11 +315,34 @@ def _publish_spans_to_kinesis(to_send: bytes, region: str) -> int:
         kinesis_service = KinesisService(
             Configuration.edge_kinesis_stream_name,
             region=region,
+            logger=get_logger(),
             aws_access_key_id=Configuration.edge_kinesis_aws_access_key_id,
             aws_secret_access_key=Configuration.edge_kinesis_aws_secret_access_key,
         )
         kinesis_service.send([to_send])
     return int((time.time() - start_time) * 1000)
+
+
+def get_logger(logger_name="lumigo"):
+    """
+    This function returns lumigo's logger.
+    The logger streams the logs to the stderr in format the explicitly say that those are lumigo's logs.
+
+    This logger is off by default.
+    Add the environment variable `LUMIGO_DEBUG=true` to activate it.
+    """
+    global _logger
+    if logger_name not in _logger:
+        _logger[logger_name] = logging.getLogger(logger_name)
+        _logger[logger_name].propagate = False
+        handler = logging.StreamHandler()
+        handler.setFormatter(logging.Formatter(LOG_FORMAT))
+        if os.environ.get("LUMIGO_DEBUG", "").lower() == "true":
+            _logger[logger_name].setLevel(logging.DEBUG)
+        else:
+            _logger[logger_name].setLevel(logging.CRITICAL)
+        _logger[logger_name].addHandler(handler)
+    return _logger[logger_name]
 
 
 @contextmanager
