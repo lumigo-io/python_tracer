@@ -1,7 +1,6 @@
 import decimal
 import hashlib
 import json
-import logging
 import os
 import re
 import uuid
@@ -14,11 +13,13 @@ from contextlib import contextmanager
 from base64 import b64encode
 import inspect
 
+from lumigo_tracer.kinesis_service import KinesisService
+from lumigo_tracer.logger import get_logger
+
 EXECUTION_TAGS_KEY = "lumigo_execution_tags_no_scrub"
 EDGE_HOST = "{region}.lumigo-tracer-edge.golumigo.com"
 EDGE_PATH = "/api/spans"
 HTTPS_PREFIX = "https://"
-LOG_FORMAT = "#LUMIGO# - %(asctime)s - %(levelname)s - %(message)s"
 SECONDS_TO_TIMEOUT = 0.5
 LUMIGO_EVENT_KEY = "_lumigo"
 STEP_FUNCTION_UID_KEY = "step_function_uid"
@@ -56,8 +57,9 @@ DEFAULT_KEY_DEPTH = 4
 LUMIGO_TOKEN_KEY = "LUMIGO_TRACER_TOKEN"
 KILL_SWITCH = "LUMIGO_SWITCH_OFF"
 ERROR_SIZE_LIMIT_MULTIPLIER = 2
+CHINA_REGION = "cn-northwest-1"
+EDGE_KINESIS_STREAM_NAME = "prod_trc-inges-edge_edge-kinesis-stream"
 
-_logger: Dict[str, logging.Logger] = {}
 
 edge_connection = None
 try:
@@ -84,6 +86,9 @@ class Configuration:
     domains_scrubber: Optional[List] = None
     max_entry_size: int = DEFAULT_MAX_ENTRY_SIZE
     get_key_depth: int = DEFAULT_KEY_DEPTH
+    edge_kinesis_stream_name: str = EDGE_KINESIS_STREAM_NAME
+    edge_kinesis_aws_access_key_id: Optional[str] = None
+    edge_kinesis_aws_secret_access_key: Optional[str] = None
 
     @staticmethod
     def get_max_entry_size(has_error: bool = False) -> int:
@@ -104,6 +109,9 @@ def config(
     domains_scrubber: Optional[List[str]] = None,
     max_entry_size: int = DEFAULT_MAX_ENTRY_SIZE,
     get_key_depth: int = None,
+    edge_kinesis_stream_name: Optional[str] = None,
+    edge_kinesis_aws_access_key_id: Optional[str] = None,
+    edge_kinesis_aws_secret_access_key: Optional[str] = None,
 ) -> None:
     """
     This function configure the lumigo wrapper.
@@ -120,6 +128,9 @@ def config(
     :param domains_scrubber: List of regexes. We will not collect data of requests with hosts that match it.
     :param max_entry_size: The maximum size of each entry when sending back the events.
     :param get_key_depth: Max depth to search the lumigo key in the event (relevant to step functions). default 4.
+    :param edge_kinesis_stream_name: The name of the Kinesis to push the spans in China region
+    :param edge_kinesis_aws_access_key_id: The credentials to push to the Kinesis in China region
+    :param edge_kinesis_aws_secret_access_key: The credentials to push to the Kinesis in China region
     """
     if should_report is not None:
         Configuration.should_report = should_report
@@ -162,6 +173,18 @@ def config(
         domains_scrubber_regex = DOMAIN_SCRUBBER_REGEXES
     Configuration.domains_scrubber = [re.compile(r, re.IGNORECASE) for r in domains_scrubber_regex]
     Configuration.max_entry_size = int(os.environ.get("LUMIGO_MAX_ENTRY_SIZE", max_entry_size))
+    Configuration.edge_kinesis_stream_name = (
+        edge_kinesis_stream_name
+        or os.environ.get("LUMIGO_EDGE_KINESIS_STREAM_NAME")  # noqa`
+        or EDGE_KINESIS_STREAM_NAME  # noqa
+    )
+    Configuration.edge_kinesis_aws_access_key_id = edge_kinesis_aws_access_key_id or os.environ.get(
+        "LUMIGO_EDGE_KINESIS_AWS_ACCESS_KEY_ID"
+    )
+    Configuration.edge_kinesis_aws_secret_access_key = (
+        edge_kinesis_aws_secret_access_key
+        or os.environ.get("LUMIGO_EDGE_KINESIS_AWS_SECRET_ACCESS_KEY")  # noqa
+    )
 
 
 def _is_span_has_error(span: dict) -> bool:
@@ -235,9 +258,19 @@ def report_json(region: Union[None, str], msgs: List[dict], should_retry: bool =
     :return: The duration of reporting (in milliseconds),
                 or 0 if we didn't send (due to configuration or fail).
     """
-    global edge_connection
+    if not Configuration.should_report:
+        return 0
     get_logger().info(f"reporting the messages: {msgs[:10]}")
+    try:
+        prune_trace: bool = not os.environ.get("LUMIGO_PRUNE_TRACE_OFF", "").lower() == "true"
+        to_send = _create_request_body(msgs, prune_trace).encode()
+    except Exception as e:
+        get_logger().exception("Failed to create request: A span was lost.", exc_info=e)
+        return 0
+    if region == CHINA_REGION:
+        return _publish_spans_to_kinesis(to_send, CHINA_REGION)
     host = None
+    global edge_connection
     with lumigo_safe_execute("report json: establish connection"):
         host = prepare_host(Configuration.host or EDGE_HOST.format(region=region))
         duration = 0
@@ -246,48 +279,45 @@ def report_json(region: Union[None, str], msgs: List[dict], should_retry: bool =
             if not edge_connection:
                 get_logger().warning("Can not establish connection. Skip sending span.")
                 return duration
-    if Configuration.should_report:
-        try:
-            prune_trace: bool = not os.environ.get("LUMIGO_PRUNE_TRACE_OFF", "").lower() == "true"
-            to_send = _create_request_body(msgs, prune_trace).encode()
-            start_time = time.time()
-            edge_connection.request(
-                "POST", EDGE_PATH, to_send, headers={"Content-Type": "application/json"}
-            )
-            response = edge_connection.getresponse()
-            response.read()  # We most read the response to keep the connection available
-            duration = int((time.time() - start_time) * 1000)
-            get_logger().info(f"successful reporting, code: {getattr(response, 'code', 'unknown')}")
-        except Exception as e:
-            if should_retry:
-                get_logger().exception(f"Could not report to {host}. Retrying.", exc_info=e)
-                edge_connection = establish_connection(host)
-                report_json(region, msgs, should_retry=False)
-            else:
-                get_logger().exception("Could not report: A span was lost.", exc_info=e)
+    try:
+        start_time = time.time()
+        edge_connection.request(
+            "POST", EDGE_PATH, to_send, headers={"Content-Type": "application/json"}
+        )
+        response = edge_connection.getresponse()
+        response.read()  # We most read the response to keep the connection available
+        duration = int((time.time() - start_time) * 1000)
+        get_logger().info(f"successful reporting, code: {getattr(response, 'code', 'unknown')}")
+    except Exception as e:
+        if should_retry:
+            get_logger().exception(f"Could not report to {host}. Retrying.", exc_info=e)
+            edge_connection = establish_connection(host)
+            report_json(region, msgs, should_retry=False)
+        else:
+            get_logger().exception("Could not report: A span was lost.", exc_info=e)
     return duration
 
 
-def get_logger(logger_name="lumigo"):
-    """
-    This function returns lumigo's logger.
-    The logger streams the logs to the stderr in format the explicitly say that those are lumigo's logs.
-
-    This logger is off by default.
-    Add the environment variable `LUMIGO_DEBUG=true` to activate it.
-    """
-    global _logger
-    if logger_name not in _logger:
-        _logger[logger_name] = logging.getLogger(logger_name)
-        _logger[logger_name].propagate = False
-        handler = logging.StreamHandler()
-        handler.setFormatter(logging.Formatter(LOG_FORMAT))
-        if os.environ.get("LUMIGO_DEBUG", "").lower() == "true":
-            _logger[logger_name].setLevel(logging.DEBUG)
-        else:
-            _logger[logger_name].setLevel(logging.CRITICAL)
-        _logger[logger_name].addHandler(handler)
-    return _logger[logger_name]
+def _publish_spans_to_kinesis(to_send: bytes, region: str) -> int:
+    start_time = time.time()
+    with lumigo_safe_execute("report json: publish to kinesis"):
+        get_logger().info("Pushing spans to Kinesis")
+        if not Configuration.edge_kinesis_aws_access_key_id:
+            get_logger().error("Missing edge_kinesis_aws_access_key_id, can't publish the spans")
+            return 0
+        if not Configuration.edge_kinesis_aws_secret_access_key:
+            get_logger().error(
+                "Missing edge_kinesis_aws_secret_access_key, can't publish the spans"
+            )
+            return 0
+        kinesis_service = KinesisService(
+            Configuration.edge_kinesis_stream_name,
+            region=region,
+            aws_access_key_id=Configuration.edge_kinesis_aws_access_key_id,
+            aws_secret_access_key=Configuration.edge_kinesis_aws_secret_access_key,
+        )
+        kinesis_service.send([to_send])
+    return int((time.time() - start_time) * 1000)
 
 
 @contextmanager
