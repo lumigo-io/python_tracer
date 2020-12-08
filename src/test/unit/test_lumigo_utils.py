@@ -34,6 +34,7 @@ from lumigo_tracer.lumigo_utils import (
     is_error_code,
     get_size_upper_bound,
     is_aws_arn,
+    CHINA_REGION,
 )
 import json
 
@@ -385,6 +386,21 @@ def test_report_json_retry(monkeypatch, reporter_mock, caplog, errors, final_log
     report_json(None, [{"a": "b"}])
 
     assert caplog.records[-1].levelname == final_log
+
+
+def test_report_json_missing_access_key_id(monkeypatch, reporter_mock, caplog):
+    monkeypatch.setattr(Configuration, "should_report", True)
+    reporter_mock.side_effect = report_json
+    assert report_json(CHINA_REGION, [{"a": "b"}]) == 0
+    assert any(["edge_kinesis_aws_access_key_id" in log for log in caplog.messages])
+
+
+def test_report_json_missing_secret_access_key(monkeypatch, reporter_mock, caplog):
+    monkeypatch.setattr(Configuration, "should_report", True)
+    monkeypatch.setattr(Configuration, "edge_kinesis_aws_access_key_id", "my_value")
+    reporter_mock.side_effect = report_json
+    assert report_json(CHINA_REGION, [{"a": "b"}]) == 0
+    assert any(["edge_kinesis_aws_secret_access_key" in log for log in caplog.messages])
 
 
 @pytest.mark.parametrize("env, expected", [("True", True), ("other", False), ("123", False)])
