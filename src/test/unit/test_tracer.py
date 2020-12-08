@@ -12,7 +12,7 @@ import pytest
 from capturer import CaptureOutput
 
 from lumigo_tracer import lumigo_tracer, LumigoChalice, add_execution_tag
-from lumigo_tracer import boto
+from lumigo_tracer.libs import kinesis_service
 from lumigo_tracer import lumigo_utils
 from lumigo_tracer.lumigo_utils import (
     Configuration,
@@ -381,7 +381,7 @@ def test_china(context, reporter_mock, monkeypatch):
     access_key_id = "my_access_key_id"
     secret_access_key = "my_secret_access_key"
     # Create edge Kinesis
-    client = boto.get_boto_client(
+    client = kinesis_service.get_boto_client(
         "kinesis", china_region_for_test, access_key_id, secret_access_key
     )
     client.create_stream(StreamName=EDGE_KINESIS_STREAM_NAME, ShardCount=1)
@@ -395,8 +395,10 @@ def test_china(context, reporter_mock, monkeypatch):
         Timestamp=datetime.datetime.utcnow(),
     )["ShardIterator"]
 
-    original_get_boto_client = boto.get_boto_client
-    monkeypatch.setattr(boto, "get_boto_client", MagicMock(side_effect=original_get_boto_client))
+    original_get_boto_client = kinesis_service.get_boto_client
+    monkeypatch.setattr(
+        kinesis_service, "get_boto_client", MagicMock(side_effect=original_get_boto_client)
+    )
 
     @lumigo_tracer(
         edge_kinesis_aws_access_key_id=access_key_id,
@@ -416,7 +418,7 @@ def test_china(context, reporter_mock, monkeypatch):
     span_sent = json.loads(records[1]["Data"].decode())[0]
     assert span_sent["event"] == json.dumps(event)
     # Used the client from the decorator params
-    boto.get_boto_client.assert_called_with(
+    kinesis_service.get_boto_client.assert_called_with(
         service="kinesis",
         region=china_region_for_test,
         aws_access_key_id=access_key_id,

@@ -21,7 +21,7 @@ ALLOW_RETRY_ERROR_CODES = [
 ]
 
 
-def _get_boto_client(
+def get_boto_client(
     service: str,
     region: Optional[str] = None,
     aws_access_key_id: Optional[str] = None,
@@ -71,7 +71,7 @@ class KinesisService:
             self.max_batch_size = MAX_KINESIS_BATCH_SIZE
 
     def _get_stream_client(self) -> Any:
-        return _get_boto_client(
+        return get_boto_client(
             service="kinesis",
             region=self.region,
             aws_access_key_id=self.aws_access_key_id,
