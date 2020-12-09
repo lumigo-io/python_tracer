@@ -355,6 +355,7 @@ def get_logger(logger_name="lumigo"):
     Add the environment variable `LUMIGO_DEBUG=true` to activate it.
     """
     global _logger
+
     if logger_name not in _logger:
         _logger[logger_name] = logging.getLogger(logger_name)
         _logger[logger_name].propagate = False
