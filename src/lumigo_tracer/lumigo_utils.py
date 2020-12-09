@@ -9,12 +9,16 @@ from functools import reduce, lru_cache
 import time
 import http.client
 from collections import OrderedDict
+import random
 from typing import Union, List, Optional, Dict, Any, Tuple, Pattern
 from contextlib import contextmanager
 from base64 import b64encode
 import inspect
 
-from lumigo_tracer.libs.kinesis_service import KinesisService
+try:
+    import boto3
+except Exception:
+    boto3 = None
 
 EXECUTION_TAGS_KEY = "lumigo_execution_tags_no_scrub"
 EDGE_HOST = "{region}.lumigo-tracer-edge.golumigo.com"
@@ -303,7 +307,7 @@ def report_json(region: Union[None, str], msgs: List[dict], should_retry: bool =
 def _publish_spans_to_kinesis(to_send: bytes, region: str) -> int:
     start_time = time.time()
     with lumigo_safe_execute("report json: publish to kinesis"):
-        get_logger().info("Pushing spans to Kinesis")
+        get_logger().info("Sending spans to Kinesis")
         if not Configuration.edge_kinesis_aws_access_key_id:
             get_logger().error("Missing edge_kinesis_aws_access_key_id, can't publish the spans")
             return 0
@@ -312,15 +316,34 @@ def _publish_spans_to_kinesis(to_send: bytes, region: str) -> int:
                 "Missing edge_kinesis_aws_secret_access_key, can't publish the spans"
             )
             return 0
-        kinesis_service = KinesisService(
-            Configuration.edge_kinesis_stream_name,
+        _send_data_to_kinesis(
+            stream_name=Configuration.edge_kinesis_stream_name,
+            to_send=to_send,
             region=region,
-            logger=get_logger(),
             aws_access_key_id=Configuration.edge_kinesis_aws_access_key_id,
             aws_secret_access_key=Configuration.edge_kinesis_aws_secret_access_key,
         )
-        kinesis_service.send([to_send])
     return int((time.time() - start_time) * 1000)
+
+
+def _send_data_to_kinesis(
+    stream_name: str,
+    to_send: bytes,
+    region: str,
+    aws_access_key_id: str,
+    aws_secret_access_key: str,
+):
+    if not boto3:
+        get_logger().error("boto3 is missing. Unable to send to Kinesis.")
+        return None
+    client = boto3.client(
+        "kinesis",
+        region_name=region,
+        aws_access_key_id=aws_access_key_id,
+        aws_secret_access_key=aws_secret_access_key,
+    )
+    client.put_record(Data=to_send, StreamName=stream_name, PartitionKey=str(random.random()))
+    get_logger().info("Successful sending to Kinesis")
 
 
 def get_logger(logger_name="lumigo"):

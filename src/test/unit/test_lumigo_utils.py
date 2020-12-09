@@ -392,7 +392,10 @@ def test_report_json_missing_access_key_id(monkeypatch, reporter_mock, caplog):
     monkeypatch.setattr(Configuration, "should_report", True)
     reporter_mock.side_effect = report_json
     assert report_json(CHINA_REGION, [{"a": "b"}]) == 0
-    assert any(["edge_kinesis_aws_access_key_id" in log for log in caplog.messages])
+    assert any(
+        "edge_kinesis_aws_access_key_id" in record.message and record.levelname == "ERROR"
+        for record in caplog.records
+    )
 
 
 def test_report_json_missing_secret_access_key(monkeypatch, reporter_mock, caplog):
@@ -400,7 +403,10 @@ def test_report_json_missing_secret_access_key(monkeypatch, reporter_mock, caplo
     monkeypatch.setattr(Configuration, "edge_kinesis_aws_access_key_id", "my_value")
     reporter_mock.side_effect = report_json
     assert report_json(CHINA_REGION, [{"a": "b"}]) == 0
-    assert any(["edge_kinesis_aws_secret_access_key" in log for log in caplog.messages])
+    assert any(
+        "edge_kinesis_aws_secret_access_key" in record.message and record.levelname == "ERROR"
+        for record in caplog.records
+    )
 
 
 @pytest.mark.parametrize("env, expected", [("True", True), ("other", False), ("123", False)])
