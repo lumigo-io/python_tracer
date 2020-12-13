@@ -6,20 +6,26 @@ import os
 import sys
 from functools import wraps
 import logging
+from unittest.mock import MagicMock
 
+import boto3
 import pytest
 from capturer import CaptureOutput
 
 from lumigo_tracer import lumigo_tracer, LumigoChalice, add_execution_tag
+from lumigo_tracer import lumigo_utils
 from lumigo_tracer.lumigo_utils import (
     Configuration,
     STEP_FUNCTION_UID_KEY,
     LUMIGO_EVENT_KEY,
     _create_request_body,
     EXECUTION_TAGS_KEY,
+    report_json,
+    EDGE_KINESIS_STREAM_NAME,
 )
 
 from lumigo_tracer.spans_container import SpansContainer
+from moto import mock_kinesis
 
 
 def test_lambda_wrapper_basic_events(reporter_mock, context):
@@ -364,3 +370,58 @@ def test_not_jsonable_return(monkeypatch, context):
     # following python's runtime: runtime/lambda_runtime_marshaller.py:27
     expected_message = 'The lambda will probably fail due to bad return value. Original message: "Object of type datetime is not JSON serializable"'
     assert function_span["error"]["message"] == expected_message
+
+
+@mock_kinesis
+def test_china(context, reporter_mock, monkeypatch):
+    china_region_for_test = "ap-east-1"  # Moto doesn't work for China
+    monkeypatch.setattr(lumigo_utils, "CHINA_REGION", china_region_for_test)
+    monkeypatch.setenv("AWS_REGION", china_region_for_test)
+    reporter_mock.side_effect = report_json  # Override the conftest's monkeypatch
+    access_key_id = "my_access_key_id"
+    secret_access_key = "my_secret_access_key"
+    # Create edge Kinesis
+    client = boto3.client(
+        "kinesis",
+        region_name=china_region_for_test,
+        aws_access_key_id=access_key_id,
+        aws_secret_access_key=secret_access_key,
+    )
+    client.create_stream(StreamName=EDGE_KINESIS_STREAM_NAME, ShardCount=1)
+    shard_id = client.describe_stream(StreamName=EDGE_KINESIS_STREAM_NAME)["StreamDescription"][
+        "Shards"
+    ][0]["ShardId"]
+    shard_iterator = client.get_shard_iterator(
+        StreamName=EDGE_KINESIS_STREAM_NAME,
+        ShardId=shard_id,
+        ShardIteratorType="AT_TIMESTAMP",
+        Timestamp=datetime.datetime.utcnow(),
+    )["ShardIterator"]
+
+    original_get_boto_client = boto3.client
+    monkeypatch.setattr(boto3, "client", MagicMock(side_effect=original_get_boto_client))
+
+    @lumigo_tracer(
+        edge_kinesis_aws_access_key_id=access_key_id,
+        edge_kinesis_aws_secret_access_key=secret_access_key,
+        should_report=True,
+    )
+    def lambda_test_function(event, context):
+        return "ret_value"
+
+    event = {"k": "v"}
+    result = lambda_test_function(event, context)
+
+    assert result == "ret_value"
+    # Spans sent to Kinesis
+    records = client.get_records(ShardIterator=shard_iterator)["Records"]
+    assert len(records) == 2  # Start span and end span
+    span_sent = json.loads(records[1]["Data"].decode())[0]
+    assert span_sent["event"] == json.dumps(event)
+    # Used the client from the decorator params
+    boto3.client.assert_called_with(
+        "kinesis",
+        region_name=china_region_for_test,
+        aws_access_key_id=access_key_id,
+        aws_secret_access_key=secret_access_key,
+    )

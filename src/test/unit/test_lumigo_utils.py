@@ -6,6 +6,7 @@ import http.client
 from mock import Mock
 
 import pytest
+from lumigo_tracer import lumigo_utils
 from lumigo_tracer.lumigo_utils import (
     _create_request_body,
     _is_span_has_error,
@@ -34,6 +35,7 @@ from lumigo_tracer.lumigo_utils import (
     is_error_code,
     get_size_upper_bound,
     is_aws_arn,
+    CHINA_REGION,
 )
 import json
 
@@ -385,6 +387,43 @@ def test_report_json_retry(monkeypatch, reporter_mock, caplog, errors, final_log
     report_json(None, [{"a": "b"}])
 
     assert caplog.records[-1].levelname == final_log
+
+
+def test_report_json_china_missing_access_key_id(monkeypatch, reporter_mock, caplog):
+    monkeypatch.setattr(Configuration, "should_report", True)
+    reporter_mock.side_effect = report_json
+    assert report_json(CHINA_REGION, [{"a": "b"}]) == 0
+    assert any(
+        "edge_kinesis_aws_access_key_id" in record.message and record.levelname == "ERROR"
+        for record in caplog.records
+    )
+
+
+def test_report_json_china_missing_secret_access_key(monkeypatch, reporter_mock, caplog):
+    monkeypatch.setattr(Configuration, "should_report", True)
+    monkeypatch.setattr(Configuration, "edge_kinesis_aws_access_key_id", "my_value")
+    reporter_mock.side_effect = report_json
+    assert report_json(CHINA_REGION, [{"a": "b"}]) == 0
+    assert any(
+        "edge_kinesis_aws_secret_access_key" in record.message and record.levelname == "ERROR"
+        for record in caplog.records
+    )
+
+
+def test_report_json_china_no_boto(monkeypatch, reporter_mock, caplog):
+    reporter_mock.side_effect = report_json
+    monkeypatch.setattr(Configuration, "should_report", True)
+    monkeypatch.setattr(Configuration, "edge_kinesis_aws_access_key_id", "my_value")
+    monkeypatch.setattr(Configuration, "edge_kinesis_aws_secret_access_key", "my_value")
+    monkeypatch.setattr(lumigo_utils, "boto3", None)
+
+    report_json(CHINA_REGION, [{"a": "b"}])
+
+    assert any(
+        "boto3 is missing. Unable to send to Kinesis" in record.message
+        and record.levelname == "ERROR"  # noqa
+        for record in caplog.records
+    )
 
 
 @pytest.mark.parametrize("env, expected", [("True", True), ("other", False), ("123", False)])
