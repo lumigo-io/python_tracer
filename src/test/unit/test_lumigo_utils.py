@@ -27,7 +27,7 @@ from lumigo_tracer.lumigo_utils import (
     SKIP_SCRUBBING_KEYS,
     get_timeout_buffer,
     lumigo_dumps,
-    prepare_host,
+    get_edge_host,
     EDGE_PATH,
     report_json,
     is_kill_switch_on,
@@ -370,8 +370,9 @@ def test_get_timeout_buffer(remaining_time, conf, expected):
     ["arg", "host"],
     [("https://a.com", "a.com"), (f"https://b.com{EDGE_PATH}", "b.com"), ("h.com", "h.com")],
 )
-def test_prepare_host(arg, host):
-    assert prepare_host(arg) == host
+def test_get_edge_host(arg, host, monkeypatch):
+    monkeypatch.setattr(Configuration, "host", arg)
+    assert get_edge_host("region") == host
 
 
 @pytest.mark.parametrize(

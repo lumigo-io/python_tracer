@@ -14,6 +14,7 @@ from lumigo_tracer.lumigo_utils import (
     lumigo_dumps,
     get_size_upper_bound,
     is_error_code,
+    get_edge_host,
 )
 from lumigo_tracer.spans_container import SpansContainer
 from lumigo_tracer.wrappers.http.http_data_classes import HttpRequest, HttpState
@@ -29,10 +30,19 @@ LUMIGO_HEADERS_HOOK_KEY = "_lumigo_headers_hook"
 HookedData = namedtuple("HookedData", ["headers", "path"])
 
 
+def is_lumigo_edge(host: Optional[str]) -> bool:
+    if host and get_edge_host() in host:
+        get_logger().info("Dropping Lumigo event to edge")
+        return True
+    return False
+
+
 def add_request_event(parse_params: HttpRequest):
     """
     This function parses an request event and add it to the span.
     """
+    if is_lumigo_edge(parse_params.host):
+        return
     parser = get_parser(parse_params.host)()
     msg = parser.parse_request(parse_params)
     HttpState.previous_request = parse_params
@@ -47,6 +57,8 @@ def add_unparsed_request(parse_params: HttpRequest):
     In that case, we will consider it as a continuance of the previous request if they got the same url,
         and we didn't get any answer yet.
     """
+    if is_lumigo_edge(parse_params.host):
+        return
     last_event = SpansContainer.get_span().get_last_span()
     if last_event:
         if last_event and last_event.get("type") == HTTP_TYPE and HttpState.previous_request:
@@ -69,6 +81,8 @@ def update_event_response(
                         the aggregated response body
     This function assumes synchronous execution - we update the last http event.
     """
+    if is_lumigo_edge(host):
+        return
     last_event = SpansContainer.get_span().pop_last_span()
     if last_event:
         http_info = last_event.get("info", {}).get("httpInfo", {})
