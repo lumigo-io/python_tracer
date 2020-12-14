@@ -30,7 +30,7 @@ LUMIGO_HEADERS_HOOK_KEY = "_lumigo_headers_hook"
 HookedData = namedtuple("HookedData", ["headers", "path"])
 
 
-def is_lumigo_edge(host: Optional[str]):
+def is_lumigo_edge(host: Optional[str]) -> bool:
     if host and get_edge_host() in host:
         get_logger().info("Dropping Lumigo event to edge")
         return True

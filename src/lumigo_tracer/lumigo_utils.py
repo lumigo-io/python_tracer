@@ -246,8 +246,8 @@ def establish_connection(host):
     return None
 
 
-def get_edge_host(region: Optional[str] = None):
-    host = Configuration.host or EDGE_HOST.format(region=region or os.environ.get("AWS_REGION"))
+def get_edge_host(region: Optional[str] = None) -> str:
+    host = Configuration.host or EDGE_HOST.format(region=region or get_region())
     if host.startswith(HTTPS_PREFIX):
         host = host[len(HTTPS_PREFIX) :]  # noqa: E203
     if host.endswith(EDGE_PATH):
@@ -627,3 +627,7 @@ def is_error_code(status_code: int) -> bool:
 
 def is_aws_arn(string_to_validate: Optional[str]) -> bool:
     return bool(string_to_validate and string_to_validate.startswith("arn:aws:"))
+
+
+def get_region() -> str:
+    return os.environ.get("AWS_REGION") or "UNKNOWN"

@@ -22,6 +22,7 @@ from lumigo_tracer.lumigo_utils import (
     _is_span_has_error,
     create_step_function_span,
     get_current_ms_time,
+    get_region,
 )
 from lumigo_tracer import lumigo_utils
 from lumigo_tracer.parsing_utils import parse_trace_id, safe_split_get, recursive_json_join
@@ -292,7 +293,7 @@ class SpansContainer:
             started=get_current_ms_time(),
             name=os.environ.get("AWS_LAMBDA_FUNCTION_NAME"),
             runtime=os.environ.get("AWS_EXECUTION_ENV"),
-            region=os.environ.get("AWS_REGION"),
+            region=get_region(),
             memory_allocated=os.environ.get("AWS_LAMBDA_FUNCTION_MEMORY_SIZE"),
             log_stream_name=os.environ.get("AWS_LAMBDA_LOG_STREAM_NAME"),
             log_group_name=os.environ.get("AWS_LAMBDA_LOG_GROUP_NAME"),
