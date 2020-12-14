@@ -115,10 +115,10 @@ class SpansContainer:
     def handle_timeout(self, *args):
         get_logger().info("The tracer reached the end of the timeout timer")
         to_send = [s for s in self.spans if s["id"] in self.span_ids_to_send]
+        self.span_ids_to_send.clear()
         if Configuration.send_only_if_error:
             to_send.append(self._generate_start_span())
         lumigo_utils.report_json(region=self.region, msgs=to_send)
-        self.span_ids_to_send.clear()
 
     def start_timeout_timer(self, context=None) -> None:
         if Configuration.timeout_timer:
@@ -158,7 +158,9 @@ class SpansContainer:
         This function assumes synchronous execution - we update the last http event.
         """
         if self.spans:
-            self.spans[-1]["ended"] = get_current_ms_time()
+            span = self.spans[-1]
+            span["ended"] = get_current_ms_time()
+            self.span_ids_to_send.add(span["id"])
 
     def update_event_times(
         self, start_time: Optional[datetime] = None, end_time: Optional[datetime] = None

@@ -19,7 +19,11 @@ from lumigo_tracer.lumigo_utils import EXECUTION_TAGS_KEY, DEFAULT_MAX_ENTRY_SIZ
 from lumigo_tracer.wrappers.http.http_parser import Parser
 from lumigo_tracer.spans_container import SpansContainer
 from lumigo_tracer.wrappers.http.http_data_classes import HttpState, HttpRequest
-from lumigo_tracer.wrappers.http.sync_http_wrappers import add_request_event, update_event_response
+from lumigo_tracer.wrappers.http.sync_http_wrappers import (
+    add_request_event,
+    update_event_response,
+    is_lumigo_edge,
+)
 
 
 def test_lambda_wrapper_http(context):
@@ -479,3 +483,9 @@ def test_double_request_size_limit_on_error_status_code(context, monkeypatch):
 
     assert len(request_with_error["body"]) > len(request_no_error["body"])
     assert request_with_error["body"] == json.dumps(d)
+
+
+@pytest.mark.parametrize("host, is_lumigo", [("https://lumigo.io", True), ("google.com", False)])
+def test_is_lumigo_edge(host, is_lumigo, monkeypatch):
+    monkeypatch.setattr(Configuration, "host", "lumigo.io")
+    assert is_lumigo_edge(host) == is_lumigo

@@ -246,7 +246,8 @@ def establish_connection(host):
     return None
 
 
-def prepare_host(host):
+def get_edge_host(region: Optional[str] = None):
+    host = Configuration.host or EDGE_HOST.format(region=region or os.environ.get("AWS_REGION"))
     if host.startswith(HTTPS_PREFIX):
         host = host[len(HTTPS_PREFIX) :]  # noqa: E203
     if host.endswith(EDGE_PATH):
@@ -254,7 +255,7 @@ def prepare_host(host):
     return host
 
 
-def report_json(region: Union[None, str], msgs: List[dict], should_retry: bool = True) -> int:
+def report_json(region: Optional[str], msgs: List[dict], should_retry: bool = True) -> int:
     """
     This function sends the information back to the edge.
 
@@ -278,7 +279,7 @@ def report_json(region: Union[None, str], msgs: List[dict], should_retry: bool =
     host = None
     global edge_connection
     with lumigo_safe_execute("report json: establish connection"):
-        host = prepare_host(Configuration.host or EDGE_HOST.format(region=region))
+        host = get_edge_host(region)
         duration = 0
         if not edge_connection or edge_connection.host != host:
             edge_connection = establish_connection(host)
