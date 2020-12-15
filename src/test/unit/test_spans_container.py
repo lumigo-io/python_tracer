@@ -1,11 +1,17 @@
 import copy
 import inspect
 import json
+from datetime import datetime
 
 import pytest
 
 from lumigo_tracer.wrappers.http.http_parser import HTTP_TYPE
-from lumigo_tracer.spans_container import SpansContainer, TimeoutMechanism, FUNCTION_TYPE
+from lumigo_tracer.spans_container import (
+    SpansContainer,
+    TimeoutMechanism,
+    FUNCTION_TYPE,
+    MALFORMED_TXID,
+)
 from lumigo_tracer.lumigo_utils import Configuration, EXECUTION_TAGS_KEY
 
 
@@ -179,3 +185,32 @@ def test_get_span_by_id():
     container.add_span({"id": 3, "extra": "c"})
     assert SpansContainer.get_span().get_span_by_id(2)["extra"] == "b"
     assert SpansContainer.get_span().get_span_by_id(5) is None
+
+
+def test_get_patched_root(monkeypatch, context):
+    monkeypatch.setenv(
+        "_X_AMZN_TRACE_ID",
+        "Root=1-5fd891b8-252f5de90a085ae04267aa4e;Parent=0a885f800de045d4;Sampled=0",
+    )
+    SpansContainer.create_span({}, context)
+    result = SpansContainer.get_span().get_patched_root()
+    root = result.split(";")[0].split("=")[1]
+    one, current_time, txid = root.split("-")
+
+    result_time = datetime.fromtimestamp(int(current_time, 16))
+    assert one == "1"
+    assert (result_time - datetime.now()).total_seconds() < 5
+    assert txid == "252f5de90a085ae04267aa4e"
+
+
+def test_malformed_txid(monkeypatch, context):
+    monkeypatch.setenv(
+        "_X_AMZN_TRACE_ID", f"Root=1-5fd891b8-{MALFORMED_TXID};Parent=0a885f800de045d4;Sampled=0"
+    )
+    SpansContainer.create_span({}, context)
+
+    assert SpansContainer.get_span().transaction_id != MALFORMED_TXID
+    assert SpansContainer.get_span().function_span["isMalformedTransactionId"]
+    result = SpansContainer.get_span().get_patched_root()
+    output_trace_id = result.split(";")[0].split("=")[1].split("-")[2]
+    assert output_trace_id == SpansContainer.get_span().transaction_id

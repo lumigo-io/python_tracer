@@ -31,6 +31,7 @@ from lumigo_tracer.event.event_trigger import parse_triggered_by
 _VERSION_PATH = os.path.join(os.path.dirname(__file__), "VERSION")
 MAX_LAMBDA_TIME = 15 * 60 * 1000
 FUNCTION_TYPE = "function"
+MALFORMED_TXID = "000000000000000000000000"
 
 
 class SpansContainer:
@@ -62,6 +63,10 @@ class SpansContainer:
         self.region = region
         self.trace_root = trace_root
         self.trace_id_suffix = trace_id_suffix
+        malformed_txid = False
+        if transaction_id == MALFORMED_TXID:
+            transaction_id = os.urandom(12).hex()
+            malformed_txid = True
         self.transaction_id = transaction_id
         self.max_finish_time = max_finish_time
         self.base_msg = {
@@ -88,6 +93,7 @@ class SpansContainer:
                     "logGroupName": log_group_name,
                     **(trigger_by or {}),
                 },
+                "isMalformedTransactionId": malformed_txid,
                 EXECUTION_TAGS_KEY: [],
             },
             self.base_msg,
@@ -260,8 +266,13 @@ class SpansContainer:
             )
 
     def get_patched_root(self):
+        """
+        We're changing the root in order to pass/share the transaction id. More info:
+        https://docs.aws.amazon.com/xray/latest/devguide/xray-api-sendingdata.html#xray-api-traceids
+        """
+        current_time = int(time.time())
         root = safe_split_get(self.trace_root, "-", 0)
-        return f"Root={root}-0000{os.urandom(2).hex()}-{self.transaction_id}{self.trace_id_suffix}"
+        return f"Root={root}-{hex(current_time)[2:]}-{self.transaction_id}{self.trace_id_suffix}"
 
     @classmethod
     def get_span(cls) -> "SpansContainer":
