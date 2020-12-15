@@ -267,7 +267,7 @@ class SpansContainer:
 
     def get_patched_root(self):
         """
-        We're changing the root in order to find the component of the transaction faster. More info:
+        We're changing the root in order to pass/share the transaction id. More info:
         https://docs.aws.amazon.com/xray/latest/devguide/xray-api-sendingdata.html#xray-api-traceids
         """
         current_time = int(time.time())
