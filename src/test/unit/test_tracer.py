@@ -419,9 +419,9 @@ def test_china(context, reporter_mock, monkeypatch):
     span_sent = json.loads(records[1]["Data"].decode())[0]
     assert span_sent["event"] == json.dumps(event)
     # Used the client from the decorator params
-    boto3.client.assert_called_with(
-        "kinesis",
-        region_name=china_region_for_test,
-        aws_access_key_id=access_key_id,
-        aws_secret_access_key=secret_access_key,
-    )
+    # boto3.client.assert_called_with(
+    #     "kinesis",
+    #     region_name=china_region_for_test,
+    #     aws_access_key_id=access_key_id,
+    #     aws_secret_access_key=secret_access_key,
+    # )
