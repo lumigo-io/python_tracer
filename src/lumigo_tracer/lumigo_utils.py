@@ -343,13 +343,12 @@ def _publish_spans_to_kinesis(to_send: bytes, region: str) -> int:
 
 
 def _is_edge_kinesis_connection_cache_disabled() -> bool:
-    return os.environ.get("LUMIGO_KINEISIS_INITIALIZATION_CONNECTION", "").lower() == "false"
+    return os.environ.get("LUMIGO_KINESIS_SHOULD_REUSE_CONNECTION", "").lower() == "false"
 
 
 def _get_edge_kinesis_boto_client(region: str, aws_access_key_id: str, aws_secret_access_key: str):
     global edge_kinesis_boto_client
     if not edge_kinesis_boto_client or _is_edge_kinesis_connection_cache_disabled():
-        get_logger().info("Creating new boto3 connection")
         edge_kinesis_boto_client = boto3.client(
             "kinesis",
             region_name=region,
