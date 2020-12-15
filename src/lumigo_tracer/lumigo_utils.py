@@ -16,14 +16,11 @@ from base64 import b64encode
 import inspect
 
 try:
+    import botocore
     import boto3
 except Exception:
-    boto3 = None
-
-try:
-    import botocore
-except Exception:
     botocore = None
+    boto3 = None
 
 EXECUTION_TAGS_KEY = "lumigo_execution_tags_no_scrub"
 EDGE_HOST = "{region}.lumigo-tracer-edge.golumigo.com"
@@ -72,7 +69,7 @@ EDGE_KINESIS_STREAM_NAME = "prod_trc-inges-edge_edge-kinesis-stream"
 
 _logger: Dict[str, logging.Logger] = {}
 
-EDGE_KINESIS_BOTO_CLIENT = None
+edge_kinesis_boto_client = None
 edge_connection = None
 
 
@@ -346,14 +343,14 @@ def _publish_spans_to_kinesis(to_send: bytes, region: str) -> int:
 
 
 def _get_edge_kinesis_boto_client(region: str, aws_access_key_id: str, aws_secret_access_key: str):
-    global EDGE_KINESIS_BOTO_CLIENT
+    global edge_kinesis_boto_client
     if (
-        not EDGE_KINESIS_BOTO_CLIENT
+        not edge_kinesis_boto_client
         or os.environ.get("LUMIGO_KINEISIS_INITIALIZATION_CONNECTION", "").lower()  # noqa
         == "false"  # noqa
     ):
         get_logger().info("Creating new boto3 connection")
-        EDGE_KINESIS_BOTO_CLIENT = boto3.client(
+        edge_kinesis_boto_client = boto3.client(
             "kinesis",
             region_name=region,
             aws_access_key_id=aws_access_key_id,
@@ -362,7 +359,7 @@ def _get_edge_kinesis_boto_client(region: str, aws_access_key_id: str, aws_secre
                 retries={"max_attempts": 1, "mode": "standard"},
             ),
         )
-    return EDGE_KINESIS_BOTO_CLIENT
+    return edge_kinesis_boto_client
 
 
 def _send_data_to_kinesis(
