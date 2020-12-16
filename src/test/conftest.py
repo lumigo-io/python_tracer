@@ -28,6 +28,7 @@ def cancel_timeout_mechanism(monkeypatch):
 @pytest.fixture(autouse=True)
 def remove_caches(monkeypatch):
     get_omitting_regex.cache_clear()
+    monkeypatch.setattr(lumigo_utils, "edge_kinesis_boto_client", None)
 
 
 @pytest.yield_fixture(autouse=True)
