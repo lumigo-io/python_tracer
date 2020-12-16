@@ -16,8 +16,10 @@ from base64 import b64encode
 import inspect
 
 try:
+    import botocore
     import boto3
 except Exception:
+    botocore = None
     boto3 = None
 
 EXECUTION_TAGS_KEY = "lumigo_execution_tags_no_scrub"
@@ -67,10 +69,20 @@ EDGE_KINESIS_STREAM_NAME = "prod_trc-inges-edge_edge-kinesis-stream"
 
 _logger: Dict[str, logging.Logger] = {}
 
+edge_kinesis_boto_client = None
 edge_connection = None
+
+
+def get_region() -> str:
+    return os.environ.get("AWS_REGION") or "UNKNOWN"
+
+
 try:
     # Try to establish the connection in initialization
-    if os.environ.get("LUMIGO_INITIALIZATION_CONNECTION", "").lower() != "false":
+    if (
+        os.environ.get("LUMIGO_INITIALIZATION_CONNECTION", "").lower() != "false"
+        and get_region() != CHINA_REGION  # noqa
+    ):
         edge_connection = http.client.HTTPSConnection(  # type: ignore
             EDGE_HOST.format(region=os.environ.get("AWS_REGION")), timeout=EDGE_TIMEOUT
         )
@@ -307,7 +319,7 @@ def report_json(region: Optional[str], msgs: List[dict], should_retry: bool = Tr
 
 def _publish_spans_to_kinesis(to_send: bytes, region: str) -> int:
     start_time = time.time()
-    with lumigo_safe_execute("report json: publish to kinesis"):
+    try:
         get_logger().info("Sending spans to Kinesis")
         if not Configuration.edge_kinesis_aws_access_key_id:
             get_logger().error("Missing edge_kinesis_aws_access_key_id, can't publish the spans")
@@ -324,7 +336,29 @@ def _publish_spans_to_kinesis(to_send: bytes, region: str) -> int:
             aws_access_key_id=Configuration.edge_kinesis_aws_access_key_id,
             aws_secret_access_key=Configuration.edge_kinesis_aws_secret_access_key,
         )
+    except Exception as err:
+        get_logger().exception("Failed to send spans to Kinesis", exc_info=err)
+        warn_client(f"Failed to send spans to Kinesis: {err}")
     return int((time.time() - start_time) * 1000)
+
+
+def _is_edge_kinesis_connection_cache_disabled() -> bool:
+    return os.environ.get("LUMIGO_KINESIS_SHOULD_REUSE_CONNECTION", "").lower() == "false"
+
+
+def _get_edge_kinesis_boto_client(region: str, aws_access_key_id: str, aws_secret_access_key: str):
+    global edge_kinesis_boto_client
+    if not edge_kinesis_boto_client or _is_edge_kinesis_connection_cache_disabled():
+        edge_kinesis_boto_client = boto3.client(
+            "kinesis",
+            region_name=region,
+            aws_access_key_id=aws_access_key_id,
+            aws_secret_access_key=aws_secret_access_key,
+            config=botocore.config.Config(
+                retries={"max_attempts": 1, "mode": "standard"},
+            ),
+        )
+    return edge_kinesis_boto_client
 
 
 def _send_data_to_kinesis(
@@ -337,9 +371,11 @@ def _send_data_to_kinesis(
     if not boto3:
         get_logger().error("boto3 is missing. Unable to send to Kinesis.")
         return None
-    client = boto3.client(
-        "kinesis",
-        region_name=region,
+    if not botocore:
+        get_logger().error("botocore is missing. Unable to send to Kinesis.")
+        return None
+    client = _get_edge_kinesis_boto_client(
+        region=region,
         aws_access_key_id=aws_access_key_id,
         aws_secret_access_key=aws_secret_access_key,
     )
@@ -627,7 +663,3 @@ def is_error_code(status_code: int) -> bool:
 
 def is_aws_arn(string_to_validate: Optional[str]) -> bool:
     return bool(string_to_validate and string_to_validate.startswith("arn:aws:"))
-
-
-def get_region() -> str:
-    return os.environ.get("AWS_REGION") or "UNKNOWN"
