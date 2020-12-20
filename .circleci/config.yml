@@ -106,6 +106,8 @@ workflows:
         requires:
           - test
     - deploy:
+        requires:
+          - test
         filters:
           branches:
             only: master
@@ -121,7 +123,7 @@ jobs:
       - run: mkdir -p ~/.aws
       - run: echo ${KEY} | gpg --batch -d --passphrase-fd 0 ../common-resources/encrypted_files/credentials_integration.enc > ~/.aws/credentials
       - run: pre-commit install
-      - run: ./scripts/checks.sh
+      - run: . venv/bin/activate && ./scripts/checks.sh
       - run: bash <(curl -s https://codecov.io/bash)
 
   integration-test:

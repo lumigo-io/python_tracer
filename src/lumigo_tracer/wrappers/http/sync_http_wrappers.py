@@ -32,7 +32,6 @@ HookedData = namedtuple("HookedData", ["headers", "path"])
 
 def is_lumigo_edge(host: Optional[str]) -> bool:
     if host and get_edge_host() in host:
-        get_logger().info("Dropping Lumigo event to edge")
         return True
     return False
 

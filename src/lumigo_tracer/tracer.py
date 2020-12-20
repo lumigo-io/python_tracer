@@ -57,7 +57,6 @@ def _lumigo_tracer(func):
             with lumigo_safe_execute("auto tag"):
                 AutoTagEvent.auto_tag_event(args[0])
             SpansContainer.get_span().start(*args)
-            wrap()
             try:
                 executed = True
                 ret_val = func(*args, **kwargs)
@@ -116,6 +115,7 @@ def lumigo_tracer(*args, **kwargs):
         See `lumigo_tracer.reporter.config` for more details on the available configuration.
     """
     config(*args, **kwargs)
+    wrap()
     return _lumigo_tracer
 
 

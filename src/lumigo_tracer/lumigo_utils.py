@@ -258,6 +258,7 @@ def establish_connection(host):
     return None
 
 
+@lru_cache(maxsize=1)
 def get_edge_host(region: Optional[str] = None) -> str:
     host = Configuration.host or EDGE_HOST.format(region=region or get_region())
     if host.startswith(HTTPS_PREFIX):
