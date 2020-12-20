@@ -415,18 +415,17 @@ def test_report_json_china_missing_secret_access_key(monkeypatch, reporter_mock,
     )
 
 
-@pytest.mark.parametrize("package_name", ["boto3", "botocore"])
-def test_report_json_china_no_boto(package_name, monkeypatch, reporter_mock, caplog):
+def test_report_json_china_no_boto(monkeypatch, reporter_mock, caplog):
     reporter_mock.side_effect = report_json
     monkeypatch.setattr(Configuration, "should_report", True)
     monkeypatch.setattr(Configuration, "edge_kinesis_aws_access_key_id", "my_value")
     monkeypatch.setattr(Configuration, "edge_kinesis_aws_secret_access_key", "my_value")
-    monkeypatch.setattr(lumigo_utils, package_name, None)
+    monkeypatch.setattr(lumigo_utils, "boto3", None)
 
     report_json(CHINA_REGION, [{"a": "b"}])
 
     assert any(
-        f"{package_name} is missing. Unable to send to Kinesis" in record.message
+        "boto3 is missing. Unable to send to Kinesis" in record.message
         and record.levelname == "ERROR"  # noqa
         for record in caplog.records
     )
