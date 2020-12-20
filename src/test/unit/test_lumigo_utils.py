@@ -1,9 +1,13 @@
+import importlib.util
 import inspect
+import logging
 from collections import OrderedDict
 from decimal import Decimal
 import datetime
 import http.client
-from mock import Mock
+
+import boto3
+from mock import Mock, MagicMock
 
 import pytest
 from lumigo_tracer import lumigo_utils
@@ -425,6 +429,53 @@ def test_report_json_china_no_boto(monkeypatch, reporter_mock, caplog):
         and record.levelname == "ERROR"  # noqa
         for record in caplog.records
     )
+
+
+def test_report_json_china_on_error_no_exception_and_notify_user(capsys, monkeypatch):
+    monkeypatch.setattr(Configuration, "should_report", True)
+    monkeypatch.setattr(Configuration, "edge_kinesis_aws_access_key_id", "my_value")
+    monkeypatch.setattr(Configuration, "edge_kinesis_aws_secret_access_key", "my_value")
+    monkeypatch.setattr(boto3, "client", MagicMock(side_effect=Exception))
+    lumigo_utils.get_logger().setLevel(logging.CRITICAL)
+
+    report_json(CHINA_REGION, [{"a": "b"}])
+
+    assert "Failed to send spans" in capsys.readouterr().out
+
+
+def test_china_shouldnt_establish_http_connection(monkeypatch):
+    monkeypatch.setenv("AWS_REGION", CHINA_REGION)
+    # Reload a duplicate of lumigo_utils
+    spec = importlib.util.find_spec("lumigo_tracer.lumigo_utils")
+    lumigo_utils_reloaded = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(lumigo_utils_reloaded)
+
+    assert lumigo_utils_reloaded.edge_connection is None
+
+
+def test_china_with_env_variable_shouldnt_reuse_boto3_connection(monkeypatch):
+    monkeypatch.setenv("LUMIGO_KINESIS_SHOULD_REUSE_CONNECTION", "false")
+    monkeypatch.setattr(Configuration, "should_report", True)
+    monkeypatch.setattr(Configuration, "edge_kinesis_aws_access_key_id", "my_value")
+    monkeypatch.setattr(Configuration, "edge_kinesis_aws_secret_access_key", "my_value")
+    monkeypatch.setattr(boto3, "client", MagicMock())
+
+    report_json(CHINA_REGION, [{"a": "b"}])
+    report_json(CHINA_REGION, [{"a": "b"}])
+
+    assert boto3.client.call_count == 2
+
+
+def test_china_reuse_boto3_connection(monkeypatch):
+    monkeypatch.setattr(Configuration, "should_report", True)
+    monkeypatch.setattr(Configuration, "edge_kinesis_aws_access_key_id", "my_value")
+    monkeypatch.setattr(Configuration, "edge_kinesis_aws_secret_access_key", "my_value")
+    monkeypatch.setattr(boto3, "client", MagicMock())
+
+    report_json(CHINA_REGION, [{"a": "b"}])
+    report_json(CHINA_REGION, [{"a": "b"}])
+
+    boto3.client.assert_called_once()
 
 
 @pytest.mark.parametrize("env, expected", [("True", True), ("other", False), ("123", False)])

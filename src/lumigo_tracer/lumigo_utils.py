@@ -371,9 +371,6 @@ def _send_data_to_kinesis(
     if not boto3:
         get_logger().error("boto3 is missing. Unable to send to Kinesis.")
         return None
-    if not botocore:
-        get_logger().error("botocore is missing. Unable to send to Kinesis.")
-        return None
     client = _get_edge_kinesis_boto_client(
         region=region,
         aws_access_key_id=aws_access_key_id,
