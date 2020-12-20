@@ -106,8 +106,6 @@ workflows:
         requires:
           - test
     - deploy:
-        requires:
-          - test
         filters:
           branches:
             only: master
