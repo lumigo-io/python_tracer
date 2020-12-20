@@ -114,7 +114,6 @@ class SpansContainer:
         if not Configuration.send_only_if_error:
             report_duration = lumigo_utils.report_json(region=self.region, msgs=[to_send])
             self.function_span["reporter_rtt"] = report_duration
-            self.spans = []
         else:
             get_logger().debug("Skip sending start because tracer in 'send only if error' mode .")
         self.start_timeout_timer(context)

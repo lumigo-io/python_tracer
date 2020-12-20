@@ -7,7 +7,7 @@ from lumigo_tracer.spans_container import SpansContainer
 import mock
 import pytest
 
-from lumigo_tracer.lumigo_utils import Configuration, get_omitting_regex, get_logger
+from lumigo_tracer.lumigo_utils import Configuration, get_omitting_regex, get_logger, get_edge_host
 from lumigo_tracer.wrappers.http.http_data_classes import HttpState
 
 
@@ -28,6 +28,7 @@ def cancel_timeout_mechanism(monkeypatch):
 @pytest.fixture(autouse=True)
 def remove_caches(monkeypatch):
     get_omitting_regex.cache_clear()
+    get_edge_host.cache_clear()
     monkeypatch.setattr(lumigo_utils, "edge_kinesis_boto_client", None)
 
 
