@@ -38,11 +38,12 @@ def _add_wrap_flag_to_context(*args):
 
 
 def _lumigo_tracer(func):
+    if is_kill_switch_on():
+        return func
+    wrap()
+
     @wraps(func)
     def lambda_wrapper(*args, **kwargs):
-        if is_kill_switch_on():
-            return func(*args, **kwargs)
-
         if _is_context_already_wrapped(*args):
             return func(*args, **kwargs)
         _add_wrap_flag_to_context(*args)
@@ -115,7 +116,6 @@ def lumigo_tracer(*args, **kwargs):
         See `lumigo_tracer.reporter.config` for more details on the available configuration.
     """
     config(*args, **kwargs)
-    wrap()
     return _lumigo_tracer
 
 
