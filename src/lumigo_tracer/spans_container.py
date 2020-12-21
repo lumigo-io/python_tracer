@@ -264,6 +264,9 @@ class SpansContainer:
                 copy.deepcopy(event), has_error=True
             )
 
+    def can_path_root(self):
+        return self.trace_root and self.transaction_id and self.trace_id_suffix
+
     def get_patched_root(self):
         """
         We're changing the root in order to pass/share the transaction id. More info:
