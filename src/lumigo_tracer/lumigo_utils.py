@@ -689,3 +689,7 @@ def is_error_code(status_code: int) -> bool:
 
 def is_aws_arn(string_to_validate: Optional[str]) -> bool:
     return bool(string_to_validate and string_to_validate.startswith("arn:aws:"))
+
+
+def should_scrub_known_services() -> bool:
+    return os.environ.get("LUMIGO_SCRUB_KNOWN_SERVICES") == "true"

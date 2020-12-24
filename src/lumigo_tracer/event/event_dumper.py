@@ -5,7 +5,13 @@ from collections import OrderedDict
 from typing import Dict, List, Optional
 
 from lumigo_tracer.parsing_utils import str_to_list, safe_get
-from lumigo_tracer.lumigo_utils import get_logger, is_api_gw_event, lumigo_dumps, Configuration
+from lumigo_tracer.lumigo_utils import (
+    get_logger,
+    is_api_gw_event,
+    lumigo_dumps,
+    Configuration,
+    should_scrub_known_services,
+)
 
 API_GW_KEYS_ORDER = str_to_list(os.environ.get("LUMIGO_API_GW_KEYS_ORDER", "")) or [
     "version",
@@ -230,7 +236,11 @@ class EventDumper:
             try:
                 if handler.is_supported(event):
                     return lumigo_dumps(
-                        handler.parse(event), max_size, omit_skip_path=handler.get_omit_skip_path()
+                        handler.parse(event),
+                        max_size,
+                        omit_skip_path=None
+                        if should_scrub_known_services()
+                        else handler.get_omit_skip_path(),
                     )
             except Exception as e:
                 get_logger().debug(
