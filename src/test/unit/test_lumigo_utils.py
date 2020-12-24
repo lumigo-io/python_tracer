@@ -247,6 +247,14 @@ def test_format_frames__check_all_keys_and_values():
             f'{{"{SKIP_SCRUBBING_KEYS[0]}": {{"password": 1}}}}',
         ),
         ([{"password": 1}, {"a": "b"}], '[{"password": "****"}, {"a": "b"}]'),  # list of dicts
+        (  # Dict of long list
+            {"a": [{"key": "value", "password": "value", "b": "c"}]},
+            '{"a": [{"key": "****", "password": "****", "b": "c"}]}',
+        ),
+        (  # Multiple nested lists
+            {"a": [[[{"c": [{"key": "v"}]}], [{"c": [{"key": "v"}]}]]]},
+            '{"a": [[[{"c": [{"key": "****"}]}], [{"c": [{"key": "****"}]}]]]}',
+        ),
     ],
 )
 def test_lumigo_dumps(value, output):

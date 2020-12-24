@@ -10,7 +10,7 @@ import time
 import http.client
 from collections import OrderedDict
 import random
-from typing import Union, List, Optional, Dict, Any, Tuple, Pattern
+from typing import Union, List, Optional, Dict, Any, Tuple, Pattern, TypeVar
 from contextlib import contextmanager
 from base64 import b64encode
 import inspect
@@ -66,6 +66,7 @@ KILL_SWITCH = "LUMIGO_SWITCH_OFF"
 ERROR_SIZE_LIMIT_MULTIPLIER = 2
 CHINA_REGION = "cn-northwest-1"
 EDGE_KINESIS_STREAM_NAME = "prod_trc-inges-edge_edge-kinesis-stream"
+Container = TypeVar("Container", dict, list)
 
 _logger: Dict[str, logging.Logger] = {}
 
@@ -526,12 +527,12 @@ def md5hash(d: dict) -> str:
 
 
 def _recursive_omitting(
-    prev_result: Tuple[Dict, int],
-    item: Tuple[str, Any],
+    prev_result: Tuple[Container, int],
+    item: Tuple[Union[str, int], Any],
     regex: Optional[Pattern[str]],
     enforce_jsonify: bool,
     decimal_safe: bool = False,
-) -> Tuple[Dict, int]:
+) -> Tuple[Container, int]:
     """
     This function omitting keys until the given max_size.
     This function should be used in a reduce iteration over dict.items().
@@ -547,6 +548,9 @@ def _recursive_omitting(
     d, free_space = prev_result
     if free_space < 0:
         return d, free_space
+    if isinstance(d, list):
+        d.append(None)
+        key = -1
     if key in SKIP_SCRUBBING_KEYS:
         d[key] = value
         free_space -= len(value) if isinstance(value, str) else len(aws_dump(d))
@@ -562,6 +566,12 @@ def _recursive_omitting(
     elif isinstance(value, decimal.Decimal):
         d[key] = float(value)
         free_space -= 5
+    elif isinstance(value, list):
+        d[key], free_space = reduce(
+            lambda p, i: _recursive_omitting(p, (-1, i), regex, enforce_jsonify),
+            value,
+            ([], free_space),
+        )
     else:
         d[key] = value
         try:
