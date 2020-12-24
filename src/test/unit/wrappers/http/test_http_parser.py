@@ -149,6 +149,20 @@ def test_dynamodb_parser_happy_flow(method, body, message_id):
     assert response["info"]["messageId"] == message_id
 
 
+def test_dynamodb_parse_no_scrubbing():
+    body = {"TableName": "component-test", "Key": {"field0": {"S": "1"}}}
+    parser = DynamoParser()
+    params = HttpRequest(
+        host="",
+        method="POST",
+        uri="",
+        headers={"x-amz-target": "DynamoDB_20120810.GetItem"},
+        body=json.dumps(body),
+    )
+    response = parser.parse_request(params)
+    assert json.loads(response["info"]["httpInfo"]["request"]["body"]) == body
+
+
 def test_dynamodb_parser_sad_flow():
     parser = DynamoParser()
     params = HttpRequest(

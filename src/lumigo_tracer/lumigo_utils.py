@@ -532,6 +532,7 @@ def _recursive_omitting(
     regex: Optional[Pattern[str]],
     enforce_jsonify: bool,
     decimal_safe: bool = False,
+    omit_skip_path: Optional[List[str]] = None,
 ) -> Tuple[Container, int]:
     """
     This function omitting keys until the given max_size.
@@ -548,18 +549,24 @@ def _recursive_omitting(
     d, free_space = prev_result
     if free_space < 0:
         return d, free_space
+    should_skip_key = False
     if isinstance(d, list):
         d.append(None)
         key = -1
+    elif omit_skip_path:
+        should_skip_key = omit_skip_path[0] == key
+        omit_skip_path = omit_skip_path[1:] if len(omit_skip_path) > 1 and should_skip_key else None
     if key in SKIP_SCRUBBING_KEYS:
         d[key] = value
         free_space -= len(value) if isinstance(value, str) else len(aws_dump(d))
-    elif isinstance(key, str) and regex and regex.match(key):
+    elif isinstance(key, str) and regex and regex.match(key) and not should_skip_key:
         d[key] = "****"
         free_space -= 4
     elif isinstance(value, (dict, OrderedDict)):
         d[key], free_space = reduce(
-            lambda p, i: _recursive_omitting(p, i, regex, enforce_jsonify),
+            lambda p, i: _recursive_omitting(
+                p, i, regex, enforce_jsonify, omit_skip_path=omit_skip_path
+            ),
             value.items(),
             ({}, free_space),
         )
@@ -568,7 +575,9 @@ def _recursive_omitting(
         free_space -= 5
     elif isinstance(value, list):
         d[key], free_space = reduce(
-            lambda p, i: _recursive_omitting(p, (-1, i), regex, enforce_jsonify),
+            lambda p, i: _recursive_omitting(
+                p, (-1, i), regex, enforce_jsonify, omit_skip_path=omit_skip_path
+            ),
             value,
             ([], free_space),
         )
@@ -594,6 +603,7 @@ def omit_keys(
     regexes: Optional[Pattern[str]] = None,
     enforce_jsonify: bool = False,
     decimal_safe: bool = False,
+    omit_skip_path: Optional[List[str]] = None,
 ) -> Tuple[Dict, bool]:
     """
     This function omit problematic keys from the given value.
@@ -603,7 +613,9 @@ def omit_keys(
     regexes = regexes or get_omitting_regex()
     max_size = in_max_size or Configuration.max_entry_size
     omitted, size = reduce(  # type: ignore
-        lambda p, i: _recursive_omitting(p, i, regexes, enforce_jsonify, decimal_safe),
+        lambda p, i: _recursive_omitting(
+            p, i, regexes, enforce_jsonify, decimal_safe, omit_skip_path
+        ),
         value.items(),
         ({}, max_size),
     )
@@ -622,6 +634,7 @@ def lumigo_dumps(
     regexes: Optional[Pattern[str]] = None,
     enforce_jsonify: bool = False,
     decimal_safe=False,
+    omit_skip_path: Optional[List[str]] = None,
 ) -> str:
     regexes = regexes or get_omitting_regex()
     max_size = max_size if max_size is not None else Configuration.max_entry_size
@@ -639,7 +652,12 @@ def lumigo_dumps(
             pass
     if isinstance(d, dict) and regexes:
         d, is_truncated = omit_keys(
-            d, max_size, regexes, enforce_jsonify, decimal_safe=decimal_safe
+            d,
+            max_size,
+            regexes,
+            enforce_jsonify,
+            decimal_safe=decimal_safe,
+            omit_skip_path=omit_skip_path,
         )
     elif isinstance(d, list):
         size = 0

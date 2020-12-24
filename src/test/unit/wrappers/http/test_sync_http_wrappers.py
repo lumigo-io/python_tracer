@@ -8,6 +8,7 @@ from types import SimpleNamespace
 from typing import Dict
 import socket
 
+import boto3
 import pytest
 import urllib3
 import requests
@@ -483,6 +484,23 @@ def test_double_request_size_limit_on_error_status_code(context, monkeypatch):
 
     assert len(request_with_error["body"]) > len(request_no_error["body"])
     assert request_with_error["body"] == json.dumps(d)
+
+
+def test_on_error_status_code_not_scrub_dynamodb(context, monkeypatch):
+    @lumigo_tracer.lumigo_tracer(token="123")
+    def lambda_test_function(event, context):
+        try:
+            table = boto3.resource("dynamodb").Table("not-exist")
+            table.get_item(Key={"field0": "v"})
+        except Exception:
+            pass
+
+    lambda_test_function({}, context)
+    http_info = SpansContainer.get_span().spans[-1]["info"]["httpInfo"]
+
+    assert http_info["response"]["statusCode"] >= 400  # Verify error occurred
+    # Verify `Key` wasn't scrubbed
+    assert "field0" in json.loads(http_info["request"]["body"])["Key"]
 
 
 @pytest.mark.parametrize("host, is_lumigo", [("https://lumigo.io", True), ("google.com", False)])

@@ -261,6 +261,36 @@ def test_lumigo_dumps(value, output):
     assert lumigo_dumps(value, max_size=100) == output
 
 
+@pytest.mark.parametrize(
+    ("value", "omit_skip_path", "output"),
+    [
+        ({"a": "b", "Key": "v"}, ["Key"], '{"a": "b", "Key": "v"}'),  # Not nested
+        (  # Nested with list
+            {"R": [{"o": {"key": "value"}}]},
+            ["R", "o", "key"],
+            '{"R": [{"o": {"key": "value"}}]}',
+        ),
+        (  # Doesnt affect other paths
+            {"a": {"key": "v"}, "b": {"key": "v"}},
+            ["a", "key"],
+            '{"a": {"key": "v"}, "b": {"key": "****"}}',
+        ),
+        (  # Nested items not affected
+            {"key": {"password": "v"}},
+            ["key"],
+            '{"key": {"password": "****"}}',
+        ),
+        (  # Skipping nested item should skip also parent item
+            {"key": {"password": "v"}},
+            ["key", "password"],
+            '{"key": {"password": "v"}}',
+        ),
+    ],
+)
+def test_lumigo_dumps_with_omit_skip(value, omit_skip_path, output):
+    assert lumigo_dumps(value, omit_skip_path=omit_skip_path) == output
+
+
 def test_lumigo_dumps_enforce_jsonify_raise_error():
     with pytest.raises(TypeError):
         assert lumigo_dumps({"a": set()}, max_size=100, enforce_jsonify=True)
