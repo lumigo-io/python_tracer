@@ -280,11 +280,12 @@ def test_lumigo_dumps(value, output):
             ["key"],
             '{"key": {"password": "****"}}',
         ),
-        (  # Skipping nested item should skip also parent item
+        (  # Happy flow - nested case
             {"key": {"password": "v"}},
             ["key", "password"],
             '{"key": {"password": "v"}}',
         ),
+        ({"a": {"key": "c"}}, ["key"], '{"a": {"key": "****"}}'),  # Affect only the full path
     ],
 )
 def test_lumigo_dumps_with_omit_skip(value, omit_skip_path, output):

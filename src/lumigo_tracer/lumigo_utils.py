@@ -532,7 +532,7 @@ def md5hash(d: dict) -> str:
 
 def _recursive_omitting(
     prev_result: Tuple[Container, int],
-    item: Tuple[Union[str, int], Any],
+    item: Tuple[Optional[str], Any],
     regex: Optional[Pattern[str]],
     enforce_jsonify: bool,
     decimal_safe: bool = False,
@@ -554,20 +554,17 @@ def _recursive_omitting(
     if free_space < 0:
         return d, free_space
     should_skip_key = False
-    if isinstance(d, list):
-        d.append(None)
-        key = -1
-    elif omit_skip_path:
+    if isinstance(d, dict) and omit_skip_path:
         should_skip_key = omit_skip_path[0] == key
         omit_skip_path = omit_skip_path[1:] if should_skip_key else None
     if key in SKIP_SCRUBBING_KEYS:
-        d[key] = value
-        free_space -= len(value) if isinstance(value, str) else len(aws_dump(d))
+        new_value = value
+        free_space -= len(value) if isinstance(value, str) else len(aws_dump({key: value}))
     elif isinstance(key, str) and regex and regex.match(key) and not should_skip_key:
-        d[key] = "****"
+        new_value = "****"
         free_space -= 4
     elif isinstance(value, (dict, OrderedDict)):
-        d[key], free_space = reduce(
+        new_value, free_space = reduce(
             lambda p, i: _recursive_omitting(
                 p, i, regex, enforce_jsonify, omit_skip_path=omit_skip_path
             ),
@@ -575,29 +572,32 @@ def _recursive_omitting(
             ({}, free_space),
         )
     elif isinstance(value, decimal.Decimal):
-        d[key] = float(value)
+        new_value = float(value)
         free_space -= 5
     elif isinstance(value, list):
-        d[key], free_space = reduce(
+        new_value, free_space = reduce(
             lambda p, i: _recursive_omitting(
-                p, (-1, i), regex, enforce_jsonify, omit_skip_path=omit_skip_path
+                p, (None, i), regex, enforce_jsonify, omit_skip_path=omit_skip_path
             ),
             value,
             ([], free_space),
         )
+    elif isinstance(value, str):
+        new_value = value
+        free_space -= len(new_value)
     else:
-        d[key] = value
         try:
-            free_space -= (
-                len(value)
-                if isinstance(value, str)
-                else len(aws_dump(d, decimal_safe=decimal_safe))
-            )
+            free_space -= len(aws_dump({key: value}, decimal_safe=decimal_safe))
+            new_value = value
         except TypeError:
             if enforce_jsonify:
                 raise
-            d[key] = str(value)
-            free_space -= len(d[key])
+            new_value = str(value)
+            free_space -= len(new_value)
+    if isinstance(d, list):
+        d.append(new_value)
+    else:
+        d[key] = new_value
     return d, free_space
 
 
