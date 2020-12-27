@@ -23,6 +23,7 @@ from lumigo_tracer.lumigo_utils import (
     create_step_function_span,
     get_current_ms_time,
     get_region,
+    is_provision_concurrency_initialization,
 )
 from lumigo_tracer import lumigo_utils
 from lumigo_tracer.parsing_utils import parse_trace_id, safe_split_get, recursive_json_join
@@ -78,6 +79,7 @@ class SpansContainer:
             "info": {"tracer": {"version": version}, "traceId": {"Root": trace_root}},
             "token": Configuration.token,
         }
+        is_cold = SpansContainer.is_cold and not is_provision_concurrency_initialization()
         self.function_span = recursive_json_join(
             {
                 "id": request_id,
@@ -87,7 +89,7 @@ class SpansContainer:
                 "event": event,
                 "envs": envs,
                 "memoryAllocated": memory_allocated,
-                "readiness": "cold" if SpansContainer.is_cold else "warm",
+                "readiness": "cold" if is_cold else "warm",
                 "info": {
                     "logStreamName": log_stream_name,
                     "logGroupName": log_group_name,

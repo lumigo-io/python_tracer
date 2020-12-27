@@ -661,3 +661,7 @@ def is_error_code(status_code: int) -> bool:
 
 def is_aws_arn(string_to_validate: Optional[str]) -> bool:
     return bool(string_to_validate and string_to_validate.startswith("arn:aws:"))
+
+
+def is_provision_concurrency_initialization() -> bool:
+    return os.environ.get("AWS_LAMBDA_INITIALIZATION_TYPE") == "provisioned-concurrency"
