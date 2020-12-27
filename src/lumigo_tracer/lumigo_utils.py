@@ -108,6 +108,7 @@ class Configuration:
     edge_kinesis_stream_name: str = EDGE_KINESIS_STREAM_NAME
     edge_kinesis_aws_access_key_id: Optional[str] = None
     edge_kinesis_aws_secret_access_key: Optional[str] = None
+    should_scrub_known_services: bool = False
 
     @staticmethod
     def get_max_entry_size(has_error: bool = False) -> int:
@@ -203,6 +204,9 @@ def config(
     Configuration.edge_kinesis_aws_secret_access_key = (
         edge_kinesis_aws_secret_access_key
         or os.environ.get("LUMIGO_EDGE_KINESIS_AWS_SECRET_ACCESS_KEY")  # noqa
+    )
+    Configuration.should_scrub_known_services = (
+        os.environ.get("LUMIGO_SCRUB_KNOWN_SERVICES") == "true"
     )
 
 
@@ -610,6 +614,8 @@ def omit_keys(
     We do so in the following cases:
     * if the value is dictionary, then we omit values by keys (recursively)
     """
+    if Configuration.should_scrub_known_services:
+        omit_skip_path = None
     regexes = regexes or get_omitting_regex()
     max_size = in_max_size or Configuration.max_entry_size
     omitted, size = reduce(  # type: ignore
@@ -663,7 +669,9 @@ def lumigo_dumps(
         size = 0
         organs = []
         for a in d:
-            organs.append(lumigo_dumps(a, max_size, regexes, enforce_jsonify))
+            organs.append(
+                lumigo_dumps(a, max_size, regexes, enforce_jsonify, omit_skip_path=omit_skip_path)
+            )
             size += len(organs[-1])
             if size > max_size:
                 break
@@ -689,7 +697,3 @@ def is_error_code(status_code: int) -> bool:
 
 def is_aws_arn(string_to_validate: Optional[str]) -> bool:
     return bool(string_to_validate and string_to_validate.startswith("arn:aws:"))
-
-
-def should_scrub_known_services() -> bool:
-    return os.environ.get("LUMIGO_SCRUB_KNOWN_SERVICES") == "true"

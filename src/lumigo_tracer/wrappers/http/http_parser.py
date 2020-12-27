@@ -21,7 +21,6 @@ from lumigo_tracer.lumigo_utils import (
     get_current_ms_time,
     is_error_code,
     is_aws_arn,
-    should_scrub_known_services,
 )
 from lumigo_tracer.wrappers.http.http_data_classes import HttpRequest
 
@@ -44,9 +43,7 @@ class Parser:
 
     def parse_request(self, parse_params: HttpRequest) -> dict:
         if Configuration.verbose and parse_params and not should_scrub_domain(parse_params.host):
-            parse_params.omit_skip_path = (
-                None if should_scrub_known_services() else self.get_omit_skip_path()
-            )
+            parse_params.omit_skip_path = self.get_omit_skip_path()
             additional_info = {
                 "headers": lumigo_dumps(parse_params.headers),
                 "body": lumigo_dumps(parse_params.body, omit_skip_path=parse_params.omit_skip_path)

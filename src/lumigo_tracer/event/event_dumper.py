@@ -10,7 +10,6 @@ from lumigo_tracer.lumigo_utils import (
     is_api_gw_event,
     lumigo_dumps,
     Configuration,
-    should_scrub_known_services,
 )
 
 API_GW_KEYS_ORDER = str_to_list(os.environ.get("LUMIGO_API_GW_KEYS_ORDER", "")) or [
@@ -238,9 +237,7 @@ class EventDumper:
                     return lumigo_dumps(
                         handler.parse(event),
                         max_size,
-                        omit_skip_path=None
-                        if should_scrub_known_services()
-                        else handler.get_omit_skip_path(),
+                        omit_skip_path=handler.get_omit_skip_path(),
                     )
             except Exception as e:
                 get_logger().debug(

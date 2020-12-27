@@ -40,7 +40,6 @@ from lumigo_tracer.lumigo_utils import (
     get_size_upper_bound,
     is_aws_arn,
     CHINA_REGION,
-    should_scrub_known_services,
 )
 import json
 
@@ -290,6 +289,13 @@ def test_lumigo_dumps(value, output):
 )
 def test_lumigo_dumps_with_omit_skip(value, omit_skip_path, output):
     assert lumigo_dumps(value, omit_skip_path=omit_skip_path) == output
+
+
+def test_lumigo_dumps_with_omit_skip_and_should_scrub_known_services(monkeypatch):
+    monkeypatch.setenv("LUMIGO_SCRUB_KNOWN_SERVICES", "true")
+    config()
+
+    assert lumigo_dumps({"key": "v"}, omit_skip_path=["key"]) == '{"key": "****"}'
 
 
 def test_lumigo_dumps_enforce_jsonify_raise_error():
@@ -552,12 +558,3 @@ def test_is_error_code(status_code, is_error):
 )
 def test_is_aws_arn(arn, is_arn_result):
     assert is_aws_arn(arn) is is_arn_result
-
-
-def test_should_scrub_known_services_false():
-    assert should_scrub_known_services() is False
-
-
-def test_should_scrub_known_services_true(monkeypatch):
-    monkeypatch.setenv("LUMIGO_SCRUB_KNOWN_SERVICES", "true")
-    assert should_scrub_known_services() is True
