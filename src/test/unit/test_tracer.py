@@ -96,6 +96,19 @@ def test_lambda_wrapper_return_decimal(context):
     assert span["return_value"] == '{"a": [1.0]}'
 
 
+def test_lambda_wrapper_provision_concurrency_is_warm(context, monkeypatch):
+    monkeypatch.setattr(SpansContainer, "is_cold", True)
+    monkeypatch.setenv("AWS_LAMBDA_INITIALIZATION_TYPE", "provisioned-concurrency")
+
+    @lumigo_tracer(token="123")
+    def lambda_test_function(event, context):
+        return {"a": "b"}
+
+    lambda_test_function({}, context)
+    span = SpansContainer.get_span().function_span
+    assert span["readiness"] == "warm"
+
+
 def test_kill_switch(monkeypatch, context):
     monkeypatch.setattr(os, "environ", {"LUMIGO_SWITCH_OFF": "true"})
 
