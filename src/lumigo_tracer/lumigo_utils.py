@@ -559,7 +559,7 @@ def _recursive_omitting(
         key = -1
     elif omit_skip_path:
         should_skip_key = omit_skip_path[0] == key
-        omit_skip_path = omit_skip_path[1:] if len(omit_skip_path) > 1 and should_skip_key else None
+        omit_skip_path = omit_skip_path[1:] if should_skip_key else None
     if key in SKIP_SCRUBBING_KEYS:
         d[key] = value
         free_space -= len(value) if isinstance(value, str) else len(aws_dump(d))
