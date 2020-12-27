@@ -8,7 +8,6 @@ class HttpRequest:
     uri: str
     headers: dict
     body: bytes
-    omit_skip_path: Optional[List[str]]
 
     def __init__(self, **kwargs):
         self.host = kwargs["host"]
@@ -16,7 +15,6 @@ class HttpRequest:
         self.uri = kwargs["uri"]
         self.headers = {k.lower(): v for k, v in (kwargs.get("headers") or {}).items()}
         self.body = kwargs.get("body")
-        self.omit_skip_path = None
 
     def clone(self, **kwargs):
         clone_obj = deepcopy(self)
@@ -28,6 +26,7 @@ class HttpRequest:
 class HttpState:
     previous_request: Optional[HttpRequest] = None
     previous_response_body: bytes = b""
+    omit_skip_path: Optional[List[str]] = None
 
     @staticmethod
     def clear():
