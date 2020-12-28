@@ -1,5 +1,5 @@
 from copy import deepcopy
-from typing import Optional
+from typing import Optional, List
 
 
 class HttpRequest:
@@ -26,6 +26,7 @@ class HttpRequest:
 class HttpState:
     previous_request: Optional[HttpRequest] = None
     previous_response_body: bytes = b""
+    omit_skip_path: Optional[List[str]] = None
 
     @staticmethod
     def clear():

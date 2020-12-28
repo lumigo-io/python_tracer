@@ -109,7 +109,11 @@ def _update_request_data_increased_size_limit(http_info: dict, max_size: int) ->
         return
     http_info["request"].update(
         {
-            "body": lumigo_dumps(HttpState.previous_request.body, max_size)
+            "body": lumigo_dumps(
+                HttpState.previous_request.body,
+                max_size,
+                omit_skip_path=HttpState.omit_skip_path,
+            )
             if HttpState.previous_request.body
             else "",
             "headers": lumigo_dumps(HttpState.previous_request.headers, max_size),

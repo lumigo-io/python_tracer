@@ -10,7 +10,7 @@ import time
 import http.client
 from collections import OrderedDict
 import random
-from typing import Union, List, Optional, Dict, Any, Tuple, Pattern
+from typing import Union, List, Optional, Dict, Any, Tuple, Pattern, TypeVar
 from contextlib import contextmanager
 from base64 import b64encode
 import inspect
@@ -66,6 +66,7 @@ KILL_SWITCH = "LUMIGO_SWITCH_OFF"
 ERROR_SIZE_LIMIT_MULTIPLIER = 2
 CHINA_REGION = "cn-northwest-1"
 EDGE_KINESIS_STREAM_NAME = "prod_trc-inges-edge_edge-kinesis-stream"
+Container = TypeVar("Container", dict, list)
 
 _logger: Dict[str, logging.Logger] = {}
 
@@ -107,6 +108,7 @@ class Configuration:
     edge_kinesis_stream_name: str = EDGE_KINESIS_STREAM_NAME
     edge_kinesis_aws_access_key_id: Optional[str] = None
     edge_kinesis_aws_secret_access_key: Optional[str] = None
+    should_scrub_known_services: bool = False
 
     @staticmethod
     def get_max_entry_size(has_error: bool = False) -> int:
@@ -202,6 +204,9 @@ def config(
     Configuration.edge_kinesis_aws_secret_access_key = (
         edge_kinesis_aws_secret_access_key
         or os.environ.get("LUMIGO_EDGE_KINESIS_AWS_SECRET_ACCESS_KEY")  # noqa
+    )
+    Configuration.should_scrub_known_services = (
+        os.environ.get("LUMIGO_SCRUB_KNOWN_SERVICES") == "true"
     )
 
 
@@ -526,12 +531,13 @@ def md5hash(d: dict) -> str:
 
 
 def _recursive_omitting(
-    prev_result: Tuple[Dict, int],
-    item: Tuple[str, Any],
+    prev_result: Tuple[Container, int],
+    item: Tuple[Optional[str], Any],
     regex: Optional[Pattern[str]],
     enforce_jsonify: bool,
     decimal_safe: bool = False,
-) -> Tuple[Dict, int]:
+    omit_skip_path: Optional[List[str]] = None,
+) -> Tuple[Container, int]:
     """
     This function omitting keys until the given max_size.
     This function should be used in a reduce iteration over dict.items().
@@ -547,34 +553,51 @@ def _recursive_omitting(
     d, free_space = prev_result
     if free_space < 0:
         return d, free_space
+    should_skip_key = False
+    if isinstance(d, dict) and omit_skip_path:
+        should_skip_key = omit_skip_path[0] == key
+        omit_skip_path = omit_skip_path[1:] if should_skip_key else None
     if key in SKIP_SCRUBBING_KEYS:
-        d[key] = value
-        free_space -= len(value) if isinstance(value, str) else len(aws_dump(d))
-    elif isinstance(key, str) and regex and regex.match(key):
-        d[key] = "****"
+        new_value = value
+        free_space -= len(value) if isinstance(value, str) else len(aws_dump({key: value}))
+    elif isinstance(key, str) and regex and regex.match(key) and not should_skip_key:
+        new_value = "****"
         free_space -= 4
     elif isinstance(value, (dict, OrderedDict)):
-        d[key], free_space = reduce(
-            lambda p, i: _recursive_omitting(p, i, regex, enforce_jsonify),
+        new_value, free_space = reduce(
+            lambda p, i: _recursive_omitting(
+                p, i, regex, enforce_jsonify, omit_skip_path=omit_skip_path
+            ),
             value.items(),
             ({}, free_space),
         )
     elif isinstance(value, decimal.Decimal):
-        d[key] = float(value)
+        new_value = float(value)
         free_space -= 5
+    elif isinstance(value, list):
+        new_value, free_space = reduce(
+            lambda p, i: _recursive_omitting(
+                p, (None, i), regex, enforce_jsonify, omit_skip_path=omit_skip_path
+            ),
+            value,
+            ([], free_space),
+        )
+    elif isinstance(value, str):
+        new_value = value
+        free_space -= len(new_value)
     else:
-        d[key] = value
         try:
-            free_space -= (
-                len(value)
-                if isinstance(value, str)
-                else len(aws_dump(d, decimal_safe=decimal_safe))
-            )
+            free_space -= len(aws_dump({key: value}, decimal_safe=decimal_safe))
+            new_value = value
         except TypeError:
             if enforce_jsonify:
                 raise
-            d[key] = str(value)
-            free_space -= len(d[key])
+            new_value = str(value)
+            free_space -= len(new_value)
+    if isinstance(d, list):
+        d.append(new_value)
+    else:
+        d[key] = new_value
     return d, free_space
 
 
@@ -584,16 +607,21 @@ def omit_keys(
     regexes: Optional[Pattern[str]] = None,
     enforce_jsonify: bool = False,
     decimal_safe: bool = False,
+    omit_skip_path: Optional[List[str]] = None,
 ) -> Tuple[Dict, bool]:
     """
     This function omit problematic keys from the given value.
     We do so in the following cases:
     * if the value is dictionary, then we omit values by keys (recursively)
     """
+    if Configuration.should_scrub_known_services:
+        omit_skip_path = None
     regexes = regexes or get_omitting_regex()
     max_size = in_max_size or Configuration.max_entry_size
     omitted, size = reduce(  # type: ignore
-        lambda p, i: _recursive_omitting(p, i, regexes, enforce_jsonify, decimal_safe),
+        lambda p, i: _recursive_omitting(
+            p, i, regexes, enforce_jsonify, decimal_safe, omit_skip_path
+        ),
         value.items(),
         ({}, max_size),
     )
@@ -612,6 +640,7 @@ def lumigo_dumps(
     regexes: Optional[Pattern[str]] = None,
     enforce_jsonify: bool = False,
     decimal_safe=False,
+    omit_skip_path: Optional[List[str]] = None,
 ) -> str:
     regexes = regexes or get_omitting_regex()
     max_size = max_size if max_size is not None else Configuration.max_entry_size
@@ -629,13 +658,20 @@ def lumigo_dumps(
             pass
     if isinstance(d, dict) and regexes:
         d, is_truncated = omit_keys(
-            d, max_size, regexes, enforce_jsonify, decimal_safe=decimal_safe
+            d,
+            max_size,
+            regexes,
+            enforce_jsonify,
+            decimal_safe=decimal_safe,
+            omit_skip_path=omit_skip_path,
         )
     elif isinstance(d, list):
         size = 0
         organs = []
         for a in d:
-            organs.append(lumigo_dumps(a, max_size, regexes, enforce_jsonify))
+            organs.append(
+                lumigo_dumps(a, max_size, regexes, enforce_jsonify, omit_skip_path=omit_skip_path)
+            )
             size += len(organs[-1])
             if size > max_size:
                 break

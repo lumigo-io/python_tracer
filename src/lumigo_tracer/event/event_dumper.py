@@ -2,10 +2,15 @@ import copy
 import os
 from abc import ABC, abstractmethod
 from collections import OrderedDict
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 from lumigo_tracer.parsing_utils import str_to_list, safe_get
-from lumigo_tracer.lumigo_utils import get_logger, is_api_gw_event, lumigo_dumps, Configuration
+from lumigo_tracer.lumigo_utils import (
+    get_logger,
+    is_api_gw_event,
+    lumigo_dumps,
+    Configuration,
+)
 
 API_GW_KEYS_ORDER = str_to_list(os.environ.get("LUMIGO_API_GW_KEYS_ORDER", "")) or [
     "version",
@@ -80,6 +85,10 @@ class EventParseHandler(ABC):
     def parse(event) -> OrderedDict:
         raise NotImplementedError()
 
+    @staticmethod
+    def get_omit_skip_path() -> Optional[List[str]]:
+        return None
+
 
 class S3Handler(EventParseHandler):
     @staticmethod
@@ -108,6 +117,10 @@ class S3Handler(EventParseHandler):
                         new_s3_record_event["s3"]["object"][key] = rec["s3"]["object"].get(key)
             new_event["Records"].append(new_s3_record_event)
         return new_event
+
+    @staticmethod
+    def get_omit_skip_path() -> Optional[List[str]]:
+        return ["Records", "s3", "object", "key"]
 
 
 class CloudfrontHandler(EventParseHandler):
@@ -221,7 +234,11 @@ class EventDumper:
         for handler in handlers:
             try:
                 if handler.is_supported(event):
-                    return lumigo_dumps(handler.parse(event), max_size)
+                    return lumigo_dumps(
+                        handler.parse(event),
+                        max_size,
+                        omit_skip_path=handler.get_omit_skip_path(),
+                    )
             except Exception as e:
                 get_logger().debug(
                     f"Error while trying to parse with handler {handler.__class__.__name__} event {event}",

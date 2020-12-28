@@ -247,10 +247,56 @@ def test_format_frames__check_all_keys_and_values():
             f'{{"{SKIP_SCRUBBING_KEYS[0]}": {{"password": 1}}}}',
         ),
         ([{"password": 1}, {"a": "b"}], '[{"password": "****"}, {"a": "b"}]'),  # list of dicts
+        (  # Dict of long list
+            {"a": [{"key": "value", "password": "value", "b": "c"}]},
+            '{"a": [{"key": "****", "password": "****", "b": "c"}]}',
+        ),
+        (  # Multiple nested lists
+            {"a": [[[{"c": [{"key": "v"}]}], [{"c": [{"key": "v"}]}]]]},
+            '{"a": [[[{"c": [{"key": "****"}]}], [{"c": [{"key": "****"}]}]]]}',
+        ),
     ],
 )
 def test_lumigo_dumps(value, output):
     assert lumigo_dumps(value, max_size=100) == output
+
+
+@pytest.mark.parametrize(
+    ("value", "omit_skip_path", "output"),
+    [
+        ({"a": "b", "Key": "v"}, ["Key"], '{"a": "b", "Key": "v"}'),  # Not nested
+        (  # Nested with list
+            {"R": [{"o": {"key": "value"}}]},
+            ["R", "o", "key"],
+            '{"R": [{"o": {"key": "value"}}]}',
+        ),
+        (  # Doesnt affect other paths
+            {"a": {"key": "v"}, "b": {"key": "v"}},
+            ["a", "key"],
+            '{"a": {"key": "v"}, "b": {"key": "****"}}',
+        ),
+        (  # Nested items not affected
+            {"key": {"password": "v"}},
+            ["key"],
+            '{"key": {"password": "****"}}',
+        ),
+        (  # Happy flow - nested case
+            {"key": {"password": "v"}},
+            ["key", "password"],
+            '{"key": {"password": "v"}}',
+        ),
+        ({"a": {"key": "c"}}, ["key"], '{"a": {"key": "****"}}'),  # Affect only the full path
+    ],
+)
+def test_lumigo_dumps_with_omit_skip(value, omit_skip_path, output):
+    assert lumigo_dumps(value, omit_skip_path=omit_skip_path) == output
+
+
+def test_lumigo_dumps_with_omit_skip_and_should_scrub_known_services(monkeypatch):
+    monkeypatch.setenv("LUMIGO_SCRUB_KNOWN_SERVICES", "true")
+    config()
+
+    assert lumigo_dumps({"key": "v"}, omit_skip_path=["key"]) == '{"key": "****"}'
 
 
 def test_lumigo_dumps_enforce_jsonify_raise_error():

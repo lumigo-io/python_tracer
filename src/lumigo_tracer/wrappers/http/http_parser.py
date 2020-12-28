@@ -1,6 +1,6 @@
 import json
 import uuid
-from typing import Type, Optional
+from typing import Type, Optional, List
 from urllib.parse import unquote
 
 from lumigo_tracer.parsing_utils import (
@@ -22,7 +22,7 @@ from lumigo_tracer.lumigo_utils import (
     is_error_code,
     is_aws_arn,
 )
-from lumigo_tracer.wrappers.http.http_data_classes import HttpRequest
+from lumigo_tracer.wrappers.http.http_data_classes import HttpRequest, HttpState
 
 HTTP_TYPE = "http"
 
@@ -43,9 +43,12 @@ class Parser:
 
     def parse_request(self, parse_params: HttpRequest) -> dict:
         if Configuration.verbose and parse_params and not should_scrub_domain(parse_params.host):
+            HttpState.omit_skip_path = self.get_omit_skip_path()
             additional_info = {
                 "headers": lumigo_dumps(parse_params.headers),
-                "body": lumigo_dumps(parse_params.body) if parse_params.body else "",
+                "body": lumigo_dumps(parse_params.body, omit_skip_path=HttpState.omit_skip_path)
+                if parse_params.body
+                else "",
                 "method": parse_params.method,
                 "uri": parse_params.uri,
             }
@@ -83,6 +86,10 @@ class Parser:
             "info": {"httpInfo": {"host": url, "response": additional_info}},
             "ended": get_current_ms_time(),
         }
+
+    @staticmethod
+    def get_omit_skip_path() -> Optional[List[str]]:
+        return None
 
 
 class ServerlessAWSParser(Parser):
@@ -146,6 +153,10 @@ class DynamoParser(ServerlessAWSParser):
             },
             super().parse_request(parse_params),
         )
+
+    @staticmethod
+    def get_omit_skip_path() -> Optional[List[str]]:
+        return ["Key"]
 
 
 class SnsParser(ServerlessAWSParser):

@@ -418,7 +418,7 @@ def test_is_s3_event(s3_event):
 
 def test_parse_s3_event(s3_event):
     ordered_s3_event = EventDumper.dump_event(event=s3_event)
-    assert ordered_s3_event == lumigo_dumps(
+    assert ordered_s3_event == json.dumps(
         OrderedDict(
             {
                 "Records": [
