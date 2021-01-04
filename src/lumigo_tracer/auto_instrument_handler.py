@@ -10,13 +10,13 @@ def parse_handler():
     try:
         module_name, unit_name = os.environ[ORIGINAL_HANDLER_KEY].rsplit(".", 1)
     except KeyError:
-        raise ValueError(
+        raise Exception(
             "Could not find the original handler. Please contact Lumigo for more information."
-        )
-    except ValueError:
-        raise RuntimeError(
-            f"Invalid handler format: Bad handler '{os.environ[ORIGINAL_HANDLER_KEY]}': not enough values to unpack (expected 2, got 1)"
-        )
+        ) from None
+    except ValueError as e:
+        raise ValueError(
+            f"Runtime.MalformedHandlerName: Bad handler '{os.environ[ORIGINAL_HANDLER_KEY]}': {str(e)}"
+        ) from None
     importable_name = module_name.replace("/", ".")
     return importable_name, unit_name
 
@@ -26,11 +26,21 @@ def _handler(*args, **kwargs):
     handler_module = ""
     try:
         handler_module, unit_name = parse_handler()
-        original_handler = getattr(importlib.import_module(handler_module), unit_name)
-    except (ImportError, AttributeError):
+        original_module = importlib.import_module(handler_module)
+    except ImportError as e:
         raise ImportError(
-            f"Unable to import module '{handler_module}': No module named '{handler_module}'"
-        )
+            f"Runtime.ImportModuleError: Unable to import module '{handler_module}': {str(e)}"
+        ) from None
+    except SyntaxError as e:
+        raise SyntaxError(
+            f"Runtime.UserCodeSyntaxError: Syntax error in module '{handler_module}': {str(e)}"
+        ) from None
+    try:
+        original_handler = getattr(original_module, unit_name)
+    except AttributeError:
+        raise Exception(
+            f"Runtime.HandlerNotFound: Handler '{unit_name}' missing on module '{handler_module}'"
+        ) from None
     return original_handler(*args, **kwargs)
 
 
