@@ -1,5 +1,7 @@
 import datetime
 import json
+import re
+import traceback
 from decimal import Decimal
 import http.client
 import os
@@ -439,3 +441,25 @@ def test_china(context, reporter_mock, monkeypatch):
         aws_secret_access_key=secret_access_key,
         config=ANY,
     )
+
+
+def test_lumigo_tracer_doesnt_change_exception(context):
+    @lumigo_tracer(token="123")
+    def wrapped(event, context):
+        raise Exception("Inner exception")
+
+    with pytest.raises(Exception):
+        wrapped({}, context)
+
+    def wrapped(event, context):
+        raise Exception("Inner exception")
+
+    with pytest.raises(Exception) as e:
+        wrapped({}, context)
+
+    stacktrace = SpansContainer.get_span().function_span["error"]["stacktrace"]
+    assert "lumigo_tracer/tracer.py" not in stacktrace
+    line_dropper = re.compile(r"\d{3}")
+    from_lumigo = line_dropper.sub("-", stacktrace)
+    original = line_dropper.sub("-", traceback.format_tb(e.value.__traceback__)[1])
+    assert from_lumigo == original

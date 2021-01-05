@@ -6,7 +6,6 @@ from datetime import datetime
 import time
 import uuid
 import signal
-import traceback
 from typing import List, Dict, Optional, Callable, Set
 
 from lumigo_tracer.event.event_dumper import EventDumper
@@ -24,6 +23,7 @@ from lumigo_tracer.lumigo_utils import (
     get_current_ms_time,
     get_region,
     is_provision_concurrency_initialization,
+    get_stacktrace,
 )
 from lumigo_tracer import lumigo_utils
 from lumigo_tracer.parsing_utils import parse_trace_id, safe_split_get, recursive_json_join
@@ -202,7 +202,7 @@ class SpansContainer:
             self.function_span["error"] = self._create_exception_event(
                 exc_type=exception.__class__.__name__,
                 message=message,
-                stacktrace=traceback.format_exc(),
+                stacktrace=get_stacktrace(exception),
                 frames=format_frames(frames_infos) if Configuration.verbose else [],
             )
 
