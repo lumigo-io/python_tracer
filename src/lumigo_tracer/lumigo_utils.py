@@ -67,7 +67,7 @@ KILL_SWITCH = "LUMIGO_SWITCH_OFF"
 ERROR_SIZE_LIMIT_MULTIPLIER = 2
 CHINA_REGION = "cn-northwest-1"
 EDGE_KINESIS_STREAM_NAME = "prod_trc-inges-edge_edge-kinesis-stream"
-STACKTRACE_LINES_TO_DROP = "lumigo_tracer/tracer.py"
+STACKTRACE_LINE_TO_DROP = "lumigo_tracer/tracer.py"
 Container = TypeVar("Container", dict, list)
 
 _logger: Dict[str, logging.Logger] = {}
@@ -707,4 +707,4 @@ def is_provision_concurrency_initialization() -> bool:
 
 def get_stacktrace(exception: Exception) -> str:
     original_traceback = traceback.format_tb(exception.__traceback__)
-    return "".join(filter(lambda line: STACKTRACE_LINES_TO_DROP not in line, original_traceback))
+    return "".join(filter(lambda line: STACKTRACE_LINE_TO_DROP not in line, original_traceback))
