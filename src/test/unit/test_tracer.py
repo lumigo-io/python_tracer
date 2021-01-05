@@ -439,3 +439,17 @@ def test_china(context, reporter_mock, monkeypatch):
         aws_secret_access_key=secret_access_key,
         config=ANY,
     )
+
+
+def test_get_stacktrace(context):
+    @lumigo_tracer(token="123")
+    def lambda_test_function(event, context):
+        raise Exception("Inner exception")
+
+    with pytest.raises(Exception):
+        lambda_test_function({}, context)
+
+    function_span = SpansContainer.get_span().function_span
+    assert function_span["error"]["type"] == "Exception"
+    assert "lumigo_tracer/tracer.py" not in function_span["error"]["stacktrace"]
+    assert 'raise Exception("Inner exception")' in function_span["error"]["stacktrace"]
