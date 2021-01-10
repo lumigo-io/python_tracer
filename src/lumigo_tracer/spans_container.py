@@ -55,6 +55,7 @@ class SpansContainer:
         trace_id_suffix: str = None,
         trigger_by: dict = None,
         max_finish_time: int = None,
+        is_new_invocation: bool = False,
         event: str = None,
         envs: str = None,
     ):
@@ -102,7 +103,8 @@ class SpansContainer:
         )
         self.span_ids_to_send: Set[str] = set()
         self.spans: List[Dict] = []
-        SpansContainer.is_cold = False
+        if is_new_invocation:
+            SpansContainer.is_cold = False
 
     def _generate_start_span(self) -> dict:
         to_send = self.function_span.copy()
@@ -285,14 +287,14 @@ class SpansContainer:
         return cls.create_span()
 
     @classmethod
-    def create_span(cls, event=None, context=None, force=False) -> "SpansContainer":
+    def create_span(cls, event=None, context=None, is_new_invocation=False) -> "SpansContainer":
         """
         This function creates a span out of a given AWS context.
         The force flag delete any existing span-container (to handle with warm execution of lambdas).
         Note that if lambda will be executed directly (regular pythonic function call and not invoked),
             it will override the container.
         """
-        if cls._span and not force:
+        if cls._span and not is_new_invocation:
             return cls._span
         # copy the event to ensure that we will not change it
         event = copy.deepcopy(event)
@@ -319,6 +321,7 @@ class SpansContainer:
             account=safe_split_get(getattr(context, "invoked_function_arn", ""), ":", 4, ""),
             trigger_by=parse_triggered_by(event),
             max_finish_time=get_current_ms_time() + remaining_time,
+            is_new_invocation=is_new_invocation,
             **additional_info,
         )
         return cls._span
