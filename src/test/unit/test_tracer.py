@@ -463,3 +463,15 @@ def test_lumigo_tracer_doesnt_change_exception(context):
     from_lumigo = line_dropper.sub("-", stacktrace)
     original = line_dropper.sub("-", traceback.format_tb(e.value.__traceback__)[1])
     assert from_lumigo == original
+
+
+def test_cold_indicator_with_request_in_cold_phase():
+    SpansContainer.is_cold = True
+    #  Create a request the might invert the `is_cold` field
+    http.client.HTTPConnection("www.google.com").request("POST", "/")
+
+    @lumigo_tracer(step_function=True)
+    def lambda_test_function(event, context):
+        http.client.HTTPConnection("www.google.com").request("POST", "/")
+
+    assert SpansContainer.get_span().function_span["readiness"] == "cold"
