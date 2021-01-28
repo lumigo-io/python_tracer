@@ -16,6 +16,8 @@ from base64 import b64encode
 import inspect
 import traceback
 
+LUMIGO_DOMAINS_SCRUBBER_KEY = "LUMIGO_DOMAINS_SCRUBBER"
+
 try:
     import botocore
     import boto3
@@ -182,9 +184,9 @@ def config(
     Configuration.send_only_if_error = os.environ.get("SEND_ONLY_IF_ERROR", "").lower() == "true"
     if domains_scrubber:
         domains_scrubber_regex = domains_scrubber
-    elif "LUMIGO_DOMAINS_SCRUBBER" in os.environ:
+    elif LUMIGO_DOMAINS_SCRUBBER_KEY in os.environ:
         try:
-            domains_scrubber_regex = json.loads(os.environ["LUMIGO_DOMAIN_SCRUBBER"])
+            domains_scrubber_regex = json.loads(os.environ[LUMIGO_DOMAINS_SCRUBBER_KEY])
         except Exception:
             get_logger().critical(
                 "Could not parse the specified domains scrubber, shutting down the reporter."
