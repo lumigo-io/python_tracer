@@ -217,6 +217,10 @@ class KinesisParser(ServerlessAWSParser):
             safe_key_from_json(response_body, "Records", []), [0, "SequenceNumber"]  # type: ignore
         )
 
+    @staticmethod
+    def get_omit_skip_path() -> Optional[List[str]]:
+        return ["PartitionKey"]
+
 
 class SqsParser(ServerlessAWSParser):
     def parse_request(self, parse_params: HttpRequest) -> dict:

@@ -144,6 +144,8 @@ def test_kinesis(kinesis_resource, region):
     assert events[0]["info"]["httpInfo"]["host"] == f"kinesis.{region}.amazonaws.com"
     assert events[0]["info"]["resourceName"] == kinesis_resource
     assert events[0]["info"]["messageId"]
+    # No scrubbing for PartitionKey
+    assert json.loads(events[0]["info"]["httpInfo"]["request"]["body"])["PartitionKey"] == "1"
     # Batch messages.
     assert events[1]["info"]["httpInfo"]["host"] == f"kinesis.{region}.amazonaws.com"
     assert events[1]["info"]["resourceName"] == kinesis_resource
