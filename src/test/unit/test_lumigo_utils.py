@@ -390,6 +390,12 @@ def test_config_enhanced_printstep_function_without_envs(monkeypatch, configurat
     assert Configuration.is_step_function == configuration_value
 
 
+def test_config_lumigo_domains_scrubber_with_envs(monkeypatch):
+    monkeypatch.setenv("LUMIGO_DOMAINS_SCRUBBER", '["lambda.us-west-2.amazonaws.com"]')
+    config()
+    assert len(Configuration.domains_scrubber) == 1
+
+
 def test_config_timeout_timer_buffer_with_exception(monkeypatch):
     monkeypatch.setenv("LUMIGO_TIMEOUT_BUFFER", "not float")
     config()
