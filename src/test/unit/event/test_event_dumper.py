@@ -7,13 +7,14 @@ from lumigo_tracer.event.event_dumper import (
     EventParseHandler,
     CloudfrontHandler,
     S3Handler,
+    Event,
 )
 from lumigo_tracer.lumigo_utils import lumigo_dumps, Configuration
 
 
 class ExceptionHandler(EventParseHandler):
     @staticmethod
-    def is_supported(event) -> bool:
+    def is_supported(event, record_event_source=None) -> bool:
         raise Exception()
 
     @staticmethod
@@ -413,7 +414,7 @@ def test_parse_event_sqs():
 
 
 def test_is_s3_event(s3_event):
-    assert S3Handler().is_supported(s3_event) is True
+    assert S3Handler().is_supported(Event(s3_event)) is True
 
 
 def test_parse_s3_event(s3_event):
@@ -443,7 +444,7 @@ def test_parse_s3_event(s3_event):
 
 
 def test_is_cloudfront_event(cloudfront_event):
-    assert CloudfrontHandler().is_supported(cloudfront_event) is True
+    assert CloudfrontHandler().is_supported(Event(cloudfront_event)) is True
 
 
 def test_parse_cloudfront_event(cloudfront_event):

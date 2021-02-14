@@ -74,10 +74,19 @@ SQS_KEYS_ORDER = str_to_list(os.environ.get("LUMIGO_SQS_KEYS_ORDER", "")) or [
 ]
 
 
+class Event:
+    def __init__(self, event):
+        """
+        Cache propeties of the event in order improve performance.
+        """
+        self.raw_event = event
+        self.record_event_source = safe_get(event, ["Records", 0, "eventSource"])
+
+
 class EventParseHandler(ABC):
     @staticmethod
     @abstractmethod
-    def is_supported(event) -> bool:
+    def is_supported(event: Event) -> bool:
         raise NotImplementedError()
 
     @staticmethod
@@ -92,8 +101,8 @@ class EventParseHandler(ABC):
 
 class S3Handler(EventParseHandler):
     @staticmethod
-    def is_supported(event) -> bool:
-        return safe_get(event, ["Records", 0, "eventSource"]) == "aws:s3"
+    def is_supported(event: Event) -> bool:
+        return event.record_event_source == "aws:s3"
 
     @staticmethod
     def parse(event) -> OrderedDict:
@@ -125,8 +134,8 @@ class S3Handler(EventParseHandler):
 
 class CloudfrontHandler(EventParseHandler):
     @staticmethod
-    def is_supported(event) -> bool:
-        return bool(safe_get(event, ["Records", 0, "cf", "config", "distributionId"], {}))
+    def is_supported(event: Event) -> bool:
+        return bool(safe_get(event.raw_event, ["Records", 0, "cf", "config", "distributionId"], {}))
 
     @staticmethod
     def parse(event) -> OrderedDict:
@@ -153,8 +162,8 @@ class CloudfrontHandler(EventParseHandler):
 
 class ApiGWHandler(EventParseHandler):
     @staticmethod
-    def is_supported(event) -> bool:
-        return is_api_gw_event(event=event)
+    def is_supported(event: Event) -> bool:
+        return is_api_gw_event(event=event.raw_event)
 
     @staticmethod
     def parse(event) -> OrderedDict:
@@ -182,8 +191,8 @@ class ApiGWHandler(EventParseHandler):
 
 class SNSHandler(EventParseHandler):
     @staticmethod
-    def is_supported(event) -> bool:
-        return safe_get(event, ["Records", 0, "EventSource"]) == "aws:sns"
+    def is_supported(event: Event) -> bool:
+        return safe_get(event.raw_event, ["Records", 0, "EventSource"]) == "aws:sns"
 
     @staticmethod
     def parse(event) -> OrderedDict:
@@ -201,8 +210,8 @@ class SNSHandler(EventParseHandler):
 
 class SQSHandler(EventParseHandler):
     @staticmethod
-    def is_supported(event) -> bool:
-        return safe_get(event, ["Records", 0, "eventSource"]) == "aws:sqs"
+    def is_supported(event: Event) -> bool:
+        return event.record_event_source == "aws:sqs"
 
     @staticmethod
     def parse(event) -> OrderedDict:
@@ -220,8 +229,8 @@ class SQSHandler(EventParseHandler):
 
 class DDBHandler(EventParseHandler):
     @staticmethod
-    def is_supported(event) -> bool:
-        return safe_get(event, ["Records", 0, "eventSource"]) == "aws:dynamodb"
+    def is_supported(event: Event) -> bool:
+        return event.record_event_source == "aws:dynamodb"
 
     @staticmethod
     def parse(event) -> OrderedDict:
@@ -246,9 +255,10 @@ class EventDumper:
             CloudfrontHandler(),
             DDBHandler(),
         ]
+        event_obj = Event(event)
         for handler in handlers:
             try:
-                if handler.is_supported(event):
+                if handler.is_supported(event_obj):
                     return lumigo_dumps(
                         handler.parse(event),
                         max_size,
