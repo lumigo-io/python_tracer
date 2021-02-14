@@ -577,3 +577,46 @@ def cloudfront_event():
             }
         ]
     }
+
+
+def test_parse_ddb_event():
+    ddb_event = {
+        "Records": [
+            {
+                "eventID": "22222222222222222222222222222222",
+                "eventName": "INSERT",
+                "eventVersion": "1.1",
+                "eventSource": "aws:dynamodb",
+                "awsRegion": "us-west-2",
+                "dynamodb": {
+                    "ApproximateCreationDateTime": 1613301976,
+                    "Keys": {"k": {"S": "val0"}},
+                    "NewImage": {"v": {"S": "This is a realistic test!"}, "k": {"S": "val0"}},
+                    "SequenceNumber": "111111111111111111111111111",
+                    "SizeBytes": 64,
+                    "StreamViewType": "NEW_AND_OLD_IMAGES",
+                },
+                "eventSourceARN": "arn:aws:dynamodb:us-west-2:111111111111:table/table-with-stream/stream/2020-08-25T09:03:34.809",
+            },
+            {
+                "eventID": "22222222222222222222222222222223",
+                "eventName": "INSERT",
+                "eventVersion": "1.1",
+                "eventSource": "aws:dynamodb",
+                "awsRegion": "us-west-2",
+                "dynamodb": {
+                    "ApproximateCreationDateTime": 1613302000,
+                    "Keys": {"k": {"S": "val1"}},
+                    "NewImage": {"v": {"S": "This is a realistic test!"}, "k": {"S": "val1"}},
+                    "SequenceNumber": "111111111111111111111111112",
+                    "SizeBytes": 64,
+                    "StreamViewType": "NEW_AND_OLD_IMAGES",
+                },
+                "eventSourceARN": "arn:aws:dynamodb:us-west-2:111111111111:table/table-with-stream/stream/2020-08-25T09:03:34.809",
+            },
+        ]
+    }
+
+    parsed_event = EventDumper.dump_event(event=ddb_event)
+
+    assert parsed_event == json.dumps(ddb_event)

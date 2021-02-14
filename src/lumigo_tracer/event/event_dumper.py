@@ -218,6 +218,20 @@ class SQSHandler(EventParseHandler):
         return new_sqs_event
 
 
+class DDBHandler(EventParseHandler):
+    @staticmethod
+    def is_supported(event) -> bool:
+        return safe_get(event, ["Records", 0, "eventSource"]) == "aws:dynamodb"
+
+    @staticmethod
+    def parse(event) -> OrderedDict:
+        return event
+
+    @staticmethod
+    def get_omit_skip_path() -> Optional[List[str]]:
+        return ["Records", "dynamodb", "Keys"]
+
+
 class EventDumper:
     @staticmethod
     def dump_event(
@@ -230,6 +244,7 @@ class EventDumper:
             SQSHandler(),
             S3Handler(),
             CloudfrontHandler(),
+            DDBHandler(),
         ]
         for handler in handlers:
             try:
