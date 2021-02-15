@@ -65,6 +65,7 @@ from lumigo_tracer.lumigo_utils import Configuration
                     {
                         "eventSourceARN": "arn:aws:kinesis:us-east-1:123456789:stream/kinesis-stream-name",
                         "eventSource": "aws:kinesis",
+                        "eventID": "shardId-000000000006:49590338271490256608559692538361571095921575989136588898",
                         "kinesis": {"sequenceNumber": "12"},
                     }
                 ]
@@ -73,6 +74,8 @@ from lumigo_tracer.lumigo_utils import Configuration
                 "triggeredBy": "kinesis",
                 "arn": "arn:aws:kinesis:us-east-1:123456789:stream/kinesis-stream-name",
                 "messageId": "12",
+                "recordsNum": 1,
+                "shardId": "shardId-000000000006",
             },
         ),
         (  # SQS example trigger
@@ -186,7 +189,7 @@ from lumigo_tracer.lumigo_utils import Configuration
                             "x-amzn-trace-id": "Root=1-5fa161de-275509e254bf71cc48fd66d0",
                             "host": "oookuwqyrfhy7eexerofkmlbfm.appsync-api.eu-west-1.amazonaws.com",
                         }
-                    },
+                    }
                 }
             },
             {
@@ -202,7 +205,7 @@ from lumigo_tracer.lumigo_utils import Configuration
                         "x-amzn-trace-id": "Root=1-5fa161de-275509e254bf71cc48fd66d0",
                         "host": "oookuwqyrfhy7eexerofkmlbfm.appsync-api.eu-west-1.amazonaws.com",
                     }
-                },
+                }
             },
             {
                 "triggeredBy": "appsync",

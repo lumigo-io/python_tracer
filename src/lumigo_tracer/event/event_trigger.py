@@ -197,6 +197,10 @@ def _parse_streams(event: dict) -> Dict[str, str]:
         result.update(_parse_sqs_event(event))
     elif triggered_by == "kinesis":
         result["messageId"] = safe_get(event, ["Records", 0, "kinesis", "sequenceNumber"])
+        result["recordsNum"] = len(safe_get(event, ["Records"]))
+        event_id = safe_get(event, ["Records", 0, "eventID"])
+        if event_id:
+            result["shardId"] = event_id.split(":")[0]
     elif triggered_by == "dynamodb":
         result.update(_parse_dynamomdb_event(event))
     return result
