@@ -200,7 +200,7 @@ def _parse_streams(event: dict) -> Dict[str, str]:
         result["recordsNum"] = len(safe_get(event, ["Records"]))
         event_id = safe_get(event, ["Records", 0, "eventID"])
         if isinstance(event_id, str):
-            result["shardId"] = event_id.split(":")[0]
+            result["shardId"] = event_id.split(":", 1)[0]
     elif triggered_by == "dynamodb":
         result.update(_parse_dynamomdb_event(event))
     return result
