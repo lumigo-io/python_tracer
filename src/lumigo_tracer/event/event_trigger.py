@@ -12,6 +12,8 @@ from lumigo_tracer.lumigo_utils import (
 TRIGGER_CREATION_TIME_KEY = "approxEventCreationTime"
 MESSAGE_ID_KEY = "messageId"
 MESSAGE_IDS_KEY = "messageIds"
+TOTAL_SIZE_BYTES = "totalSizeBytes"
+RECORDS_NUM = "recordsNum"
 
 
 def parse_triggered_by(event: dict):
@@ -119,6 +121,7 @@ def _parse_sns(event: dict):
         "triggeredBy": "sns",
         "arn": event["Records"][0]["Sns"]["TopicArn"],
         "messageId": event["Records"][0]["Sns"].get("MessageId"),
+        RECORDS_NUM: len(event["Records"]),
     }
 
 
@@ -185,7 +188,7 @@ def _parse_streams(event: dict) -> Dict[str, str]:
     If has messageId, return also: {"messageId": str}
     """
     triggered_by = event["Records"][0]["eventSource"].split(":")[1]
-    result = {"triggeredBy": triggered_by}
+    result = {"triggeredBy": triggered_by, RECORDS_NUM: len(event["Records"])}
     if triggered_by == "s3":
         result["arn"] = event["Records"][0]["s3"]["bucket"]["arn"]
         result["messageId"] = (
@@ -196,7 +199,10 @@ def _parse_streams(event: dict) -> Dict[str, str]:
     if triggered_by == "sqs":
         result.update(_parse_sqs_event(event))
     elif triggered_by == "kinesis":
-        result["messageId"] = safe_get(event, ["Records", 0, "kinesis", "sequenceNumber"])
+        result[MESSAGE_ID_KEY] = safe_get(event, ["Records", 0, "kinesis", "sequenceNumber"])
+        event_id = safe_get(event, ["Records", 0, "eventID"])
+        if isinstance(event_id, str):
+            result["shardId"] = event_id.split(":", 1)[0]
     elif triggered_by == "dynamodb":
         result.update(_parse_dynamomdb_event(event))
     return result
@@ -209,13 +215,19 @@ def _get_ddb_approx_creation_time_ms(event) -> int:
 def _parse_dynamomdb_event(event) -> Dict[str, Union[int, List[str]]]:
     creation_time = _get_ddb_approx_creation_time_ms(event)
     mids = []
+    total_size_bytes: int = 0
     for record in event["Records"]:
+        total_size_bytes += record["dynamodb"].get("SizeBytes", 0)
         event_name = record.get("eventName")
         if event_name in ("MODIFY", "REMOVE") and record.get("dynamodb", {}).get("Keys"):
             mids.append(md5hash(record["dynamodb"]["Keys"]))
         elif event_name == "INSERT" and record.get("dynamodb", {}).get("NewImage"):
             mids.append(md5hash(record["dynamodb"]["NewImage"]))
-    return {MESSAGE_IDS_KEY: mids, TRIGGER_CREATION_TIME_KEY: creation_time}
+    return {
+        MESSAGE_IDS_KEY: mids,
+        TRIGGER_CREATION_TIME_KEY: creation_time,
+        TOTAL_SIZE_BYTES: total_size_bytes,
+    }
 
 
 def _parse_sqs_event(event) -> Dict[str, Union[int, List[str]]]:
