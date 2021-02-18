@@ -39,6 +39,7 @@ from lumigo_tracer.lumigo_utils import Configuration
                 "triggeredBy": "sns",
                 "arn": "arn:aws:sns:us-east-1:123456789:sns-topic-name",
                 "messageId": "9cecb7e5-b11e-59fa-95c8-e28d3f64d6a8",
+                "recordsNum": 1,
             },
         ),
         (  # s3 example trigger
@@ -57,6 +58,7 @@ from lumigo_tracer.lumigo_utils import Configuration
                 "triggeredBy": "s3",
                 "arn": "arn:aws:s3:::s3-bucket-name",
                 "messageId": "E6CFE6C141196902",
+                "recordsNum": 1,
             },
         ),
         (  # kinesis example trigger
@@ -92,6 +94,7 @@ from lumigo_tracer.lumigo_utils import Configuration
                 "triggeredBy": "sqs",
                 "arn": "arn:aws:sqs:us-east-1:123456789:sqs-queue-name",
                 "messageId": "e97ff404-96ca-460e-8ff0-a46012e61826",
+                "recordsNum": 1,
             },
         ),
         (  # SQS example batch trigger
@@ -113,6 +116,7 @@ from lumigo_tracer.lumigo_utils import Configuration
                 "triggeredBy": "sqs",
                 "arn": "arn:aws:sqs:us-east-1:123456789:sqs-queue-name",
                 "messageIds": ["1", "2"],
+                "recordsNum": 2,
             },
         ),
         (  # Step Function
@@ -313,7 +317,11 @@ from lumigo_tracer.lumigo_utils import Configuration
                         "eventSourceARN": "arn:aws:dynamodb:us-west-2:723663554526:table/abbbbb/stream/2020-05-25T12:04:49.788",
                         "eventSource": "aws:dynamodb",
                         "eventName": "MODIFY",
-                        "dynamodb": {"ApproximateCreationDateTime": 1, "Keys": {"a": "b"}},
+                        "dynamodb": {
+                            "ApproximateCreationDateTime": 1,
+                            "Keys": {"a": "b"},
+                            "SizeBytes": 1,
+                        },
                     }
                 ]
             },
@@ -322,6 +330,8 @@ from lumigo_tracer.lumigo_utils import Configuration
                 "messageIds": ["bd722b96a0bfdc0ef6115a2ee60b63f0"],
                 "approxEventCreationTime": 1000,
                 "arn": "arn:aws:dynamodb:us-west-2:723663554526:table/abbbbb/stream/2020-05-25T12:04:49.788",
+                "recordsNum": 1,
+                "totalSizeBytes": 1,
             },
         ),
         (  # ddb - insert with NewImage
@@ -331,7 +341,11 @@ from lumigo_tracer.lumigo_utils import Configuration
                         "eventSourceARN": "arn:aws:dynamodb:us-west-2:723663554526:table/abbbbb/stream/2020-05-25T12:04:49.788",
                         "eventSource": "aws:dynamodb",
                         "eventName": "INSERT",
-                        "dynamodb": {"ApproximateCreationDateTime": 1, "NewImage": {"a": "b"}},
+                        "dynamodb": {
+                            "ApproximateCreationDateTime": 1,
+                            "NewImage": {"a": "b"},
+                            "SizeBytes": 1,
+                        },
                     }
                 ]
             },
@@ -340,6 +354,8 @@ from lumigo_tracer.lumigo_utils import Configuration
                 "messageIds": ["bd722b96a0bfdc0ef6115a2ee60b63f0"],
                 "approxEventCreationTime": 1000,
                 "arn": "arn:aws:dynamodb:us-west-2:723663554526:table/abbbbb/stream/2020-05-25T12:04:49.788",
+                "recordsNum": 1,
+                "totalSizeBytes": 1,
             },
         ),
         (  # ddb - insert with only keys
@@ -349,7 +365,11 @@ from lumigo_tracer.lumigo_utils import Configuration
                         "eventSourceARN": "arn:aws:dynamodb:us-west-2:723663554526:table/abbbbb/stream/2020-05-25T12:04:49.788",
                         "eventSource": "aws:dynamodb",
                         "eventName": "INSERT",
-                        "dynamodb": {"ApproximateCreationDateTime": 1, "Keys": {"a": "b"}},
+                        "dynamodb": {
+                            "ApproximateCreationDateTime": 1,
+                            "Keys": {"a": "b"},
+                            "SizeBytes": 1,
+                        },
                     }
                 ]
             },
@@ -358,6 +378,8 @@ from lumigo_tracer.lumigo_utils import Configuration
                 "messageIds": [],
                 "approxEventCreationTime": 1000,
                 "arn": "arn:aws:dynamodb:us-west-2:723663554526:table/abbbbb/stream/2020-05-25T12:04:49.788",
+                "recordsNum": 1,
+                "totalSizeBytes": 1,
             },
         ),
     ],
