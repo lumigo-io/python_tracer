@@ -94,7 +94,7 @@ Lumigo provides the `report_error` function, which you can use to publish error 
 * Use the `report_error` function with the message you wish to send: `report_error("your-message-here")`
 
 ### Adding Execution Tags
-You can add execution tags to a function with dynamic values using the parameter `addExecutionTag`.
+You can add execution tags to a function with dynamic values using the parameter `add_execution_tag`.
 
 These tags will be searchable from within the Lumigo platform.
 
