@@ -51,7 +51,7 @@ def test_lambda_wrapper_basic_events(reporter_mock, context):
     assert first_send[0]["maxFinishTime"]
 
 
-def test_lambda_wrapper_basic_events(context, capsys):
+def test_lambda_wrapper_validate_token_format_single_letter(context, capsys):
     """
     This test checks that the token has a valid format
     """
@@ -62,8 +62,38 @@ def test_lambda_wrapper_basic_events(context, capsys):
 
     lambda_test_function({}, context)
     captured = capsys.readouterr()
-    assert captured[0] == "Lumigo Warning: Invalid token used, copy your token from Settings → Tracing from Lumigo’s platform\n"
+    assert captured[
+               0] == "Lumigo Warning: Invalid token used, copy your token from Settings → Tracing from Lumigo’s platform\n"
 
+
+def test_lambda_wrapper_validate_token_format_empty_string(context, capsys):
+    """
+    This test checks that the token has a valid format
+    """
+
+    @lumigo_tracer(token="")
+    def lambda_test_function(event, context):
+        pass
+
+    lambda_test_function({}, context)
+    captured = capsys.readouterr()
+    assert captured[
+               0] == "Lumigo Warning: Invalid token used, copy your token from Settings → Tracing from Lumigo’s platform\n"
+
+
+def test_lambda_wrapper_validate_token_format_missing_prefix(context, capsys):
+    """
+    This test checks that the token has a valid format
+    """
+
+    @lumigo_tracer(token="10faa5e13e7844aaa1234")
+    def lambda_test_function(event, context):
+        pass
+
+    lambda_test_function({}, context)
+    captured = capsys.readouterr()
+    assert captured[
+               0] == "Lumigo Warning: Invalid token used, copy your token from Settings → Tracing from Lumigo’s platform\n"
 
 @pytest.mark.parametrize("exc", [ValueError("Oh no"), ValueError(), ValueError(Exception())])
 def test_lambda_wrapper_exception(exc, context):
