@@ -157,8 +157,10 @@ def config(
     :param edge_kinesis_aws_secret_access_key: The credentials to push to the Kinesis in China region
     """
     Configuration.token = token or os.environ.get(LUMIGO_TOKEN_KEY, "")
-    if not re.match("[t][_][[a-z0-9]{21}", Configuration.token):
-        warn_client("Invalid token used, copy your token from Settings → Tracing from Lumigo’s platform")
+    if not (Configuration.token and re.match("[t][_][[a-z0-9]{21}", Configuration.token)):
+        warn_client(
+            "Invalid token used, copy your token from Settings → Tracing from Lumigo’s platform"
+        )
 
     if should_report is not None:
         Configuration.should_report = should_report
@@ -236,7 +238,6 @@ def _create_request_body(
     max_size: int = MAX_SIZE_FOR_REQUEST,
     too_big_spans_threshold: int = TOO_BIG_SPANS_THRESHOLD,
 ) -> str:
-
     if not prune_size_flag or (
         len(msgs) < NUMBER_OF_SPANS_IN_REPORT_OPTIMIZATION
         and _get_event_base64_size(msgs) < max_size  # noqa
@@ -367,9 +368,7 @@ def _get_edge_kinesis_boto_client(region: str, aws_access_key_id: str, aws_secre
             region_name=region,
             aws_access_key_id=aws_access_key_id,
             aws_secret_access_key=aws_secret_access_key,
-            config=botocore.config.Config(
-                retries={"max_attempts": 1, "mode": "standard"},
-            ),
+            config=botocore.config.Config(retries={"max_attempts": 1, "mode": "standard"}),
         )
     return edge_kinesis_boto_client
 

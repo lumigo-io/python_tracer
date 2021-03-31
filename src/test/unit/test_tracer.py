@@ -62,8 +62,8 @@ def test_lambda_wrapper_validate_token_format_only_prefix(context, capsys):
 
     lambda_test_function({}, context)
     captured = capsys.readouterr()
-    assert captured[
-               0] == "Lumigo Warning: Invalid token used, copy your token from Settings → Tracing from Lumigo’s platform\n"
+    expected = "Lumigo Warning: Invalid token used, copy your token from Settings → Tracing from Lumigo’s platform\n"
+    assert captured[0] == expected
 
 
 def test_lambda_wrapper_validate_token_format_empty_string(context, capsys):
@@ -77,8 +77,8 @@ def test_lambda_wrapper_validate_token_format_empty_string(context, capsys):
 
     lambda_test_function({}, context)
     captured = capsys.readouterr()
-    assert captured[
-               0] == "Lumigo Warning: Invalid token used, copy your token from Settings → Tracing from Lumigo’s platform\n"
+    expected = "Lumigo Warning: Invalid token used, copy your token from Settings → Tracing from Lumigo’s platform\n"
+    assert captured[0] == expected
 
 
 def test_lambda_wrapper_validate_token_format_missing_prefix(context, capsys):
@@ -92,8 +92,9 @@ def test_lambda_wrapper_validate_token_format_missing_prefix(context, capsys):
 
     lambda_test_function({}, context)
     captured = capsys.readouterr()
-    assert captured[
-               0] == "Lumigo Warning: Invalid token used, copy your token from Settings → Tracing from Lumigo’s platform\n"
+    expected = "Lumigo Warning: Invalid token used, copy your token from Settings → Tracing from Lumigo’s platform\n"
+    assert captured[0] == expected
+
 
 @pytest.mark.parametrize("exc", [ValueError("Oh no"), ValueError(), ValueError(Exception())])
 def test_lambda_wrapper_exception(exc, context):
@@ -352,7 +353,11 @@ def test_wrapping_without_logging_override(caplog, context):
     "event, expected_triggered_by, expected_message_id",
     [
         ({}, "unknown", None),
-        ({"result": 1, LUMIGO_EVENT_KEY: {STEP_FUNCTION_UID_KEY: "123"}}, "stepFunction", "123"),
+        (
+            {"result": 1, LUMIGO_EVENT_KEY: {STEP_FUNCTION_UID_KEY: "123"}},
+            "stepFunction",
+            "123",
+        ),
     ],
 )
 def test_wrapping_step_function(event, expected_triggered_by, expected_message_id, context):
