@@ -51,12 +51,12 @@ def test_lambda_wrapper_basic_events(reporter_mock, context):
     assert first_send[0]["maxFinishTime"]
 
 
-def test_lambda_wrapper_validate_token_format_single_letter(context, capsys):
+def test_lambda_wrapper_validate_token_format_only_prefix(context, capsys):
     """
-    This test checks that the token has a valid format
+    This test checks that the token has a valid format with only prefix
     """
 
-    @lumigo_tracer(token="t")
+    @lumigo_tracer(token="t_")
     def lambda_test_function(event, context):
         pass
 
@@ -68,7 +68,7 @@ def test_lambda_wrapper_validate_token_format_single_letter(context, capsys):
 
 def test_lambda_wrapper_validate_token_format_empty_string(context, capsys):
     """
-    This test checks that the token has a valid format
+    This test checks that the token has a valid format with empty string
     """
 
     @lumigo_tracer(token="")
@@ -83,7 +83,7 @@ def test_lambda_wrapper_validate_token_format_empty_string(context, capsys):
 
 def test_lambda_wrapper_validate_token_format_missing_prefix(context, capsys):
     """
-    This test checks that the token has a valid format
+    This test checks that the token has a valid format when missing prefix
     """
 
     @lumigo_tracer(token="10faa5e13e7844aaa1234")
