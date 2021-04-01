@@ -51,42 +51,13 @@ def test_lambda_wrapper_basic_events(reporter_mock, context):
     assert first_send[0]["maxFinishTime"]
 
 
-def test_lambda_wrapper_validate_token_format_only_prefix(context, capsys):
+@pytest.mark.parametrize("token", ["t_", "", "10faa5e13e7844aaa1234"])
+def test_lambda_wrapper_validate_token_format(context, capsys, token):
     """
     This test checks that the token has a valid format with only prefix
     """
 
-    @lumigo_tracer(token="t_")
-    def lambda_test_function(event, context):
-        pass
-
-    lambda_test_function({}, context)
-    captured = capsys.readouterr()
-    expected = "Lumigo Warning: Invalid token used, copy your token from Settings → Tracing from Lumigo’s platform\n"
-    assert captured[0] == expected
-
-
-def test_lambda_wrapper_validate_token_format_empty_string(context, capsys):
-    """
-    This test checks that the token has a valid format with empty string
-    """
-
-    @lumigo_tracer(token="")
-    def lambda_test_function(event, context):
-        pass
-
-    lambda_test_function({}, context)
-    captured = capsys.readouterr()
-    expected = "Lumigo Warning: Invalid token used, copy your token from Settings → Tracing from Lumigo’s platform\n"
-    assert captured[0] == expected
-
-
-def test_lambda_wrapper_validate_token_format_missing_prefix(context, capsys):
-    """
-    This test checks that the token has a valid format when missing prefix
-    """
-
-    @lumigo_tracer(token="10faa5e13e7844aaa1234")
+    @lumigo_tracer(token=token)
     def lambda_test_function(event, context):
         pass
 
