@@ -139,6 +139,7 @@ def test_config_no_verbose_param_and_with_env_verbose_equals_to_false_verbose_is
         ({"k": ["a", "b"]}, ["k", 1], "b", None),  # Happy flow.
         ({"k": ["a"]}, ["k", 1], "default", "default"),  # List index out of range.
         ({"k": "a"}, ["b"], "default", "default"),  # Key doesn't exist.
+        ({"k": "a", "a1": {"c": "d"}}, ["a1", "c"], "d", "default"),  # Look for nested key.
         ({"k": "a"}, [1], "default", "default"),  # Wrong key type.
         ({"k": "a"}, ["k", 0, 1], "default", "default"),  # Wrong keys length.
     ],

@@ -23,6 +23,26 @@ from lumigo_tracer.lumigo_utils import Configuration
                 "messageId": "123",
             },
         ),
+        (  # should be unknown
+            {
+                "resource": "/graphql",
+                "path": "/graphql",
+                "httpMethod": "POST",
+                "body": '{"query":"query {\\n getSessionTemplatesForPlan2732777867: getSessionTemplatesForPlan(planId: \\"16225a9a-2c31-5a0b-b2bf-8f212284c8e5\\") {\\n sessionTemplateId3832528868: sessionTemplateId\\n name3832528868: name\\n }\\n}"}',
+                "requestContext": {},
+                "headers": {
+                    "Authorization": "****",
+                    "content-type": "application/json",
+                    "Host": "oookuwqyrfhy7eexerofkmlbfm.appsync-api.eu-west-1.amazonaws.com",
+                    "origin": "https://app.sportsplaner.de",
+                    "Referer": "https://app.sportsplaner.de/sessions/start/16225a9a-2c31-5a0b-b2bf-8f212284c8e5",
+                    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_6) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0.2 Safari/605.1.15",
+                },
+                "stageVariables": "null",
+                "isBase64Encoded": "false",
+            },
+            {"triggeredBy": "unknown"},
+        ),
         (  # sns example trigger
             {
                 "Records": [

@@ -74,6 +74,7 @@ def _is_supported_http_method(event: dict):
         and "headers" in event  # noqa
         and "requestContext" in event  # noqa
         and event.get("requestContext", {}).get("elb") is None  # noqa
+        and event.get("requestContext", {}).get("stage") is not None  # noqa
     ) or (  # noqa
         event.get("version", "") == "2.0" and "headers" in event  # noqa
     )  # noqa  # noqa
