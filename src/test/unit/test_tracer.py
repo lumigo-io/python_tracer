@@ -29,13 +29,15 @@ from lumigo_tracer.lumigo_utils import (
 from lumigo_tracer.spans_container import SpansContainer
 from moto import mock_kinesis
 
+TOKEN = "t_10faa5e13e7844aaa1234"
+
 
 def test_lambda_wrapper_basic_events(reporter_mock, context):
     """
     This test checks that the basic events (start and end messages) has been sent.
     """
 
-    @lumigo_tracer(token="123")
+    @lumigo_tracer(token=TOKEN)
     def lambda_test_function(event, context):
         pass
 
@@ -51,9 +53,25 @@ def test_lambda_wrapper_basic_events(reporter_mock, context):
     assert first_send[0]["maxFinishTime"]
 
 
+@pytest.mark.parametrize("token", ["t_", "", "10faa5e13e7844aaa1234"])
+def test_lambda_wrapper_validate_token_format(context, capsys, token):
+    """
+    This test checks that the token has a valid format with only prefix
+    """
+
+    @lumigo_tracer(token=token)
+    def lambda_test_function(event, context):
+        pass
+
+    lambda_test_function({}, context)
+    captured = capsys.readouterr()
+    expected = "Lumigo Warning: Invalid token used, copy your token from Settings → Tracing from Lumigo’s platform\n"
+    assert captured[0] == expected
+
+
 @pytest.mark.parametrize("exc", [ValueError("Oh no"), ValueError(), ValueError(Exception())])
 def test_lambda_wrapper_exception(exc, context):
-    @lumigo_tracer(token="123")
+    @lumigo_tracer(token=TOKEN)
     def lambda_test_function(event, context):
         a = "A"  # noqa
         raise exc
@@ -89,7 +107,7 @@ def test_lambda_wrapper_exception(exc, context):
 
 
 def test_lambda_wrapper_return_decimal(context):
-    @lumigo_tracer(token="123")
+    @lumigo_tracer(token=TOKEN)
     def lambda_test_function(event, context):
         return {"a": [Decimal(1)]}
 
@@ -102,7 +120,7 @@ def test_lambda_wrapper_provision_concurrency_is_warm(context, monkeypatch):
     monkeypatch.setattr(SpansContainer, "is_cold", True)
     monkeypatch.setenv("AWS_LAMBDA_INITIALIZATION_TYPE", "provisioned-concurrency")
 
-    @lumigo_tracer(token="123")
+    @lumigo_tracer(token=TOKEN)
     def lambda_test_function(event, context):
         return {"a": "b"}
 
@@ -114,7 +132,7 @@ def test_lambda_wrapper_provision_concurrency_is_warm(context, monkeypatch):
 def test_kill_switch(monkeypatch, context):
     monkeypatch.setattr(os, "environ", {"LUMIGO_SWITCH_OFF": "true"})
 
-    @lumigo_tracer(token="123")
+    @lumigo_tracer(token=TOKEN)
     def lambda_test_function(event, context):
         return 1
 
@@ -125,7 +143,7 @@ def test_kill_switch(monkeypatch, context):
 def test_wrapping_exception(monkeypatch, context):
     monkeypatch.setattr(SpansContainer, "create_span", lambda *args, **kwargs: 1 / 0)
 
-    @lumigo_tracer(token="123")
+    @lumigo_tracer(token=TOKEN)
     def lambda_test_function(event, context):
         return 1
 
@@ -308,7 +326,11 @@ def test_wrapping_without_logging_override(caplog, context):
     "event, expected_triggered_by, expected_message_id",
     [
         ({}, "unknown", None),
-        ({"result": 1, LUMIGO_EVENT_KEY: {STEP_FUNCTION_UID_KEY: "123"}}, "stepFunction", "123"),
+        (
+            {"result": 1, LUMIGO_EVENT_KEY: {STEP_FUNCTION_UID_KEY: "123"}},
+            "stepFunction",
+            "123",
+        ),
     ],
 )
 def test_wrapping_step_function(event, expected_triggered_by, expected_message_id, context):
@@ -444,7 +466,7 @@ def test_china(context, reporter_mock, monkeypatch):
 
 
 def test_lumigo_tracer_doesnt_change_exception(context):
-    @lumigo_tracer(token="123")
+    @lumigo_tracer(token=TOKEN)
     def wrapped(event, context):
         raise Exception("Inner exception")
 

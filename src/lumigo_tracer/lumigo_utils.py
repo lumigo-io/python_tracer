@@ -156,12 +156,17 @@ def config(
     :param edge_kinesis_aws_access_key_id: The credentials to push to the Kinesis in China region
     :param edge_kinesis_aws_secret_access_key: The credentials to push to the Kinesis in China region
     """
+    Configuration.token = token or os.environ.get(LUMIGO_TOKEN_KEY, "")
+    if not (Configuration.token and re.match("[t][_][[a-z0-9]{21}", Configuration.token)):
+        warn_client(
+            "Invalid token used, copy your token from Settings → Tracing from Lumigo’s platform"
+        )
+
     if should_report is not None:
         Configuration.should_report = should_report
     elif not is_aws_environment():
         Configuration.should_report = False
     Configuration.host = edge_host or os.environ.get("LUMIGO_TRACER_HOST", "")
-    Configuration.token = token or os.environ.get(LUMIGO_TOKEN_KEY, "")
     Configuration.enhanced_print = (
         enhance_print or os.environ.get("LUMIGO_ENHANCED_PRINT", "").lower() == "true"
     )
@@ -364,9 +369,7 @@ def _get_edge_kinesis_boto_client(region: str, aws_access_key_id: str, aws_secre
             region_name=region,
             aws_access_key_id=aws_access_key_id,
             aws_secret_access_key=aws_secret_access_key,
-            config=botocore.config.Config(
-                retries={"max_attempts": 1, "mode": "standard"},
-            ),
+            config=botocore.config.Config(retries={"max_attempts": 1, "mode": "standard"}),
         )
     return edge_kinesis_boto_client
 
