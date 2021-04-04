@@ -65,7 +65,7 @@ def test_lambda_wrapper_validate_token_format(context, capsys, token):
 
     lambda_test_function({}, context)
     captured = capsys.readouterr()
-    expected = "Lumigo Warning: Invalid token used, copy your token from Settings → Tracing from Lumigo’s platform\n"
+    expected = "Lumigo Warning: Invalid Token. Go to Lumigo Settings to get a valid token.\n"
     assert captured[0] == expected
 
 
