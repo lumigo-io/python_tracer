@@ -159,6 +159,7 @@ def config(
     Configuration.token = token or os.environ.get(LUMIGO_TOKEN_KEY, "")
     if not (Configuration.token and re.match("[t][_][[a-z0-9]{21}", Configuration.token)):
         warn_client("Lumigo Warning: Invalid Token. Go to Lumigo Settings to get a valid token.")
+        Configuration.should_report = False
 
     if should_report is not None:
         Configuration.should_report = should_report
