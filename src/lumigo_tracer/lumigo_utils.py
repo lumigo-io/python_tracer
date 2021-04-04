@@ -159,7 +159,7 @@ def config(
     Configuration.token = token or os.environ.get(LUMIGO_TOKEN_KEY, "")
     if not (Configuration.token and re.match("[t][_][[a-z0-9]{21}", Configuration.token)):
         warn_client(
-            "Invalid token used, copy your token from Settings → Tracing from Lumigo’s platform"
+            "Invalid token used, copy your token from Settings => Tracing from Lumigo’s platform"
         )
 
     if should_report is not None:
