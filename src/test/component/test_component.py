@@ -9,6 +9,8 @@ from lumigo_tracer.tracer import lumigo_tracer
 from lumigo_tracer.spans_container import SpansContainer
 from lumigo_tracer.lumigo_utils import md5hash
 
+TOKEN = "t_10faa5e13e7844aaa1234"
+
 DEFAULT_USER = "cicd"
 
 
@@ -73,7 +75,7 @@ def s3_bucket_resource():
 
 @pytest.mark.slow
 def test_dynamo_db(ddb_resource, region):
-    @lumigo_tracer(token="t_10faa5e13e7844aaa1234")
+    @lumigo_tracer(token=TOKEN)
     def lambda_test_function():
         boto3.resource("dynamodb", region_name=region).Table(ddb_resource).put_item(
             Item={"key": "1"}
@@ -90,7 +92,7 @@ def test_dynamo_db(ddb_resource, region):
 
 @pytest.mark.slow
 def test_sns(sns_resource, region):
-    @lumigo_tracer(token="t_10faa5e13e7844aaa1234")
+    @lumigo_tracer(token=TOKEN)
     def lambda_test_function():
         boto3.resource("sns").Topic(sns_resource).publish(Message=json.dumps({"test": "test"}))
 
@@ -104,7 +106,7 @@ def test_sns(sns_resource, region):
 
 @pytest.mark.slow
 def test_lambda(lambda_resource, region):
-    @lumigo_tracer(token="t_10faa5e13e7844aaa1234")
+    @lumigo_tracer(token=TOKEN)
     def lambda_test_function():
         boto3.client("lambda").invoke(
             FunctionName=lambda_resource, InvocationType="Event", Payload=b"null"
@@ -125,7 +127,7 @@ def test_lambda(lambda_resource, region):
 
 @pytest.mark.slow
 def test_kinesis(kinesis_resource, region):
-    @lumigo_tracer(token="t_10faa5e13e7844aaa1234")
+    @lumigo_tracer(token=TOKEN)
     def lambda_test_function():
         client = boto3.client("kinesis")
         client.put_record(StreamName=kinesis_resource, Data=b"my data", PartitionKey="1")
@@ -154,7 +156,7 @@ def test_kinesis(kinesis_resource, region):
 
 @pytest.mark.slow
 def test_sqs(sqs_resource, region):
-    @lumigo_tracer(token="t_10faa5e13e7844aaa1234")
+    @lumigo_tracer(token=TOKEN)
     def lambda_test_function():
         client = boto3.client("sqs")
         client.send_message(QueueUrl=sqs_resource, MessageBody="myMessage")
@@ -181,7 +183,7 @@ def test_sqs(sqs_resource, region):
 
 @pytest.mark.slow
 def test_s3(s3_bucket_resource):
-    @lumigo_tracer(token="t_10faa5e13e7844aaa1234")
+    @lumigo_tracer(token=TOKEN)
     def lambda_test_function():
         s3_client = boto3.client("s3")
         # usecase 1 - create file
@@ -199,7 +201,7 @@ def test_s3(s3_bucket_resource):
 
 @pytest.mark.slow
 def test_get_body_from_aws_response(sqs_resource, region):
-    @lumigo_tracer(token="t_10faa5e13e7844aaa1234")
+    @lumigo_tracer(token=TOKEN)
     def lambda_test_function():
         boto3.client("sqs").send_message(QueueUrl=sqs_resource, MessageBody="myMessage")
 
