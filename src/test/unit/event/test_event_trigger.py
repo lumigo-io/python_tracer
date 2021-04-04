@@ -34,7 +34,7 @@ from lumigo_tracer.lumigo_utils import Configuration
                     "Authorization": "****",
                     "content-type": "application/json",
                     "Host": "aaaaaaaa.appsync-api.eu-west-1.amazonaws.com",
-                    "origin": "https://app.sports.de",
+                    "origin": "https://app.sport.de",
                     "Referer": "https://app.sport.de/sessions/start/12345",
                     "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_6) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0.2 Safari/605.1.15",
                 },
