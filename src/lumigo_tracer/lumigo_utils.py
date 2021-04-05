@@ -156,10 +156,12 @@ def config(
     :param edge_kinesis_aws_access_key_id: The credentials to push to the Kinesis in China region
     :param edge_kinesis_aws_secret_access_key: The credentials to push to the Kinesis in China region
     """
+
     Configuration.token = token or os.environ.get(LUMIGO_TOKEN_KEY, "")
-    if not (Configuration.token and re.match("[t][_][[a-z0-9]{21}", Configuration.token)):
-        warn_client("Invalid Token. Go to Lumigo Settings to get a valid token.")
-        Configuration.should_report = False
+    if not (Configuration.token and re.match("[t][_][a-z0-9]{15,100}", Configuration.token)):
+        if token is not None:
+            warn_client("Invalid Token. Go to Lumigo Settings to get a valid token.")
+            should_report = False
 
     if should_report is not None:
         Configuration.should_report = should_report

@@ -54,9 +54,9 @@ def test_lambda_wrapper_basic_events(reporter_mock, context):
 
 
 @pytest.mark.parametrize("token", ["t_", "", "10faa5e13e7844aaa1234"])
-def test_lambda_wrapper_validate_token_format(context, capsys, token):
+def test_lambda_wrapper_validate_token_format_not_valid(context, capsys, token):
     """
-    This test checks that the token has a valid format with only prefix
+    This test checks that the token has a valid format (sends warning since all inputs are invalid)
     """
 
     @lumigo_tracer(token=token)
@@ -67,6 +67,29 @@ def test_lambda_wrapper_validate_token_format(context, capsys, token):
     captured = capsys.readouterr()
     expected = "Lumigo Warning: Invalid Token. Go to Lumigo Settings to get a valid token.\n"
     assert captured[0] == expected
+
+
+@pytest.mark.parametrize(
+    "token",
+    [
+        "t_22819b63j7567h6",
+        "t_22819b633fe97a4d0ed1",
+        "t_22819b63j7567h65jy568j5hj6589y6y6j859j68h695h6j685986h66h6h",
+    ],
+)
+def test_lambda_wrapper_validate_token_format_valid(context, capsys, token):
+    """
+    This test checks that the token has a valid format and no warning
+    """
+
+    @lumigo_tracer(token=token)
+    def lambda_test_function(event, context):
+        pass
+
+    lambda_test_function({}, context)
+    captured = capsys.readouterr()
+    expected = "Lumigo Warning: Invalid Token. Go to Lumigo Settings to get a valid token.\n"
+    assert captured[0] != expected
 
 
 @pytest.mark.parametrize("exc", [ValueError("Oh no"), ValueError(), ValueError(Exception())])
