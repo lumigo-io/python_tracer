@@ -10,6 +10,7 @@ from lumigo_tracer.lumigo_utils import DEFAULT_MAX_ENTRY_SIZE
 from lumigo_tracer.spans_container import SpansContainer
 from lumigo_tracer.tracer import lumigo_tracer
 
+TOKEN = "t_10faa5e13e7844aaa1234"
 
 md = MetaData()
 Users = Table("users", md, Column("id", Integer, primary_key=True), Column("name", String))
@@ -24,7 +25,7 @@ def db(tmp_path):
 
 
 def test_happy_flow(context, db):
-    @lumigo_tracer(token="123")
+    @lumigo_tracer(token=TOKEN)
     def lambda_test_function(event, context):
         engine = create_engine(db)
         conn = engine.connect()
@@ -46,7 +47,7 @@ def test_happy_flow(context, db):
 
 
 def test_non_existing_table(context, db):
-    @lumigo_tracer(token="123")
+    @lumigo_tracer(token=TOKEN)
     def lambda_test_function(event, context):
         others = Table("others", md, Column("id", Integer, primary_key=True))
         engine = create_engine(db)
@@ -68,7 +69,7 @@ def test_non_existing_table(context, db):
 
 
 def test_pruning_long_strings(context, db):
-    @lumigo_tracer(token="123")
+    @lumigo_tracer(token=TOKEN)
     def lambda_test_function(event, context):
         engine = create_engine(db)
         conn = engine.connect()
@@ -82,7 +83,7 @@ def test_pruning_long_strings(context, db):
 
 
 def test_exception_in_wrapper(context, db, monkeypatch):
-    @lumigo_tracer(token="123")
+    @lumigo_tracer(token=TOKEN)
     def lambda_test_function(event, context):
         engine = create_engine(db)
         conn = engine.connect()
