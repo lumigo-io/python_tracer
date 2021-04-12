@@ -12,6 +12,7 @@ from lumigo_tracer.wrappers.http.http_parser import (
     DynamoParser,
     EventBridgeParser,
     LambdaParser,
+    S3Parser,
 )
 
 
@@ -248,6 +249,14 @@ def test_event_bridge_parser_request_sad_flow():
     params = HttpRequest(host="", method="POST", uri="", headers={}, body="not a json")
     response = parser.parse_request(params)
     assert response["info"]["resourceNames"] is None
+
+
+def test_s3_parser_resource_name():
+    parser = S3Parser()
+    uri = "s3.eu-west-1.amazonaws.com/public.sapir.com/attachments/-1/321012/2021/3/31/sapir.pdf"
+    params = HttpRequest(host="", method="POST", uri=uri, headers={}, body="not a json")
+    response = parser.parse_request(params)
+    assert response["info"]["resourceName"] == "public.sapir.com"
 
 
 def test_event_bridge_parser_response_happy_flow():
