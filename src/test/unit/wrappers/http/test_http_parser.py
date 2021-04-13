@@ -32,6 +32,12 @@ def test_get_parser_check_headers():
     assert get_parser(url, headers) == ServerlessAWSParser
 
 
+def test_get_parser_s3():
+    url = "s3.eu-west-1.amazonaws.com"
+    headers = {"key": "value"}
+    assert get_parser(url, headers) == S3Parser
+
+
 def test_get_parser_apigw():
     url = "https://ne3kjv28fh.execute-api.us-west-2.amazonaws.com/doriaviram"
     assert get_parser(url, {}) == ApiGatewayV2Parser
