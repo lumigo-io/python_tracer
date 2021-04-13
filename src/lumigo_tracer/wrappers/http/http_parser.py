@@ -321,7 +321,7 @@ def get_parser(url: str, headers: Optional[dict] = None) -> Type[Parser]:
         return KinesisParser
     elif service == "events":
         return EventBridgeParser
-    elif safe_split_get(url, ".", 1) == "s3":
+    elif safe_split_get(url, ".", 1) == "s3" or safe_split_get(url, ".", 0) == "s3":
         return S3Parser
     # SQS Legacy Endpoints: https://docs.aws.amazon.com/general/latest/gr/rande.html
     elif service in ("sqs", "sqs-fips") or "queue.amazonaws.com" in url:

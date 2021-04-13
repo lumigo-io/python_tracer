@@ -251,50 +251,32 @@ def test_event_bridge_parser_request_sad_flow():
     assert response["info"]["resourceNames"] is None
 
 
-def test_s3_parser_resource_name_uri():
+@pytest.mark.parametrize(
+    "uri, resource_name, host",
+    [
+        (
+            "s3.eu-west-1.amazonaws.com/my.s3-bucket1.com/documents/2021/3/31/file.pdf",
+            "my.s3-bucket1.com",
+            "s3.eu-west-1.amazonaws.com",
+        ),
+        (
+            "my-s3-bucket.s3.us-west-2.amazonaws.com/documents/2021/3/31/file.pdf",
+            "my-s3-bucket",
+            "my-s3-bucket.s3.us-west-2.amazonaws.com",
+        ),
+    ],
+)
+def test_s3_parser_resource_name(uri, resource_name, host):
     parser = S3Parser()
-    uri = "s3.eu-west-1.amazonaws.com/my.s3-bucket1.com/documents/2021/3/31/file.pdf"
     params = HttpRequest(
-        host="s3.eu-west-1.amazonaws.com",
+        host=host,
         method="PUT",
         uri=uri,
-        headers={
-            "x-amz-copy-source": "my-s3-bucket1/documents/2021/3/31/file2.pdf",
-            "user-agent": "Boto3/1.16.31 Python/3.7.10 Linux/4.14.219-169.354.amzn2.x86_64 exec-env/AWS_Lambda_python3.7 Botocore/1.19.31",
-            "x-amzn-trace-id": "Root=test;Parent=test0;Sampled=0",
-            "x-amz-date": "20210331T090545Z",
-            "x-amz-security-token": "test_security-token",
-            "x-amz-content-sha256": "test_x-amz-content-sha256",
-            "authorization": "test_authorization",
-            "content-length": "0",
-        },
-        body="not a json",
+        headers={},
+        body="",
     )
     response = parser.parse_request(params)
-    assert response["info"]["resourceName"] == "my.s3-bucket1.com"
-
-
-def test_s3_parser_resource_name_host():
-    parser = S3Parser()
-    uri = "my-s3-bucket.s3.us-west-2.amazonaws.com/documents/2021/3/31/file.pdf"
-    params = HttpRequest(
-        host="my-s3-bucket.com.s3.us-west-2.amazonaws.com",
-        method="HEAD",
-        uri=uri,
-        headers={
-            "x-amz-copy-source": "my-s3-bucket1/documents//2021/3/31/file2.pdf",
-            "user-agent": "Boto3/1.16.31 Python/3.7.10 Linux/4.14.219-169.354.amzn2.x86_64 exec-env/AWS_Lambda_python3.7 Botocore/1.19.31",
-            "x-amzn-trace-id": "Root=test;Parent=test0;Sampled=0",
-            "x-amz-date": "20210331T090545Z",
-            "x-amz-security-token": "test_security-token",
-            "x-amz-content-sha256": "test_x-amz-content-sha256",
-            "authorization": "test_authorization",
-            "content-length": "0",
-        },
-        body="not a json",
-    )
-    response = parser.parse_request(params)
-    assert response["info"]["resourceName"] == "my-s3-bucket"
+    assert response["info"]["resourceName"] == resource_name
 
 
 def test_event_bridge_parser_response_happy_flow():
