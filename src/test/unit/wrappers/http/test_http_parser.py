@@ -12,6 +12,7 @@ from lumigo_tracer.wrappers.http.http_parser import (
     DynamoParser,
     EventBridgeParser,
     LambdaParser,
+    S3Parser,
 )
 
 
@@ -29,6 +30,12 @@ def test_get_parser_check_headers():
     url = "api.dev.com"
     headers = {"x-amzn-requestid": "1234"}
     assert get_parser(url, headers) == ServerlessAWSParser
+
+
+def test_get_parser_s3():
+    url = "s3.eu-west-1.amazonaws.com"
+    headers = {"key": "value"}
+    assert get_parser(url, headers) == S3Parser
 
 
 def test_get_parser_apigw():
@@ -248,6 +255,34 @@ def test_event_bridge_parser_request_sad_flow():
     params = HttpRequest(host="", method="POST", uri="", headers={}, body="not a json")
     response = parser.parse_request(params)
     assert response["info"]["resourceNames"] is None
+
+
+@pytest.mark.parametrize(
+    "uri, resource_name, host",
+    [
+        (
+            "s3.eu-west-1.amazonaws.com/my.s3-bucket1.com/documents/2021/3/31/file.pdf",
+            "my.s3-bucket1.com",
+            "s3.eu-west-1.amazonaws.com",
+        ),
+        (
+            "my-s3-bucket.s3.us-west-2.amazonaws.com/documents/2021/3/31/file.pdf",
+            "my-s3-bucket",
+            "my-s3-bucket.s3.us-west-2.amazonaws.com",
+        ),
+    ],
+)
+def test_s3_parser_resource_name(uri, resource_name, host):
+    parser = S3Parser()
+    params = HttpRequest(
+        host=host,
+        method="PUT",
+        uri=uri,
+        headers={},
+        body="",
+    )
+    response = parser.parse_request(params)
+    assert response["info"]["resourceName"] == resource_name
 
 
 def test_event_bridge_parser_response_happy_flow():

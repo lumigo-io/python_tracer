@@ -247,8 +247,11 @@ class SqsParser(ServerlessAWSParser):
 
 class S3Parser(Parser):
     def parse_request(self, parse_params: HttpRequest) -> dict:
+        resource_name = safe_split_get(parse_params.host, ".", 0)
+        if resource_name == "s3":
+            resource_name = safe_split_get(parse_params.uri, "/", 1)
         return recursive_json_join(
-            {"info": {"resourceName": safe_split_get(parse_params.host, ".", 0)}},
+            {"info": {"resourceName": resource_name}},
             super().parse_request(parse_params),
         )
 
@@ -318,7 +321,7 @@ def get_parser(url: str, headers: Optional[dict] = None) -> Type[Parser]:
         return KinesisParser
     elif service == "events":
         return EventBridgeParser
-    elif safe_split_get(url, ".", 1) == "s3":
+    elif safe_split_get(url, ".", 1) == "s3" or safe_split_get(url, ".", 0) == "s3":
         return S3Parser
     # SQS Legacy Endpoints: https://docs.aws.amazon.com/general/latest/gr/rande.html
     elif service in ("sqs", "sqs-fips") or "queue.amazonaws.com" in url:
