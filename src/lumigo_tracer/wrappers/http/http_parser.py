@@ -248,7 +248,7 @@ class SqsParser(ServerlessAWSParser):
 class S3Parser(Parser):
     def parse_request(self, parse_params: HttpRequest) -> dict:
         resource_name = safe_split_get(parse_params.host, ".", 0)
-        if not resource_name:
+        if resource_name == "s3":
             resource_name = safe_split_get(parse_params.uri, "/", 1)
         return recursive_json_join(
             {"info": {"resourceName": resource_name}},

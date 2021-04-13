@@ -251,12 +251,50 @@ def test_event_bridge_parser_request_sad_flow():
     assert response["info"]["resourceNames"] is None
 
 
-def test_s3_parser_resource_name():
+def test_s3_parser_resource_name_uri():
     parser = S3Parser()
-    uri = "s3.eu-west-1.amazonaws.com/public.sapir.com/attachments/-1/321012/2021/3/31/sapir.pdf"
-    params = HttpRequest(host="", method="POST", uri=uri, headers={}, body="not a json")
+    uri = "s3.eu-west-1.amazonaws.com/my.s3-bucket1.com/documents/2021/3/31/file.pdf"
+    params = HttpRequest(
+        host="s3.eu-west-1.amazonaws.com",
+        method="PUT",
+        uri=uri,
+        headers={
+            "x-amz-copy-source": "my-s3-bucket1/documents/2021/3/31/file2.pdf",
+            "user-agent": "Boto3/1.16.31 Python/3.7.10 Linux/4.14.219-169.354.amzn2.x86_64 exec-env/AWS_Lambda_python3.7 Botocore/1.19.31",
+            "x-amzn-trace-id": "Root=test;Parent=test0;Sampled=0",
+            "x-amz-date": "20210331T090545Z",
+            "x-amz-security-token": "test_security-token",
+            "x-amz-content-sha256": "test_x-amz-content-sha256",
+            "authorization": "test_authorization",
+            "content-length": "0",
+        },
+        body="not a json",
+    )
     response = parser.parse_request(params)
-    assert response["info"]["resourceName"] == "public.sapir.com"
+    assert response["info"]["resourceName"] == "my.s3-bucket1.com"
+
+
+def test_s3_parser_resource_name_host():
+    parser = S3Parser()
+    uri = "my-s3-bucket.s3.us-west-2.amazonaws.com/documents/2021/3/31/file.pdf"
+    params = HttpRequest(
+        host="my-s3-bucket.com.s3.us-west-2.amazonaws.com",
+        method="HEAD",
+        uri=uri,
+        headers={
+            "x-amz-copy-source": "my-s3-bucket1/documents//2021/3/31/file2.pdf",
+            "user-agent": "Boto3/1.16.31 Python/3.7.10 Linux/4.14.219-169.354.amzn2.x86_64 exec-env/AWS_Lambda_python3.7 Botocore/1.19.31",
+            "x-amzn-trace-id": "Root=test;Parent=test0;Sampled=0",
+            "x-amz-date": "20210331T090545Z",
+            "x-amz-security-token": "test_security-token",
+            "x-amz-content-sha256": "test_x-amz-content-sha256",
+            "authorization": "test_authorization",
+            "content-length": "0",
+        },
+        body="not a json",
+    )
+    response = parser.parse_request(params)
+    assert response["info"]["resourceName"] == "my-s3-bucket"
 
 
 def test_event_bridge_parser_response_happy_flow():
