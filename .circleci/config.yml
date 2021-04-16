@@ -122,7 +122,7 @@ jobs:
       - run: echo ${KEY} | gpg --batch -d --passphrase-fd 0 ../common-resources/encrypted_files/credentials_integration.enc > ~/.aws/credentials
       - run: pre-commit install
       - run: . venv/bin/activate && ./scripts/checks.sh
-      - run: bash <(curl -s https://codecov.io/bash)
+      - run: ../utils/common_bash/defaults/code_cov.sh
 
   integration-test:
     <<: *defaults
