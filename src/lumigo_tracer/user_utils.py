@@ -1,5 +1,5 @@
 import json
-from typing import Dict
+from typing import Dict, Optional
 
 from lumigo_tracer.spans_container import SpansContainer
 from lumigo_tracer.lumigo_utils import Configuration, warn_client
@@ -23,10 +23,15 @@ def error(msg: str, error_type: str = "ProgrammaticError", extra: Dict[str, str]
     log(40, msg, error_type, extra)
 
 
-def log(level: int, msg: str, error_type: str, extra: Dict[str, str]):
+def log(level: int, msg: str, error_type: str, extra: Optional[Dict[str, str]]):
     tags_len = SpansContainer.get_span().get_tags_len()
-    extra = list(filter(lambda element: validate_tag(element[0], str(element[1]), tags_len, True), (extra or {}).items()))
-    actual = {key: str(value) for key, value in extra[:MAX_ELEMENTS_IN_EXTRA]}
+    extra_filtered = list(
+        filter(
+            lambda element: validate_tag(element[0], str(element[1]), tags_len, True),
+            (extra or {}).items(),
+        )
+    )
+    actual = {key: str(value) for key, value in extra_filtered[:MAX_ELEMENTS_IN_EXTRA]}
     text = json.dumps({"message": msg, "type": error_type, "level": level, **actual})
     print(LUMIGO_REPORT_ERROR_STRING, text)
 
