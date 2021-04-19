@@ -84,6 +84,8 @@ def add_execution_tag(key: str, value: str, should_log_errors: bool = True) -> b
         tags_len = SpansContainer.get_span().get_tags_len()
         if validate_tag(key, value, tags_len, should_log_errors):
             SpansContainer.get_span().add_tag(key, value)
+        else:
+            return False
     except Exception:
         if should_log_errors:
             warn_client(ADD_TAG_ERROR_MSG_PREFIX)
