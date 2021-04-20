@@ -83,10 +83,9 @@ def error(
 
 
 def log(level: int, msg: str, error_type: str, extra: Optional[Dict[str, str]]):
-    tags_len = SpansContainer.get_span().get_tags_len()
     filtered_extra = list(
         filter(
-            lambda element: validate_tag(element[0], str(element[1]), tags_len, True),
+            lambda element: validate_tag(element[0], element[1], 0, True),
             (extra or {}).items(),
         )
     )
@@ -107,6 +106,7 @@ def report_error(msg: str):
 
 
 def validate_tag(key, value, tags_len, should_log_errors):
+    value = str(value)
     if not key or len(key) >= MAX_TAG_KEY_LEN:
         if should_log_errors:
             warn_client(

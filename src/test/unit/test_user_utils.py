@@ -8,7 +8,7 @@ from lumigo_tracer.user_utils import (
     add_execution_tag,
     MAX_TAG_KEY_LEN,
     MAX_TAG_VALUE_LEN,
-    MAX_TAGS,
+    MAX_TAGS, MAX_ELEMENTS_IN_EXTRA,
 )
 from lumigo_tracer.lumigo_utils import Configuration, EXECUTION_TAGS_KEY
 
@@ -22,7 +22,7 @@ def test_report_error_with_enhance_print(capsys):
 
 
 def test_err_without_alert_type_with_exception(capsys):
-    msg = '{"message": "This is error message", "type": "RuntimeError", "level": 40, "extra": {"a": "3", "b": "True", "c": "aaa", "d": "{}", "aa": "a", "a1": "1", "a2": "2", "a3": "3", "a4": "4", "a5": "5"}}'
+    msg = '{"message": "This is error message", "type": "RuntimeError", "level": 40, "extra": {"a": "3", "b": "True", "c": "aaa", "d": "{}", "aa": "a", "a0": "0", "a1": "1", "a2": "2", "a3": "3", "a4": "4"}}'
     error(
         err=RuntimeError("Failed to open database"),
         msg="This is error message",
@@ -33,13 +33,7 @@ def test_err_without_alert_type_with_exception(capsys):
             "d": {},
             "aa": "a",
             "A" * 100: "A" * 100,
-            "a1": "1",
-            "a2": "2",
-            "a3": "3",
-            "a4": "4",
-            "a5": "5",
-            "a6": "6",
-            "a7": "7",
+            **{f"a{i}": i for i in range(MAX_ELEMENTS_IN_EXTRA)}
         },
     )
     captured = capsys.readouterr().out.split("\n")
