@@ -8,7 +8,8 @@ from lumigo_tracer.user_utils import (
     add_execution_tag,
     MAX_TAG_KEY_LEN,
     MAX_TAG_VALUE_LEN,
-    MAX_TAGS, MAX_ELEMENTS_IN_EXTRA,
+    MAX_TAGS,
+    MAX_ELEMENTS_IN_EXTRA,
 )
 from lumigo_tracer.lumigo_utils import Configuration, EXECUTION_TAGS_KEY
 
@@ -33,7 +34,7 @@ def test_err_without_alert_type_with_exception(capsys):
             "d": {},
             "aa": "a",
             "A" * 100: "A" * 100,
-            **{f"a{i}": i for i in range(MAX_ELEMENTS_IN_EXTRA)}
+            **{f"a{i}": i for i in range(MAX_ELEMENTS_IN_EXTRA)},
         },
     )
     captured = capsys.readouterr().out.split("\n")
