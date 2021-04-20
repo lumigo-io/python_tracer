@@ -15,18 +15,12 @@ ADD_TAG_ERROR_MSG_PREFIX = "Skipping add_execution_tag: Unable to add tag"
 def info(msg: str, alert_type: str = "ProgrammaticInfo", extra: Dict[str, str] = None):
     """
     Use this function to create a log entry in your lumigo platform.
-    You can use it to dynamically generate alerts programmatically with searchable fields
-    Then use the the lumigo explore to search and filters logs in an elastic way
+    You can use it to dynamically generate alerts programmatically with searchable fields.
+    Then use the lumigo explore to search and filters logs in free text.
 
-    The [info] function will not generate an alert but you can still search by its extra parameters
-    For example set extra to {"customerId": "123"} than in the explore tab search for  "customerId": "123"
-    to find all logs of that customer KIBANA STYLE!!
-
-    The maximum number of extra fields is 10.
     :param msg: a free text to log
-    :param alert_type: Should be considered as a grouping parameter normally a camelCase
-     name to indicate the type of this message for example customerCreated.
-    :param extra: a key value Dict[str, str] keys and values should not be longer than 50 chars or they will be emitted.
+    :param alert_type: Should be considered as a grouping parameter. This indicates the type of this message. Default: ProgrammaticInfo
+    :param extra: a key-value dict. Limited to 10 keys and 50 characters per value.
     """
     log(logging.INFO, msg, alert_type, extra)
 
