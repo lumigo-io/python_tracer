@@ -21,16 +21,12 @@ def test_report_error_with_enhance_print(capsys):
     assert captured.out == f"{LUMIGO_REPORT_ERROR_STRING} {msg}\n"
 
 
-def test_info(capsys):
-    Configuration.enhanced_print = True
-    msg = (
-        '{"message": "This is error message", "type": "ClientError", "level": 20, "a": "3",'
-        ' "b": "True", "c": "aaa", "d": "{}", "aa": "a", "a1": "1", "a2": "2", "a3": "3", "a4": "4", "a5": "5"}'
-    )
-    info(
-        "This is error message",
-        "ClientError",
-        {
+def test_err_without_alert_type_with_exception(capsys):
+    msg = '{"message": "This is error message", "type": "RuntimeError", "level": 40, "extra": {"a": "3", "b": "True", "c": "aaa", "d": "{}", "aa": "a", "a1": "1", "a2": "2", "a3": "3", "a4": "4", "a5": "5"}}'
+    error(
+        err=RuntimeError("Failed to open database"),
+        msg="This is error message",
+        extra={
             "a": 3,
             "b": True,
             "c": "aaa",
@@ -48,6 +44,29 @@ def test_info(capsys):
     )
     captured = capsys.readouterr().out.split("\n")
     assert captured[1] == f"{LUMIGO_REPORT_ERROR_STRING} {msg}"
+
+
+def test_err_with_type_and_exception(capsys):
+    msg = (
+        '{"message": "This is error message", "type": "DBError",'
+        ' "level": 40, "extra": {"raw_exception": "Failed to open database"}}'
+    )
+    error(
+        err=RuntimeError("Failed to open database"),
+        msg="This is error message",
+        alert_type="DBError",
+    )
+    captured = capsys.readouterr().out.split("\n")
+    assert captured[0] == f"{LUMIGO_REPORT_ERROR_STRING} {msg}"
+
+
+def test_err_with_no_type_and_no_exception(capsys):
+    msg = '{"message": "This is error message", "type": "ProgrammaticError", "level": 40}'
+    error(
+        msg="This is error message",
+    )
+    captured = capsys.readouterr().out.split("\n")
+    assert captured[0] == f"{LUMIGO_REPORT_ERROR_STRING} {msg}"
 
 
 def test_basic_info_warn_error(capsys):

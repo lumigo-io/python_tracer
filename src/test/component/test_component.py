@@ -84,7 +84,7 @@ def test_dynamo_db(ddb_resource, region):
     lambda_test_function()
     events = SpansContainer.get_span().spans
     assert len(events) == 1
-    assert events[0]["info"]["httpInfo"]["hossst"] == f"dynamodb.{region}.amazonaws.com"
+    assert events[0]["info"]["httpInfo"]["host"] == f"dynamodb.{region}.amazonaws.com"
     assert events[0]["info"]["resourceName"] == ddb_resource
     assert events[0]["info"].get("messageId") == md5hash({"key": {"S": "1"}})
     assert "ended" in events[0]

@@ -1,4 +1,5 @@
 import json
+import logging
 from typing import Dict, Optional
 
 from lumigo_tracer.spans_container import SpansContainer
@@ -11,29 +12,89 @@ MAX_TAG_KEY_LEN = MAX_TAG_VALUE_LEN = 50
 ADD_TAG_ERROR_MSG_PREFIX = "Skipping add_execution_tag: Unable to add tag"
 
 
-def info(msg: str, error_type: str = "ProgrammaticInfo", extra: Dict[str, str] = None):
-    log(20, msg, error_type, extra)
+def info(msg: str, alert_type: str = "ProgrammaticInfo", extra: Dict[str, str] = None):
+    """
+    Use this function to create a log entry in your lumigo platform.
+    You can use it to dynamically generate alerts programmatically with searchable fields
+    Then use the the lumigo explore to search and filters logs in an elastic way
+
+    The [info] function will not generate an alert but you can still search by its extra parameters
+    For example set extra to {"customerId": "123"} than in the explore tab search for  "customerId": "123"
+    to find all logs of that customer KIBANA STYLE!!
+
+    The maximum number of extra fields is 10.
+    :param msg: a free text to log
+    :param alert_type: Should be considered as a grouping parameter normally a camelCase
+     name to indicate the type of this message for example customerCreated.
+    :param extra: a key value Dict[str, str] keys and values should not be longer than 50 chars or they will be emitted.
+    """
+    log(logging.INFO, msg, alert_type, extra)
 
 
-def warn(msg: str, error_type: str = "ProgrammaticWarn", extra: Dict[str, str] = None):
-    log(30, msg, error_type, extra)
+def warn(msg: str, alert_type: str = "ProgrammaticWarn", extra: Dict[str, str] = None):
+    """
+    Use this function to create a log entry in your lumigo platform.
+    You can use it to dynamically generate alerts programmatically with searchable fields
+    Then use the the lumigo explore to search and filters logs in an elastic way
+
+    The [warn] function will not generate an alert but you can still search by its extra parameters
+    For example set extra to {"customerId": "123"} than in the explore tab search for  "customerId": "123"
+    to find all logs of that customer KIBANA STYLE!!
+
+    The maximum number of extra fields is 10.
+    :param msg: a free text to log
+    :param alert_type: Should be considered as a grouping parameter normally a camelCase
+     name to indicate the type of this message for example customerCreated.
+    :param extra: a key value Dict[str, str] keys and values should not be longer than 50 chars or they will be emitted.
+    """
+    log(logging.WARN, msg, alert_type, extra)
 
 
-def error(msg: str, error_type: str = "ProgrammaticError", extra: Dict[str, str] = None):
-    log(40, msg, error_type, extra)
+def error(
+    msg: str,
+    alert_type: Optional[str] = None,
+    extra: Optional[Dict[str, str]] = None,
+    err: Optional[Exception] = None,
+):
+    """
+    Use this function to create a log entry in your lumigo platform.
+    You can use it to dynamically generate alerts programmatically with searchable fields
+    Then use the the lumigo explore to search and filters logs in an elastic way
+
+    The [error] function will generate an alert but you can still search by its extra parameters
+    For example set extra to {"customerId": "123"} than in the explore tab search for  "customerId": "123"
+    to find all logs of that customer KIBANA STYLE!!
+
+    The maximum number of extra fields is 10.
+    :param msg: a free text to log
+    :param alert_type: Should be considered as a grouping parameter normally a camelCase
+     name to indicate the type of this message for example customerCreated.
+    :param extra: a key value Dict[str, str] keys and values should not be longer than 50 chars or they will be emitted.
+    :param err: the actual error object.
+    """
+
+    extra = extra or {}
+    if err and not alert_type:
+        alert_type = err.__class__.__name__
+    alert_type = alert_type or "ProgrammaticError"
+    if err:
+        extra["raw_exception"] = str(err)
+    log(logging.ERROR, msg, alert_type, extra)
 
 
 def log(level: int, msg: str, error_type: str, extra: Optional[Dict[str, str]]):
     tags_len = SpansContainer.get_span().get_tags_len()
-    extra_filtered = list(
+    filtered_extra = list(
         filter(
             lambda element: validate_tag(element[0], str(element[1]), tags_len, True),
             (extra or {}).items(),
         )
     )
-    actual = {key: str(value) for key, value in extra_filtered[:MAX_ELEMENTS_IN_EXTRA]}
-    text = json.dumps({"message": msg, "type": error_type, "level": level, **actual})
-    print(LUMIGO_REPORT_ERROR_STRING, text)
+    extra = {key: str(value) for key, value in filtered_extra[:MAX_ELEMENTS_IN_EXTRA]}
+    actual = {"message": msg, "type": error_type, "level": level}
+    if extra:
+        actual["extra"] = extra
+    print(LUMIGO_REPORT_ERROR_STRING, json.dumps(actual))
 
 
 def report_error(msg: str):
