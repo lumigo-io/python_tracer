@@ -1,11 +1,15 @@
 from lumigo_tracer.spans_container import SpansContainer
 from lumigo_tracer.user_utils import (
     report_error,
+    warn,
+    info,
+    error,
     LUMIGO_REPORT_ERROR_STRING,
     add_execution_tag,
     MAX_TAG_KEY_LEN,
     MAX_TAG_VALUE_LEN,
     MAX_TAGS,
+    MAX_ELEMENTS_IN_EXTRA,
 )
 from lumigo_tracer.lumigo_utils import Configuration, EXECUTION_TAGS_KEY
 
@@ -16,6 +20,65 @@ def test_report_error_with_enhance_print(capsys):
     report_error(msg)
     captured = capsys.readouterr()
     assert captured.out == f"{LUMIGO_REPORT_ERROR_STRING} {msg}\n"
+
+
+def test_err_without_alert_type_with_exception(capsys):
+    msg = '{"message": "This is error message", "type": "RuntimeError", "level": 40, "extra": {"a": "3", "b": "True", "c": "aaa", "d": "{}", "aa": "a", "a0": "0", "a1": "1", "a2": "2", "a3": "3", "a4": "4"}}'
+    error(
+        err=RuntimeError("Failed to open database"),
+        msg="This is error message",
+        extra={
+            "a": 3,
+            "b": True,
+            "c": "aaa",
+            "d": {},
+            "aa": "a",
+            "A" * 100: "A" * 100,
+            **{f"a{i}": i for i in range(MAX_ELEMENTS_IN_EXTRA)},
+        },
+    )
+    captured = capsys.readouterr().out.split("\n")
+    assert captured[1] == f"{LUMIGO_REPORT_ERROR_STRING} {msg}"
+
+
+def test_err_with_type_and_exception(capsys):
+    msg = (
+        '{"message": "This is error message", "type": "DBError",'
+        ' "level": 40, "extra": {"raw_exception": "Failed to open database"}}'
+    )
+    error(
+        err=RuntimeError("Failed to open database"),
+        msg="This is error message",
+        alert_type="DBError",
+    )
+    captured = capsys.readouterr().out.split("\n")
+    assert captured[0] == f"{LUMIGO_REPORT_ERROR_STRING} {msg}"
+
+
+def test_err_with_no_type_and_no_exception(capsys):
+    msg = '{"message": "This is error message", "type": "ProgrammaticError", "level": 40}'
+    error(
+        msg="This is error message",
+    )
+    captured = capsys.readouterr().out.split("\n")
+    assert captured[0] == f"{LUMIGO_REPORT_ERROR_STRING} {msg}"
+
+
+def test_basic_info_warn_error(capsys):
+    info("This is error message")
+    warn("This is error message")
+    error("This is error message")
+    info_msg = (
+        '[LUMIGO_LOG] {"message": "This is error message", "type": "ProgrammaticInfo", "level": 20}'
+    )
+    warn_msg = (
+        '[LUMIGO_LOG] {"message": "This is error message", "type": "ProgrammaticWarn", "level": 30}'
+    )
+    error_msg = '[LUMIGO_LOG] {"message": "This is error message", "type": "ProgrammaticError", "level": 40}'
+    captured = capsys.readouterr().out.split("\n")
+    assert captured[0] == info_msg
+    assert captured[1] == warn_msg
+    assert captured[2] == error_msg
 
 
 def test_report_error_without_enhance_print(capsys):
