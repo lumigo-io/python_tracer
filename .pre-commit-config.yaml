@@ -17,3 +17,9 @@ repos:
     -   id: flake8
         args: ["--ignore","E501","--exclude","src/lumigo_tracer/libs/*"]
 
+-   repo: https://github.com/PyCQA/bandit
+    rev: '1.7.0'
+    hooks:
+    -   id: bandit
+        exclude: ^src/test/
+        args: ["-lll"]
