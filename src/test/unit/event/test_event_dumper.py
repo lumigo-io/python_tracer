@@ -180,7 +180,8 @@ def test_parse_event_api_gw_v1():
                             "iat": "Sun Apr 19 07:06:14 UTC 2020",
                             "email": "a@a.com",
                         }
-                    }
+                    },
+                    "requestId": "78542821-ca17-4e83-94ec-96993a9d451d",
                 },
                 "headers": {
                     "Authorization": "auth",
@@ -258,7 +259,8 @@ def test_parse_event_api_gw_v2():
                         "protocol": "HTTP/1.1",
                         "sourceIp": "205.255.255.176",
                         "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.132 Safari/537.36",
-                    }
+                    },
+                    "requestId": "JKJaXmPLvHcESHA=",
                 },
                 "headers": {
                     "content-length": "0",

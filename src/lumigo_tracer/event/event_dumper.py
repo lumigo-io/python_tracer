@@ -55,7 +55,7 @@ API_GW_PREFIX_KEYS_HEADERS_DELETE_KEYS = str_to_list(
 ) or ("cookie", "x-amz", "accept", "cloudfront", "via", "x-forwarded", "sec-")
 API_GW_REQUEST_CONTEXT_FILTER_KEYS = str_to_list(
     os.environ.get("LUMIGO_API_GW_REQUEST_CONTEXT_FILTER_KEYS", "")
-) or ["authorizer", "http"]
+) or ["authorizer", "http", "requestid"]
 API_GW_KEYS_DELETE_KEYS = str_to_list(os.environ.get("LUMIGO_API_GW_KEYS_DELETE_KEYS", "")) or [
     "multiValueHeaders",
     "multiValueQueryStringParameters",
