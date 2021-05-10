@@ -1,11 +1,11 @@
 import pytest
 
-from lumigo_tracer.extension.sampler import Sampler
+from lumigo_tracer.extension.sampler import CpuSampler
 
 
 @pytest.fixture
 def sampler():
-    return Sampler()
+    return CpuSampler()
 
 
 def test_short_sampling(sampler, mock_linux_files):

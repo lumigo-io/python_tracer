@@ -7,6 +7,7 @@ from dataclasses import dataclass
 import signal
 
 from lumigo_tracer.extension.extension_utils import get_current_cpu_time
+from lumigo_tracer.extension.extension_utils import get_current_memory_time
 
 DEFAULT_SAMPLING_INTERVAL = 500
 
@@ -25,7 +26,21 @@ class CpuSample:
         }
 
 
-class Sampler:
+@dataclass
+class MemorySample:
+    start_time: datetime
+    end_time: datetime
+    memory_time: float
+
+    def dump(self) -> Dict[str, Union[float, int]]:
+        return {
+            "start_time": int(self.start_time.timestamp() * 1000),
+            "end_time": int(self.end_time.timestamp() * 1000),
+            "memory_time": self.memory_time,
+        }
+
+
+class CpuSampler:
     def __init__(self):
         self.cpu_last_sample_value: Optional[float] = None
         self.cpu_last_sample_time: Optional[datetime] = None
@@ -58,3 +73,38 @@ class Sampler:
             )
         self.cpu_last_sample_time = now
         self.cpu_last_sample_value = current_cpu
+
+
+class MemorySampler:
+    def __init__(self):
+        self.memory_last_sample_value: Optional[float] = None
+        self.memory_last_sample_time: Optional[datetime] = None
+        self.memory_samples: List[MemorySample] = []
+
+    def start_sampling(self, interval_ms: int = DEFAULT_SAMPLING_INTERVAL):
+        self.memory_samples = []
+        self.sample()
+        signal.signal(signal.SIGALRM, self.sample)
+        signal.setitimer(signal.ITIMER_REAL, interval_ms / 1000, interval_ms / 1000)
+
+    def stop_sampling(self):
+        signal.alarm(0)
+        signal.signal(signal.SIGALRM, signal.SIG_DFL)
+        self.sample()
+
+    def get_samples(self) -> List[MemorySample]:
+        return self.memory_samples
+
+    def sample(self, *args):
+        now = datetime.now()
+        current_memory = get_current_memory_time()
+        if self.memory_last_sample_time and self.memory_last_sample_value and current_memory:
+            self.memory_samples.append(
+                MemorySample(
+                    start_time=self.memory_last_sample_time,
+                    end_time=now,
+                    memory_time=current_memory - self.memory_last_sample_value,
+                )
+            )
+        self.memory_last_sample_time = now
+        self.memory_last_sample_value = current_memory

@@ -20,6 +20,19 @@ def get_current_cpu_time() -> Optional[int]:
         return total
 
 
+def get_current_memory_time() -> Optional[int]:
+    """
+    :return: the total number of milliseconds that being used by the CPU.
+    """
+    with lumigo_safe_execute("Extension: get cpu time"):
+        total = 0
+        with open("/proc/stat", "r") as stats:
+            for line in stats.readlines():
+                if line.startswith("cpu "):
+                    parts = line.split()
+                    total += (int(parts[1]) + int(parts[3])) * 10
+        return total
+
 def get_current_bandwidth() -> Optional[int]:
     with lumigo_safe_execute("Extension: get bandwidth"):
         with open("/proc/net/netstat", "r") as stats:
