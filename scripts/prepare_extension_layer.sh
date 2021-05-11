@@ -17,7 +17,7 @@ touch preview-extensions-ggqizro707
 echo "-zipping"
 zip -qr "extensions.zip" "extensions" "extension-python-modules" "python-runtime" "preview-extensions-ggqizro707"  # take all the directory
 echo "-publish"
-aws lambda publish-layer-version --layer-name "extensions-layer" --license-info "Apache License Version 2.0" --zip-file fileb://extensions.zip --compatible-runtimes "python3.8" --region us-west-2 | jq -r '.Version'
+../utils/common_bash/create_layer.sh --layer-name "extensions-layer" --region ALL --package-folder "extensions.zip" --version $(git describe --abbrev=0 --tags) --runtimes  ""
 rm -rf extensions extension-python-modules extensions.zip runtime.zip python-runtime __MACOSX
 popd > /dev/null || exit
 
