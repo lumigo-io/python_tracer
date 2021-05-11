@@ -50,7 +50,6 @@ class LumigoExtension:
 
     def _finish_previous_invocation(self, current_bandwidth: Optional[int]):
         self.sampler.stop_sampling()
-        self.sampler.stop_sampling()
         token = os.environ.get(lumigo_utils.LUMIGO_TOKEN_KEY)
         if not token:
             get_extension_logger().warning(
