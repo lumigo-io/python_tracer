@@ -1,6 +1,6 @@
 from mock import mock_open, patch
 
-from lumigo_tracer.extension.extension_utils import get_current_cpu_time, get_current_bandwidth
+from lumigo_tracer.extension.extension_utils import get_current_cpu_time, get_current_bandwidth, get_current_memory
 
 PROC_STAT = """cpu  2165 34 2290 22625563 6290 127 456
 cpu0 1132 34 1441 11311718 3675 127 438
@@ -22,6 +22,14 @@ def test_get_current_cpu_time():
     with patch("lumigo_tracer.extension.extension_utils.open", m):
         result = get_current_cpu_time()
     assert result == 44550
+
+
+def test_get_current_memory():
+    m = mock_open()
+    m().readlines.return_value = PROC_STAT.split("\n")
+    with patch("lumigo_tracer.extension.extension_utils.open", m):
+        result = get_current_memory()
+    assert result == 1
 
 
 def test_get_current_cpu_time_fails():
