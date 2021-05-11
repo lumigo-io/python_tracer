@@ -24,7 +24,7 @@ def get_current_memory() -> Optional[int]:
     """
     :return: the total number of milliseconds that being used by the CPU.
     """
-    with lumigo_safe_execute("Extension: get cpu time"):
+    with lumigo_safe_execute("Extension: get memory usage"):
         return 1
 
 
