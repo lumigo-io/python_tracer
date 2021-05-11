@@ -29,10 +29,12 @@ class CpuSample:
 @dataclass
 class MemorySample:
     memory: float
+    timestamp: datetime
 
     def dump(self) -> Dict[str, Union[float, int]]:
         return {
             "memory": self.memory,
+            "timestamp": self.timestamp,
         }
 
 
@@ -73,6 +75,6 @@ class Sampler:
                     cpu_time=current_cpu - self.cpu_last_sample_value,
                 )
             )
-        self.memory_samples.append(MemorySample(current_memory))
+        self.memory_samples.append(MemorySample(memory=current_memory, timestamp=now))
         self.cpu_last_sample_time = now
         self.cpu_last_sample_value = current_cpu
