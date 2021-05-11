@@ -8,19 +8,19 @@ def sampler():
     return Sampler()
 
 
-def test_short_cpu_sampling(sampler, mock_linux_cpu_files):
+def test_short_cpu_sampling(sampler, mock_linux_files):
     sampler.start_sampling()
     sampler.stop_sampling()
     assert sampler.get_cpu_samples()
 
 
-def test_short_memory_sampling(sampler, mock_linux_memory_files):
+def test_short_memory_sampling(sampler, mock_linux_files):
     sampler.start_sampling()
     sampler.stop_sampling()
     assert sampler.get_memory_samples()
 
 
-def test_sampling_cpu_happy_flow(sampler, mock_linux_cpu_files):
+def test_sampling_cpu_happy_flow(sampler, mock_linux_files):
     sampler.start_sampling()
     sampler.sample()
     sampler.sample()
@@ -28,7 +28,7 @@ def test_sampling_cpu_happy_flow(sampler, mock_linux_cpu_files):
     assert len(sampler.get_cpu_samples()) == 3
 
 
-def test_sampling_memory_happy_flow(sampler, mock_linux_memory_files):
+def test_sampling_memory_happy_flow(sampler, mock_linux_files):
     sampler.start_sampling()
     sampler.sample()
     sampler.sample()
