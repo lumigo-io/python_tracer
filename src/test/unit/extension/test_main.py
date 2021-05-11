@@ -8,7 +8,9 @@ from lumigo_tracer.extension.main import start_extension_loop, register, main, S
 from lumigo_tracer.lumigo_utils import KILL_SWITCH
 
 
-def test_extension_loop_happy_flow(mock_linux_files, reporter_mock, monkeypatch, lambda_service):
+def test_extension_loop_happy_flow(
+    mock_linux_cpu_files, mock_linux_memory_files, reporter_mock, monkeypatch, lambda_service
+):
     """
     This test checks the case of two requests and shutdown.
     """
@@ -49,7 +51,13 @@ def test_register_happy_flow(monkeypatch):
     ],
 )
 def test_extension_stopper(
-    mock_linux_files, monkeypatch, reporter_mock, kill_switch, extension_switch, extension_activated
+    mock_linux_cpu_files,
+    mock_linux_memory_files,
+    monkeypatch,
+    reporter_mock,
+    kill_switch,
+    extension_switch,
+    extension_activated,
 ):
     http_mock = Mock()
     http_mock("127.0.0.1").getresponse.return_value = SimpleNamespace(

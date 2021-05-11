@@ -20,7 +20,7 @@ class ExtensionEvent:
     requestId: str
     networkBytesUsed: int
     cpuUsageTime: List[Dict[str, Union[float, int]]]
-    memoryUsage: List[Dict[str, Union[float, int]]]
+    memoryUsage: List[Dict[str, int]]
     type: str = SPAN_TYPE
 
 

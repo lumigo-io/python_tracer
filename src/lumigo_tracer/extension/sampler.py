@@ -28,13 +28,13 @@ class CpuSample:
 
 @dataclass
 class MemorySample:
-    memory: float
+    memory: int
     timestamp: datetime
 
-    def dump(self) -> Dict[str, Union[float, int]]:
+    def dump(self) -> Dict[str, int]:
         return {
             "memory": self.memory,
-            "timestamp": self.timestamp,
+            "timestamp": int(self.timestamp.timestamp() * 1000),
         }
 
 
