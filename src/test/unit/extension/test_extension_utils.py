@@ -78,7 +78,7 @@ def test_get_current_memory():
     m().read.return_value = MEMINFO
     with patch("lumigo_tracer.extension.extension_utils.open", m):
         result = get_current_memory()
-    assert result == 0.5
+    assert result == 50
 
 
 def test_get_current_memory_fails_gracfully():
@@ -86,7 +86,7 @@ def test_get_current_memory_fails_gracfully():
     m().read.return_value = "MEMINFO"
     with patch("lumigo_tracer.extension.extension_utils.open", m):
         result = get_current_memory()
-    assert result == 0.0
+    assert result == 0
 
 
 def test_get_current_cpu_time_fails():

@@ -59,7 +59,7 @@ def test_validate_span_structure(mock_linux_files, reporter_mock, extension, eve
     assert time.time() * 1000 > sent_span.pop("started")
     assert sent_span.pop("cpuUsageTime")[0]["cpu_time"] == 0
     memory_usage = sent_span.pop("memoryUsage")[0]
-    assert memory_usage["memory_usage"] == 0.0
+    assert memory_usage["memory_usage"] == 0
     assert memory_usage["timestamp"]
     assert sent_span == {
         "networkBytesUsed": 0,

@@ -25,10 +25,10 @@ def get_current_cpu_time() -> Optional[int]:
         return total
 
 
-def get_current_memory() -> Optional[float]:
+def get_current_memory() -> Optional[int]:
     with lumigo_safe_execute("Extension: get meminfo"):
         with open("/proc/meminfo", "r") as meminfo:
-            res = 0.0
+            res = 0
             meminfo_content = meminfo.read()
             found_mem_available = re.search(MEM_AVAILABLE_PATTERN, meminfo_content)
             found_mem_total = re.search(MEM_TOTAL_PATTERN, meminfo_content)
@@ -36,7 +36,7 @@ def get_current_memory() -> Optional[float]:
             if found_mem_total and found_mem_available:
                 mem_total = float(found_mem_total.group(2))
                 mem_available = float(found_mem_available.group(2))
-                res = mem_available / mem_total
+                res = int(100 * (mem_available / mem_total))
         return res
 
 
