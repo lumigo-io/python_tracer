@@ -265,6 +265,11 @@ def test_lumigo_dumps(value, output):
     assert lumigo_dumps(value, max_size=100) == output
 
 
+def test_lumigo_dumps_fails_on_non_jsonable():
+    with pytest.raises(TypeError):
+        lumigo_utils({"set"})
+
+
 @pytest.mark.parametrize(
     ("value", "omit_skip_path", "output"),
     [

@@ -47,7 +47,7 @@ def test_execute_command_wrapper_non_json(instance):
     assert spans[0]["ended"] >= spans[0]["started"]
     assert spans[0]["response"]
     assert "error" not in spans[0]
-    assert result
+    assert isinstance(result, datetime)
 
 
 def test_execute_command_wrapper_failing_command(instance):
