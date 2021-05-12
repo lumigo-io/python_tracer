@@ -21,16 +21,8 @@ def get_current_cpu_time() -> Optional[int]:
         return total
 
 
-def get_current_memory() -> Optional[int]:
-    """
-    :return: the total number of milliseconds that being used by the CPU.
-    """
-    with lumigo_safe_execute("Extension: get memory usage"):
-        return 1
-
-
-def get_current_bandwidth() -> Optional[float]:
-    with lumigo_safe_execute("Extension: get bandwidth"):
+def get_current_memory() -> Optional[float]:
+    with lumigo_safe_execute("Extension: get meminfo"):
         with open("/proc/meminfo", "r") as meminfo:
             meminfo_content = meminfo.read()
             mem_available_pattern = re.compile(r'(MemAvailable)[:][ ]*([0-9]*)')
@@ -40,6 +32,14 @@ def get_current_bandwidth() -> Optional[float]:
             mem_total = float(re.search(mem_total_pattern, meminfo_content).group(2))
 
         return mem_available / mem_total
+
+
+def get_current_bandwidth() -> Optional[int]:
+    with lumigo_safe_execute("Extension: get bandwidth"):
+        with open("/proc/net/netstat", "r") as stats:
+            last = stats.read().splitlines()[-1]
+            parts = last.split()
+        return int(parts[7]) + int(parts[8])
 
 
 def request_event(extension_id: str) -> Dict[str, str]:
