@@ -73,13 +73,6 @@ def test_get_current_cpu_time():
     assert result == 44550
 
 
-def test_get_current_cpu_time():
-    m = mock_open()
-    m().readlines.return_value = PROC_STAT.split("\n")
-    with patch("lumigo_tracer.extension.extension_utils.open", m):
-        result = get_current_cpu_time()
-    assert result == 44550
-
 def test_get_current_memory():
     m = mock_open()
     m().read.return_value = MEMINFO
