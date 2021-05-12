@@ -685,7 +685,12 @@ def lumigo_dumps(
                 break
         return "[" + ", ".join(organs) + "]"
 
-    retval = aws_dump(d, decimal_safe=decimal_safe)
+    try:
+        retval = aws_dump(d, decimal_safe=decimal_safe)
+    except TypeError:
+        if enforce_jsonify:
+            raise
+        retval = str(d)
     return (
         (retval[:max_size] + TRUNCATE_SUFFIX) if len(retval) >= max_size or is_truncated else retval
     )
