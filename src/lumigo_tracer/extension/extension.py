@@ -20,6 +20,7 @@ class ExtensionEvent:
     requestId: str
     networkBytesUsed: int
     cpuUsageTime: List[Dict[str, Union[float, int]]]
+    memoryUsage: List[Dict[str, int]]
     type: str = SPAN_TYPE
 
 
@@ -58,7 +59,8 @@ class LumigoExtension:
         if not (
             self.request_id
             and self.start_time  # noqa: W503
-            and self.sampler.get_samples()  # noqa: W503
+            and self.sampler.get_memory_samples()  # noqa: W503
+            and self.sampler.get_cpu_samples()  # noqa: W503
             and self.bandwidth  # noqa: W503
             and current_bandwidth  # noqa: W503
         ):
@@ -69,6 +71,7 @@ class LumigoExtension:
             started=int(self.start_time.timestamp() * 1000),
             requestId=self.request_id,
             networkBytesUsed=current_bandwidth - self.bandwidth,
-            cpuUsageTime=[s.dump() for s in self.sampler.get_samples()],
+            cpuUsageTime=[s.dump() for s in self.sampler.get_cpu_samples()],
+            memoryUsage=[s.dump() for s in self.sampler.get_memory_samples()],
         )
         lumigo_utils.report_json(os.environ.get("AWS_REGION", "us-east-1"), msgs=[asdict(span)])
