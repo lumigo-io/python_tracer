@@ -6,9 +6,9 @@ from lumigo_tracer.extension.extension_utils import (
     get_current_memory,
 )
 
-MEMINFO = """MemTotal:         192108 kB
+MEMINFO = """MemTotal:         100 kB
 MemFree:           90432 kB
-MemAvailable:     145288 kB
+MemAvailable:     50 kB
 Buffers:            6260 kB
 Cached:            52344 kB
 SwapCached:            0 kB
@@ -82,10 +82,10 @@ def test_get_current_cpu_time():
 
 def test_get_current_memory():
     m = mock_open()
-    m().readlines.return_value = PROC_STAT.split("\n")
+    m().read.return_value = MEMINFO
     with patch("lumigo_tracer.extension.extension_utils.open", m):
         result = get_current_memory()
-    assert result == 1
+    assert result == 0.5
 
 
 def test_get_current_cpu_time_fails():
