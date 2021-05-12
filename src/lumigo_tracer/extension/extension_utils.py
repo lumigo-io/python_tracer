@@ -7,6 +7,9 @@ from typing import Optional, Dict
 from lumigo_tracer.lumigo_utils import get_logger, lumigo_safe_execute
 
 
+MEM_AVAILABLE_PATTERN = re.compile(r"(MemAvailable)[:][ ]*([0-9]*)")
+MEM_TOTAL_PATTERN = re.compile(r"(MemTotal)[:][ ]*([0-9]*)")
+
 def get_current_cpu_time() -> Optional[int]:
     """
     :return: the total number of milliseconds that being used by the CPU.
@@ -26,11 +29,8 @@ def get_current_memory() -> Optional[float]:
         with open("/proc/meminfo", "r") as meminfo:
             res = 0.0
             meminfo_content = meminfo.read()
-            mem_available_pattern = re.compile(r"(MemAvailable)[:][ ]*([0-9]*)")
-            mem_total_pattern = re.compile(r"(MemTotal)[:][ ]*([0-9]*)")
-
-            found_mem_available = re.search(mem_available_pattern, meminfo_content)
-            found_mem_total = re.search(mem_total_pattern, meminfo_content)
+            found_mem_available = re.search(MEM_AVAILABLE_PATTERN, meminfo_content)
+            found_mem_total = re.search(MEM_TOTAL_PATTERN, meminfo_content)
 
             if found_mem_total and found_mem_available:
                 mem_total = float(found_mem_total.group(2))
