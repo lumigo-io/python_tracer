@@ -49,7 +49,12 @@ def test_register_happy_flow(monkeypatch):
     ],
 )
 def test_extension_stopper(
-    mock_linux_files, monkeypatch, reporter_mock, kill_switch, extension_switch, extension_activated
+    mock_linux_files,
+    monkeypatch,
+    reporter_mock,
+    kill_switch,
+    extension_switch,
+    extension_activated,
 ):
     http_mock = Mock()
     http_mock("127.0.0.1").getresponse.return_value = SimpleNamespace(
