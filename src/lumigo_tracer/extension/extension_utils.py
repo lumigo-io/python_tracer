@@ -10,6 +10,7 @@ from lumigo_tracer.lumigo_utils import get_logger, lumigo_safe_execute
 MEM_AVAILABLE_PATTERN = re.compile(r"(MemAvailable)[:][ ]*([0-9]*)")
 MEM_TOTAL_PATTERN = re.compile(r"(MemTotal)[:][ ]*([0-9]*)")
 
+
 def get_current_cpu_time() -> Optional[int]:
     """
     :return: the total number of milliseconds that being used by the CPU.
