@@ -1,3 +1,4 @@
+import copy
 import importlib
 from typing import Optional, Dict, List, Union
 import uuid
@@ -27,28 +28,32 @@ def command_started(
             "type": REDIS_SPAN,
             "started": get_current_ms_time(),
             "requestCommand": command,
-            "requestArgs": lumigo_dumps(request_args),
+            "requestArgs": lumigo_dumps(copy.deepcopy(request_args)),
             "connectionOptions": {"host": host, "port": port},
         }
     )
 
 
 def command_finished(ret_val: Dict):
-    span = SpansContainer.get_span().get_last_span()
-    if not span:
-        get_logger().warning("Redis span ended without a record on its start")
-        return
-    span.update({"ended": get_current_ms_time(), "response": lumigo_dumps(ret_val)})
+    with lumigo_safe_execute("redis command finished"):
+        span = SpansContainer.get_span().get_last_span()
+        if not span:
+            get_logger().warning("Redis span ended without a record on its start")
+            return
+        span.update(
+            {"ended": get_current_ms_time(), "response": lumigo_dumps(copy.deepcopy(ret_val))}
+        )
 
 
 def command_failed(exception: Exception):
-    span = SpansContainer.get_span().get_last_span()
-    if not span:
-        get_logger().warning("Redis span ended without a record on its start")
-        return
-    span.update(
-        {"ended": get_current_ms_time(), "error": exception.args[0] if exception.args else None}
-    )
+    with lumigo_safe_execute("redis command failed"):
+        span = SpansContainer.get_span().get_last_span()
+        if not span:
+            get_logger().warning("Redis span ended without a record on its start")
+            return
+        span.update(
+            {"ended": get_current_ms_time(), "error": exception.args[0] if exception.args else None}
+        )
 
 
 def execute_command_wrapper(func, instance, args, kwargs):
@@ -60,6 +65,7 @@ def execute_command_wrapper(func, instance, args, kwargs):
     try:
         ret_val = func(*args, **kwargs)
         command_finished(ret_val)
+        return ret_val
     except Exception as e:
         command_failed(e)
         raise
@@ -75,6 +81,7 @@ def execute_wrapper(func, instance, args, kwargs):
     try:
         ret_val = func(*args, **kwargs)
         command_finished(ret_val)
+        return ret_val
     except Exception as e:
         command_failed(e)
         raise

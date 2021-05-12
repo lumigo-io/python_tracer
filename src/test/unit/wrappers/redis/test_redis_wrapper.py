@@ -1,9 +1,12 @@
+from datetime import datetime
 from types import SimpleNamespace
 
 import pytest
 
 from lumigo_tracer.spans_container import SpansContainer
 from lumigo_tracer.wrappers.redis.redis_wrapper import execute_command_wrapper, execute_wrapper
+
+FUNCTION_RESULT = "Result"
 
 
 @pytest.fixture
@@ -14,11 +17,11 @@ def instance():
 
 
 def func(*args, **kwargs):
-    return True
+    return FUNCTION_RESULT
 
 
 def test_execute_command_wrapper_happy_flow(instance):
-    execute_command_wrapper(func, instance, ["SET", {"a": 1}, "b"], {})
+    result = execute_command_wrapper(func, instance, ["SET", {"a": 1}, "b"], {})
 
     spans = SpansContainer.get_span().spans
     assert len(spans) == 1
@@ -26,8 +29,25 @@ def test_execute_command_wrapper_happy_flow(instance):
     assert spans[0]["requestArgs"] == '[{"a": 1}, "b"]'
     assert spans[0]["connectionOptions"] == {"host": "lumigo", "port": None}
     assert spans[0]["ended"] >= spans[0]["started"]
-    assert spans[0]["response"] == "true"
+    assert spans[0]["response"] == '"Result"'
     assert "error" not in spans[0]
+    assert result == FUNCTION_RESULT
+
+
+def test_execute_command_wrapper_non_json(instance):
+    result = execute_command_wrapper(
+        lambda *args, **kwargs: datetime.now(), instance, ["SET", {"a": 1}, "b"], {}
+    )
+
+    spans = SpansContainer.get_span().spans
+    assert len(spans) == 1
+    assert spans[0]["requestCommand"] == "SET"
+    assert spans[0]["requestArgs"] == '[{"a": 1}, "b"]'
+    assert spans[0]["connectionOptions"] == {"host": "lumigo", "port": None}
+    assert spans[0]["ended"] >= spans[0]["started"]
+    assert spans[0]["response"]
+    assert "error" not in spans[0]
+    assert result
 
 
 def test_execute_command_wrapper_failing_command(instance):
@@ -43,10 +63,11 @@ def test_execute_command_wrapper_failing_command(instance):
 
 
 def test_execute_command_wrapper_unexpected_params(instance):
-    execute_command_wrapper(func, instance, {"not": "list"}, {})
+    result = execute_command_wrapper(func, instance, {"not": "list"}, {})
 
     spans = SpansContainer.get_span().spans
     assert len(spans) == 0
+    assert result == FUNCTION_RESULT
 
 
 def test_execute_wrapper_happy_flow(instance, monkeypatch):
@@ -58,7 +79,7 @@ def test_execute_wrapper_happy_flow(instance, monkeypatch):
     assert spans[0]["requestCommand"] == '["SET", "GET"]'
     assert spans[0]["requestArgs"] == '[[{"a": 1}], ["a"]]'
     assert spans[0]["ended"] >= spans[0]["started"]
-    assert spans[0]["response"] == "true"
+    assert spans[0]["response"] == '"Result"'
     assert "error" not in spans[0]
 
 
@@ -77,7 +98,8 @@ def test_execute_wrapper_failing_command(instance, monkeypatch):
 
 def test_execute_wrapper_unexpected_params(instance, monkeypatch):
     monkeypatch.setattr(instance, "command_stack", [{"not": "list"}])
-    execute_wrapper(func, instance, [], {})
+    result = execute_wrapper(func, instance, [], {})
 
     spans = SpansContainer.get_span().spans
     assert len(spans) == 0
+    assert result == FUNCTION_RESULT

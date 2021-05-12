@@ -255,6 +255,10 @@ def test_format_frames__check_all_keys_and_values():
             {"a": [[[{"c": [{"key": "v"}]}], [{"c": [{"key": "v"}]}]]]},
             '{"a": [[[{"c": [{"key": "****"}]}], [{"c": [{"key": "****"}]}]]]}',
         ),
+        (  # non jsonable
+            {"set"},
+            "{'set'}",
+        ),
     ],
 )
 def test_lumigo_dumps(value, output):
