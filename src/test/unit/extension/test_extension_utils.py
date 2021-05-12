@@ -81,6 +81,14 @@ def test_get_current_memory():
     assert result == 0.5
 
 
+def test_get_current_memory_fails_gracfully():
+    m = mock_open()
+    m().read.return_value = "MEMINFO"
+    with patch("lumigo_tracer.extension.extension_utils.open", m):
+        result = get_current_memory()
+    assert result == 0.0
+
+
 def test_get_current_cpu_time_fails():
     m = mock_open()
     m().readlines.return_value = ["cpu  2165"]  # malformed line
