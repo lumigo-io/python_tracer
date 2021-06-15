@@ -1,4 +1,5 @@
 import decimal
+import base64
 import hashlib
 import json
 import logging
@@ -61,7 +62,7 @@ SKIP_SCRUBBING_KEYS = [EXECUTION_TAGS_KEY]
 LUMIGO_SECRET_MASKING_REGEX_BACKWARD_COMP = "LUMIGO_BLACKLIST_REGEX"
 LUMIGO_SECRET_MASKING_REGEX = "LUMIGO_SECRET_MASKING_REGEX"
 WARN_CLIENT_PREFIX = "Lumigo Warning"
-WARN_CLIENT_INTERNAL_ERROR_PREFIX = "Lumigo Internal Error"
+INTERNAL_ANALYTICS_PREFIX = "Lumigo Analytic Log"
 TRUNCATE_SUFFIX = "...[too long]"
 NUMBER_OF_SPANS_IN_REPORT_OPTIMIZATION = 200
 DEFAULT_KEY_DEPTH = 4
@@ -332,9 +333,7 @@ def report_json(region: Optional[str], msgs: List[dict], should_retry: bool = Tr
             report_json(region, msgs, should_retry=False)
         else:
             get_logger().exception("Could not report: A span was lost.", exc_info=e)
-            warn_client_internal_lumigo_error(
-                f"Could not send span. Please contact Lumigo. Raw exception: {e}"
-            )
+            internal_analytics_message(f"report: {type(e)}")
     return duration
 
 
@@ -508,11 +507,12 @@ def warn_client(msg: str) -> None:
         print(f"{WARN_CLIENT_PREFIX}: {msg}")
 
 
-def warn_client_internal_lumigo_error(msg: str, force: bool = False) -> None:
+def internal_analytics_message(msg: str, force: bool = False) -> None:
     global internal_error_already_logged
     if os.environ.get("LUMIGO_WARNINGS") != "off":
         if force or not internal_error_already_logged:
-            print(f"{WARN_CLIENT_INTERNAL_ERROR_PREFIX}: {msg}")
+            b64_message = base64.b64encode(msg.encode()).decode()
+            print(f"{INTERNAL_ANALYTICS_PREFIX}: {b64_message}")
             internal_error_already_logged = True
 
 
