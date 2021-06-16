@@ -40,6 +40,8 @@ from lumigo_tracer.lumigo_utils import (
     get_size_upper_bound,
     is_aws_arn,
     CHINA_REGION,
+    internal_analytics_message,
+    INTERNAL_ANALYTICS_PREFIX,
 )
 import json
 
@@ -574,3 +576,10 @@ def test_is_error_code(status_code, is_error):
 )
 def test_is_aws_arn(arn, is_arn_result):
     assert is_aws_arn(arn) is is_arn_result
+
+
+def test_internal_analytics_message(capsys):
+    internal_analytics_message("Message", force=True)
+    assert capsys.readouterr().out.startswith(INTERNAL_ANALYTICS_PREFIX)
+    internal_analytics_message("Message")
+    assert capsys.readouterr().out == ""

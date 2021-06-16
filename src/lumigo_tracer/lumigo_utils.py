@@ -1,4 +1,5 @@
 import decimal
+import base64
 import hashlib
 import json
 import logging
@@ -61,6 +62,7 @@ SKIP_SCRUBBING_KEYS = [EXECUTION_TAGS_KEY]
 LUMIGO_SECRET_MASKING_REGEX_BACKWARD_COMP = "LUMIGO_BLACKLIST_REGEX"
 LUMIGO_SECRET_MASKING_REGEX = "LUMIGO_SECRET_MASKING_REGEX"
 WARN_CLIENT_PREFIX = "Lumigo Warning"
+INTERNAL_ANALYTICS_PREFIX = "Lumigo Analytic Log"
 TRUNCATE_SUFFIX = "...[too long]"
 NUMBER_OF_SPANS_IN_REPORT_OPTIMIZATION = 200
 DEFAULT_KEY_DEPTH = 4
@@ -76,6 +78,7 @@ _logger: Dict[str, logging.Logger] = {}
 
 edge_kinesis_boto_client = None
 edge_connection = None
+internal_error_already_logged = False
 
 
 def get_region() -> str:
@@ -330,6 +333,7 @@ def report_json(region: Optional[str], msgs: List[dict], should_retry: bool = Tr
             report_json(region, msgs, should_retry=False)
         else:
             get_logger().exception("Could not report: A span was lost.", exc_info=e)
+            internal_analytics_message(f"report: {type(e)}")
     return duration
 
 
@@ -501,6 +505,15 @@ def get_omitting_regex() -> Optional[Pattern[str]]:
 def warn_client(msg: str) -> None:
     if os.environ.get("LUMIGO_WARNINGS") != "off":
         print(f"{WARN_CLIENT_PREFIX}: {msg}")
+
+
+def internal_analytics_message(msg: str, force: bool = False) -> None:
+    global internal_error_already_logged
+    if os.environ.get("LUMIGO_ANALYTICS") != "off":
+        if force or not internal_error_already_logged:
+            b64_message = base64.b64encode(msg.encode()).decode()
+            print(f"{INTERNAL_ANALYTICS_PREFIX}: {b64_message}")
+            internal_error_already_logged = True
 
 
 def is_api_gw_event(event: dict) -> bool:
