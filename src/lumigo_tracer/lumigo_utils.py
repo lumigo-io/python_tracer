@@ -509,7 +509,7 @@ def warn_client(msg: str) -> None:
 
 def internal_analytics_message(msg: str, force: bool = False) -> None:
     global internal_error_already_logged
-    if os.environ.get("LUMIGO_WARNINGS") != "off":
+    if os.environ.get("LUMIGO_ANALYTICS") != "off":
         if force or not internal_error_already_logged:
             b64_message = base64.b64encode(msg.encode()).decode()
             print(f"{INTERNAL_ANALYTICS_PREFIX}: {b64_message}")
