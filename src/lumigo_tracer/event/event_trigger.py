@@ -29,7 +29,7 @@ def parse_triggered_by(event: dict):
             if _is_step_function(event):
                 return _parse_step_function(event)
             return None
-        if _is_supported_http_method(event):
+        if _is_supported_http_method(event) or _is_load_balancer_method(event):
             return _parse_http_method(event)
         elif _is_supported_sns(event):
             return _parse_sns(event)
@@ -78,6 +78,16 @@ def _is_supported_http_method(event: dict):
     ) or (  # noqa
         event.get("version", "") == "2.0" and "headers" in event  # noqa
     )  # noqa  # noqa
+
+
+def _is_load_balancer_method(event: dict):
+    return (
+            "httpMethod" in event  # noqa
+            and "headers" in event  # noqa
+            and "requestContext" in event  # noqa
+            and event.get("requestContext", {}).get("elb") is not None  # noqa
+            or event.get("requestContext", {}).get("alb") is not None  # noqa
+        )
 
 
 def _parse_http_method(event: dict):
