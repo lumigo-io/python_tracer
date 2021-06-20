@@ -311,7 +311,7 @@ from lumigo_tracer.lumigo_utils import Configuration
                 "triggeredBy": "apigw",
             },
         ),
-(  # new elb example trigger
+        (  # new elb example trigger
             {
                 "requestContext": {
                     "elb": {

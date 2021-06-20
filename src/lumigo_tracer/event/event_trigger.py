@@ -82,12 +82,12 @@ def _is_supported_http_method(event: dict):
 
 def _is_load_balancer_method(event: dict):
     return (
-            "httpMethod" in event  # noqa
-            and "headers" in event  # noqa
-            and "requestContext" in event  # noqa
-            and event.get("requestContext", {}).get("elb") is not None  # noqa
-            or event.get("requestContext", {}).get("alb") is not None  # noqa
-        )
+        "httpMethod" in event  # noqa
+        and "headers" in event  # noqa
+        and "requestContext" in event  # noqa
+        and event.get("requestContext", {}).get("elb") is not None  # noqa
+        or event.get("requestContext", {}).get("alb") is not None  # noqa
+    )
 
 
 def _parse_http_method(event: dict):
