@@ -81,7 +81,7 @@ def _is_supported_http_method(event: dict):
 
 
 def _is_load_balancer_method(event: dict):
-    return (#ddd
+    return (
         "httpMethod" in event  # noqa
         and "headers" in event  # noqa
         and "requestContext" in event  # noqa
