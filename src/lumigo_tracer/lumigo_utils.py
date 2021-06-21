@@ -315,9 +315,9 @@ def report_json(region: Optional[str], msgs: List[dict], should_retry: bool = Tr
     if should_use_tracer_extension():
         file_name = f"{str(hashlib.md5(to_send).hexdigest())}_single"
         Path(EXTENSION_DIR).mkdir(parents=True, exist_ok=True)
-        file_path = f"{EXTENSION_DIR}/{file_name}"
+        file_path = os.path.join(EXTENSION_DIR, file_name)
         get_logger().info(f"writing spans to file {file_path}")
-        with open(f"/tmp/lumigo-spans/{file_name}", "wb") as the_file:
+        with open(file_path, "wb") as the_file:
             the_file.write(to_send)
         return 0
     if region == CHINA_REGION:
