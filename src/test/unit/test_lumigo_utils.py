@@ -445,6 +445,21 @@ def test_get_edge_host(arg, host, monkeypatch):
 @pytest.mark.parametrize(
     "errors, final_log", [(ValueError, "ERROR"), ([ValueError, Mock()], "INFO")]
 )
+def test_report_json_extension(monkeypatch, reporter_mock, caplog, errors, final_log):
+    reporter_mock.side_effect = report_json
+    monkeypatch.setattr(Configuration, "host", "force_reconnect")
+    monkeypatch.setattr(Configuration, "should_report", True)
+    monkeypatch.setattr(http.client, "HTTPSConnection", Mock())
+    http.client.HTTPSConnection("force_reconnect").getresponse.side_effect = errors
+
+    report_json(None, [{"a": "b"}])
+
+    assert caplog.records[-1].levelname == final_log
+
+
+@pytest.mark.parametrize(
+    "errors, final_log", [(ValueError, "ERROR"), ([ValueError, Mock()], "INFO")]
+)
 def test_report_json_retry(monkeypatch, reporter_mock, caplog, errors, final_log):
     reporter_mock.side_effect = report_json
     monkeypatch.setattr(Configuration, "host", "force_reconnect")

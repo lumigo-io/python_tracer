@@ -68,6 +68,7 @@ NUMBER_OF_SPANS_IN_REPORT_OPTIMIZATION = 200
 DEFAULT_KEY_DEPTH = 4
 LUMIGO_TOKEN_KEY = "LUMIGO_TRACER_TOKEN"
 LUMIGO_USE_TRACER_EXTENSION = "LUMIGO_USE_TRACER_EXTENSION"
+EXTENSION_DIR = "/tmp/lumigo/lumigo-spans"
 KILL_SWITCH = "LUMIGO_SWITCH_OFF"
 ERROR_SIZE_LIMIT_MULTIPLIER = 2
 CHINA_REGION = "cn-northwest-1"
@@ -82,8 +83,8 @@ edge_connection = None
 internal_error_already_logged = False
 
 
-def get_use_tracer_extension() -> bool:
-    return (os.environ.get("LUMIGO_USE_TRACER_EXTENSION") or "false").lower() == "true"
+def should_use_tracer_extension() -> bool:
+    return (os.environ.get(LUMIGO_USE_TRACER_EXTENSION) or "false").lower() == "true"
 
 
 def get_region() -> str:
@@ -311,10 +312,10 @@ def report_json(region: Optional[str], msgs: List[dict], should_retry: bool = Tr
     except Exception as e:
         get_logger().exception("Failed to create request: A span was lost.", exc_info=e)
         return 0
-    if get_use_tracer_extension():
+    if should_use_tracer_extension():
         file_name = f"{str(hashlib.md5(to_send))}_single"
-        file_path = f"/tmp/lumigo/lumigo-spans/{file_name}"
-        get_logger().info(f"writing spans to file {file_path}...")
+        file_path = f"{EXTENSION_DIR}/{file_name}"
+        get_logger().info(f"writing spans to file {file_path}")
         with open(f"/tmp/lumigo/lumigo-spans/{file_name}", "wb") as the_file:
             the_file.write(to_send)
         return 0
