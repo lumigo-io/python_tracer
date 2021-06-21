@@ -6,7 +6,6 @@ from collections import OrderedDict
 from decimal import Decimal
 import datetime
 import http.client
-from os import path
 
 import boto3
 from mock import Mock, MagicMock
