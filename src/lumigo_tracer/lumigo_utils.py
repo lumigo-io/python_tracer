@@ -302,8 +302,6 @@ def report_json(region: Optional[str], msgs: List[dict], should_retry: bool = Tr
     :return: The duration of reporting (in milliseconds),
                 or 0 if we didn't send (due to configuration or fail).
     """
-    duration = 0
-    start_time = time.time()
     if not Configuration.should_report:
         return 0
     get_logger().info(f"reporting the messages: {msgs[:10]}")
