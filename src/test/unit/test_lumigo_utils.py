@@ -1,10 +1,12 @@
 import importlib.util
 import inspect
+import hashlib
 import logging
 from collections import OrderedDict
 from decimal import Decimal
 import datetime
 import http.client
+from os import path
 
 import boto3
 from mock import Mock, MagicMock
@@ -442,19 +444,19 @@ def test_get_edge_host(arg, host, monkeypatch):
     assert get_edge_host("region") == host
 
 
-@pytest.mark.parametrize(
-    "errors, final_log", [(ValueError, "ERROR"), ([ValueError, Mock()], "INFO")]
-)
-def test_report_json_extension(monkeypatch, reporter_mock, caplog, errors, final_log):
-    reporter_mock.side_effect = report_json
-    monkeypatch.setattr(Configuration, "host", "force_reconnect")
+def test_report_json_extension(monkeypatch, reporter_mock):
     monkeypatch.setattr(Configuration, "should_report", True)
-    monkeypatch.setattr(http.client, "HTTPSConnection", Mock())
-    http.client.HTTPSConnection("force_reconnect").getresponse.side_effect = errors
-
-    report_json(None, [{"a": "b"}])
-
-    assert caplog.records[-1].levelname == final_log
+    monkeypatch.setenv("LUMIGO_USE_TRACER_EXTENSION", "TRUE")
+    single = [{"a": "b"}]
+    to_send = _create_request_body(single, True).encode()
+    md5str = str(hashlib.md5(to_send).hexdigest())
+    file_name = f"{md5str}_single"
+    file_path = f"/tmp/lumigo-spans/{file_name}"
+    duration = report_json(None, [{"a": "b"}])
+    span_from_file = json.load(open(file_path, "r"))
+    assert path.exists(file_path)
+    assert duration == 0
+    assert span_from_file == single
 
 
 @pytest.mark.parametrize(

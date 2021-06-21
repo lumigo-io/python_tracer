@@ -16,6 +16,7 @@ from contextlib import contextmanager
 from base64 import b64encode
 import inspect
 import traceback
+from pathlib import Path
 
 LUMIGO_DOMAINS_SCRUBBER_KEY = "LUMIGO_DOMAINS_SCRUBBER"
 
@@ -68,7 +69,7 @@ NUMBER_OF_SPANS_IN_REPORT_OPTIMIZATION = 200
 DEFAULT_KEY_DEPTH = 4
 LUMIGO_TOKEN_KEY = "LUMIGO_TRACER_TOKEN"
 LUMIGO_USE_TRACER_EXTENSION = "LUMIGO_USE_TRACER_EXTENSION"
-EXTENSION_DIR = "/tmp/lumigo/lumigo-spans"
+EXTENSION_DIR = "/tmp/lumigo-spans"
 KILL_SWITCH = "LUMIGO_SWITCH_OFF"
 ERROR_SIZE_LIMIT_MULTIPLIER = 2
 CHINA_REGION = "cn-northwest-1"
@@ -313,10 +314,11 @@ def report_json(region: Optional[str], msgs: List[dict], should_retry: bool = Tr
         get_logger().exception("Failed to create request: A span was lost.", exc_info=e)
         return 0
     if should_use_tracer_extension():
-        file_name = f"{str(hashlib.md5(to_send))}_single"
+        file_name = f"{str(hashlib.md5(to_send).hexdigest())}_single"
+        Path(EXTENSION_DIR).mkdir(parents=True, exist_ok=True)
         file_path = f"{EXTENSION_DIR}/{file_name}"
         get_logger().info(f"writing spans to file {file_path}")
-        with open(f"/tmp/lumigo/lumigo-spans/{file_name}", "wb") as the_file:
+        with open(f"/tmp/lumigo-spans/{file_name}", "wb") as the_file:
             the_file.write(to_send)
         return 0
     if region == CHINA_REGION:
