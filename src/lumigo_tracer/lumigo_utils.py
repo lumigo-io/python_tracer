@@ -312,8 +312,9 @@ def report_json(region: Optional[str], msgs: List[dict], should_retry: bool = Tr
     except Exception as e:
         get_logger().exception("Failed to create request: A span was lost.", exc_info=e)
         return 0
-    if should_use_tracer_extension():
-        write_spans_to_file(to_send)
+    if should_use_tracer_extension:
+        with lumigo_safe_execute("report json file: writing spans to file"):
+            write_spans_to_file(to_send)
         return 0
     if region == CHINA_REGION:
         return _publish_spans_to_kinesis(to_send, CHINA_REGION)
@@ -347,8 +348,8 @@ def report_json(region: Optional[str], msgs: List[dict], should_retry: bool = Tr
     return duration
 
 
-def write_spans_to_file(to_send):
-    file_name = f"{str(hashlib.md5(to_send).hexdigest())}_single"
+def write_spans_to_file(to_send: bytes) -> None:
+    file_name = f"{hashlib.md5(to_send).hexdigest()}_single"
     Path(EXTENSION_DIR).mkdir(parents=True, exist_ok=True)
     file_path = os.path.join(EXTENSION_DIR, file_name)
     get_logger().info(f"writing spans to file {file_path}")
