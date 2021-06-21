@@ -1,4 +1,3 @@
-import os, shutil
 import pytest
 import signal
 import time
@@ -43,12 +42,6 @@ def clean_folder(folder):
         except Exception as e:
             print('Failed to delete %s. Reason: %s' % (file_path, e))
 
-
-@pytest.fixture(autouse=True)
-def extension_clean():
-    clean_folder('/tmp/lumigo-spans')
-    yield
-    clean_folder('/tmp/lumigo-spans')
 
 @pytest.fixture
 def lambda_service():
