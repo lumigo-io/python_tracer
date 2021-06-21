@@ -300,7 +300,6 @@ def report_json(region: Optional[str], msgs: List[dict], should_retry: bool = Tr
     :param region: The region to use as default if not configured otherwise.
     :param msgs: the message to send.
     :param should_retry: False to disable the default retry on unsuccessful sending
-    :param use_extension: a flag to indicate if tracer should write spans to disk and let lumigo extension handle the send to lumigo
     :return: The duration of reporting (in milliseconds),
                 or 0 if we didn't send (due to configuration or fail).
     """
