@@ -460,7 +460,6 @@ def test_report_json_extension(monkeypatch, reporter_mock):
 def asserting_extension(file_path, single):
     duration = report_json(None, [{"a": "b"}])
     span_from_file = json.load(open(file_path, "r"))
-    assert path.exists(file_path)
     assert duration == 0
     assert span_from_file == single
 

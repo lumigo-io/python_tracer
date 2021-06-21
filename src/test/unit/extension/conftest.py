@@ -1,3 +1,4 @@
+import os, shutil
 import pytest
 import signal
 import time
@@ -30,6 +31,24 @@ def mock_linux_files():
     with patch("lumigo_tracer.extension.extension_utils.open", m):
         yield
 
+
+def clean_folder(folder):
+    for filename in os.listdir(folder):
+        file_path = os.path.join(folder, filename)
+        try:
+            if os.path.isfile(file_path) or os.path.islink(file_path):
+                os.unlink(file_path)
+            elif os.path.isdir(file_path):
+                shutil.rmtree(file_path)
+        except Exception as e:
+            print('Failed to delete %s. Reason: %s' % (file_path, e))
+
+
+@pytest.fixture(autouse=True)
+def extension_clean():
+    clean_folder('/tmp/lumigo-spans')
+    yield
+    clean_folder('/tmp/lumigo-spans')
 
 @pytest.fixture
 def lambda_service():
