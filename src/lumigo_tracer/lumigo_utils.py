@@ -313,12 +313,7 @@ def report_json(region: Optional[str], msgs: List[dict], should_retry: bool = Tr
         get_logger().exception("Failed to create request: A span was lost.", exc_info=e)
         return 0
     if should_use_tracer_extension():
-        file_name = f"{str(hashlib.md5(to_send).hexdigest())}_single"
-        Path(EXTENSION_DIR).mkdir(parents=True, exist_ok=True)
-        file_path = os.path.join(EXTENSION_DIR, file_name)
-        get_logger().info(f"writing spans to file {file_path}")
-        with open(file_path, "wb") as the_file:
-            the_file.write(to_send)
+        write_spans_to_file(to_send)
         return 0
     if region == CHINA_REGION:
         return _publish_spans_to_kinesis(to_send, CHINA_REGION)
@@ -350,6 +345,15 @@ def report_json(region: Optional[str], msgs: List[dict], should_retry: bool = Tr
             get_logger().exception("Could not report: A span was lost.", exc_info=e)
             internal_analytics_message(f"report: {type(e)}")
     return duration
+
+
+def write_spans_to_file(to_send):
+    file_name = f"{str(hashlib.md5(to_send).hexdigest())}_single"
+    Path(EXTENSION_DIR).mkdir(parents=True, exist_ok=True)
+    file_path = os.path.join(EXTENSION_DIR, file_name)
+    get_logger().info(f"writing spans to file {file_path}")
+    with open(file_path, "wb") as spans_file:
+        spans_file.write(to_send)
 
 
 def _publish_spans_to_kinesis(to_send: bytes, region: str) -> int:
