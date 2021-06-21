@@ -67,6 +67,7 @@ TRUNCATE_SUFFIX = "...[too long]"
 NUMBER_OF_SPANS_IN_REPORT_OPTIMIZATION = 200
 DEFAULT_KEY_DEPTH = 4
 LUMIGO_TOKEN_KEY = "LUMIGO_TRACER_TOKEN"
+LUMIGO_USE_TRACER_EXTENSION = "LUMIGO_USE_TRACER_EXTENSION"
 KILL_SWITCH = "LUMIGO_SWITCH_OFF"
 ERROR_SIZE_LIMIT_MULTIPLIER = 2
 CHINA_REGION = "cn-northwest-1"
@@ -80,6 +81,9 @@ edge_kinesis_boto_client = None
 edge_connection = None
 internal_error_already_logged = False
 
+
+def get_use_tracer_extension() -> bool:
+    return (os.environ.get("LUMIGO_USE_TRACER_EXTENSION") or "false").lower() == "true"
 
 def get_region() -> str:
     return os.environ.get("AWS_REGION") or "UNKNOWN"
@@ -293,9 +297,12 @@ def report_json(region: Optional[str], msgs: List[dict], should_retry: bool = Tr
     :param region: The region to use as default if not configured otherwise.
     :param msgs: the message to send.
     :param should_retry: False to disable the default retry on unsuccessful sending
+    :param use_extension: a flag to indicate if tracer should write spans to disk and let lumigo extension handle the send to lumigo
     :return: The duration of reporting (in milliseconds),
                 or 0 if we didn't send (due to configuration or fail).
     """
+    duration = 0
+    start_time = time.time()
     if not Configuration.should_report:
         return 0
     get_logger().info(f"reporting the messages: {msgs[:10]}")
@@ -305,35 +312,42 @@ def report_json(region: Optional[str], msgs: List[dict], should_retry: bool = Tr
     except Exception as e:
         get_logger().exception("Failed to create request: A span was lost.", exc_info=e)
         return 0
-    if region == CHINA_REGION:
-        return _publish_spans_to_kinesis(to_send, CHINA_REGION)
-    host = None
-    global edge_connection
-    with lumigo_safe_execute("report json: establish connection"):
-        host = get_edge_host(region)
-        duration = 0
-        if not edge_connection or edge_connection.host != host:
-            edge_connection = establish_connection(host)
-            if not edge_connection:
-                get_logger().warning("Can not establish connection. Skip sending span.")
-                return duration
-    try:
-        start_time = time.time()
-        edge_connection.request(
-            "POST", EDGE_PATH, to_send, headers={"Content-Type": "application/json"}
-        )
-        response = edge_connection.getresponse()
-        response.read()  # We most read the response to keep the connection available
-        duration = int((time.time() - start_time) * 1000)
-        get_logger().info(f"successful reporting, code: {getattr(response, 'code', 'unknown')}")
-    except Exception as e:
-        if should_retry:
-            get_logger().exception(f"Could not report to {host}. Retrying.", exc_info=e)
-            edge_connection = establish_connection(host)
-            report_json(region, msgs, should_retry=False)
-        else:
-            get_logger().exception("Could not report: A span was lost.", exc_info=e)
-            internal_analytics_message(f"report: {type(e)}")
+    if get_use_tracer_extension():
+        get_logger().info(f"writing spans to file...")
+        file_name = str(hashlib.md5(to_send)) + "_single"
+        with open(f'/tmp/lumigo/lumigo-spans/{file_name}', 'wb') as the_file:
+            the_file.write(to_send)
+    else:
+        if region == CHINA_REGION:
+            return _publish_spans_to_kinesis(to_send, CHINA_REGION)
+        host = None
+        global edge_connection
+        with lumigo_safe_execute("report json: establish connection"):
+            host = get_edge_host(region)
+
+            if not edge_connection or edge_connection.host != host:
+                edge_connection = establish_connection(host)
+                if not edge_connection:
+                    get_logger().warning("Can not establish connection. Skip sending span.")
+                    return duration
+        try:
+
+            edge_connection.request(
+                "POST", EDGE_PATH, to_send, headers={"Content-Type": "application/json"}
+            )
+            response = edge_connection.getresponse()
+            response.read()  # We most read the response to keep the connection available
+
+            get_logger().info(f"successful reporting, code: {getattr(response, 'code', 'unknown')}")
+        except Exception as e:
+            if should_retry:
+                get_logger().exception(f"Could not report to {host}. Retrying.", exc_info=e)
+                edge_connection = establish_connection(host)
+                report_json(region, msgs, should_retry=False)
+            else:
+                get_logger().exception("Could not report: A span was lost.", exc_info=e)
+                internal_analytics_message(f"report: {type(e)}")
+    duration = int((time.time() - start_time) * 1000)
     return duration
 
 
