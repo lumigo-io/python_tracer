@@ -312,7 +312,7 @@ def report_json(region: Optional[str], msgs: List[dict], should_retry: bool = Tr
     except Exception as e:
         get_logger().exception("Failed to create request: A span was lost.", exc_info=e)
         return 0
-    if should_use_tracer_extension:
+    if should_use_tracer_extension():
         with lumigo_safe_execute("report json file: writing spans to file"):
             write_spans_to_file(to_send)
         return 0
