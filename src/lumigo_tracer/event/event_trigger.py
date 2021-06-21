@@ -77,7 +77,7 @@ def _is_supported_http_method(event: dict):
         and event.get("requestContext", {}).get("stage") is not None  # noqa
     ) or (  # noqa
         event.get("version", "") == "2.0" and "headers" in event  # noqa
-    )  # noqa  # noqa
+    )  # noqa
 
 
 def _is_load_balancer_method(event: dict):
@@ -85,8 +85,10 @@ def _is_load_balancer_method(event: dict):
         "httpMethod" in event  # noqa
         and "headers" in event  # noqa
         and "requestContext" in event  # noqa
-        and event.get("requestContext", {}).get("elb") is not None  # noqa
-        or event.get("requestContext", {}).get("alb") is not None  # noqa
+        and (  # noqa
+            event.get("requestContext", {}).get("elb") is not None  # noqa
+            or event.get("requestContext", {}).get("alb") is not None  # noqa
+        )  # noqa
     )
 
 

@@ -282,7 +282,7 @@ from lumigo_tracer.lumigo_utils import Configuration
                 "detailType": "Scheduled Event",
             },
         ),
-        (  # elb example trigger
+        (  # old elb example trigger
             {
                 "requestContext": {
                     "elb": {
