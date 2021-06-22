@@ -1,13 +1,15 @@
 import builtins
 import logging
+import os
+import shutil
 from types import SimpleNamespace
 
-from lumigo_tracer import lumigo_utils
-from lumigo_tracer.spans_container import SpansContainer
 import mock
 import pytest
 
+from lumigo_tracer import lumigo_utils
 from lumigo_tracer.lumigo_utils import Configuration, get_omitting_regex, get_logger, get_edge_host
+from lumigo_tracer.spans_container import SpansContainer
 from lumigo_tracer.wrappers.http.http_data_classes import HttpState
 
 
@@ -83,3 +85,10 @@ def capture_all_logs(caplog):
 @pytest.fixture
 def context():
     return SimpleNamespace(aws_request_id="1234", get_remaining_time_in_millis=lambda: 1000 * 2)
+
+
+@pytest.fixture(autouse=True)
+def extension_clean():
+    yield
+    if os.path.exists("/tmp/lumigo-spans"):
+        shutil.rmtree("/tmp/lumigo-spans")
