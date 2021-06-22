@@ -303,12 +303,12 @@ from lumigo_tracer.lumigo_utils import Configuration
                 },
             },
             {
-                "api": "unknown.unknown.unknown",
+                "api": "lambd-loadb-bp68mp6nujg0-50156485.us-east-1.elb.amazonaws.com",
                 "httpMethod": "POST",
                 "messageId": "",
                 "resource": "",
-                "stage": "unknown",
-                "triggeredBy": "apigw",
+                "stage": None,
+                "triggeredBy": "load_balancer",
             },
         ),
         (  # new elb example trigger
@@ -337,12 +337,12 @@ from lumigo_tracer.lumigo_utils import Configuration
                 "body": "request_body",
             },
             {
-                "api": "unknown.unknown.unknown",
+                "api": "lambda-111-us-east-2.elb.amazonaws.com",
                 "httpMethod": "GET",
                 "messageId": "",
                 "resource": "",
-                "stage": "unknown",
-                "triggeredBy": "apigw",
+                "stage": None,
+                "triggeredBy": "load_balancer",
             },
         ),
         (  # alb example trigger
@@ -371,12 +371,12 @@ from lumigo_tracer.lumigo_utils import Configuration
                 "body": "request_body",
             },
             {
-                "api": "unknown.unknown.unknown",
+                "api": "lambda-111-us-east-2.elb.amazonaws.com",
                 "httpMethod": "GET",
                 "messageId": "",
                 "resource": "",
-                "stage": "unknown",
-                "triggeredBy": "apigw",
+                "stage": None,
+                "triggeredBy": "load_balancer",
             },
         ),
         (  # API GW V2
