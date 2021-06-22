@@ -16,6 +16,7 @@ from contextlib import contextmanager
 from base64 import b64encode
 import inspect
 import traceback
+from pathlib import Path
 
 LUMIGO_DOMAINS_SCRUBBER_KEY = "LUMIGO_DOMAINS_SCRUBBER"
 
@@ -67,6 +68,8 @@ TRUNCATE_SUFFIX = "...[too long]"
 NUMBER_OF_SPANS_IN_REPORT_OPTIMIZATION = 200
 DEFAULT_KEY_DEPTH = 4
 LUMIGO_TOKEN_KEY = "LUMIGO_TRACER_TOKEN"
+LUMIGO_USE_TRACER_EXTENSION = "LUMIGO_USE_TRACER_EXTENSION"
+EXTENSION_DIR = "/tmp/lumigo-spans"
 KILL_SWITCH = "LUMIGO_SWITCH_OFF"
 ERROR_SIZE_LIMIT_MULTIPLIER = 2
 CHINA_REGION = "cn-northwest-1"
@@ -79,6 +82,10 @@ _logger: Dict[str, logging.Logger] = {}
 edge_kinesis_boto_client = None
 edge_connection = None
 internal_error_already_logged = False
+
+
+def should_use_tracer_extension() -> bool:
+    return (os.environ.get(LUMIGO_USE_TRACER_EXTENSION) or "false").lower() == "true"
 
 
 def get_region() -> str:
@@ -305,6 +312,10 @@ def report_json(region: Optional[str], msgs: List[dict], should_retry: bool = Tr
     except Exception as e:
         get_logger().exception("Failed to create request: A span was lost.", exc_info=e)
         return 0
+    if should_use_tracer_extension():
+        with lumigo_safe_execute("report json file: writing spans to file"):
+            write_spans_to_file(to_send)
+        return 0
     if region == CHINA_REGION:
         return _publish_spans_to_kinesis(to_send, CHINA_REGION)
     host = None
@@ -335,6 +346,15 @@ def report_json(region: Optional[str], msgs: List[dict], should_retry: bool = Tr
             get_logger().exception("Could not report: A span was lost.", exc_info=e)
             internal_analytics_message(f"report: {type(e)}")
     return duration
+
+
+def write_spans_to_file(to_send: bytes) -> None:
+    file_name = f"{hashlib.md5(to_send).hexdigest()}_single"
+    Path(EXTENSION_DIR).mkdir(parents=True, exist_ok=True)
+    file_path = os.path.join(EXTENSION_DIR, file_name)
+    get_logger().info(f"writing spans to file {file_path}")
+    with open(file_path, "wb") as spans_file:
+        spans_file.write(to_send)
 
 
 def _publish_spans_to_kinesis(to_send: bytes, region: str) -> int:

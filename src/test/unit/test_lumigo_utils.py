@@ -1,5 +1,6 @@
 import importlib.util
 import inspect
+import hashlib
 import logging
 from collections import OrderedDict
 from decimal import Decimal
@@ -440,6 +441,26 @@ def test_get_timeout_buffer(remaining_time, conf, expected):
 def test_get_edge_host(arg, host, monkeypatch):
     monkeypatch.setattr(Configuration, "host", arg)
     assert get_edge_host("region") == host
+
+
+def test_report_json_extension(monkeypatch, reporter_mock):
+    monkeypatch.setattr(Configuration, "should_report", True)
+    monkeypatch.setenv("LUMIGO_USE_TRACER_EXTENSION", "TRUE")
+    single = [{"a": "b"}]
+    to_send = _create_request_body(single, True).encode()
+    md5str = str(hashlib.md5(to_send).hexdigest())
+    file_name = f"{md5str}_single"
+    file_path = f"/tmp/lumigo-spans/{file_name}"
+    asserting_extension(file_path, single)
+    # test that same file doesnt cause error
+    asserting_extension(file_path, single)
+
+
+def asserting_extension(file_path, single):
+    duration = report_json(None, [{"a": "b"}])
+    span_from_file = json.load(open(file_path, "r"))
+    assert duration == 0
+    assert span_from_file == single
 
 
 @pytest.mark.parametrize(
