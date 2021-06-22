@@ -305,9 +305,6 @@ from lumigo_tracer.lumigo_utils import Configuration
             {
                 "api": "lambd-loadb-bp68mp6nujg0-50156485.us-east-1.elb.amazonaws.com",
                 "httpMethod": "POST",
-                "messageId": "",
-                "resource": "",
-                "stage": None,
                 "triggeredBy": "load_balancer",
             },
         ),
@@ -339,9 +336,6 @@ from lumigo_tracer.lumigo_utils import Configuration
             {
                 "api": "lambda-111-us-east-2.elb.amazonaws.com",
                 "httpMethod": "GET",
-                "messageId": "",
-                "resource": "",
-                "stage": None,
                 "triggeredBy": "load_balancer",
             },
         ),
@@ -373,9 +367,6 @@ from lumigo_tracer.lumigo_utils import Configuration
             {
                 "api": "lambda-111-us-east-2.elb.amazonaws.com",
                 "httpMethod": "GET",
-                "messageId": "",
-                "resource": "",
-                "stage": None,
                 "triggeredBy": "load_balancer",
             },
         ),

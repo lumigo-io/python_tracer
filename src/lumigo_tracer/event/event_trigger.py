@@ -106,13 +106,9 @@ def _parse_load_balancer_method(event: dict):
     result = {
         "triggeredBy": "load_balancer",
         "httpMethod": event.get("httpMethod", ""),
-        "resource": event.get("resource", ""),
-        "messageId": event.get("requestContext", {}).get("requestId", ""),
     }
     if isinstance(event.get("headers"), dict):
         result["api"] = event["headers"].get("host")
-    if isinstance(event.get("requestContext"), dict):
-        result["stage"] = event["requestContext"].get("stage")
     return result
 
 
