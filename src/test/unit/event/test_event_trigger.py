@@ -282,7 +282,7 @@ from lumigo_tracer.lumigo_utils import Configuration
                 "detailType": "Scheduled Event",
             },
         ),
-        (  # elb example trigger
+        (  # old elb example trigger
             {
                 "requestContext": {
                     "elb": {
@@ -302,7 +302,73 @@ from lumigo_tracer.lumigo_utils import Configuration
                     "host": "lambd-loadb-bp68mp6nujg0-50156485.us-east-1.elb.amazonaws.com",
                 },
             },
-            {"triggeredBy": "unknown"},
+            {
+                "api": "lambd-loadb-bp68mp6nujg0-50156485.us-east-1.elb.amazonaws.com",
+                "httpMethod": "POST",
+                "triggeredBy": "load_balancer",
+            },
+        ),
+        (  # new elb example trigger
+            {
+                "requestContext": {
+                    "elb": {
+                        "targetGroupArn": "arn:aws:elasticloadbalancing:region:123456789012:targetgroup/my-target-group/111"
+                    }
+                },
+                "httpMethod": "GET",
+                "path": "/",
+                "queryStringParameters": {},
+                "headers": {
+                    "accept": "text/html,application/xhtml+xml",
+                    "accept-language": "en-US,en;q=0.8",
+                    "content-type": "text/plain",
+                    "cookie": "cookies",
+                    "host": "lambda-111-us-east-2.elb.amazonaws.com",
+                    "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_6)",
+                    "x-amzn-trace-id": "Root=1-111",
+                    "x-forwarded-for": "111",
+                    "x-forwarded-port": "111",
+                    "x-forwarded-proto": "https",
+                },
+                "isBase64Encoded": False,
+                "body": "request_body",
+            },
+            {
+                "api": "lambda-111-us-east-2.elb.amazonaws.com",
+                "httpMethod": "GET",
+                "triggeredBy": "load_balancer",
+            },
+        ),
+        (  # alb example trigger
+            {
+                "requestContext": {
+                    "alb": {
+                        "targetGroupArn": "arn:aws:elasticloadbalancing:region:123456789012:targetgroup/my-target-group/111"
+                    }
+                },
+                "httpMethod": "GET",
+                "path": "/",
+                "queryStringParameters": {},
+                "headers": {
+                    "accept": "text/html,application/xhtml+xml",
+                    "accept-language": "en-US,en;q=0.8",
+                    "content-type": "text/plain",
+                    "cookie": "cookies",
+                    "host": "lambda-111-us-east-2.elb.amazonaws.com",
+                    "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_6)",
+                    "x-amzn-trace-id": "Root=1-111",
+                    "x-forwarded-for": "111",
+                    "x-forwarded-port": "111",
+                    "x-forwarded-proto": "https",
+                },
+                "isBase64Encoded": False,
+                "body": "request_body",
+            },
+            {
+                "api": "lambda-111-us-east-2.elb.amazonaws.com",
+                "httpMethod": "GET",
+                "triggeredBy": "load_balancer",
+            },
         ),
         (  # API GW V2
             {
