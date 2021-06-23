@@ -31,6 +31,8 @@ def parse_triggered_by(event: dict):
             return None
         if _is_supported_http_method(event):
             return _parse_http_method(event)
+        if _is_load_balancer_method(event):
+            return _parse_load_balancer_method(event)
         elif _is_supported_sns(event):
             return _parse_sns(event)
         elif _is_supported_streams(event):
@@ -77,7 +79,20 @@ def _is_supported_http_method(event: dict):
         and event.get("requestContext", {}).get("stage") is not None  # noqa
     ) or (  # noqa
         event.get("version", "") == "2.0" and "headers" in event  # noqa
-    )  # noqa  # noqa
+    )  # noqa
+
+
+def _is_load_balancer_method(event: dict):
+    return (
+        "httpMethod" in event  # noqa
+        and "headers" in event  # noqa
+        and event["headers"].get("host")  # noqa
+        and "requestContext" in event  # noqa
+        and (  # noqa
+            event.get("requestContext", {}).get("elb") is not None  # noqa
+            or event.get("requestContext", {}).get("alb") is not None  # noqa
+        )  # noqa
+    )
 
 
 def _parse_http_method(event: dict):
@@ -85,6 +100,16 @@ def _parse_http_method(event: dict):
     if version and version.startswith("2.0"):
         return _parse_http_method_v2(event)
     return _parse_http_method_v1(event)
+
+
+def _parse_load_balancer_method(event: dict):
+    result = {
+        "triggeredBy": "load_balancer",
+        "httpMethod": event.get("httpMethod", ""),
+    }
+    if isinstance(event.get("headers"), dict):
+        result["api"] = event["headers"].get("host")
+    return result
 
 
 def _parse_http_method_v1(event: dict):
