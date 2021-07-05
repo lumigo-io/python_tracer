@@ -131,6 +131,14 @@ class Configuration:
         return Configuration.max_entry_size
 
 
+def get_event_entity_size(max_entry_size: int):
+    return int(
+        os.environ.get("LUMIGO_MAX_ENTRY_SIZE")
+        or os.environ.get("MAX_EVENT_ENTITY_SIZE")  # noqa
+        or max_entry_size  # noqa
+    )
+
+
 def config(
     edge_host: str = "",
     should_report: Union[bool, None] = None,
@@ -212,7 +220,7 @@ def config(
     else:
         domains_scrubber_regex = DOMAIN_SCRUBBER_REGEXES
     Configuration.domains_scrubber = [re.compile(r, re.IGNORECASE) for r in domains_scrubber_regex]
-    Configuration.max_entry_size = int(os.environ.get("LUMIGO_MAX_ENTRY_SIZE", max_entry_size))
+    Configuration.max_entry_size = get_event_entity_size(max_entry_size)
     Configuration.edge_kinesis_stream_name = (
         edge_kinesis_stream_name
         or os.environ.get("LUMIGO_EDGE_KINESIS_STREAM_NAME")  # noqa`
