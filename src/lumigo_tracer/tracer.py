@@ -127,6 +127,8 @@ class LumigoChalice:
         "schedule",
         "authorizer",
         "lambda_function",
+        "on_cw_event",
+        "on_dynamodb_record"
     ]
 
     def __init__(self, app, *args, **kwargs):
