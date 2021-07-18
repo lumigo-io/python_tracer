@@ -22,10 +22,11 @@ API_GW_KEYS_ORDER = str_to_list(os.environ.get("LUMIGO_API_GW_KEYS_ORDER", "")) 
     "httpMethod",
     "queryStringParameters",
     "pathParameters",
-    "body",
     "requestContext",
+    "body",
     "headers",
 ]
+
 
 CLOUDFRONT_KEYS_ORDER = str_to_list(os.environ.get("LUMIGO_CLOUDFRONT_KEYS_ORDER", "")) or [
     "config"
