@@ -212,20 +212,21 @@ def _requests_wrapper(func, instance, args, kwargs):
         ret_val = func(*args, **kwargs)
     except Exception as exception:
         with lumigo_safe_execute("requests wrapper exception occurred"):
-            url = args[1]
+            method = safe_get_list(args, 0, kwargs.get("method", "")).upper()
+            url = safe_get_list(args, 1, kwargs.get("url"))
             if HttpState.previous_request and HttpState.previous_request.host in url:
                 span = SpansContainer.get_span().get_last_span()
             else:
                 span = add_request_event(
                     HttpRequest(
                         host=url,
-                        method=args[0].upper(),
+                        method=method,
                         uri=url,
                         body=kwargs.get("data"),
                         headers=kwargs.get("headers"),
                     )
                 )
-            SpansContainer.get_span().add_exception_to_span(span, exception, [])
+            SpansContainer.add_exception_to_span(span, exception, [])
         raise
     with lumigo_safe_execute("requests wrapper time updates"):
         SpansContainer.get_span().update_event_times(start_time=start_time)
@@ -296,3 +297,4 @@ def wrap_http_calls():
             )
         if importlib.util.find_spec("requests"):
             wrap_function_wrapper("requests.api", "request", _requests_wrapper)
+            wrap_function_wrapper("requests", "request", _requests_wrapper)

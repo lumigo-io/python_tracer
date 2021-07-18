@@ -294,6 +294,26 @@ def test_requests_failure_before_http_call(monkeypatch, context, func_to_patch):
     assert span["info"]["httpInfo"]["request"]["headers"]
 
 
+def test_requests_failure_with_kwargs(monkeypatch, context):
+    @lumigo_tracer.lumigo_tracer()
+    def lambda_test_function(event, context):
+        try:
+            requests.request(
+                method="POST", url="https://www.google.com", data=b"123", headers={"a": "b"}
+            )
+        except ZeroDivisionError:
+            return True
+        return False
+
+    monkeypatch.setattr(socket, "getaddrinfo", lambda *args, **kwargs: 1 / 0)
+
+    assert lambda_test_function({}, context) is True
+
+    assert len(SpansContainer.get_span().spans) == 1
+    span = SpansContainer.get_span().spans[0]
+    assert span["info"]["httpInfo"]["request"]["method"] == "POST"
+
+
 def test_wrapping_with_tags_for_api_gw_headers(monkeypatch, context):
     monkeypatch.setattr(auto_tag_event, "AUTO_TAG_API_GW_HEADERS", ["Accept"])
 

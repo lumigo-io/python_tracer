@@ -187,8 +187,9 @@ class SpansContainer:
             self.spans[-1]["started"] = int(start_timestamp * 1000)
             self.spans[-1]["ended"] = int(end_timestamp * 1000)
 
+    @staticmethod
     def _create_exception_event(
-        self, exc_type: str, message: str, stacktrace: str = "", frames: Optional[List[dict]] = None
+        exc_type: str, message: str, stacktrace: str = "", frames: Optional[List[dict]] = None
     ):
         return {
             "type": exc_type,
@@ -197,13 +198,14 @@ class SpansContainer:
             "frames": frames or [],
         }
 
+    @staticmethod
     def add_exception_to_span(
-        self, span: dict, exception: Exception, frames_infos: List[inspect.FrameInfo]
+        span: dict, exception: Exception, frames_infos: List[inspect.FrameInfo]
     ):
         message = exception.args[0] if exception.args else None
         if not isinstance(message, str):
             message = str(message)
-        span["error"] = self._create_exception_event(
+        span["error"] = SpansContainer._create_exception_event(
             exc_type=exception.__class__.__name__,
             message=message,
             stacktrace=get_stacktrace(exception),
