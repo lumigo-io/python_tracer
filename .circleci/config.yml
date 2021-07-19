@@ -11,15 +11,6 @@ orbs:
   lumigo-orb: lumigo/lumigo-orb@volatile
 
 
-#commands:
-#  setup:
-#    description: "install larn"
-#    steps:
-#      - run:
-#          command: |
-#            cd ..
-#            git clone git@github.com:lumigo-io/larn.git
-
 workflows:
   test-deploy:
     jobs:
