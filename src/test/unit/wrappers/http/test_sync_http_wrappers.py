@@ -265,6 +265,55 @@ def test_wrapping_requests_times(monkeypatch, context):
     assert span["started"] - start_time < 100
 
 
+@pytest.mark.parametrize(
+    "func_to_patch",
+    [
+        (socket, "getaddrinfo"),  # this function is being called before the request
+        (http.client.HTTPConnection, "getresponse"),  # after the request
+    ],
+)
+def test_requests_failure_before_http_call(monkeypatch, context, func_to_patch):
+    @lumigo_tracer.lumigo_tracer()
+    def lambda_test_function(event, context):
+        try:
+            requests.post("https://www.google.com", data=b"123", headers={"a": "b"})
+        except ZeroDivisionError:
+            return True
+        return False
+
+    # requests executes this function before/after the http call
+    monkeypatch.setattr(*func_to_patch, lambda *args, **kwargs: 1 / 0)
+
+    assert lambda_test_function({}, context) is True
+
+    assert len(SpansContainer.get_span().spans) == 1
+    span = SpansContainer.get_span().spans[0]
+    assert span["error"]["message"] == "division by zero"
+    assert span["info"]["httpInfo"]["request"]["method"] == "POST"
+    assert span["info"]["httpInfo"]["request"]["body"] == '"123"'
+    assert span["info"]["httpInfo"]["request"]["headers"]
+
+
+def test_requests_failure_with_kwargs(monkeypatch, context):
+    @lumigo_tracer.lumigo_tracer()
+    def lambda_test_function(event, context):
+        try:
+            requests.request(
+                method="POST", url="https://www.google.com", data=b"123", headers={"a": "b"}
+            )
+        except ZeroDivisionError:
+            return True
+        return False
+
+    monkeypatch.setattr(socket, "getaddrinfo", lambda *args, **kwargs: 1 / 0)
+
+    assert lambda_test_function({}, context) is True
+
+    assert len(SpansContainer.get_span().spans) == 1
+    span = SpansContainer.get_span().spans[0]
+    assert span["info"]["httpInfo"]["request"]["method"] == "POST"
+
+
 def test_wrapping_with_tags_for_api_gw_headers(monkeypatch, context):
     monkeypatch.setattr(auto_tag_event, "AUTO_TAG_API_GW_HEADERS", ["Accept"])
 

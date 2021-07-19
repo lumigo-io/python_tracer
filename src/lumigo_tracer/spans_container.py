@@ -143,12 +143,14 @@ class SpansContainer:
                 return
             TimeoutMechanism.start(remaining_time - buffer, self.handle_timeout)
 
-    def add_span(self, span: dict):
+    def add_span(self, span: dict) -> dict:
         """
         This function parses an request event and add it to the span.
         """
-        self.spans.append(recursive_json_join(span, self.base_msg))
+        new_span = recursive_json_join(span, self.base_msg)
+        self.spans.append(new_span)
         self.span_ids_to_send.add(span["id"])
+        return new_span
 
     def get_last_span(self) -> Optional[dict]:
         if not self.spans:
@@ -185,8 +187,9 @@ class SpansContainer:
             self.spans[-1]["started"] = int(start_timestamp * 1000)
             self.spans[-1]["ended"] = int(end_timestamp * 1000)
 
+    @staticmethod
     def _create_exception_event(
-        self, exc_type: str, message: str, stacktrace: str = "", frames: Optional[List[dict]] = None
+        exc_type: str, message: str, stacktrace: str = "", frames: Optional[List[dict]] = None
     ):
         return {
             "type": exc_type,
@@ -195,19 +198,25 @@ class SpansContainer:
             "frames": frames or [],
         }
 
+    @staticmethod
+    def add_exception_to_span(
+        span: dict, exception: Exception, frames_infos: List[inspect.FrameInfo]
+    ):
+        message = exception.args[0] if exception.args else None
+        if not isinstance(message, str):
+            message = str(message)
+        span["error"] = SpansContainer._create_exception_event(
+            exc_type=exception.__class__.__name__,
+            message=message,
+            stacktrace=get_stacktrace(exception),
+            frames=format_frames(frames_infos) if Configuration.verbose else [],
+        )
+
     def add_exception_event(
         self, exception: Exception, frames_infos: List[inspect.FrameInfo]
     ) -> None:
         if self.function_span:
-            message = exception.args[0] if exception.args else None
-            if not isinstance(message, str):
-                message = str(message)
-            self.function_span["error"] = self._create_exception_event(
-                exc_type=exception.__class__.__name__,
-                message=message,
-                stacktrace=get_stacktrace(exception),
-                frames=format_frames(frames_infos) if Configuration.verbose else [],
-            )
+            self.add_exception_to_span(self.function_span, exception, frames_infos)
 
     def add_step_end_event(self, ret_val):
         message_id = str(uuid.uuid4())
