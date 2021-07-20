@@ -7,90 +7,9 @@ defaults: &defaults
       username: lumigo
       password: $DOCKERHUB_PASSWORD
 
-commands:
-  checkout_utils:
-    description: "Checkout various utilities"
-    steps:
-      - run:
-          command: |
-            mkdir ~/.ssh/ && echo -e "Host github.com\n\tStrictHostKeyChecking no\n" > ~/.ssh/config
-            cd ..
-            git clone git@github.com:lumigo-io/common-resources.git
-      - run:
-          command: |
-            cd ..
-            git clone git@github.com:lumigo-io/utils.git
-      - run:
-          command: |
-            cd ..
-            git clone git@github.com:lumigo-io/larn.git
+orbs:
+  lumigo-orb: lumigo/lumigo-orb@volatile
 
-  checkout_credentials:
-    description: "Checkout credentials"
-    steps:
-      - run:
-          command: |
-            cd ..
-            git clone git@github.com:lumigo-io/common-resources.git
-
-  checkout_integration_tests:
-    description: "Checkout integration tests"
-    steps:
-      - run:
-          command: |
-            cd ..
-            git clone git@github.com:lumigo-io/integration-tests.git
-  checkout_dashboard:
-    description: "Checkout Lumigo Platform (dashboard)"
-    steps:
-      - run:
-          command: |
-            cd ..
-            git clone git@github.com:lumigo-io/dashboard.git
-            
-  checkout_code:
-    description: "Checkout code and test it"
-    steps:
-      - checkout
-      - run:
-            # Avoid annoying double runs after deploy.
-            # See https://discuss.circleci.com/t/job-runs-even-when-tags-ignore-filter-is-triggered-when-combined-with-branches-only/20664
-            name: Check if tagged
-            command: |
-              tags=$(git tag -l --points-at HEAD)
-              echo "Tags $tags"
-              if [[ ! -z "$tags" ]]
-              then
-                echo "A tagged commit, skip..."
-                circleci step halt
-              fi
-      - run: sudo chown -R circleci:circleci /usr/local/bin
-      - run: sudo chown -R circleci:circleci /usr/local/lib/python3.7/site-packages
-
-      # Download and cache dependencies
-      - restore_cache:
-          keys:
-            - v1-dependencies-{{ checksum "requirements.txt" }}
-            # fallback to using the latest cache if no exact match is found
-            - v1-dependencies-
-
-      - run:
-          name: install dependencies
-          command: |
-            python3 -m venv venv
-            . venv/bin/activate
-            pip install -r requirements.txt
-            python setup.py develop
-      # https://discuss.circleci.com/t/activate-python-virtualenv-for-whole-job/14434
-      - run: echo "source venv/bin/activate" >> $BASH_ENV
-      - run: pip install pytest-cov
-      - run: pip install pre-commit
-      - run: pre-commit install
-
-      - save_cache:
-          paths:
-            - ./venv
-          key: v1-dependencies-{{ checksum "requirements.txt" }}
 
 workflows:
   test-deploy:
@@ -99,12 +18,26 @@ workflows:
         filters:
           branches:
             ignore: master
-    - integration-test:
+    - lumigo-orb/be-deploy:
         filters:
           branches:
             ignore: master
         requires:
           - test
+    - lumigo-orb/integration-test:
+        deploy_spec: python
+        tests_spec: testPython
+        filters:
+          branches:
+            ignore: master
+        requires:
+          - lumigo-orb/be-deploy
+    - lumigo-orb/e2e-test:
+        requires:
+          - lumigo-orb/integration-test
+        filters:
+          branches:
+            ignore: master
     - deploy:
         filters:
           branches:
@@ -114,53 +47,19 @@ jobs:
   test:
     <<: *defaults
     steps:
-      - checkout_code
-      - checkout_utils
+      - lumigo-orb/checkout_code
+      - lumigo-orb/checkout_utils
       # run tests!
       - run: echo "export AWS_DEFAULT_REGION=us-west-2" >> $BASH_ENV
       - run: mkdir -p ~/.aws
       - run: echo ${KEY} | gpg --batch -d --passphrase-fd 0 ../common-resources/encrypted_files/credentials_integration.enc > ~/.aws/credentials
-      - run: pre-commit install
       - run: . venv/bin/activate && ./scripts/checks.sh
       - run: ../utils/common_bash/defaults/code_cov.sh
 
-  integration-test:
-    <<: *defaults
-    resource_class: medium+
-    steps:
-      - checkout_utils
-      - checkout_code
-      - run: ./scripts/ci_deploy.sh
-      - run: cd ../integration-tests && npm i
-      - run: sudo npm install -g recursive-install
-      - run: cd ../integration-tests && git rev-parse HEAD > ../commits && cd ../python_tracer && git rev-parse HEAD >> ../commits &&  cd ../lumigo-node && git rev-parse HEAD >> ../commits &&  cd ../java-tracer && git rev-parse HEAD >> ../commits
-      - restore_cache:
-          keys:
-            - IT-{{ .Branch }}-{{ checksum "../commits" }}
-      - run: cd ../integration-tests && ./scripts/parallel_prepare_env.sh
-      - run: cd ../integration-tests && ./scripts/parallel_deploy.sh --spec python
-      - save_cache:
-          key: IT-{{ .Branch }}-{{ checksum "../commits" }}
-          paths:
-            - ../integration-tests/.env
-            - ../integration-tests/.env2
-            - ../integration-tests/.env3
-            - ../integration-tests/.deployment_finished.env
-            - ../integration-tests/.deployment_finished.env2
-            - ../integration-tests/.deployment_finished.env3
-      - run: cd ../integration-tests && export testPython=true && npm run test-parallel
-      - store_test_results:
-          path: ../integration-tests/src/test/test-results
-      - persist_to_workspace:
-          root: ../
-          paths:
-            - envs/
-            - stack/
-            - .aws/
 
   deploy:
     <<: *defaults
     steps:
-      - checkout_code
-      - checkout_utils
+      - lumigo-orb/checkout_code
+      - lumigo-orb/checkout_utils
       - run: ./scripts/bd_to_prod.sh
