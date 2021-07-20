@@ -60,6 +60,7 @@ jobs:
   deploy:
     <<: *defaults
     steps:
+      - run: cd .. && git clone git@github.com:lumigo-io/larn.git
       - lumigo-orb/checkout_code
       - lumigo-orb/checkout_utils
       - run: ./scripts/bd_to_prod.sh
