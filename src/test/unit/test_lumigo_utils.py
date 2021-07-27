@@ -477,7 +477,7 @@ def test_report_json_retry(monkeypatch, reporter_mock, caplog, errors, final_log
     monkeypatch.setattr(Configuration, "host", host)
     monkeypatch.setattr(Configuration, "should_report", True)
     monkeypatch.setattr(http.client, "HTTPSConnection", Mock())
-    http.client.HTTPSConnection("force_reconnect").getresponse.side_effect = errors
+    http.client.HTTPSConnection(host).getresponse.side_effect = errors
 
     report_json(None, [{"a": "b"}])
 
