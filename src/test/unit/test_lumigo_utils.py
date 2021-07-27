@@ -436,7 +436,12 @@ def test_get_timeout_buffer(remaining_time, conf, expected):
 
 @pytest.mark.parametrize(
     ["arg", "host"],
-    [("https://a.com", "a.com"), (f"https://b.com{EDGE_PATH}", "b.com"), ("h.com", "h.com")],
+    [
+        ("https://a.com", "a.com"),
+        (f"https://b.com{EDGE_PATH}", "b.com"),
+        ("h.com", "h.com"),
+        ("https://15.2.3.4", "15.2.3.4"),
+    ],
 )
 def test_get_edge_host(arg, host, monkeypatch):
     monkeypatch.setattr(Configuration, "host", arg)
@@ -464,11 +469,12 @@ def asserting_extension(file_path, single):
 
 
 @pytest.mark.parametrize(
-    "errors, final_log", [(ValueError, "ERROR"), ([ValueError, Mock()], "INFO")]
+    "errors, final_log, host",
+    [(ValueError, "ERROR", "force_reconnect"), ([ValueError, Mock()], "INFO", "1.1.1.1")],
 )
-def test_report_json_retry(monkeypatch, reporter_mock, caplog, errors, final_log):
+def test_report_json_retry(monkeypatch, reporter_mock, caplog, errors, final_log, host):
     reporter_mock.side_effect = report_json
-    monkeypatch.setattr(Configuration, "host", "force_reconnect")
+    monkeypatch.setattr(Configuration, "host", host)
     monkeypatch.setattr(Configuration, "should_report", True)
     monkeypatch.setattr(http.client, "HTTPSConnection", Mock())
     http.client.HTTPSConnection("force_reconnect").getresponse.side_effect = errors

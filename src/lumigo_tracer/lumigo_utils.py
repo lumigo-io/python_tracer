@@ -1,10 +1,12 @@
 import decimal
 import base64
 import hashlib
+import ipaddress
 import json
 import logging
 import os
 import re
+import ssl
 import uuid
 from functools import reduce, lru_cache
 import time
@@ -277,10 +279,23 @@ def _create_request_body(
 
 def establish_connection(host):
     try:
-        return http.client.HTTPSConnection(host, timeout=EDGE_TIMEOUT)
+        if is_valid_ip(host):
+            return http.client.HTTPSConnection(
+                host, timeout=EDGE_TIMEOUT, context=ssl._create_unverified_context()
+            )
+        else:
+            return http.client.HTTPSConnection(host, timeout=EDGE_TIMEOUT)
     except Exception as e:
         get_logger().exception(f"Could not establish connection to {host}", exc_info=e)
     return None
+
+
+def is_valid_ip(host: str) -> bool:
+    try:
+        ipaddress.ip_address(host)
+        return True
+    except ValueError:
+        return False
 
 
 @lru_cache(maxsize=1)
