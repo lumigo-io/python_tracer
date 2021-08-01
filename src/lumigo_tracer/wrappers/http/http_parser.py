@@ -51,11 +51,13 @@ class Parser:
                 else "",
                 "method": parse_params.method,
                 "uri": parse_params.uri,
+                "instance_id": parse_params.instance_id,
             }
         else:
             additional_info = {
                 "method": parse_params.method if parse_params else "",
                 "body": "The data is not available",
+                "instance_id": parse_params.instance_id,
             }
 
         return {
