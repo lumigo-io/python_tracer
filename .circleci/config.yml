@@ -53,7 +53,7 @@ jobs:
       - run: echo "export AWS_DEFAULT_REGION=us-west-2" >> $BASH_ENV
       - run: mkdir -p ~/.aws
       - run: echo ${KEY} | gpg --batch -d --passphrase-fd 0 ../common-resources/encrypted_files/credentials_integration.enc > ~/.aws/credentials
-      - run: pip uninstall python_tracer && . venv/bin/activate && python setup.py develop
+      - run: . venv/bin/activate && pip uninstall lumigo_tracer && python setup.py develop
       - run: . venv/bin/activate && ./scripts/checks.sh
       - run: ../utils/common_bash/defaults/code_cov.sh
 
