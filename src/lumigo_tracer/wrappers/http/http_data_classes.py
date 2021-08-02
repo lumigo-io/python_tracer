@@ -8,7 +8,7 @@ class HttpRequest:
     uri: str
     headers: dict
     body: bytes
-    instance_id: bytes
+    instance_id: Optional[bytes]
 
     def __init__(self, **kwargs):
         self.host = kwargs["host"]
