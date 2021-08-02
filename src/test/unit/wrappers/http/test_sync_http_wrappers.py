@@ -44,7 +44,7 @@ def test_lambda_wrapper_http(context):
     assert http_spans[0]["started"] > SpansContainer.get_span().function_span["started"]
     assert "ended" in http_spans[0]
     assert "content-length" in http_spans[0]["info"]["httpInfo"]["request"]["headers"]
-    assert http_spans[0]["info"]["httpInfo"]["request"]["instance_id"] is not None
+    assert http_spans[0]["info"]["httpInfo"]["request"].get("instance_id") is not None
 
 
 def test_lambda_wrapper_query_with_http_params(context):
@@ -57,7 +57,7 @@ def test_lambda_wrapper_query_with_http_params(context):
 
     assert http_spans
     assert http_spans[0]["info"]["httpInfo"]["request"]["uri"] == "www.google.com/?q=123"
-    assert http_spans[0]["info"]["httpInfo"]["request"]["instance_id"] is not None
+    assert http_spans[0]["info"]["httpInfo"]["request"].get("instance_id") is not None
 
 
 def test_uri_requests(context):
@@ -72,7 +72,7 @@ def test_uri_requests(context):
 
     assert http_spans
     assert http_spans[0]["info"]["httpInfo"]["request"]["uri"] == "www.google.com/?q=123"
-    assert http_spans[0]["info"]["httpInfo"]["request"]["instance_id"] is not None
+    assert http_spans[0]["info"]["httpInfo"]["request"].get("instance_id") is not None
 
 
 def test_lambda_wrapper_get_response(context):
@@ -87,7 +87,7 @@ def test_lambda_wrapper_get_response(context):
 
     assert http_spans
     assert http_spans[0]["info"]["httpInfo"]["response"]["statusCode"] == 200
-    assert http_spans[0]["info"]["httpInfo"]["request"]["instance_id"] is not None
+    assert http_spans[0]["info"]["httpInfo"]["request"].get("instance_id") is not None
 
 
 def test_lambda_wrapper_http_splitted_send(context):
@@ -107,7 +107,7 @@ def test_lambda_wrapper_http_splitted_send(context):
     assert http_spans
     assert http_spans[0]["info"]["httpInfo"]["request"]["body"] == '"123456"'
     assert "content-length" in http_spans[0]["info"]["httpInfo"]["request"]["headers"]
-    assert http_spans[0]["info"]["httpInfo"]["request"]["instance_id"] is not None
+    assert http_spans[0]["info"]["httpInfo"]["request"].get("instance_id") is not None
 
 
 def test_lambda_wrapper_no_headers(context):
@@ -158,7 +158,7 @@ def test_catch_file_like_object_sent_on_http(context):
     assert len(http_events) == 1
     span = SpansContainer.get_span().spans[0]
     assert span["info"]["httpInfo"]["request"]["body"] == '"body"'
-    assert span["info"]["httpInfo"]["request"]["instance_id"] is not None
+    assert span["info"]["httpInfo"]["request"].get("instance_id") is not None
 
 
 def test_bad_domains_scrubber(monkeypatch, context):
@@ -183,7 +183,7 @@ def test_domains_scrubber_happy_flow(monkeypatch, context):
     assert http_events[0].get("info", {}).get("httpInfo", {}).get("host") == "www.google.com"
     assert "headers" not in http_events[0]["info"]["httpInfo"]["request"]
     assert http_events[0]["info"]["httpInfo"]["request"]["body"] == "The data is not available"
-    assert http_events[0]["info"]["httpInfo"]["request"]["instance_id"] is not None
+    assert http_events[0]["info"]["httpInfo"]["request"].get("instance_id") is not None
 
 
 def test_domains_scrubber_override_allows_default_domains(monkeypatch, context):
@@ -201,7 +201,7 @@ def test_domains_scrubber_override_allows_default_domains(monkeypatch, context):
     assert len(http_events) == 1
     assert http_events[0].get("info", {}).get("httpInfo", {}).get("host") == ssm_url
     assert http_events[0]["info"]["httpInfo"]["request"]["headers"]
-    assert http_events[0]["info"]["httpInfo"]["request"]["instance_id"] is not None
+    assert http_events[0]["info"]["httpInfo"]["request"].get("instance_id") is not None
 
 
 def test_wrapping_json_request(context):
@@ -250,7 +250,7 @@ def test_wrapping_urlib_stream_get(context):
     assert event["info"]["httpInfo"]["response"]["body"]
     assert event["info"]["httpInfo"]["response"]["statusCode"] == 200
     assert event["info"]["httpInfo"]["host"] == "www.google.com"
-    assert event["info"]["httpInfo"]["request"]["instance_id"] is not None
+    assert event["info"]["httpInfo"]["request"].get("instance_id") is not None
 
 
 def test_wrapping_requests_times(monkeypatch, context):
@@ -302,7 +302,7 @@ def test_requests_failure_before_http_call(monkeypatch, context, func_to_patch):
     assert span["info"]["httpInfo"]["request"]["method"] == "POST"
     assert span["info"]["httpInfo"]["request"]["body"] == '"123"'
     assert span["info"]["httpInfo"]["request"]["headers"]
-    assert span["info"]["httpInfo"]["request"]["instance_id"] is not None
+    assert span["info"]["httpInfo"]["request"].get("instance_id") is not None
 
 
 def test_requests_failure_with_kwargs(monkeypatch, context):
@@ -353,8 +353,8 @@ def test_correct_headers_of_send_after_request(context):
     spans = SpansContainer.get_span().spans
     assert spans[0]["info"]["httpInfo"]["request"]["headers"] == json.dumps({"a": "b"})
     assert spans[1]["info"]["httpInfo"]["request"]["headers"] == json.dumps({"c": "d"})
-    assert spans[0]["info"]["httpInfo"]["request"]["instance_id"] is not None
-    assert spans[1]["info"]["httpInfo"]["request"]["instance_id"] is not None
+    assert spans[0]["info"]["httpInfo"]["request"].get("instance_id") is not None
+    assert spans[1]["info"]["httpInfo"]["request"].get("instance_id") is not None
 
 
 def api_gw_event() -> Dict:
@@ -583,6 +583,6 @@ def test_same_connection_id_for_same_connection(context):
     lambda_test_function({}, context)
     http_spans = SpansContainer.get_span().spans
 
-    instance_id_1 = http_spans[0]["info"]["httpInfo"]["request"]["instance_id"]
-    instance_id_2 = http_spans[1]["info"]["httpInfo"]["request"]["instance_id"]
+    instance_id_1 = http_spans[0]["info"]["httpInfo"]["request"].get("instance_id")
+    instance_id_2 = http_spans[1]["info"]["httpInfo"]["request"].get("instance_id")
     assert instance_id_1 == instance_id_2
