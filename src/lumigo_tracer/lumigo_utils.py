@@ -308,14 +308,15 @@ def report_json(region: Optional[str], msgs: List[dict], should_retry: bool = Tr
     get_logger().info(f"reporting the messages: {msgs[:10]}")
     try:
         prune_trace: bool = not os.environ.get("LUMIGO_PRUNE_TRACE_OFF", "").lower() == "true"
-        to_send = _create_request_body(msgs, prune_trace).encode()
+        to_send_string = _create_request_body(msgs, prune_trace)
+        to_send = to_send_string.encode()
     except Exception as e:
         get_logger().exception("Failed to create request: A span was lost.", exc_info=e)
         return 0
     if should_use_tracer_extension():
         with lumigo_safe_execute("report json file: writing spans to file"):
             get_logger().debug("Using tracer extension")
-            write_spans_to_file(to_send)
+            write_spans_to_file((to_send_string + "#DONE#").encode())
         return 0
     if region == CHINA_REGION:
         return _publish_spans_to_kinesis(to_send, CHINA_REGION)
