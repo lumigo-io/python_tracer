@@ -12,6 +12,7 @@ import boto3
 import pytest
 import urllib3
 import requests
+from urllib3 import HTTPConnectionPool
 
 import lumigo_tracer
 from lumigo_tracer import lumigo_utils
@@ -43,6 +44,7 @@ def test_lambda_wrapper_http(context):
     assert http_spans[0]["started"] > SpansContainer.get_span().function_span["started"]
     assert "ended" in http_spans[0]
     assert "content-length" in http_spans[0]["info"]["httpInfo"]["request"]["headers"]
+    assert http_spans[0]["info"]["httpInfo"]["request"].get("instance_id") is not None
 
 
 def test_lambda_wrapper_query_with_http_params(context):
@@ -55,6 +57,7 @@ def test_lambda_wrapper_query_with_http_params(context):
 
     assert http_spans
     assert http_spans[0]["info"]["httpInfo"]["request"]["uri"] == "www.google.com/?q=123"
+    assert http_spans[0]["info"]["httpInfo"]["request"].get("instance_id") is not None
 
 
 def test_uri_requests(context):
@@ -69,6 +72,7 @@ def test_uri_requests(context):
 
     assert http_spans
     assert http_spans[0]["info"]["httpInfo"]["request"]["uri"] == "www.google.com/?q=123"
+    assert http_spans[0]["info"]["httpInfo"]["request"].get("instance_id") is not None
 
 
 def test_lambda_wrapper_get_response(context):
@@ -83,6 +87,7 @@ def test_lambda_wrapper_get_response(context):
 
     assert http_spans
     assert http_spans[0]["info"]["httpInfo"]["response"]["statusCode"] == 200
+    assert http_spans[0]["info"]["httpInfo"]["request"].get("instance_id") is not None
 
 
 def test_lambda_wrapper_http_splitted_send(context):
@@ -102,6 +107,7 @@ def test_lambda_wrapper_http_splitted_send(context):
     assert http_spans
     assert http_spans[0]["info"]["httpInfo"]["request"]["body"] == '"123456"'
     assert "content-length" in http_spans[0]["info"]["httpInfo"]["request"]["headers"]
+    assert http_spans[0]["info"]["httpInfo"]["request"].get("instance_id") is not None
 
 
 def test_lambda_wrapper_no_headers(context):
@@ -152,6 +158,7 @@ def test_catch_file_like_object_sent_on_http(context):
     assert len(http_events) == 1
     span = SpansContainer.get_span().spans[0]
     assert span["info"]["httpInfo"]["request"]["body"] == '"body"'
+    assert span["info"]["httpInfo"]["request"].get("instance_id") is not None
 
 
 def test_bad_domains_scrubber(monkeypatch, context):
@@ -176,6 +183,7 @@ def test_domains_scrubber_happy_flow(monkeypatch, context):
     assert http_events[0].get("info", {}).get("httpInfo", {}).get("host") == "www.google.com"
     assert "headers" not in http_events[0]["info"]["httpInfo"]["request"]
     assert http_events[0]["info"]["httpInfo"]["request"]["body"] == "The data is not available"
+    assert http_events[0]["info"]["httpInfo"]["request"].get("instance_id") is not None
 
 
 def test_domains_scrubber_override_allows_default_domains(monkeypatch, context):
@@ -193,6 +201,7 @@ def test_domains_scrubber_override_allows_default_domains(monkeypatch, context):
     assert len(http_events) == 1
     assert http_events[0].get("info", {}).get("httpInfo", {}).get("host") == ssm_url
     assert http_events[0]["info"]["httpInfo"]["request"]["headers"]
+    assert http_events[0]["info"]["httpInfo"]["request"].get("instance_id") is not None
 
 
 def test_wrapping_json_request(context):
@@ -241,6 +250,7 @@ def test_wrapping_urlib_stream_get(context):
     assert event["info"]["httpInfo"]["response"]["body"]
     assert event["info"]["httpInfo"]["response"]["statusCode"] == 200
     assert event["info"]["httpInfo"]["host"] == "www.google.com"
+    assert event["info"]["httpInfo"]["request"].get("instance_id") is not None
 
 
 def test_wrapping_requests_times(monkeypatch, context):
@@ -263,6 +273,56 @@ def test_wrapping_requests_times(monkeypatch, context):
     start_time = lambda_test_function({}, context)
     span = SpansContainer.get_span().spans[0]
     assert span["started"] - start_time < 100
+
+
+@pytest.mark.parametrize(
+    "func_to_patch",
+    [
+        (socket, "getaddrinfo"),  # this function is being called before the request
+        (http.client.HTTPConnection, "getresponse"),  # after the request
+    ],
+)
+def test_requests_failure_before_http_call(monkeypatch, context, func_to_patch):
+    @lumigo_tracer.lumigo_tracer()
+    def lambda_test_function(event, context):
+        try:
+            requests.post("https://www.google.com", data=b"123", headers={"a": "b"})
+        except ZeroDivisionError:
+            return True
+        return False
+
+    # requests executes this function before/after the http call
+    monkeypatch.setattr(*func_to_patch, lambda *args, **kwargs: 1 / 0)
+
+    assert lambda_test_function({}, context) is True
+
+    assert len(SpansContainer.get_span().spans) == 1
+    span = SpansContainer.get_span().spans[0]
+    assert span["error"]["message"] == "division by zero"
+    assert span["info"]["httpInfo"]["request"]["method"] == "POST"
+    assert span["info"]["httpInfo"]["request"]["body"] == '"123"'
+    assert span["info"]["httpInfo"]["request"]["headers"]
+    assert span["info"]["httpInfo"]["request"].get("instance_id") is not None
+
+
+def test_requests_failure_with_kwargs(monkeypatch, context):
+    @lumigo_tracer.lumigo_tracer()
+    def lambda_test_function(event, context):
+        try:
+            requests.request(
+                method="POST", url="https://www.google.com", data=b"123", headers={"a": "b"}
+            )
+        except ZeroDivisionError:
+            return True
+        return False
+
+    monkeypatch.setattr(socket, "getaddrinfo", lambda *args, **kwargs: 1 / 0)
+
+    assert lambda_test_function({}, context) is True
+
+    assert len(SpansContainer.get_span().spans) == 1
+    span = SpansContainer.get_span().spans[0]
+    assert span["info"]["httpInfo"]["request"]["method"] == "POST"
 
 
 def test_wrapping_with_tags_for_api_gw_headers(monkeypatch, context):
@@ -293,6 +353,8 @@ def test_correct_headers_of_send_after_request(context):
     spans = SpansContainer.get_span().spans
     assert spans[0]["info"]["httpInfo"]["request"]["headers"] == json.dumps({"a": "b"})
     assert spans[1]["info"]["httpInfo"]["request"]["headers"] == json.dumps({"c": "d"})
+    assert spans[0]["info"]["httpInfo"]["request"].get("instance_id") is not None
+    assert spans[1]["info"]["httpInfo"]["request"].get("instance_id") is not None
 
 
 def api_gw_event() -> Dict:
@@ -509,3 +571,18 @@ def test_on_error_status_code_not_scrub_dynamodb(context, monkeypatch):
 def test_is_lumigo_edge(host, is_lumigo, monkeypatch):
     monkeypatch.setattr(Configuration, "host", "lumigo.io")
     assert is_lumigo_edge(host) == is_lumigo
+
+
+def test_same_connection_id_for_same_connection(context):
+    @lumigo_tracer.lumigo_tracer(token=TOKEN)
+    def lambda_test_function(event, context):
+        pool = HTTPConnectionPool("www.google.com", maxsize=1)
+        pool.request("GET", "/?q=123")
+        pool.request("GET", "/?q=1234")
+
+    lambda_test_function({}, context)
+    http_spans = SpansContainer.get_span().spans
+
+    instance_id_1 = http_spans[0]["info"]["httpInfo"]["request"].get("instance_id")
+    instance_id_2 = http_spans[1]["info"]["httpInfo"]["request"].get("instance_id")
+    assert instance_id_1 == instance_id_2

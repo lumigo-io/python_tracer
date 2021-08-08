@@ -2,7 +2,7 @@ from datetime import datetime
 import http.client
 from io import BytesIO
 import importlib.util
-from typing import Optional
+from typing import Optional, Dict
 
 from lumigo_tracer.libs.wrapt import wrap_function_wrapper
 from lumigo_tracer.parsing_utils import safe_get_list, recursive_json_join
@@ -36,16 +36,17 @@ def is_lumigo_edge(host: Optional[str]) -> bool:
     return False
 
 
-def add_request_event(parse_params: HttpRequest):
+def add_request_event(parse_params: HttpRequest) -> Dict:
     """
     This function parses an request event and add it to the span.
     """
     if is_lumigo_edge(parse_params.host):
-        return
+        return {}
     parser = get_parser(parse_params.host)()
     msg = parser.parse_request(parse_params)
     HttpState.previous_request = parse_params
-    SpansContainer.get_span().add_span(msg)
+    new_span = SpansContainer.get_span().add_span(msg)
+    return new_span
 
 
 def add_unparsed_request(parse_params: HttpRequest):
@@ -174,10 +175,19 @@ def _http_send_wrapper(func, instance, args, kwargs):
     with lumigo_safe_execute("add request event"):
         if headers:
             add_request_event(
-                HttpRequest(host=host, method=method, uri=uri, headers=headers, body=body)
+                HttpRequest(
+                    host=host,
+                    method=method,
+                    uri=uri,
+                    headers=headers,
+                    body=body,
+                    instance_id=id(instance),
+                )
             )
         else:
-            add_unparsed_request(HttpRequest(host=host, method=method, uri=uri, body=data))
+            add_unparsed_request(
+                HttpRequest(host=host, method=method, uri=uri, body=data, instance_id=id(instance))
+            )
 
     ret_val = func(*args, **kwargs)
     with lumigo_safe_execute("add response event"):
@@ -204,9 +214,30 @@ def _requests_wrapper(func, instance, args, kwargs):
     This is the wrapper of the function `requests.request`.
     This function is being wrapped specifically because it initializes the connection by itself and parses the response,
         which creates a gap from the traditional http.client wrapping.
+    Moreover, these "extra" steps may raise exceptions. We should attach the error to the http span.
     """
     start_time = datetime.now()
-    ret_val = func(*args, **kwargs)
+    try:
+        ret_val = func(*args, **kwargs)
+    except Exception as exception:
+        with lumigo_safe_execute("requests wrapper exception occurred"):
+            method = safe_get_list(args, 0, kwargs.get("method", "")).upper()
+            url = safe_get_list(args, 1, kwargs.get("url"))
+            if HttpState.previous_request and HttpState.previous_request.host in url:
+                span = SpansContainer.get_span().get_last_span()
+            else:
+                span = add_request_event(
+                    HttpRequest(
+                        host=url,
+                        method=method,
+                        uri=url,
+                        body=kwargs.get("data"),
+                        headers=kwargs.get("headers"),
+                        instance_id=id(instance),
+                    )
+                )
+            SpansContainer.add_exception_to_span(span, exception, [])
+        raise
     with lumigo_safe_execute("requests wrapper time updates"):
         SpansContainer.get_span().update_event_times(start_time=start_time)
     return ret_val
@@ -276,3 +307,4 @@ def wrap_http_calls():
             )
         if importlib.util.find_spec("requests"):
             wrap_function_wrapper("requests.api", "request", _requests_wrapper)
+            wrap_function_wrapper("requests", "request", _requests_wrapper)
