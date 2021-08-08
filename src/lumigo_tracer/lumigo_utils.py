@@ -315,7 +315,7 @@ def report_json(region: Optional[str], msgs: List[dict], should_retry: bool = Tr
     if should_use_tracer_extension():
         with lumigo_safe_execute("report json file: writing spans to file"):
             get_logger().debug("Using tracer extension")
-            write_spans_to_file(to_send)
+            write_spans_to_file(to_send + b"#DONE#")
         return 0
     if region == CHINA_REGION:
         return _publish_spans_to_kinesis(to_send, CHINA_REGION)
