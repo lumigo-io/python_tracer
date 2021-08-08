@@ -460,8 +460,8 @@ def asserting_extension(file_path, single):
     duration = report_json(None, [{"a": "b"}])
     content = open(file_path, "r").read()[:-6]
     span_from_file = json.loads(content)
-    assert duration == 0
     assert span_from_file == single
+    assert duration == 0
 
 
 @pytest.mark.parametrize(
