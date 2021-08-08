@@ -448,7 +448,7 @@ def test_report_json_extension(monkeypatch, reporter_mock):
     monkeypatch.setenv("LUMIGO_USE_TRACER_EXTENSION", "TRUE")
     single = [{"a": "b"}]
     to_send = _create_request_body(single, True).encode()
-    md5str = str(hashlib.md5(to_send + b'#DONE#').hexdigest())
+    md5str = str(hashlib.md5(to_send + b"#DONE#").hexdigest())
     file_name = f"{md5str}_single"
     file_path = f"/tmp/lumigo-spans/{file_name}"
     asserting_extension(file_path, single)
