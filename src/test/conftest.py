@@ -92,3 +92,8 @@ def extension_clean():
     yield
     if os.path.exists("/tmp/lumigo-spans"):
         shutil.rmtree("/tmp/lumigo-spans")
+
+
+@pytest.fixture
+def token():
+    return "t_10faa5e13e7844aaa1234"

@@ -27,11 +27,9 @@ from lumigo_tracer.wrappers.http.sync_http_wrappers import (
     is_lumigo_edge,
 )
 
-TOKEN = "t_10faa5e13e7844aaa1234"
 
-
-def test_lambda_wrapper_http(context):
-    @lumigo_tracer.lumigo_tracer(token=TOKEN)
+def test_lambda_wrapper_http(context, token):
+    @lumigo_tracer.lumigo_tracer(token=token)
     def lambda_test_function(event, context):
         time.sleep(0.01)
         http.client.HTTPConnection("www.google.com").request("POST", "/")
@@ -47,8 +45,8 @@ def test_lambda_wrapper_http(context):
     assert http_spans[0]["info"]["httpInfo"]["request"].get("instance_id") is not None
 
 
-def test_lambda_wrapper_query_with_http_params(context):
-    @lumigo_tracer.lumigo_tracer(token=TOKEN)
+def test_lambda_wrapper_query_with_http_params(context, token):
+    @lumigo_tracer.lumigo_tracer(token=token)
     def lambda_test_function(event, context):
         http.client.HTTPConnection("www.google.com").request("GET", "/?q=123")
 
@@ -60,8 +58,8 @@ def test_lambda_wrapper_query_with_http_params(context):
     assert http_spans[0]["info"]["httpInfo"]["request"].get("instance_id") is not None
 
 
-def test_uri_requests(context):
-    @lumigo_tracer.lumigo_tracer(token=TOKEN)
+def test_uri_requests(context, token):
+    @lumigo_tracer.lumigo_tracer(token=token)
     def lambda_test_function(event, context):
         conn = http.client.HTTPConnection("www.google.com")
         conn.request("POST", "/?q=123", b"123")
@@ -75,8 +73,8 @@ def test_uri_requests(context):
     assert http_spans[0]["info"]["httpInfo"]["request"].get("instance_id") is not None
 
 
-def test_lambda_wrapper_get_response(context):
-    @lumigo_tracer.lumigo_tracer(token=TOKEN)
+def test_lambda_wrapper_get_response(context, token):
+    @lumigo_tracer.lumigo_tracer(token=token)
     def lambda_test_function(event, context):
         conn = http.client.HTTPConnection("www.google.com")
         conn.request("GET", "")
@@ -90,13 +88,13 @@ def test_lambda_wrapper_get_response(context):
     assert http_spans[0]["info"]["httpInfo"]["request"].get("instance_id") is not None
 
 
-def test_lambda_wrapper_http_splitted_send(context):
+def test_lambda_wrapper_http_splitted_send(context, token):
     """
     This is a test for the specific case of requests, where they split the http requests into headers and body.
     We didn't use directly the package requests in order to keep the dependencies small.
     """
 
-    @lumigo_tracer.lumigo_tracer(token=TOKEN)
+    @lumigo_tracer.lumigo_tracer(token=token)
     def lambda_test_function(event, context):
         conn = http.client.HTTPConnection("www.google.com")
         conn.request("POST", "/", b"123")
@@ -110,8 +108,8 @@ def test_lambda_wrapper_http_splitted_send(context):
     assert http_spans[0]["info"]["httpInfo"]["request"].get("instance_id") is not None
 
 
-def test_lambda_wrapper_no_headers(context):
-    @lumigo_tracer.lumigo_tracer(token=TOKEN)
+def test_lambda_wrapper_no_headers(context, token):
+    @lumigo_tracer.lumigo_tracer(token=token)
     def lambda_test_function(event, context):
         http.client.HTTPConnection("www.google.com").send(BytesIO(b"123"))
 
@@ -123,8 +121,8 @@ def test_lambda_wrapper_no_headers(context):
     assert "ended" in http_events[0]
 
 
-def test_lambda_wrapper_http_non_splitted_send(context):
-    @lumigo_tracer.lumigo_tracer(token=TOKEN)
+def test_lambda_wrapper_http_non_splitted_send(context, token):
+    @lumigo_tracer.lumigo_tracer(token=token)
     def lambda_test_function(event, context):
         http.client.HTTPConnection("www.google.com").request("POST", "/")
         http.client.HTTPConnection("www.github.com").send(BytesIO(b"123"))
@@ -134,7 +132,7 @@ def test_lambda_wrapper_http_non_splitted_send(context):
     assert len(http_events) == 2
 
 
-def test_catch_file_like_object_sent_on_http(context):
+def test_catch_file_like_object_sent_on_http(context, token):
     class A:
         def seek(self, where):
             pass
@@ -145,7 +143,7 @@ def test_catch_file_like_object_sent_on_http(context):
         def read(self, amount=None):
             return b"body"
 
-    @lumigo_tracer.lumigo_tracer(token=TOKEN)
+    @lumigo_tracer.lumigo_tracer(token=token)
     def lambda_test_function(event, context):
         try:
             http.client.HTTPConnection("www.github.com").send(A())
@@ -161,10 +159,10 @@ def test_catch_file_like_object_sent_on_http(context):
     assert span["info"]["httpInfo"]["request"].get("instance_id") is not None
 
 
-def test_bad_domains_scrubber(monkeypatch, context):
+def test_bad_domains_scrubber(monkeypatch, context, token):
     monkeypatch.setenv("LUMIGO_DOMAINS_SCRUBBER", '["bad json')
 
-    @lumigo_tracer.lumigo_tracer(token=TOKEN, should_report=True)
+    @lumigo_tracer.lumigo_tracer(token=token, should_report=True)
     def lambda_test_function(event, context):
         pass
 
@@ -172,8 +170,8 @@ def test_bad_domains_scrubber(monkeypatch, context):
     assert lumigo_utils.Configuration.should_report is False
 
 
-def test_domains_scrubber_happy_flow(monkeypatch, context):
-    @lumigo_tracer.lumigo_tracer(token=TOKEN, domains_scrubber=[".*google.*"])
+def test_domains_scrubber_happy_flow(monkeypatch, context, token):
+    @lumigo_tracer.lumigo_tracer(token=token, domains_scrubber=[".*google.*"])
     def lambda_test_function(event, context):
         return http.client.HTTPConnection(host="www.google.com").send(b"\r\n")
 
@@ -186,10 +184,10 @@ def test_domains_scrubber_happy_flow(monkeypatch, context):
     assert http_events[0]["info"]["httpInfo"]["request"].get("instance_id") is not None
 
 
-def test_domains_scrubber_override_allows_default_domains(monkeypatch, context):
+def test_domains_scrubber_override_allows_default_domains(monkeypatch, context, token):
     ssm_url = "www.ssm.123.amazonaws.com"
 
-    @lumigo_tracer.lumigo_tracer(token=TOKEN, domains_scrubber=[".*google.*"])
+    @lumigo_tracer.lumigo_tracer(token=token, domains_scrubber=[".*google.*"])
     def lambda_test_function(event, context):
         try:
             return http.client.HTTPConnection(host=ssm_url).send(b"\r\n")
@@ -204,7 +202,7 @@ def test_domains_scrubber_override_allows_default_domains(monkeypatch, context):
     assert http_events[0]["info"]["httpInfo"]["request"].get("instance_id") is not None
 
 
-def test_wrapping_json_request(context):
+def test_wrapping_json_request(context, token):
     @lumigo_tracer.lumigo_tracer()
     def lambda_test_function(event, context):
         urllib.request.urlopen(
@@ -223,10 +221,10 @@ def test_wrapping_json_request(context):
     )
 
 
-def test_exception_in_parsers(monkeypatch, caplog, context):
+def test_exception_in_parsers(monkeypatch, caplog, context, token):
     monkeypatch.setattr(Parser, "parse_request", Exception)
 
-    @lumigo_tracer.lumigo_tracer(token=TOKEN)
+    @lumigo_tracer.lumigo_tracer(token=token)
     def lambda_test_function(event, context):
         return http.client.HTTPConnection(host="www.google.com").send(b"\r\n")
 
@@ -234,7 +232,7 @@ def test_exception_in_parsers(monkeypatch, caplog, context):
     assert caplog.records[-1].msg == "An exception occurred in lumigo's code add request event"
 
 
-def test_wrapping_urlib_stream_get(context):
+def test_wrapping_urlib_stream_get(context, token):
     """
     This is the same case as the one of `requests.get`.
     """
@@ -253,7 +251,7 @@ def test_wrapping_urlib_stream_get(context):
     assert event["info"]["httpInfo"]["request"].get("instance_id") is not None
 
 
-def test_wrapping_requests_times(monkeypatch, context):
+def test_wrapping_requests_times(monkeypatch, context, token):
     @lumigo_tracer.lumigo_tracer()
     def lambda_test_function(event, context):
         start_time = time.time() * 1000
@@ -282,7 +280,7 @@ def test_wrapping_requests_times(monkeypatch, context):
         (http.client.HTTPConnection, "getresponse"),  # after the request
     ],
 )
-def test_requests_failure_before_http_call(monkeypatch, context, func_to_patch):
+def test_requests_failure_before_http_call(monkeypatch, context, func_to_patch, token):
     @lumigo_tracer.lumigo_tracer()
     def lambda_test_function(event, context):
         try:
@@ -305,7 +303,7 @@ def test_requests_failure_before_http_call(monkeypatch, context, func_to_patch):
     assert span["info"]["httpInfo"]["request"].get("instance_id") is not None
 
 
-def test_requests_failure_with_kwargs(monkeypatch, context):
+def test_requests_failure_with_kwargs(monkeypatch, context, token):
     @lumigo_tracer.lumigo_tracer()
     def lambda_test_function(event, context):
         try:
@@ -325,7 +323,7 @@ def test_requests_failure_with_kwargs(monkeypatch, context):
     assert span["info"]["httpInfo"]["request"]["method"] == "POST"
 
 
-def test_wrapping_with_tags_for_api_gw_headers(monkeypatch, context):
+def test_wrapping_with_tags_for_api_gw_headers(monkeypatch, context, token):
     monkeypatch.setattr(auto_tag_event, "AUTO_TAG_API_GW_HEADERS", ["Accept"])
 
     @lumigo_tracer.lumigo_tracer()
@@ -340,7 +338,7 @@ def test_wrapping_with_tags_for_api_gw_headers(monkeypatch, context):
     ]
 
 
-def test_correct_headers_of_send_after_request(context):
+def test_correct_headers_of_send_after_request(context, token):
     @lumigo_tracer.lumigo_tracer()
     def lambda_test_function(event, context):
         d = {"a": "b", "myPassword": "123"}
@@ -477,7 +475,7 @@ def api_gw_event() -> Dict:
 @pytest.mark.parametrize(
     ["given_event"], ([{"hello": "world"}], [api_gw_event()])  # happy flow  # apigw event
 )
-def test_lumigo_doesnt_change_event(given_event):
+def test_lumigo_doesnt_change_event(given_event, token):
     origin_event = copy.deepcopy(given_event)
 
     @lumigo_tracer.lumigo_tracer()
@@ -508,7 +506,7 @@ def test_aggregating_response_body():
     assert len(HttpState.previous_response_body) <= len(big_response_chunk)
 
 
-def test_double_request_size_limit_on_error_status_code(context, monkeypatch):
+def test_double_request_size_limit_on_error_status_code(context, monkeypatch, token):
     d = {"a": "v" * int(Configuration.get_max_entry_size() * 1.5)}
     original_begin = http.client.HTTPResponse.begin
 
@@ -523,7 +521,7 @@ def test_double_request_size_limit_on_error_status_code(context, monkeypatch):
 
     monkeypatch.setattr(http.client.HTTPResponse, "begin", mocked_begin)
 
-    @lumigo_tracer.lumigo_tracer(token=TOKEN)
+    @lumigo_tracer.lumigo_tracer(token=token)
     def lambda_test_function(event, context):
         conn = http.client.HTTPConnection("www.google.com")
         conn.request("GET", "/", json.dumps(d), headers=d)
@@ -552,8 +550,8 @@ def test_double_request_size_limit_on_error_status_code(context, monkeypatch):
     assert request_with_error["body"] == json.dumps(d)
 
 
-def test_on_error_status_code_not_scrub_dynamodb(context, monkeypatch):
-    @lumigo_tracer.lumigo_tracer(token=TOKEN)
+def test_on_error_status_code_not_scrub_dynamodb(context, monkeypatch, token):
+    @lumigo_tracer.lumigo_tracer(token=token)
     def lambda_test_function(event, context):
         try:
             table = boto3.resource("dynamodb").Table("not-exist")
@@ -575,15 +573,15 @@ def test_is_lumigo_edge(host, is_lumigo, monkeypatch):
     assert is_lumigo_edge(host) == is_lumigo
 
 
-def test_same_connection_id_for_same_connection(context):
-    @lumigo_tracer.lumigo_tracer(token=TOKEN)
+def test_same_connection_id_for_same_connection(context, token):
+    @lumigo_tracer.lumigo_tracer(token=token)
     def lambda_test_function(event, context):
         pool = HTTPConnectionPool("www.google.com", maxsize=1)
         pool.request("GET", "/?q=123")
         pool.request("GET", "/?q=1234")
 
     lambda_test_function({}, context)
-    http_spans = SpansContainer.get_span().spans
+    http_spans = list(SpansContainer.get_span().spans.values())
 
     instance_id_1 = http_spans[0]["info"]["httpInfo"]["request"].get("instance_id")
     instance_id_2 = http_spans[1]["info"]["httpInfo"]["request"].get("instance_id")
