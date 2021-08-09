@@ -290,7 +290,7 @@ def _read_stream_wrapper(func, instance, args, kwargs):
 def _read_stream_wrapper_generator(stream_generator, instance):
     for partial_response in stream_generator:
         with lumigo_safe_execute("parse response.read_chunked"):
-            span_id = HttpState.response_to_span_id.get(id(instance))
+            span_id = HttpState.response_to_span_id.get(id(instance._original_response))
             update_event_response(
                 span_id, None, instance.status, dict(instance.headers.items()), partial_response
             )
