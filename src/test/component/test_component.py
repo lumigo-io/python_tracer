@@ -97,7 +97,7 @@ def test_sns(sns_resource, region):
         boto3.resource("sns").Topic(sns_resource).publish(Message=json.dumps({"test": "test"}))
 
     lambda_test_function()
-    events = SpansContainer.get_span().spans
+    events = list(SpansContainer.get_span().spans.values())
     assert len(events) == 1
     assert events[0]["info"]["httpInfo"]["host"] == f"sns.{region}.amazonaws.com"
     assert events[0]["info"]["resourceName"] == sns_resource
@@ -113,7 +113,7 @@ def test_lambda(lambda_resource, region):
         )
 
     lambda_test_function()
-    events = SpansContainer.get_span().spans
+    events = list(SpansContainer.get_span().spans.values())
     assert len(events) == 1
     assert events[0]["info"]["httpInfo"]["host"] == f"lambda.{region}.amazonaws.com"
     assert events[0]["info"]["resourceName"] == lambda_resource
@@ -140,7 +140,7 @@ def test_kinesis(kinesis_resource, region):
         )
 
     lambda_test_function()
-    events = SpansContainer.get_span().spans
+    events = list(SpansContainer.get_span().spans.values())
     assert len(events) == 2
     # Single message.
     assert events[0]["info"]["httpInfo"]["host"] == f"kinesis.{region}.amazonaws.com"
@@ -169,7 +169,7 @@ def test_sqs(sqs_resource, region):
         )
 
     lambda_test_function()
-    events = SpansContainer.get_span().spans
+    events = list(SpansContainer.get_span().spans.values())
     assert len(events) == 2
     # Single message.
     assert events[0]["info"]["httpInfo"]["host"] == f"{region}.queue.amazonaws.com"
@@ -192,7 +192,7 @@ def test_s3(s3_bucket_resource):
         s3_client.upload_file(os.path.abspath(__file__), s3_bucket_resource, "test.txt")
 
     lambda_test_function()
-    events = SpansContainer.get_span().spans
+    events = list(SpansContainer.get_span().spans.values())
     assert len(events) == 2
     assert events[0]["info"]["messageId"]
     assert events[0]["info"]["resourceName"] == s3_bucket_resource
@@ -206,7 +206,7 @@ def test_get_body_from_aws_response(sqs_resource, region):
         boto3.client("sqs").send_message(QueueUrl=sqs_resource, MessageBody="myMessage")
 
     lambda_test_function()
-    events = SpansContainer.get_span().spans
+    events = list(SpansContainer.get_span().spans.values())
     # making sure there is any data in the body.
     body = events[0]["info"]["httpInfo"]["response"]["body"]
     assert body and body != "b''"
