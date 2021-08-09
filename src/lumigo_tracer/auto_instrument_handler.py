@@ -1,8 +1,12 @@
-import imp
+import warnings
 import os
 import importlib
 
 from lumigo_tracer import lumigo_tracer
+
+with warnings.catch_warnings():
+    warnings.filterwarnings("ignore", category=DeprecationWarning)
+    import imp
 
 ORIGINAL_HANDLER_KEY = "LUMIGO_ORIGINAL_HANDLER"
 
