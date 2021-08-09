@@ -37,6 +37,7 @@ MALFORMED_TXID = "000000000000000000000000"
 
 
 class SpansContainer:
+    lambda_container_id = str(uuid.uuid4())
     is_cold = True
     _span: Optional["SpansContainer"] = None
 
@@ -73,6 +74,7 @@ class SpansContainer:
         self.transaction_id = transaction_id
         self.max_finish_time = max_finish_time
         self.base_msg = {
+            "lambda_container_id": SpansContainer.lambda_container_id,
             "started": started,
             "transactionId": transaction_id,
             "account": account,

@@ -176,12 +176,20 @@ def _http_send_wrapper(func, instance, args, kwargs):
     with lumigo_safe_execute("add request event"):
         if headers:
             span = add_request_event(
-                HttpRequest(host=host, method=method, uri=uri, headers=headers, body=body)
+                HttpRequest(
+                    host=host,
+                    method=method,
+                    uri=uri,
+                    headers=headers,
+                    body=body,
+                    instance_id=id(instance),
+                )
             )
         else:
             span_id = HttpState.request_to_span_id.get(id(instance))
             span = add_unparsed_request(
-                span_id, HttpRequest(host=host, method=method, uri=uri, body=data)
+                span_id,
+                HttpRequest(host=host, method=method, uri=uri, body=data, instance_id=id(instance)),
             )
     span_id = span["id"] if span else None
     if span_id:
@@ -232,6 +240,7 @@ def _requests_wrapper(func, instance, args, kwargs):
                         uri=url,
                         body=kwargs.get("data"),
                         headers=kwargs.get("headers"),
+                        instance_id=id(instance),
                     )
                 )
                 span_id = span["id"]
