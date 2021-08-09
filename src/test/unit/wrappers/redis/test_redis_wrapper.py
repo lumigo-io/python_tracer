@@ -23,7 +23,7 @@ def func(*args, **kwargs):
 def test_execute_command_wrapper_happy_flow(instance):
     result = execute_command_wrapper(func, instance, ["SET", {"a": 1}, "b"], {})
 
-    spans = SpansContainer.get_span().spans
+    spans = list(SpansContainer.get_span().spans.values())
     assert len(spans) == 1
     assert spans[0]["requestCommand"] == "SET"
     assert spans[0]["requestArgs"] == '[{"a": 1}, "b"]'
@@ -39,7 +39,7 @@ def test_execute_command_wrapper_non_json(instance):
         lambda *args, **kwargs: datetime.now(), instance, ["SET", {"a": 1}, "b"], {}
     )
 
-    spans = SpansContainer.get_span().spans
+    spans = list(SpansContainer.get_span().spans.values())
     assert len(spans) == 1
     assert spans[0]["requestCommand"] == "SET"
     assert spans[0]["requestArgs"] == '[{"a": 1}, "b"]'
@@ -54,7 +54,7 @@ def test_execute_command_wrapper_failing_command(instance):
     with pytest.raises(ZeroDivisionError):
         execute_command_wrapper(lambda *args, **kwargs: 1 / 0, instance, ["SET", {"a": 1}], {})
 
-    spans = SpansContainer.get_span().spans
+    spans = list(SpansContainer.get_span().spans.values())
     assert len(spans) == 1
     assert spans[0]["requestCommand"] == "SET"
     assert spans[0]["ended"] >= spans[0]["started"]
@@ -65,7 +65,7 @@ def test_execute_command_wrapper_failing_command(instance):
 def test_execute_command_wrapper_unexpected_params(instance):
     result = execute_command_wrapper(func, instance, {"not": "list"}, {})
 
-    spans = SpansContainer.get_span().spans
+    spans = list(SpansContainer.get_span().spans.values())
     assert len(spans) == 0
     assert result == FUNCTION_RESULT
 
@@ -74,7 +74,7 @@ def test_execute_wrapper_happy_flow(instance, monkeypatch):
     monkeypatch.setattr(instance, "command_stack", [["SET", {"a": 1}], ["GET", "a"]])
     execute_wrapper(func, instance, [], {})
 
-    spans = SpansContainer.get_span().spans
+    spans = list(SpansContainer.get_span().spans.values())
     assert len(spans) == 1
     assert spans[0]["requestCommand"] == '["SET", "GET"]'
     assert spans[0]["requestArgs"] == '[[{"a": 1}], ["a"]]'
@@ -88,7 +88,7 @@ def test_execute_wrapper_failing_command(instance, monkeypatch):
     with pytest.raises(ZeroDivisionError):
         execute_wrapper(lambda *args, **kwargs: 1 / 0, instance, [], {})
 
-    spans = SpansContainer.get_span().spans
+    spans = list(SpansContainer.get_span().spans.values())
     assert len(spans) == 1
     assert spans[0]["requestCommand"] == '["SET", "GET"]'
     assert spans[0]["ended"] >= spans[0]["started"]

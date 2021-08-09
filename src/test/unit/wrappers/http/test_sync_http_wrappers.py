@@ -36,7 +36,7 @@ def test_lambda_wrapper_http(context):
         http.client.HTTPConnection("www.google.com").request("POST", "/")
 
     lambda_test_function({}, context)
-    http_spans = SpansContainer.get_span().spans
+    http_spans = list(SpansContainer.get_span().spans.values())
     assert http_spans
     assert http_spans[0].get("info", {}).get("httpInfo", {}).get("host") == "www.google.com"
     assert "started" in http_spans[0]
@@ -51,7 +51,7 @@ def test_lambda_wrapper_query_with_http_params(context):
         http.client.HTTPConnection("www.google.com").request("GET", "/?q=123")
 
     lambda_test_function({}, context)
-    http_spans = SpansContainer.get_span().spans
+    http_spans = list(SpansContainer.get_span().spans.values())
 
     assert http_spans
     assert http_spans[0]["info"]["httpInfo"]["request"]["uri"] == "www.google.com/?q=123"
@@ -65,7 +65,7 @@ def test_uri_requests(context):
         conn.send(BytesIO(b"456"))
 
     lambda_test_function({}, context)
-    http_spans = SpansContainer.get_span().spans
+    http_spans = list(SpansContainer.get_span().spans.values())
 
     assert http_spans
     assert http_spans[0]["info"]["httpInfo"]["request"]["uri"] == "www.google.com/?q=123"
@@ -79,7 +79,7 @@ def test_lambda_wrapper_get_response(context):
         conn.getresponse()
 
     lambda_test_function({}, context)
-    http_spans = SpansContainer.get_span().spans
+    http_spans = list(SpansContainer.get_span().spans.values())
 
     assert http_spans
     assert http_spans[0]["info"]["httpInfo"]["response"]["statusCode"] == 200
@@ -98,7 +98,7 @@ def test_lambda_wrapper_http_splitted_send(context):
         conn.send(BytesIO(b"456"))
 
     lambda_test_function({}, context)
-    http_spans = SpansContainer.get_span().spans
+    http_spans = list(SpansContainer.get_span().spans.values())
     assert http_spans
     assert http_spans[0]["info"]["httpInfo"]["request"]["body"] == '"123456"'
     assert "content-length" in http_spans[0]["info"]["httpInfo"]["request"]["headers"]
@@ -110,7 +110,7 @@ def test_lambda_wrapper_no_headers(context):
         http.client.HTTPConnection("www.google.com").send(BytesIO(b"123"))
 
     lambda_test_function({}, context)
-    http_events = SpansContainer.get_span().spans
+    http_events = list(SpansContainer.get_span().spans.values())
     assert len(http_events) == 1
     assert http_events[0].get("info", {}).get("httpInfo", {}).get("host") == "www.google.com"
     assert "started" in http_events[0]
@@ -124,7 +124,7 @@ def test_lambda_wrapper_http_non_splitted_send(context):
         http.client.HTTPConnection("www.github.com").send(BytesIO(b"123"))
 
     lambda_test_function({}, context)
-    http_events = SpansContainer.get_span().spans
+    http_events = list(SpansContainer.get_span().spans.values())
     assert len(http_events) == 2
 
 
@@ -148,9 +148,9 @@ def test_catch_file_like_object_sent_on_http(context):
             pass
 
     lambda_test_function({}, context)
-    http_events = SpansContainer.get_span().spans
+    http_events = list(SpansContainer.get_span().spans.values())
     assert len(http_events) == 1
-    span = SpansContainer.get_span().spans[0]
+    span = list(SpansContainer.get_span().spans.values())[0]
     assert span["info"]["httpInfo"]["request"]["body"] == '"body"'
 
 
@@ -171,7 +171,7 @@ def test_domains_scrubber_happy_flow(monkeypatch, context):
         return http.client.HTTPConnection(host="www.google.com").send(b"\r\n")
 
     lambda_test_function({}, context)
-    http_events = SpansContainer.get_span().spans
+    http_events = list(SpansContainer.get_span().spans.values())
     assert len(http_events) == 1
     assert http_events[0].get("info", {}).get("httpInfo", {}).get("host") == "www.google.com"
     assert "headers" not in http_events[0]["info"]["httpInfo"]["request"]
@@ -189,7 +189,7 @@ def test_domains_scrubber_override_allows_default_domains(monkeypatch, context):
             return
 
     lambda_test_function({}, context)
-    http_events = SpansContainer.get_span().spans
+    http_events = list(SpansContainer.get_span().spans.values())
     assert len(http_events) == 1
     assert http_events[0].get("info", {}).get("httpInfo", {}).get("host") == ssm_url
     assert http_events[0]["info"]["httpInfo"]["request"]["headers"]
@@ -206,7 +206,7 @@ def test_wrapping_json_request(context):
         return 1
 
     assert lambda_test_function({}, context) == 1
-    http_events = SpansContainer.get_span().spans
+    http_events = list(SpansContainer.get_span().spans.values())
     assert any(
         '"content-type": "application/json"'
         in event.get("info", {}).get("httpInfo", {}).get("request", {}).get("headers", "")
@@ -237,7 +237,7 @@ def test_wrapping_urlib_stream_get(context):
 
     lambda_test_function({}, context)
     assert len(SpansContainer.get_span().spans) == 1
-    event = SpansContainer.get_span().spans[0]
+    event = list(SpansContainer.get_span().spans.values())[0]
     assert event["info"]["httpInfo"]["response"]["body"]
     assert event["info"]["httpInfo"]["response"]["statusCode"] == 200
     assert event["info"]["httpInfo"]["host"] == "www.google.com"
@@ -261,7 +261,7 @@ def test_wrapping_requests_times(monkeypatch, context):
 
     # validate that the added delay didn't affect the start time
     start_time = lambda_test_function({}, context)
-    span = SpansContainer.get_span().spans[0]
+    span = list(SpansContainer.get_span().spans.values())[0]
     assert span["started"] - start_time < 100
 
 
@@ -287,7 +287,7 @@ def test_requests_failure_before_http_call(monkeypatch, context, func_to_patch):
     assert lambda_test_function({}, context) is True
 
     assert len(SpansContainer.get_span().spans) == 1
-    span = SpansContainer.get_span().spans[0]
+    span = list(SpansContainer.get_span().spans.values())[0]
     assert span["error"]["message"] == "division by zero"
     assert span["info"]["httpInfo"]["request"]["method"] == "POST"
     assert span["info"]["httpInfo"]["request"]["body"] == '"123"'
@@ -310,7 +310,7 @@ def test_requests_failure_with_kwargs(monkeypatch, context):
     assert lambda_test_function({}, context) is True
 
     assert len(SpansContainer.get_span().spans) == 1
-    span = SpansContainer.get_span().spans[0]
+    span = list(SpansContainer.get_span().spans.values())[0]
     assert span["info"]["httpInfo"]["request"]["method"] == "POST"
 
 
@@ -339,7 +339,7 @@ def test_correct_headers_of_send_after_request(context):
         return {"lumigo": "rulz"}
 
     lambda_test_function({"key": "24"}, context)
-    spans = SpansContainer.get_span().spans
+    spans = list(SpansContainer.get_span().spans.values())
     assert spans[0]["info"]["httpInfo"]["request"]["headers"] == json.dumps({"a": "b"})
     assert spans[1]["info"]["httpInfo"]["request"]["headers"] == json.dumps({"c": "d"})
 
@@ -489,7 +489,9 @@ def test_aggregating_response_body():
 
     big_response_chunk = b"leak" * DEFAULT_MAX_ENTRY_SIZE
     for _ in range(10):
-        update_event_response(host=None, status_code=200, headers=None, body=big_response_chunk)
+        update_event_response(
+            "1", host=None, status_code=200, headers=None, body=big_response_chunk
+        )
     assert len(HttpState.previous_response_body) <= len(big_response_chunk)
 
 
@@ -516,11 +518,11 @@ def test_double_request_size_limit_on_error_status_code(context, monkeypatch):
 
     status_code = 200
     lambda_test_function({}, context)
-    http_span_no_error = copy.deepcopy(SpansContainer.get_span().spans[-1])
+    http_span_no_error = copy.deepcopy(list(SpansContainer.get_span().spans.values())[-1])
 
     status_code = 400
     lambda_test_function({}, context)
-    http_span_with_error = SpansContainer.get_span().spans[-1]
+    http_span_with_error = list(SpansContainer.get_span().spans.values())[-1]
 
     http_info_no_error = http_span_no_error["info"]["httpInfo"]
     http_info_with_error = http_span_with_error["info"]["httpInfo"]
@@ -547,7 +549,7 @@ def test_on_error_status_code_not_scrub_dynamodb(context, monkeypatch):
             pass
 
     lambda_test_function({}, context)
-    http_info = SpansContainer.get_span().spans[-1]["info"]["httpInfo"]
+    http_info = list(SpansContainer.get_span().spans.values())[-1]["info"]["httpInfo"]
 
     assert http_info["response"]["statusCode"] >= 400  # Verify error occurred
     # Verify `Key` wasn't scrubbed
