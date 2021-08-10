@@ -132,6 +132,19 @@ def test_lambda_wrapper_http_non_splitted_send(context, token):
     assert len(http_events) == 2
 
 
+def test_lambda_wrapper_http_same_connection_two_requests(context, token):
+    @lumigo_tracer.lumigo_tracer(token=token)
+    def lambda_test_function(event, context):
+        a = http.client.HTTPConnection("www.google.com")
+        a.request("POST", "/")
+        a.getresponse()
+        a.request("GET", "/")
+
+    lambda_test_function({}, context)
+    http_events = list(SpansContainer.get_span().spans.values())
+    assert len(http_events) == 2
+
+
 def test_catch_file_like_object_sent_on_http(context, token):
     class A:
         def seek(self, where):
@@ -493,9 +506,10 @@ def test_aggregating_response_body():
     """
     SpansContainer.create_span()
     add_request_event(
+        None,
         HttpRequest(
             host="dummy", method="dummy", uri="dummy", headers={"dummy": "dummy"}, body="dummy"
-        )
+        ),
     )
 
     big_response_chunk = b"leak" * DEFAULT_MAX_ENTRY_SIZE
