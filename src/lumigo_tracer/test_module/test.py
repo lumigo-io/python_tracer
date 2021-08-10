@@ -1,2 +1,2 @@
-def cde(*args, **kwargs):
+def handler(*args, **kwargs):
     return {"hello": "world"}

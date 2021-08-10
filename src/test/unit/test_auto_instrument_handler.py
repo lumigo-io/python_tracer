@@ -18,7 +18,7 @@ def test_happy_flow(monkeypatch):
 
 
 def test_hierarchy_happy_flow(monkeypatch):
-    monkeypatch.setenv(ORIGINAL_HANDLER_KEY, "lumigo_tracer/test_module/test.cde")
+    monkeypatch.setenv(ORIGINAL_HANDLER_KEY, "lumigo_tracer/test_module/test.handler")
     assert _handler({}, {}) == {"hello": "world"}
 
 
