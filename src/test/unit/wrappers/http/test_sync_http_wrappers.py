@@ -20,7 +20,7 @@ from lumigo_tracer.auto_tag import auto_tag_event
 from lumigo_tracer.lumigo_utils import EXECUTION_TAGS_KEY, DEFAULT_MAX_ENTRY_SIZE, Configuration
 from lumigo_tracer.wrappers.http.http_parser import Parser
 from lumigo_tracer.spans_container import SpansContainer
-from lumigo_tracer.wrappers.http.http_data_classes import HttpState, HttpRequest
+from lumigo_tracer.wrappers.http.http_data_classes import HttpRequest
 from lumigo_tracer.wrappers.http.sync_http_wrappers import (
     add_request_event,
     update_event_response,
@@ -505,7 +505,7 @@ def test_aggregating_response_body():
     Unfortunately python doesn't give us better tools, so we must check the problematic member itself.
     """
     SpansContainer.create_span()
-    add_request_event(
+    span = add_request_event(
         None,
         HttpRequest(
             host="dummy", method="dummy", uri="dummy", headers={"dummy": "dummy"}, body="dummy"
@@ -515,9 +515,10 @@ def test_aggregating_response_body():
     big_response_chunk = b"leak" * DEFAULT_MAX_ENTRY_SIZE
     for _ in range(10):
         update_event_response(
-            "1", host=None, status_code=200, headers=None, body=big_response_chunk
+            span["id"], host=None, status_code=200, headers=None, body=big_response_chunk
         )
-    assert len(HttpState.previous_response_body) <= len(big_response_chunk)
+    body = list(SpansContainer.get_span().spans.values())[0]["info"]["httpInfo"]["response"]["body"]
+    assert len(body) <= len(big_response_chunk)
 
 
 def test_double_request_size_limit_on_error_status_code(context, monkeypatch, token):

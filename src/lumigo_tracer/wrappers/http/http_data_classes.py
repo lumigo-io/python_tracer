@@ -27,7 +27,6 @@ class HttpRequest:
 
 class HttpState:
     previous_request: Optional[HttpRequest] = None
-    previous_response_body: bytes = b""
     previous_span_id: Optional[str] = None
     omit_skip_path: Optional[List[str]] = None
     request_to_span_id: Dict[int, str] = {}
@@ -36,6 +35,5 @@ class HttpState:
     @staticmethod
     def clear():
         HttpState.previous_request = None
-        HttpState.previous_response_body = b""
         HttpState.request_to_span_id.clear()
         HttpState.response_to_span_id.clear()

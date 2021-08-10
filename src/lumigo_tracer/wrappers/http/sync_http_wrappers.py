@@ -92,19 +92,16 @@ def update_event_response(
         http_info = last_event.get("info", {}).get("httpInfo", {})
         if not host:
             host = http_info.get("host", "unknown")
-        else:
-            HttpState.previous_response_body = b""
+        body = http_info.get("response", {}).get("body", "").encode() + body
 
         has_error = is_error_code(status_code)
         max_size = Configuration.get_max_entry_size(has_error)
         headers = {k.lower(): v for k, v in headers.items()} if headers else {}
         parser = get_parser(host, headers)()  # type: ignore
-        if len(HttpState.previous_response_body) < max_size:
-            HttpState.previous_response_body += body
         if has_error:
             _update_request_data_increased_size_limit(http_info, max_size)
         update = parser.parse_response(  # type: ignore
-            host, status_code, headers, HttpState.previous_response_body  # type: ignore
+            host, status_code, headers, body  # type: ignore
         )
         update["id"] = span_id
         SpansContainer.get_span().add_span(recursive_json_join(update, last_event))
@@ -132,7 +129,9 @@ def get_lumigo_connection_id(instance) -> Optional[int]:
 
 
 def set_lumigo_connection_id(instance):
-    setattr(instance, LUMIGO_CONNECTION_ID_KEY, random.random())
+    r = random.random()
+    print("Choose random", r)
+    setattr(instance, LUMIGO_CONNECTION_ID_KEY, r)
 
 
 #   Wrappers  #
