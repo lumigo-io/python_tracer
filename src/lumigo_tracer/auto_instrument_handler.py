@@ -1,7 +1,12 @@
+import warnings
 import os
 import importlib
 
 from lumigo_tracer import lumigo_tracer
+
+with warnings.catch_warnings():
+    warnings.filterwarnings("ignore", category=DeprecationWarning)
+    import imp
 
 ORIGINAL_HANDLER_KEY = "LUMIGO_ORIGINAL_HANDLER"
 
@@ -9,6 +14,7 @@ ORIGINAL_HANDLER_KEY = "LUMIGO_ORIGINAL_HANDLER"
 def parse_handler():
     try:
         module_name, unit_name = os.environ[ORIGINAL_HANDLER_KEY].rsplit(".", 1)
+        file_handle, pathname, desc = imp.find_module(module_name)
     except KeyError:
         raise Exception(
             "Could not find the original handler. Please contact Lumigo for more information."
@@ -17,16 +23,15 @@ def parse_handler():
         raise ValueError(
             f"Runtime.MalformedHandlerName: Bad handler '{os.environ[ORIGINAL_HANDLER_KEY]}': {str(e)}"
         ) from None
-    importable_name = module_name.replace("/", ".")
-    return importable_name, unit_name
+    return module_name, unit_name, file_handle, pathname, desc
 
 
 @lumigo_tracer()
 def _handler(*args, **kwargs):
     handler_module = ""
     try:
-        handler_module, unit_name = parse_handler()
-        original_module = importlib.import_module(handler_module)
+        handler_module, unit_name, file_handle, pathname, desc = parse_handler()
+        original_module = imp.load_module(handler_module, file_handle, pathname, desc)
     except ImportError as e:
         raise ImportError(
             f"Runtime.ImportModuleError: Unable to import module '{handler_module}': {str(e)}"

@@ -1,32 +1,25 @@
-import importlib
+import imp
+
 import traceback
 
 import mock
-import sys
-import os
 
 import pytest
 from lumigo_tracer.auto_instrument_handler import _handler, ORIGINAL_HANDLER_KEY
 
 
+def abc(*args, **kwargs):
+    return {"hello": "world"}
+
+
 def test_happy_flow(monkeypatch):
-    m = mock.Mock(return_value={"hello": "world"})
-    monkeypatch.setattr(sys, "exit", m)
-    monkeypatch.setenv(ORIGINAL_HANDLER_KEY, "sys.exit")
-
+    monkeypatch.setenv(ORIGINAL_HANDLER_KEY, "test_auto_instrument_handler.abc")
     assert _handler({}, {}) == {"hello": "world"}
-
-    m.assert_called_once()
 
 
 def test_hierarchy_happy_flow(monkeypatch):
-    monkeypatch.setenv(ORIGINAL_HANDLER_KEY, "os/path.getsize")
-    m = mock.Mock(return_value={"hello": "world"})
-    monkeypatch.setattr(os.path, "getsize", m)
-
+    monkeypatch.setenv(ORIGINAL_HANDLER_KEY, "lumigo_tracer/test_module/test.handler")
     assert _handler({}, {}) == {"hello": "world"}
-
-    m.assert_called_once()
 
 
 def test_import_error(monkeypatch):
@@ -51,7 +44,7 @@ def test_no_env_handler_error(monkeypatch):
 
 
 def test_error_in_original_handler_no_extra_exception_log(monkeypatch, context):
-    monkeypatch.setattr(importlib, "import_module", mock.Mock(side_effect=ZeroDivisionError))
+    monkeypatch.setattr(imp, "load_module", mock.Mock(side_effect=ZeroDivisionError))
     monkeypatch.setenv(ORIGINAL_HANDLER_KEY, "sys.exit")
 
     try:
@@ -64,7 +57,7 @@ def test_error_in_original_handler_no_extra_exception_log(monkeypatch, context):
 
 
 def test_error_in_original_handler_syntax_error(monkeypatch, context):
-    monkeypatch.setattr(importlib, "import_module", mock.Mock(side_effect=SyntaxError))
+    monkeypatch.setattr(imp, "load_module", mock.Mock(side_effect=SyntaxError))
     monkeypatch.setenv(ORIGINAL_HANDLER_KEY, "sys.exit")
 
     try:
