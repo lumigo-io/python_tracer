@@ -66,14 +66,13 @@ def add_unparsed_request(span_id: Optional[str], parse_params: HttpRequest) -> O
         return None
     last_event = SpansContainer.get_span().get_span_by_id(span_id)
     if last_event:
-        if last_event and last_event.get("type") == HTTP_TYPE and HttpState.previous_request:
-            if last_event.get("info", {}).get("httpInfo", {}).get("host") == parse_params.host:
-                if "response" not in last_event["info"]["httpInfo"]:
+        if last_event and last_event.get("type") == HTTP_TYPE:
+            http_info = last_event.get("info", {}).get("httpInfo", {})
+            if http_info.get("host") == parse_params.host:
+                if "response" not in http_info:
                     SpansContainer.get_span().pop_span(span_id)
-                    body = (HttpState.previous_request.body + parse_params.body)[
-                        : get_size_upper_bound()
-                    ]
-                    return add_request_event(span_id, HttpState.previous_request.clone(body=body))
+                    body = http_info.get("request", {}).get("body", "").encode() + parse_params.body
+                    return add_request_event(span_id, parse_params.clone(body=body))
     return add_request_event(span_id, parse_params.clone(headers=None))
 
 
@@ -110,6 +109,8 @@ def update_event_response(
 def _update_request_data_increased_size_limit(http_info: dict, max_size: int) -> None:
     if not HttpState.previous_request or not http_info.get("request"):
         return
+    if http_info["request"].get("body", "").encode() not in HttpState.previous_request.body:
+        return  # this is a different request (non-sync case_
     http_info["request"].update(
         {
             "body": lumigo_dumps(
@@ -129,9 +130,7 @@ def get_lumigo_connection_id(instance) -> Optional[int]:
 
 
 def set_lumigo_connection_id(instance):
-    r = random.random()
-    print("Choose random", r)
-    setattr(instance, LUMIGO_CONNECTION_ID_KEY, r)
+    setattr(instance, LUMIGO_CONNECTION_ID_KEY, random.random())
 
 
 #   Wrappers  #
