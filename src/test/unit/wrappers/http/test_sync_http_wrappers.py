@@ -521,8 +521,7 @@ def test_aggregating_response_body():
     assert len(body) <= len(big_response_chunk)
 
 
-def test_double_request_size_limit_on_error_status_code(context, monkeypatch, token):
-    d = {"a": "v" * int(Configuration.get_max_entry_size() * 1.5)}
+def test_double_response_size_limit_on_error_status_code(context, monkeypatch, token):
     original_begin = http.client.HTTPResponse.begin
 
     def mocked_begin(*args, **kwargs):
@@ -532,6 +531,7 @@ def test_double_request_size_limit_on_error_status_code(context, monkeypatch, to
         return_value = original_begin(*args, **kwargs)
         response_self = args[0]
         response_self.code = status_code
+        response_self.headers = {"a": "v" * int(Configuration.get_max_entry_size() * 1.5)}
         return return_value
 
     monkeypatch.setattr(http.client.HTTPResponse, "begin", mocked_begin)
@@ -539,7 +539,7 @@ def test_double_request_size_limit_on_error_status_code(context, monkeypatch, to
     @lumigo_tracer.lumigo_tracer(token=token)
     def lambda_test_function(event, context):
         conn = http.client.HTTPConnection("www.google.com")
-        conn.request("GET", "/", json.dumps(d), headers=d)
+        conn.request("GET", "/")
         conn.getresponse()
 
     status_code = 200
@@ -552,17 +552,13 @@ def test_double_request_size_limit_on_error_status_code(context, monkeypatch, to
 
     http_info_no_error = http_span_no_error["info"]["httpInfo"]
     http_info_with_error = http_span_with_error["info"]["httpInfo"]
-    request_with_error = http_info_with_error["request"]
-    request_no_error = http_info_no_error["request"]
+    response_with_error = http_info_with_error["response"]
+    response_no_error = http_info_no_error["response"]
 
     assert http_info_no_error["response"]["statusCode"] == 200
     assert http_info_with_error["response"]["statusCode"] >= 400
 
-    assert len(request_with_error["headers"]) > len(request_no_error["headers"])
-    assert request_with_error["headers"] == json.dumps(d)
-
-    assert len(request_with_error["body"]) > len(request_no_error["body"])
-    assert request_with_error["body"] == json.dumps(d)
+    assert len(response_with_error["headers"]) > len(response_no_error["headers"])
 
 
 def test_on_error_status_code_not_scrub_dynamodb(context, monkeypatch, token):

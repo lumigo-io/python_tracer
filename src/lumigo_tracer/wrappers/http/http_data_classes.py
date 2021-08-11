@@ -29,11 +29,11 @@ class HttpState:
     previous_request: Optional[HttpRequest] = None
     previous_span_id: Optional[str] = None
     omit_skip_path: Optional[List[str]] = None
-    request_to_span_id: Dict[int, str] = {}
-    response_to_span_id: Dict[int, str] = {}
+    request_id_to_span_id: Dict[int, str] = {}
+    response_id_to_span_id: Dict[int, str] = {}
 
     @staticmethod
     def clear():
         HttpState.previous_request = None
-        HttpState.request_to_span_id.clear()
-        HttpState.response_to_span_id.clear()
+        HttpState.request_id_to_span_id.clear()
+        HttpState.response_id_to_span_id.clear()
