@@ -522,6 +522,7 @@ def test_aggregating_response_body():
 
 
 def test_double_response_size_limit_on_error_status_code(context, monkeypatch, token):
+    d = {"a": "v" * int(Configuration.get_max_entry_size() * 1.5)}
     original_begin = http.client.HTTPResponse.begin
 
     def mocked_begin(*args, **kwargs):
@@ -539,7 +540,7 @@ def test_double_response_size_limit_on_error_status_code(context, monkeypatch, t
     @lumigo_tracer.lumigo_tracer(token=token)
     def lambda_test_function(event, context):
         conn = http.client.HTTPConnection("www.google.com")
-        conn.request("GET", "/")
+        conn.request("GET", "/", json.dumps(d), headers=d)
         conn.getresponse()
 
     status_code = 200
@@ -552,13 +553,17 @@ def test_double_response_size_limit_on_error_status_code(context, monkeypatch, t
 
     http_info_no_error = http_span_no_error["info"]["httpInfo"]
     http_info_with_error = http_span_with_error["info"]["httpInfo"]
-    response_with_error = http_info_with_error["response"]
-    response_no_error = http_info_no_error["response"]
+    request_with_error = http_info_with_error["request"]
+    request_no_error = http_info_no_error["request"]
 
     assert http_info_no_error["response"]["statusCode"] == 200
     assert http_info_with_error["response"]["statusCode"] >= 400
 
-    assert len(response_with_error["headers"]) > len(response_no_error["headers"])
+    assert len(request_with_error["headers"]) > len(request_no_error["headers"])
+    assert request_with_error["headers"] == json.dumps(d)
+
+    assert len(request_with_error["body"]) > len(request_no_error["body"])
+    assert request_with_error["body"] == json.dumps(d)
 
 
 def test_on_error_status_code_not_scrub_dynamodb(context, monkeypatch, token):
