@@ -8,7 +8,8 @@ from lumigo_tracer.lumigo_utils import Configuration, warn_client
 LUMIGO_REPORT_ERROR_STRING = "[LUMIGO_LOG]"
 MAX_TAGS = 50
 MAX_ELEMENTS_IN_EXTRA = 10
-MAX_TAG_KEY_LEN = MAX_TAG_VALUE_LEN = 50
+MAX_TAG_KEY_LEN = 50
+MAX_TAG_VALUE_LEN = 70
 ADD_TAG_ERROR_MSG_PREFIX = "Skipping add_execution_tag: Unable to add tag"
 
 
@@ -117,7 +118,7 @@ def add_execution_tag(key: str, value: str, should_log_errors: bool = True) -> b
 
     The maximum number of tags is 50.
     :param key: Length should be between 1 and 50.
-    :param value: Length should be between 1 and 50.
+    :param value: Length should be between 1 and 70.
     :param should_log_errors: Should a log message be printed in case the tag can't be added.
     """
     try:
