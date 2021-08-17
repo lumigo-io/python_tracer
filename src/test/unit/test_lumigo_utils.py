@@ -44,6 +44,7 @@ from lumigo_tracer.lumigo_utils import (
     CHINA_REGION,
     internal_analytics_message,
     INTERNAL_ANALYTICS_PREFIX,
+    InternalState,
 )
 import json
 
@@ -492,6 +493,10 @@ def test_report_json_fast_failure_after_timeout(monkeypatch, reporter_mock, capl
 
     assert report_json(None, [{"a": "b"}]) == 0
     assert caplog.records[-1].msg == "Skip sending messages due to previous timeout"
+
+    InternalState.timeout_on_connection = datetime.datetime(2016, 1, 1)
+    assert report_json(None, [{"a": "b"}]) == 0
+    assert caplog.records[-1].msg == "Timeout while connecting to host"
 
 
 def test_report_json_china_missing_access_key_id(monkeypatch, reporter_mock, caplog):

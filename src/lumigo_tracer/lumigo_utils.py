@@ -1,3 +1,4 @@
+import datetime
 import decimal
 import base64
 import hashlib
@@ -34,6 +35,7 @@ EDGE_PATH = "/api/spans"
 HTTPS_PREFIX = "https://"
 LOG_FORMAT = "#LUMIGO# - %(asctime)s - %(levelname)s - %(message)s"
 SECONDS_TO_TIMEOUT = 0.5
+COOLDOWN_AFTER_TIMEOUT_DURATION = 10
 LUMIGO_EVENT_KEY = "_lumigo"
 STEP_FUNCTION_UID_KEY = "step_function_uid"
 # number of spans that are too big to enter the reported message before break
@@ -107,13 +109,24 @@ except Exception:
 
 
 class InternalState:
-    timeout_on_connection = False
+    timeout_on_connection: Optional[datetime.datetime] = None
     internal_error_already_logged = False
 
     @staticmethod
     def reset():
-        InternalState.timeout_on_connection = False
+        InternalState.timeout_on_connection = None
         InternalState.internal_error_already_logged = False
+
+    @staticmethod
+    def mark_timeout_to_edge():
+        InternalState.timeout_on_connection = datetime.datetime.now()
+
+    @staticmethod
+    def should_report_to_edge():
+        if not InternalState.timeout_on_connection:
+            return True
+        gap = datetime.timedelta(seconds=COOLDOWN_AFTER_TIMEOUT_DURATION)
+        return datetime.datetime.now() - InternalState.timeout_on_connection > gap
 
 
 class Configuration:
@@ -313,7 +326,7 @@ def report_json(region: Optional[str], msgs: List[dict], should_retry: bool = Tr
     :return: The duration of reporting (in milliseconds),
                 or 0 if we didn't send (due to configuration or fail).
     """
-    if InternalState.timeout_on_connection:
+    if not InternalState.should_report_to_edge():
         get_logger().info("Skip sending messages due to previous timeout")
         return 0
     if not Configuration.should_report:
@@ -353,7 +366,7 @@ def report_json(region: Optional[str], msgs: List[dict], should_retry: bool = Tr
         get_logger().info(f"successful reporting, code: {getattr(response, 'code', 'unknown')}")
     except socket.timeout:
         get_logger().exception(f"Timeout while connecting to {host}")
-        InternalState.timeout_on_connection = True
+        InternalState.mark_timeout_to_edge()
         internal_analytics_message("report: socket.timeout")
     except Exception as e:
         if should_retry:
