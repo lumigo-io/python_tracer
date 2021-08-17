@@ -9,6 +9,7 @@ import uuid
 from functools import reduce, lru_cache
 import time
 import http.client
+import socket
 from collections import OrderedDict
 import random
 from typing import Union, List, Optional, Dict, Any, Tuple, Pattern, TypeVar
@@ -82,6 +83,7 @@ _logger: Dict[str, logging.Logger] = {}
 edge_kinesis_boto_client = None
 edge_connection = None
 internal_error_already_logged = False
+timeout_on_connection = False
 
 
 def should_use_tracer_extension() -> bool:
@@ -303,6 +305,10 @@ def report_json(region: Optional[str], msgs: List[dict], should_retry: bool = Tr
     :return: The duration of reporting (in milliseconds),
                 or 0 if we didn't send (due to configuration or fail).
     """
+    global timeout_on_connection
+    if timeout_on_connection:
+        get_logger().info("Skip sending messages due to previous timeout")
+        return 0
     if not Configuration.should_report:
         return 0
     get_logger().info(f"reporting the messages: {msgs[:10]}")
@@ -338,6 +344,10 @@ def report_json(region: Optional[str], msgs: List[dict], should_retry: bool = Tr
         response.read()  # We most read the response to keep the connection available
         duration = int((time.time() - start_time) * 1000)
         get_logger().info(f"successful reporting, code: {getattr(response, 'code', 'unknown')}")
+    except socket.timeout:
+        get_logger().exception(f"Timeout while connecting to {host}")
+        timeout_on_connection = True
+        internal_analytics_message("report: socket.timeout")
     except Exception as e:
         if should_retry:
             get_logger().exception(f"Could not report to {host}. Retrying.", exc_info=e)
