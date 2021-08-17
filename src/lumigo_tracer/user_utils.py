@@ -118,7 +118,7 @@ def add_execution_tag(key: str, value: str, should_log_errors: bool = True) -> b
 
     The maximum number of tags is 50.
     :param key: Length should be between 1 and 50.
-    :param value: Length should be between 1 and 50.
+    :param value: Length should be between 1 and 70.
     :param should_log_errors: Should a log message be printed in case the tag can't be added.
     """
     try:
