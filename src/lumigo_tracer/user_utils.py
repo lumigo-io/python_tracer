@@ -8,7 +8,8 @@ from lumigo_tracer.lumigo_utils import Configuration, warn_client
 LUMIGO_REPORT_ERROR_STRING = "[LUMIGO_LOG]"
 MAX_TAGS = 50
 MAX_ELEMENTS_IN_EXTRA = 10
-MAX_TAG_KEY_LEN = MAX_TAG_VALUE_LEN = 50
+MAX_TAG_KEY_LEN = 50
+MAX_TAG_VALUE_LEN = 70
 ADD_TAG_ERROR_MSG_PREFIX = "Skipping add_execution_tag: Unable to add tag"
 
 
