@@ -94,20 +94,6 @@ def get_region() -> str:
     return os.environ.get("AWS_REGION") or "UNKNOWN"
 
 
-try:
-    # Try to establish the connection in initialization
-    if (
-        os.environ.get("LUMIGO_INITIALIZATION_CONNECTION", "").lower() != "false"
-        and get_region() != CHINA_REGION  # noqa
-    ):
-        edge_connection = http.client.HTTPSConnection(  # type: ignore
-            EDGE_HOST.format(region=os.environ.get("AWS_REGION")), timeout=EDGE_TIMEOUT
-        )
-        edge_connection.connect()
-except Exception:
-    pass
-
-
 class InternalState:
     timeout_on_connection: Optional[datetime.datetime] = None
     internal_error_already_logged = False
@@ -298,8 +284,10 @@ def _create_request_body(
     return aws_dump(spans_to_send)[:max_size]
 
 
-def establish_connection(host):
+def establish_connection(host=None):
     try:
+        if not host:
+            host = get_edge_host(os.environ.get("AWS_REGION"))
         return http.client.HTTPSConnection(host, timeout=EDGE_TIMEOUT)
     except Exception as e:
         get_logger().exception(f"Could not establish connection to {host}", exc_info=e)
@@ -782,3 +770,17 @@ def is_provision_concurrency_initialization() -> bool:
 def get_stacktrace(exception: Exception) -> str:
     original_traceback = traceback.format_tb(exception.__traceback__)
     return "".join(filter(lambda line: STACKTRACE_LINE_TO_DROP not in line, original_traceback))
+
+
+try:
+    # Try to establish the connection in initialization
+    if (
+        os.environ.get("LUMIGO_INITIALIZATION_CONNECTION", "").lower() != "false"
+        and get_region() != CHINA_REGION  # noqa
+    ):
+        edge_connection = establish_connection()
+        edge_connection.connect()
+except socket.timeout:
+    InternalState.mark_timeout_to_edge()
+except Exception:
+    pass
