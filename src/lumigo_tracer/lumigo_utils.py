@@ -82,8 +82,6 @@ _logger: Dict[str, logging.Logger] = {}
 
 edge_kinesis_boto_client = None
 edge_connection = None
-internal_error_already_logged = False
-timeout_on_connection = False
 
 
 def should_use_tracer_extension() -> bool:
@@ -106,6 +104,16 @@ try:
         edge_connection.connect()
 except Exception:
     pass
+
+
+class InternalState:
+    timeout_on_connection = False
+    internal_error_already_logged = False
+
+    @staticmethod
+    def reset():
+        InternalState.timeout_on_connection = False
+        InternalState.internal_error_already_logged = False
 
 
 class Configuration:
@@ -305,8 +313,7 @@ def report_json(region: Optional[str], msgs: List[dict], should_retry: bool = Tr
     :return: The duration of reporting (in milliseconds),
                 or 0 if we didn't send (due to configuration or fail).
     """
-    global timeout_on_connection
-    if timeout_on_connection:
+    if InternalState.timeout_on_connection:
         get_logger().info("Skip sending messages due to previous timeout")
         return 0
     if not Configuration.should_report:
@@ -346,7 +353,7 @@ def report_json(region: Optional[str], msgs: List[dict], should_retry: bool = Tr
         get_logger().info(f"successful reporting, code: {getattr(response, 'code', 'unknown')}")
     except socket.timeout:
         get_logger().exception(f"Timeout while connecting to {host}")
-        timeout_on_connection = True
+        InternalState.timeout_on_connection = True
         internal_analytics_message("report: socket.timeout")
     except Exception as e:
         if should_retry:
@@ -539,12 +546,11 @@ def warn_client(msg: str) -> None:
 
 
 def internal_analytics_message(msg: str, force: bool = False) -> None:
-    global internal_error_already_logged
     if os.environ.get("LUMIGO_ANALYTICS") != "off":
-        if force or not internal_error_already_logged:
+        if force or not InternalState.internal_error_already_logged:
             b64_message = base64.b64encode(msg.encode()).decode()
             print(f"{INTERNAL_ANALYTICS_PREFIX}: {b64_message}")
-            internal_error_already_logged = True
+            InternalState.internal_error_already_logged = True
 
 
 def is_api_gw_event(event: dict) -> bool:
