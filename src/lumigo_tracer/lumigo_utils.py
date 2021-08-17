@@ -1,3 +1,4 @@
+import datetime
 import decimal
 import base64
 import hashlib
@@ -9,6 +10,7 @@ import uuid
 from functools import reduce, lru_cache
 import time
 import http.client
+import socket
 from collections import OrderedDict
 import random
 from typing import Union, List, Optional, Dict, Any, Tuple, Pattern, TypeVar
@@ -33,6 +35,7 @@ EDGE_PATH = "/api/spans"
 HTTPS_PREFIX = "https://"
 LOG_FORMAT = "#LUMIGO# - %(asctime)s - %(levelname)s - %(message)s"
 SECONDS_TO_TIMEOUT = 0.5
+COOLDOWN_AFTER_TIMEOUT_DURATION = datetime.timedelta(seconds=10)
 LUMIGO_EVENT_KEY = "_lumigo"
 STEP_FUNCTION_UID_KEY = "step_function_uid"
 # number of spans that are too big to enter the reported message before break
@@ -81,7 +84,6 @@ _logger: Dict[str, logging.Logger] = {}
 
 edge_kinesis_boto_client = None
 edge_connection = None
-internal_error_already_logged = False
 
 
 def should_use_tracer_extension() -> bool:
@@ -92,18 +94,25 @@ def get_region() -> str:
     return os.environ.get("AWS_REGION") or "UNKNOWN"
 
 
-try:
-    # Try to establish the connection in initialization
-    if (
-        os.environ.get("LUMIGO_INITIALIZATION_CONNECTION", "").lower() != "false"
-        and get_region() != CHINA_REGION  # noqa
-    ):
-        edge_connection = http.client.HTTPSConnection(  # type: ignore
-            EDGE_HOST.format(region=os.environ.get("AWS_REGION")), timeout=EDGE_TIMEOUT
-        )
-        edge_connection.connect()
-except Exception:
-    pass
+class InternalState:
+    timeout_on_connection: Optional[datetime.datetime] = None
+    internal_error_already_logged = False
+
+    @staticmethod
+    def reset():
+        InternalState.timeout_on_connection = None
+        InternalState.internal_error_already_logged = False
+
+    @staticmethod
+    def mark_timeout_to_edge():
+        InternalState.timeout_on_connection = datetime.datetime.now()
+
+    @staticmethod
+    def should_report_to_edge() -> bool:
+        if not InternalState.timeout_on_connection:
+            return True
+        time_diff = datetime.datetime.now() - InternalState.timeout_on_connection
+        return time_diff > COOLDOWN_AFTER_TIMEOUT_DURATION
 
 
 class Configuration:
@@ -275,8 +284,10 @@ def _create_request_body(
     return aws_dump(spans_to_send)[:max_size]
 
 
-def establish_connection(host):
+def establish_connection(host=None):
     try:
+        if not host:
+            host = get_edge_host(os.environ.get("AWS_REGION"))
         return http.client.HTTPSConnection(host, timeout=EDGE_TIMEOUT)
     except Exception as e:
         get_logger().exception(f"Could not establish connection to {host}", exc_info=e)
@@ -303,6 +314,9 @@ def report_json(region: Optional[str], msgs: List[dict], should_retry: bool = Tr
     :return: The duration of reporting (in milliseconds),
                 or 0 if we didn't send (due to configuration or fail).
     """
+    if not InternalState.should_report_to_edge():
+        get_logger().info("Skip sending messages due to previous timeout")
+        return 0
     if not Configuration.should_report:
         return 0
     get_logger().info(f"reporting the messages: {msgs[:10]}")
@@ -338,6 +352,10 @@ def report_json(region: Optional[str], msgs: List[dict], should_retry: bool = Tr
         response.read()  # We most read the response to keep the connection available
         duration = int((time.time() - start_time) * 1000)
         get_logger().info(f"successful reporting, code: {getattr(response, 'code', 'unknown')}")
+    except socket.timeout:
+        get_logger().exception(f"Timeout while connecting to {host}")
+        InternalState.mark_timeout_to_edge()
+        internal_analytics_message("report: socket.timeout")
     except Exception as e:
         if should_retry:
             get_logger().exception(f"Could not report to {host}. Retrying.", exc_info=e)
@@ -529,12 +547,11 @@ def warn_client(msg: str) -> None:
 
 
 def internal_analytics_message(msg: str, force: bool = False) -> None:
-    global internal_error_already_logged
     if os.environ.get("LUMIGO_ANALYTICS") != "off":
-        if force or not internal_error_already_logged:
+        if force or not InternalState.internal_error_already_logged:
             b64_message = base64.b64encode(msg.encode()).decode()
             print(f"{INTERNAL_ANALYTICS_PREFIX}: {b64_message}")
-            internal_error_already_logged = True
+            InternalState.internal_error_already_logged = True
 
 
 def is_api_gw_event(event: dict) -> bool:
@@ -753,3 +770,17 @@ def is_provision_concurrency_initialization() -> bool:
 def get_stacktrace(exception: Exception) -> str:
     original_traceback = traceback.format_tb(exception.__traceback__)
     return "".join(filter(lambda line: STACKTRACE_LINE_TO_DROP not in line, original_traceback))
+
+
+try:
+    # Try to establish the connection in initialization
+    if (
+        os.environ.get("LUMIGO_INITIALIZATION_CONNECTION", "").lower() != "false"
+        and get_region() != CHINA_REGION  # noqa
+    ):
+        edge_connection = establish_connection()
+        edge_connection.connect()
+except socket.timeout:
+    InternalState.mark_timeout_to_edge()
+except Exception:
+    pass
