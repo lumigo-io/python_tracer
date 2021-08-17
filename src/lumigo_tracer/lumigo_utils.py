@@ -35,7 +35,7 @@ EDGE_PATH = "/api/spans"
 HTTPS_PREFIX = "https://"
 LOG_FORMAT = "#LUMIGO# - %(asctime)s - %(levelname)s - %(message)s"
 SECONDS_TO_TIMEOUT = 0.5
-COOLDOWN_AFTER_TIMEOUT_DURATION = 10
+COOLDOWN_AFTER_TIMEOUT_DURATION = datetime.timedelta(seconds=10)
 LUMIGO_EVENT_KEY = "_lumigo"
 STEP_FUNCTION_UID_KEY = "step_function_uid"
 # number of spans that are too big to enter the reported message before break
@@ -108,11 +108,11 @@ class InternalState:
         InternalState.timeout_on_connection = datetime.datetime.now()
 
     @staticmethod
-    def should_report_to_edge():
+    def should_report_to_edge() -> bool:
         if not InternalState.timeout_on_connection:
             return True
-        gap = datetime.timedelta(seconds=COOLDOWN_AFTER_TIMEOUT_DURATION)
-        return datetime.datetime.now() - InternalState.timeout_on_connection > gap
+        time_diff = datetime.datetime.now() - InternalState.timeout_on_connection
+        return time_diff > COOLDOWN_AFTER_TIMEOUT_DURATION
 
 
 class Configuration:
