@@ -163,6 +163,7 @@ class SpansContainer:
     def pop_span(self, span_id: Optional[str]) -> Optional[dict]:
         if not span_id:
             return None
+        self.span_ids_to_send.discard(span_id)
         return self.spans.pop(span_id, None)
 
     def update_event_end_time(self, span_id: str) -> None:

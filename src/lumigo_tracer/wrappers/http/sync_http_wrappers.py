@@ -107,7 +107,6 @@ def update_event_response(
         update = parser.parse_response(  # type: ignore
             host, status_code, headers, body  # type: ignore
         )
-        update["id"] = span_id
         SpansContainer.get_span().add_span(recursive_json_join(update, last_event))
 
 
