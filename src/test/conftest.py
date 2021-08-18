@@ -8,7 +8,13 @@ import mock
 import pytest
 
 from lumigo_tracer import lumigo_utils
-from lumigo_tracer.lumigo_utils import Configuration, get_omitting_regex, get_logger, get_edge_host
+from lumigo_tracer.lumigo_utils import (
+    Configuration,
+    get_omitting_regex,
+    get_logger,
+    get_edge_host,
+    InternalState,
+)
 from lumigo_tracer.spans_container import SpansContainer
 from lumigo_tracer.wrappers.http.http_data_classes import HttpState
 
@@ -42,6 +48,7 @@ def restart_global_span():
     yield
     SpansContainer._span = None
     HttpState.clear()
+    InternalState.reset()
 
 
 @pytest.yield_fixture(autouse=True)
