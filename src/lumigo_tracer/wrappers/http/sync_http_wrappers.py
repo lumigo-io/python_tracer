@@ -83,14 +83,14 @@ def add_unparsed_request(span_id: Optional[str], parse_params: HttpRequest) -> O
 
 def update_event_response(
     span_id: str, host: Optional[str], status_code: int, headers: dict, body: bytes
-) -> None:
+) -> str:
     """
     :param host: If None, use the host from the last span, otherwise this is the first chuck and we can empty
                         the aggregated response body
     This function assumes synchronous execution - we update the last http event.
     """
     if is_lumigo_edge(host):
-        return
+        return span_id
     last_event = SpansContainer.get_span().pop_span(span_id)
     if last_event:
         http_info = last_event.get("info", {}).get("httpInfo", {})
@@ -108,6 +108,8 @@ def update_event_response(
             host, status_code, headers, body  # type: ignore
         )
         SpansContainer.get_span().add_span(recursive_json_join(update, last_event))
+        return update["id"]
+    return span_id
 
 
 def _update_request_data_increased_size_limit(http_info: dict, max_size: int) -> None:
@@ -295,7 +297,8 @@ def _response_wrapper(func, instance, args, kwargs):
         HttpState.response_id_to_span_id[get_lumigo_connection_id(ret_val)] = span_id
         headers = dict(ret_val.headers.items())
         status_code = ret_val.code
-        update_event_response(span_id, instance.host, status_code, headers, b"")
+        new_span_id = update_event_response(span_id, instance.host, status_code, headers, b"")
+        HttpState.response_id_to_span_id[get_lumigo_connection_id(ret_val)] = new_span_id
     return ret_val
 
 
