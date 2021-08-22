@@ -368,15 +368,16 @@ def report_json(region: Optional[str], msgs: List[dict], should_retry: bool = Tr
 
 
 def write_spans_to_files(spans: List[Dict], max_spans=MAX_NUMBER_OF_SPANS) -> None:
-    get_logger().info(f"writing [{len(spans)}] spans to files, spans: {len(spans[:max_spans])}")
+    to_send = spans[:max_spans]
+    get_logger().info(f"writing [{len(spans)}] spans to files, spans: {len(to_send)}")
     Path(EXTENSION_DIR).mkdir(parents=True, exist_ok=True)
-    for span in spans[:max_spans]:
+    for span in to_send:
         to_send = aws_dump(span).encode() + b"#DONE#"
         file_name = f"{hashlib.md5(to_send).hexdigest()}_span"
         file_path = os.path.join(EXTENSION_DIR, file_name)
         with open(file_path, "wb") as span_file:
             span_file.write(to_send)
-    done_object = {"spansCount": len(spans)}
+    done_object = {"spansCount": len(to_send)}
     done_span = aws_dump(done_object).encode() + b"#DONE#"
     file_name = f"{hashlib.md5(done_span).hexdigest()}_done"
     file_path = os.path.join(EXTENSION_DIR, file_name)
