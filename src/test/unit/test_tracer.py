@@ -384,7 +384,7 @@ def test_omitting_keys(context):
     span = SpansContainer.get_span()
     assert span.function_span["return_value"] == '{"secret_password": "****"}'
     assert span.function_span["event"] == '{"key": "****"}'
-    spans = json.loads(_create_request_body(SpansContainer.get_span().spans, True))
+    spans = _create_request_body(SpansContainer.get_span().spans, True)
     assert spans[0]["info"]["httpInfo"]["request"]["body"] == json.dumps(
         {"a": "b", "myPassword": "****"}
     )
