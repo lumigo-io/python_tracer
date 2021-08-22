@@ -443,25 +443,37 @@ def test_get_edge_host(arg, host, monkeypatch):
     assert get_edge_host("region") == host
 
 
-def test_report_json_extension(monkeypatch, reporter_mock):
+def test_report_huge_json_extension(monkeypatch, reporter_mock):
     monkeypatch.setattr(Configuration, "should_report", True)
     monkeypatch.setenv("LUMIGO_USE_TRACER_EXTENSION", "TRUE")
-    single = [{"a": "b"}]
-    to_send = _create_request_body(single, True).encode()
-    md5str = str(hashlib.md5(to_send + b"#DONE#").hexdigest())
+    single = []
+    size_factor = 362
+    for i in range(size_factor):
+        single.append({
+            "a": "a"*size_factor,
+            "b": "a"*size_factor,
+            "c": "a"*size_factor,
+            "e": "a"*size_factor,
+            "d": "a"*size_factor
+        })
+    duration = report_json(None, single)
+
+    expected_string = _create_request_body(single, True).encode() + b"#DONE#"
+    md5str = str(hashlib.md5(expected_string).hexdigest())
+    all_to_send_length = len(expected_string)
+
     file_name = f"{md5str}_single"
     file_path = f"/tmp/lumigo-spans/{file_name}"
-    asserting_extension(file_path, single)
-    # test that same file doesnt cause error
-    asserting_extension(file_path, single)
 
+    file_content = open(file_path, "r").read()
+    file_content_length = len(file_content)
 
-def asserting_extension(file_path, single):
-    duration = report_json(None, [{"a": "b"}])
-    content = open(file_path, "r").read()[:-6]
-    span_from_file = json.loads(content)
-    assert span_from_file == single
+    json_part = file_content[:-6]
+    span_from_file = json.loads(json_part)
+    assert all_to_send_length == file_content_length
+    assert file_content[-6:] == '#DONE#'
     assert duration == 0
+    assert span_from_file == single
 
 
 @pytest.mark.parametrize(

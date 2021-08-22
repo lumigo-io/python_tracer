@@ -305,7 +305,7 @@ def report_json(region: Optional[str], msgs: List[dict], should_retry: bool = Tr
     """
     if not Configuration.should_report:
         return 0
-    get_logger().info(f"reporting the messages: {msgs[:10]}")
+    get_logger().info(f"reporting [{len(msgs)}] the first 10 messages: {msgs[:10]}")
     try:
         prune_trace: bool = not os.environ.get("LUMIGO_PRUNE_TRACE_OFF", "").lower() == "true"
         to_send = _create_request_body(msgs, prune_trace).encode()
@@ -353,7 +353,7 @@ def write_spans_to_file(to_send: bytes) -> None:
     file_name = f"{hashlib.md5(to_send).hexdigest()}_single"
     Path(EXTENSION_DIR).mkdir(parents=True, exist_ok=True)
     file_path = os.path.join(EXTENSION_DIR, file_name)
-    get_logger().info(f"writing spans to file {file_path}")
+    get_logger().info(f"writing spans to file {file_path}, len:{len(to_send)}")
     with open(file_path, "wb") as spans_file:
         spans_file.write(to_send)
 
