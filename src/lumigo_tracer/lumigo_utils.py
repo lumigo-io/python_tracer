@@ -257,13 +257,13 @@ def _create_request_body(
     prune_size_flag: bool,
     max_size: int = MAX_SIZE_FOR_REQUEST,
     too_big_spans_threshold: int = TOO_BIG_SPANS_THRESHOLD,
-) -> List[dict]:
+) -> str:
 
     if not prune_size_flag or (
         len(msgs) < NUMBER_OF_SPANS_IN_REPORT_OPTIMIZATION
         and _get_event_base64_size(msgs) < max_size  # noqa
     ):
-        return msgs[:max_size]
+        return aws_dump(msgs)[:max_size]
 
     end_span = msgs[-1]
     ordered_spans = sorted(msgs[:-1], key=_is_span_has_error, reverse=True)
@@ -281,7 +281,7 @@ def _create_request_body(
             too_big_spans += 1
             if too_big_spans == too_big_spans_threshold:
                 break
-    return spans_to_send[:max_size]
+    return aws_dump(spans_to_send)[:max_size]
 
 
 def establish_connection(host=None):
@@ -322,15 +322,13 @@ def report_json(region: Optional[str], msgs: List[dict], should_retry: bool = Tr
     get_logger().info(f"reporting the messages: {msgs[:10]}")
     try:
         prune_trace: bool = not os.environ.get("LUMIGO_PRUNE_TRACE_OFF", "").lower() == "true"
-        to_send_dict = _create_request_body(msgs, prune_trace)
-        to_send = aws_dump(to_send_dict).encode()
+        to_send = _create_request_body(msgs, prune_trace).encode()
     except Exception as e:
         get_logger().exception("Failed to create request: A span was lost.", exc_info=e)
         return 0
     if should_use_tracer_extension():
         with lumigo_safe_execute("report json file: writing spans to file"):
-            get_logger().debug(f"Using tracer extension, sending [{len(to_send_dict)}] spans")
-            write_spans_to_files(to_send_dict)
+            write_spans_to_files(msgs)
         return 0
     if region == CHINA_REGION:
         return _publish_spans_to_kinesis(to_send, CHINA_REGION)
@@ -368,10 +366,10 @@ def report_json(region: Optional[str], msgs: List[dict], should_retry: bool = Tr
     return duration
 
 
-def write_spans_to_files(spans: List[Dict]) -> None:
-    get_logger().info(f"writing [{len(spans)}] spans to files, spans: {spans}")
+def write_spans_to_files(spans: List[Dict], max_spans=2000) -> None:
+    get_logger().info(f"writing [{len(spans)}] spans to files, spans: {len(spans[:max_spans])}")
     Path(EXTENSION_DIR).mkdir(parents=True, exist_ok=True)
-    for span in spans:
+    for span in spans[:max_spans]:
         to_send = aws_dump(span).encode() + b"#DONE#"
         file_name = f"{hashlib.md5(to_send).hexdigest()}_span"
         file_path = os.path.join(EXTENSION_DIR, file_name)

@@ -20,10 +20,10 @@ from lumigo_tracer.lumigo_utils import (
     Configuration,
     STEP_FUNCTION_UID_KEY,
     LUMIGO_EVENT_KEY,
+    _create_request_body,
     EXECUTION_TAGS_KEY,
     report_json,
     EDGE_KINESIS_STREAM_NAME,
-    _create_request_body,
 )
 
 from lumigo_tracer.spans_container import SpansContainer
@@ -384,7 +384,7 @@ def test_omitting_keys(context):
     span = SpansContainer.get_span()
     assert span.function_span["return_value"] == '{"secret_password": "****"}'
     assert span.function_span["event"] == '{"key": "****"}'
-    spans = _create_request_body(SpansContainer.get_span().spans, True)
+    spans = json.loads(_create_request_body(SpansContainer.get_span().spans, True))
     assert spans[0]["info"]["httpInfo"]["request"]["body"] == json.dumps(
         {"a": "b", "myPassword": "****"}
     )
