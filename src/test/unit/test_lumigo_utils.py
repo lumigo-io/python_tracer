@@ -449,7 +449,7 @@ def test_report_huge_json_extension(monkeypatch, reporter_mock):
     monkeypatch.setattr(Configuration, "should_report", True)
     monkeypatch.setenv("LUMIGO_USE_TRACER_EXTENSION", "TRUE")
     single = []
-    size_factor = 500
+    size_factor = 1000
     for i in range(size_factor):
         single.append(
             {
