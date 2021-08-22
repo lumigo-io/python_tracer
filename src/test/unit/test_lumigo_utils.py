@@ -449,7 +449,7 @@ def test_report_huge_json_extension(monkeypatch, reporter_mock):
     monkeypatch.setattr(Configuration, "should_report", True)
     monkeypatch.setenv("LUMIGO_USE_TRACER_EXTENSION", "TRUE")
     single = []
-    size_factor = 362
+    size_factor = 500
     for i in range(size_factor):
         single.append(
             {
@@ -462,7 +462,9 @@ def test_report_huge_json_extension(monkeypatch, reporter_mock):
         )
     duration = report_json(None, single)
 
-    expected_string = _create_request_body(single, True).encode() + b"#DONE#"
+    request_body = _create_request_body(single, True)
+    expected_string = request_body.encode() + b"#DONE#"
+    json_request_body = json.loads(request_body)
     md5str = str(hashlib.md5(expected_string).hexdigest())
     all_to_send_length = len(expected_string)
 
@@ -477,7 +479,7 @@ def test_report_huge_json_extension(monkeypatch, reporter_mock):
     assert all_to_send_length == file_content_length
     assert file_content[-6:] == "#DONE#"
     assert duration == 0
-    assert span_from_file == single
+    assert span_from_file == json_request_body
 
 
 @pytest.mark.parametrize(
