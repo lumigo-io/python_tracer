@@ -45,7 +45,8 @@ from lumigo_tracer.lumigo_utils import (
     CHINA_REGION,
     internal_analytics_message,
     INTERNAL_ANALYTICS_PREFIX,
-    InternalState, aws_dump,
+    InternalState,
+    aws_dump,
 )
 import json
 
