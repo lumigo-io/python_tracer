@@ -6,6 +6,7 @@ from collections import OrderedDict
 from decimal import Decimal
 import datetime
 import http.client
+import socket
 
 import boto3
 from mock import Mock, MagicMock
@@ -43,6 +44,7 @@ from lumigo_tracer.lumigo_utils import (
     CHINA_REGION,
     internal_analytics_message,
     INTERNAL_ANALYTICS_PREFIX,
+    InternalState,
 )
 import json
 
@@ -489,6 +491,24 @@ def test_report_json_retry(monkeypatch, reporter_mock, caplog, errors, final_log
     report_json(None, [{"a": "b"}])
 
     assert caplog.records[-1].levelname == final_log
+
+
+def test_report_json_fast_failure_after_timeout(monkeypatch, reporter_mock, caplog):
+    reporter_mock.side_effect = report_json
+    monkeypatch.setattr(Configuration, "host", "host")
+    monkeypatch.setattr(Configuration, "should_report", True)
+    monkeypatch.setattr(http.client, "HTTPSConnection", Mock())
+    http.client.HTTPSConnection("force_reconnect").getresponse.side_effect = socket.timeout
+
+    assert report_json(None, [{"a": "b"}]) == 0
+    assert caplog.records[-1].msg == "Timeout while connecting to host"
+
+    assert report_json(None, [{"a": "b"}]) == 0
+    assert caplog.records[-1].msg == "Skip sending messages due to previous timeout"
+
+    InternalState.timeout_on_connection = datetime.datetime(2016, 1, 1)
+    assert report_json(None, [{"a": "b"}]) == 0
+    assert caplog.records[-1].msg == "Timeout while connecting to host"
 
 
 def test_report_json_china_missing_access_key_id(monkeypatch, reporter_mock, caplog):

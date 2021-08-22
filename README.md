@@ -98,6 +98,11 @@ You can add execution tags to a function with dynamic values using the parameter
 
 These tags will be searchable from within the Lumigo platform.
 
+**Limitations**
+* Up to 50 execution tags
+* Each tag key length can have 50 characters at most.
+* Each tag value length can have 70 characters at most.
+
 # Frameworks
 
 In addition to native code integration, Lumigo also provides tools for integrating with popular Python frameworks.
