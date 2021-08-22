@@ -41,6 +41,7 @@ STEP_FUNCTION_UID_KEY = "step_function_uid"
 # number of spans that are too big to enter the reported message before break
 TOO_BIG_SPANS_THRESHOLD = 5
 MAX_SIZE_FOR_REQUEST: int = int(os.environ.get("LUMIGO_MAX_SIZE_FOR_REQUEST", 900_000))
+MAX_NUMBER_OF_SPANS: int = int(os.environ.get("LUMIGO_MAX_NUMBER_OF_SPANS", 2000))
 EDGE_TIMEOUT = float(os.environ.get("LUMIGO_EDGE_TIMEOUT", SECONDS_TO_TIMEOUT))
 MAX_VARS_SIZE = 100_000
 MAX_VAR_LEN = 1024
@@ -366,7 +367,7 @@ def report_json(region: Optional[str], msgs: List[dict], should_retry: bool = Tr
     return duration
 
 
-def write_spans_to_files(spans: List[Dict], max_spans=2000) -> None:
+def write_spans_to_files(spans: List[Dict], max_spans=MAX_NUMBER_OF_SPANS) -> None:
     get_logger().info(f"writing [{len(spans)}] spans to files, spans: {len(spans[:max_spans])}")
     Path(EXTENSION_DIR).mkdir(parents=True, exist_ok=True)
     for span in spans[:max_spans]:
