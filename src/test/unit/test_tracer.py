@@ -20,10 +20,10 @@ from lumigo_tracer.lumigo_utils import (
     Configuration,
     STEP_FUNCTION_UID_KEY,
     LUMIGO_EVENT_KEY,
-    _create_request_body,
     EXECUTION_TAGS_KEY,
     report_json,
     EDGE_KINESIS_STREAM_NAME,
+    _create_request_body_as_str,
 )
 
 from lumigo_tracer.spans_container import SpansContainer
@@ -126,7 +126,7 @@ def test_lambda_wrapper_exception(exc, context):
     assert "reporter_rtt" in function_span
     assert "maxFinishTime" not in function_span
     # Test that we can create an output message out of this span
-    assert _create_request_body([function_span], prune_size_flag=False)
+    assert _create_request_body_as_str([function_span], prune_size_flag=False)
 
 
 def test_lambda_wrapper_return_decimal(context):
@@ -384,7 +384,7 @@ def test_omitting_keys(context):
     span = SpansContainer.get_span()
     assert span.function_span["return_value"] == '{"secret_password": "****"}'
     assert span.function_span["event"] == '{"key": "****"}'
-    spans = json.loads(_create_request_body(SpansContainer.get_span().spans, True))
+    spans = json.loads(_create_request_body_as_str(SpansContainer.get_span().spans, True))
     assert spans[0]["info"]["httpInfo"]["request"]["body"] == json.dumps(
         {"a": "b", "myPassword": "****"}
     )

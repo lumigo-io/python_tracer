@@ -6,7 +6,9 @@ from collections import OrderedDict
 from decimal import Decimal
 import datetime
 import http.client
+import glob
 import socket
+from typing import Dict
 
 import boto3
 from mock import Mock, MagicMock
@@ -14,7 +16,6 @@ from mock import Mock, MagicMock
 import pytest
 from lumigo_tracer import lumigo_utils
 from lumigo_tracer.lumigo_utils import (
-    _create_request_body,
     _is_span_has_error,
     _get_event_base64_size,
     MAX_VARS_SIZE,
@@ -45,6 +46,8 @@ from lumigo_tracer.lumigo_utils import (
     internal_analytics_message,
     INTERNAL_ANALYTICS_PREFIX,
     InternalState,
+    aws_dump,
+    _create_request_body_as_str,
 )
 import json
 
@@ -78,11 +81,11 @@ def test_is_span_has_error(input_span, expected_is_error):
 
 
 def test_create_request_body_default(dummy_span):
-    assert _create_request_body([dummy_span], False) == json.dumps([dummy_span])
+    assert _create_request_body_as_str([dummy_span], False) == json.dumps([dummy_span])
 
 
 def test_create_request_body_not_effecting_small_events(dummy_span):
-    assert _create_request_body([dummy_span], True, 1_000_000) == json.dumps([dummy_span])
+    assert _create_request_body_as_str([dummy_span], True, 1_000_000) == json.dumps([dummy_span])
 
 
 def test_create_request_body_keep_function_span_and_filter_other_spans(
@@ -90,7 +93,7 @@ def test_create_request_body_keep_function_span_and_filter_other_spans(
 ):
     expected_result = [dummy_span, dummy_span, dummy_span, function_end_span]
     size = _get_event_base64_size(expected_result)
-    assert _create_request_body(expected_result * 2, True, size) == json.dumps(
+    assert _create_request_body_as_str(expected_result * 2, True, size) == json.dumps(
         [function_end_span, dummy_span, dummy_span, dummy_span]
     )
 
@@ -107,7 +110,7 @@ def test_create_request_body_take_error_first(dummy_span, error_span, function_e
         function_end_span,
     ]
     size = _get_event_base64_size(expected_result)
-    assert _create_request_body(input, True, size) == json.dumps(expected_result)
+    assert _create_request_body_as_str(input, True, size) == json.dumps(expected_result)
 
 
 @pytest.mark.parametrize(
@@ -445,9 +448,10 @@ def test_get_edge_host(arg, host, monkeypatch):
     assert get_edge_host("region") == host
 
 
-def test_report_huge_json_extension(monkeypatch, reporter_mock):
+def test_report_huge_json_extension_single_mode(monkeypatch, reporter_mock):
     monkeypatch.setattr(Configuration, "should_report", True)
     monkeypatch.setenv("LUMIGO_USE_TRACER_EXTENSION", "TRUE")
+    monkeypatch.setenv("LUMIGO_TRACER_EXTENSION_MODE", "single")
     single = []
     size_factor = 1000
     for i in range(size_factor):
@@ -462,7 +466,7 @@ def test_report_huge_json_extension(monkeypatch, reporter_mock):
         )
     duration = report_json(None, single)
 
-    request_body = _create_request_body(single, True)
+    request_body = _create_request_body_as_str(single, True)
     expected_string = request_body.encode() + b"#DONE#"
     json_request_body = json.loads(request_body)
     md5str = str(hashlib.md5(expected_string).hexdigest())
@@ -480,6 +484,36 @@ def test_report_huge_json_extension(monkeypatch, reporter_mock):
     assert file_content[-6:] == "#DONE#"
     assert duration == 0
     assert span_from_file == json_request_body
+
+
+def test_report_json_extension_spans_mode(monkeypatch, reporter_mock):
+    monkeypatch.setattr(Configuration, "should_report", True)
+    monkeypatch.setenv("LUMIGO_USE_TRACER_EXTENSION", "TRUE")
+    monkeypatch.setenv("LUMIGO_TRACER_EXTENSION_MODE", "spans")
+    spans = []
+    size_factor = 100
+    for i in range(size_factor):
+        spans.append(
+            {
+                "a": "a" * size_factor,
+            }
+        )
+    report_json(None, spans)
+    request_body = _create_request_body_as_str(spans, True, response_type=Dict)
+
+    files_paths = []
+    for span in request_body:
+        to_send = aws_dump(span).encode() + b"#DONE#"
+        file_name = f"{hashlib.md5(to_send).hexdigest()}_span"
+        file_path = f"/tmp/lumigo-spans/{file_name}"
+        files_paths.append(file_path)
+    done_object = {"spansCount": len(spans)}
+    done_span = aws_dump(done_object).encode() + b"#DONE#"
+    file_name = f"{hashlib.md5(done_span).hexdigest()}_done"
+    file_path = f"/tmp/lumigo-spans/{file_name}"
+    files_paths.append(file_path)
+    for file_name in glob.glob("/tmp/lumigo-spans/*"):
+        assert file_name in files_paths
 
 
 @pytest.mark.parametrize(

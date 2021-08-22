@@ -79,6 +79,7 @@ CHINA_REGION = "cn-northwest-1"
 EDGE_KINESIS_STREAM_NAME = "prod_trc-inges-edge_edge-kinesis-stream"
 STACKTRACE_LINE_TO_DROP = "lumigo_tracer/tracer.py"
 Container = TypeVar("Container", dict, list)
+T = TypeVar("T", bound=Union[str, List[Dict]])
 
 _logger: Dict[str, logging.Logger] = {}
 
@@ -252,18 +253,27 @@ def _get_event_base64_size(event) -> int:
     return len(b64encode(aws_dump(event).encode()))
 
 
-def _create_request_body(
+def _create_request_body_as_str(
     msgs: List[dict],
     prune_size_flag: bool,
     max_size: int = MAX_SIZE_FOR_REQUEST,
     too_big_spans_threshold: int = TOO_BIG_SPANS_THRESHOLD,
 ) -> str:
+    return aws_dump(_create_request_body(msgs, prune_size_flag, max_size, too_big_spans_threshold))
+
+
+def _create_request_body(
+    msgs: List[dict],
+    prune_size_flag: bool,
+    max_size: int = MAX_SIZE_FOR_REQUEST,
+    too_big_spans_threshold: int = TOO_BIG_SPANS_THRESHOLD,
+) -> List[dict]:
 
     if not prune_size_flag or (
         len(msgs) < NUMBER_OF_SPANS_IN_REPORT_OPTIMIZATION
         and _get_event_base64_size(msgs) < max_size  # noqa
     ):
-        return aws_dump(msgs)[:max_size]
+        return msgs[:max_size]
 
     end_span = msgs[-1]
     ordered_spans = sorted(msgs[:-1], key=_is_span_has_error, reverse=True)
@@ -281,7 +291,7 @@ def _create_request_body(
             too_big_spans += 1
             if too_big_spans == too_big_spans_threshold:
                 break
-    return aws_dump(spans_to_send)[:max_size]
+    return spans_to_send[:max_size]
 
 
 def establish_connection(host=None):
@@ -322,14 +332,19 @@ def report_json(region: Optional[str], msgs: List[dict], should_retry: bool = Tr
     get_logger().info(f"reporting the messages: {msgs[:10]}")
     try:
         prune_trace: bool = not os.environ.get("LUMIGO_PRUNE_TRACE_OFF", "").lower() == "true"
-        to_send = _create_request_body(msgs, prune_trace).encode()
+        to_send_dict = _create_request_body(msgs, prune_trace)
+        to_send = aws_dump(to_send_dict).encode()
     except Exception as e:
         get_logger().exception("Failed to create request: A span was lost.", exc_info=e)
         return 0
     if should_use_tracer_extension():
-        with lumigo_safe_execute(f"report json file: writing [${len(msgs)}] spans to file"):
-            get_logger().debug("Using tracer extension")
-            write_spans_to_file(to_send + b"#DONE#")
+        with lumigo_safe_execute("report json file: writing spans to file"):
+            mode = os.environ.get("LUMIGO_TRACER_EXTENSION_MODE") or "spans"
+            get_logger().debug(f"Using tracer extension with [{mode}] mode")
+            if mode == "spans":
+                write_spans_to_files(to_send_dict)
+            if mode == "single":
+                write_spans_to_file(to_send + b"#DONE#")
         return 0
     if region == CHINA_REGION:
         return _publish_spans_to_kinesis(to_send, CHINA_REGION)
@@ -374,6 +389,24 @@ def write_spans_to_file(to_send: bytes) -> None:
     get_logger().info(f"writing spans to file {file_path}, len:{len(to_send)}")
     with open(file_path, "wb") as spans_file:
         spans_file.write(to_send)
+
+
+def write_spans_to_files(spans: List[Dict]) -> None:
+    get_logger().info(f"writing [{len(spans)}] spans to files, spans: {spans}")
+    Path(EXTENSION_DIR).mkdir(parents=True, exist_ok=True)
+    for span in spans:
+        to_send = aws_dump(span).encode() + b"#DONE#"
+        file_name = f"{hashlib.md5(to_send).hexdigest()}_span"
+        file_path = os.path.join(EXTENSION_DIR, file_name)
+        with open(file_path, "wb") as span_file:
+            span_file.write(to_send)
+    done_object = {"spansCount": len(spans)}
+    done_span = aws_dump(done_object).encode() + b"#DONE#"
+    file_name = f"{hashlib.md5(done_span).hexdigest()}_done"
+    file_path = os.path.join(EXTENSION_DIR, file_name)
+    get_logger().info(f"writing done span to file {file_path}")
+    with open(file_path, "wb") as span_file:
+        span_file.write(done_span)
 
 
 def _publish_spans_to_kinesis(to_send: bytes, region: str) -> int:
