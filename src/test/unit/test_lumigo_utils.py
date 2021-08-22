@@ -46,10 +46,8 @@ from lumigo_tracer.lumigo_utils import (
     INTERNAL_ANALYTICS_PREFIX,
     InternalState,
     aws_dump,
-    _create_request_body_as_str,
     _create_request_body,
 )
-import json
 
 
 @pytest.fixture
@@ -81,11 +79,11 @@ def test_is_span_has_error(input_span, expected_is_error):
 
 
 def test_create_request_body_default(dummy_span):
-    assert _create_request_body_as_str([dummy_span], False) == json.dumps([dummy_span])
+    assert _create_request_body([dummy_span], False) == [dummy_span]
 
 
 def test_create_request_body_not_effecting_small_events(dummy_span):
-    assert _create_request_body_as_str([dummy_span], True, 1_000_000) == json.dumps([dummy_span])
+    assert _create_request_body([dummy_span], True, 1_000_000) == [dummy_span]
 
 
 def test_create_request_body_keep_function_span_and_filter_other_spans(
@@ -93,9 +91,12 @@ def test_create_request_body_keep_function_span_and_filter_other_spans(
 ):
     expected_result = [dummy_span, dummy_span, dummy_span, function_end_span]
     size = _get_event_base64_size(expected_result)
-    assert _create_request_body_as_str(expected_result * 2, True, size) == json.dumps(
-        [function_end_span, dummy_span, dummy_span, dummy_span]
-    )
+    assert _create_request_body(expected_result * 2, True, size) == [
+        function_end_span,
+        dummy_span,
+        dummy_span,
+        dummy_span,
+    ]
 
 
 def test_create_request_body_take_error_first(dummy_span, error_span, function_end_span):
@@ -110,7 +111,7 @@ def test_create_request_body_take_error_first(dummy_span, error_span, function_e
         function_end_span,
     ]
     size = _get_event_base64_size(expected_result)
-    assert _create_request_body_as_str(input, True, size) == json.dumps(expected_result)
+    assert _create_request_body(input, True, size) == expected_result
 
 
 @pytest.mark.parametrize(

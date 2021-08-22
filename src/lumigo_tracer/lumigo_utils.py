@@ -252,15 +252,6 @@ def _get_event_base64_size(event) -> int:
     return len(b64encode(aws_dump(event).encode()))
 
 
-def _create_request_body_as_str(
-    msgs: List[dict],
-    prune_size_flag: bool,
-    max_size: int = MAX_SIZE_FOR_REQUEST,
-    too_big_spans_threshold: int = TOO_BIG_SPANS_THRESHOLD,
-) -> str:
-    return aws_dump(_create_request_body(msgs, prune_size_flag, max_size, too_big_spans_threshold))
-
-
 def _create_request_body(
     msgs: List[dict],
     prune_size_flag: bool,
