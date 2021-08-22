@@ -8,7 +8,6 @@ import datetime
 import http.client
 import glob
 import socket
-from typing import Dict
 
 import boto3
 from mock import Mock, MagicMock
@@ -48,6 +47,7 @@ from lumigo_tracer.lumigo_utils import (
     InternalState,
     aws_dump,
     _create_request_body_as_str,
+    _create_request_body,
 )
 import json
 
@@ -448,58 +448,19 @@ def test_get_edge_host(arg, host, monkeypatch):
     assert get_edge_host("region") == host
 
 
-def test_report_huge_json_extension_single_mode(monkeypatch, reporter_mock):
-    monkeypatch.setattr(Configuration, "should_report", True)
-    monkeypatch.setenv("LUMIGO_USE_TRACER_EXTENSION", "TRUE")
-    monkeypatch.setenv("LUMIGO_TRACER_EXTENSION_MODE", "single")
-    single = []
-    size_factor = 1000
-    for i in range(size_factor):
-        single.append(
-            {
-                "a": "a" * size_factor,
-                "b": "a" * size_factor,
-                "c": "a" * size_factor,
-                "e": "a" * size_factor,
-                "d": "a" * size_factor,
-            }
-        )
-    duration = report_json(None, single)
-
-    request_body = _create_request_body_as_str(single, True)
-    expected_string = request_body.encode() + b"#DONE#"
-    json_request_body = json.loads(request_body)
-    md5str = str(hashlib.md5(expected_string).hexdigest())
-    all_to_send_length = len(expected_string)
-
-    file_name = f"{md5str}_single"
-    file_path = f"/tmp/lumigo-spans/{file_name}"
-
-    file_content = open(file_path, "r").read()
-    file_content_length = len(file_content)
-
-    json_part = file_content[:-6]
-    span_from_file = json.loads(json_part)
-    assert all_to_send_length == file_content_length
-    assert file_content[-6:] == "#DONE#"
-    assert duration == 0
-    assert span_from_file == json_request_body
-
-
 def test_report_json_extension_spans_mode(monkeypatch, reporter_mock):
     monkeypatch.setattr(Configuration, "should_report", True)
     monkeypatch.setenv("LUMIGO_USE_TRACER_EXTENSION", "TRUE")
-    monkeypatch.setenv("LUMIGO_TRACER_EXTENSION_MODE", "spans")
     spans = []
     size_factor = 100
     for i in range(size_factor):
         spans.append(
             {
-                "a": "a" * size_factor,
+                i: "a" * size_factor,
             }
         )
     report_json(None, spans)
-    request_body = _create_request_body_as_str(spans, True, response_type=Dict)
+    request_body = _create_request_body(spans, True)
 
     files_paths = []
     for span in request_body:

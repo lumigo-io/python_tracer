@@ -79,7 +79,6 @@ CHINA_REGION = "cn-northwest-1"
 EDGE_KINESIS_STREAM_NAME = "prod_trc-inges-edge_edge-kinesis-stream"
 STACKTRACE_LINE_TO_DROP = "lumigo_tracer/tracer.py"
 Container = TypeVar("Container", dict, list)
-T = TypeVar("T", bound=Union[str, List[Dict]])
 
 _logger: Dict[str, logging.Logger] = {}
 
@@ -339,12 +338,8 @@ def report_json(region: Optional[str], msgs: List[dict], should_retry: bool = Tr
         return 0
     if should_use_tracer_extension():
         with lumigo_safe_execute("report json file: writing spans to file"):
-            mode = os.environ.get("LUMIGO_TRACER_EXTENSION_MODE") or "spans"
-            get_logger().debug(f"Using tracer extension with [{mode}] mode")
-            if mode == "spans":
-                write_spans_to_files(to_send_dict)
-            if mode == "single":
-                write_spans_to_file(to_send + b"#DONE#")
+            get_logger().debug(f"Using tracer extension, sending [{len(to_send_dict)}] spans")
+            write_spans_to_files(to_send_dict)
         return 0
     if region == CHINA_REGION:
         return _publish_spans_to_kinesis(to_send, CHINA_REGION)
@@ -380,15 +375,6 @@ def report_json(region: Optional[str], msgs: List[dict], should_retry: bool = Tr
             get_logger().exception("Could not report: A span was lost.", exc_info=e)
             internal_analytics_message(f"report: {type(e)}")
     return duration
-
-
-def write_spans_to_file(to_send: bytes) -> None:
-    file_name = f"{hashlib.md5(to_send).hexdigest()}_single"
-    Path(EXTENSION_DIR).mkdir(parents=True, exist_ok=True)
-    file_path = os.path.join(EXTENSION_DIR, file_name)
-    get_logger().info(f"writing spans to file {file_path}, len:{len(to_send)}")
-    with open(file_path, "wb") as spans_file:
-        spans_file.write(to_send)
 
 
 def write_spans_to_files(spans: List[Dict]) -> None:
