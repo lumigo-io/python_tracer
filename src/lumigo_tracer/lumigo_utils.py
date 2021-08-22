@@ -319,7 +319,7 @@ def report_json(region: Optional[str], msgs: List[dict], should_retry: bool = Tr
         return 0
     if not Configuration.should_report:
         return 0
-    get_logger().info(f"reporting [{len(msgs)}] the first 10 messages: {msgs[:10]}")
+    get_logger().info(f"reporting the messages: {msgs[:10]}")
     try:
         prune_trace: bool = not os.environ.get("LUMIGO_PRUNE_TRACE_OFF", "").lower() == "true"
         to_send = _create_request_body(msgs, prune_trace).encode()
@@ -327,7 +327,7 @@ def report_json(region: Optional[str], msgs: List[dict], should_retry: bool = Tr
         get_logger().exception("Failed to create request: A span was lost.", exc_info=e)
         return 0
     if should_use_tracer_extension():
-        with lumigo_safe_execute("report json file: writing spans to file"):
+        with lumigo_safe_execute(f"report json file: writing [${len(msgs)}] spans to file"):
             get_logger().debug("Using tracer extension")
             write_spans_to_file(to_send + b"#DONE#")
         return 0
