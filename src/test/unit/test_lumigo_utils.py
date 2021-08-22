@@ -15,6 +15,7 @@ from mock import Mock, MagicMock
 import pytest
 from lumigo_tracer import lumigo_utils
 from lumigo_tracer.lumigo_utils import (
+    _create_request_body,
     _is_span_has_error,
     _get_event_base64_size,
     MAX_VARS_SIZE,
@@ -44,10 +45,9 @@ from lumigo_tracer.lumigo_utils import (
     CHINA_REGION,
     internal_analytics_message,
     INTERNAL_ANALYTICS_PREFIX,
-    InternalState,
-    aws_dump,
-    _create_request_body,
+    InternalState, aws_dump,
 )
+import json
 
 
 @pytest.fixture
@@ -79,11 +79,11 @@ def test_is_span_has_error(input_span, expected_is_error):
 
 
 def test_create_request_body_default(dummy_span):
-    assert _create_request_body([dummy_span], False) == [dummy_span]
+    assert _create_request_body([dummy_span], False) == json.dumps([dummy_span])
 
 
 def test_create_request_body_not_effecting_small_events(dummy_span):
-    assert _create_request_body([dummy_span], True, 1_000_000) == [dummy_span]
+    assert _create_request_body([dummy_span], True, 1_000_000) == json.dumps([dummy_span])
 
 
 def test_create_request_body_keep_function_span_and_filter_other_spans(
@@ -91,12 +91,9 @@ def test_create_request_body_keep_function_span_and_filter_other_spans(
 ):
     expected_result = [dummy_span, dummy_span, dummy_span, function_end_span]
     size = _get_event_base64_size(expected_result)
-    assert _create_request_body(expected_result * 2, True, size) == [
-        function_end_span,
-        dummy_span,
-        dummy_span,
-        dummy_span,
-    ]
+    assert _create_request_body(expected_result * 2, True, size) == json.dumps(
+        [function_end_span, dummy_span, dummy_span, dummy_span]
+    )
 
 
 def test_create_request_body_take_error_first(dummy_span, error_span, function_end_span):
@@ -111,7 +108,7 @@ def test_create_request_body_take_error_first(dummy_span, error_span, function_e
         function_end_span,
     ]
     size = _get_event_base64_size(expected_result)
-    assert _create_request_body(input, True, size) == expected_result
+    assert _create_request_body(input, True, size) == json.dumps(expected_result)
 
 
 @pytest.mark.parametrize(
@@ -461,10 +458,9 @@ def test_report_json_extension_spans_mode(monkeypatch, reporter_mock):
             }
         )
     report_json(None, spans)
-    request_body = _create_request_body(spans, True)
 
     files_paths = []
-    for span in request_body:
+    for span in spans:
         to_send = aws_dump(span).encode() + b"#DONE#"
         file_name = f"{hashlib.md5(to_send).hexdigest()}_span"
         file_path = f"/tmp/lumigo-spans/{file_name}"
