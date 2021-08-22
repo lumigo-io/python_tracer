@@ -451,13 +451,15 @@ def test_report_huge_json_extension(monkeypatch, reporter_mock):
     single = []
     size_factor = 362
     for i in range(size_factor):
-        single.append({
-            "a": "a"*size_factor,
-            "b": "a"*size_factor,
-            "c": "a"*size_factor,
-            "e": "a"*size_factor,
-            "d": "a"*size_factor
-        })
+        single.append(
+            {
+                "a": "a" * size_factor,
+                "b": "a" * size_factor,
+                "c": "a" * size_factor,
+                "e": "a" * size_factor,
+                "d": "a" * size_factor,
+            }
+        )
     duration = report_json(None, single)
 
     expected_string = _create_request_body(single, True).encode() + b"#DONE#"
@@ -473,7 +475,7 @@ def test_report_huge_json_extension(monkeypatch, reporter_mock):
     json_part = file_content[:-6]
     span_from_file = json.loads(json_part)
     assert all_to_send_length == file_content_length
-    assert file_content[-6:] == '#DONE#'
+    assert file_content[-6:] == "#DONE#"
     assert duration == 0
     assert span_from_file == single
 
