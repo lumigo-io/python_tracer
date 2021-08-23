@@ -656,6 +656,7 @@ def test_internal_analytics_message(capsys):
         (b"123456", b"789", b"12345...[too long]"),  # old pass max size
         (b'{"a": "b"}', b"", b'{"a": "b"}'),  # json
         (b'a"b', b"c", b'a"bc'),  # data with "
+        (b'{"a": "\\""}', b"", b'{"a": "\\""}'),  # json with "
     ],
 )
 def test_concat_old_body_to_new(old, new, expected, monkeypatch):
