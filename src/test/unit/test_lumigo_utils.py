@@ -45,6 +45,7 @@ from lumigo_tracer.lumigo_utils import (
     internal_analytics_message,
     INTERNAL_ANALYTICS_PREFIX,
     InternalState,
+    concat_old_body_to_new,
 )
 import json
 
@@ -625,3 +626,18 @@ def test_internal_analytics_message(capsys):
     assert capsys.readouterr().out.startswith(INTERNAL_ANALYTICS_PREFIX)
     internal_analytics_message("Message")
     assert capsys.readouterr().out == ""
+
+
+@pytest.mark.parametrize(
+    "old, new, expected",
+    [
+        (b"1", b"2", b"12"),  # happy flow
+        (b"", b"2", b"2"),  # no old
+        (b"1", b"", b"1"),  # no new
+        (b"12", b"34567", b"12345...[too long]"),  # together pass max size
+        (b"123456", b"789", b"12345...[too long]"),  # old pass max size
+    ],
+)
+def test_concat_old_body_to_new(old, new, expected, monkeypatch):
+    monkeypatch.setattr(Configuration, "max_entry_size", 5)
+    assert concat_old_body_to_new(lumigo_dumps(old), new) == lumigo_dumps(expected)

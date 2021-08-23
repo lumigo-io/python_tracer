@@ -17,6 +17,7 @@ from lumigo_tracer.lumigo_utils import (
     is_error_code,
     get_edge_host,
     TRUNCATE_SUFFIX,
+    concat_old_body_to_new,
 )
 from lumigo_tracer.spans_container import SpansContainer
 from lumigo_tracer.wrappers.http.http_data_classes import HttpRequest, HttpState
@@ -72,11 +73,11 @@ def add_unparsed_request(span_id: Optional[str], parse_params: HttpRequest) -> O
             if http_info.get("host") == parse_params.host:
                 if "response" not in http_info:
                     SpansContainer.get_span().get_span_by_id(span_id)
-                    # We're stripping the prev body from the previous `lumigo_dumps`
-                    prev_body = http_info.get("request", {}).get("body", "").encode().strip(b'"')
-                    http_info["request"]["body"] = lumigo_dumps(prev_body + parse_params.body)
+                    http_info["request"]["body"] = concat_old_body_to_new(
+                        http_info.get("request", {}).get("body"), parse_params.body
+                    )
                     if HttpState.previous_span_id == span_id and HttpState.previous_request:
-                        HttpState.previous_request.body = prev_body + parse_params.body
+                        HttpState.previous_request.body += parse_params.body
                     return last_event
     return add_request_event(span_id, parse_params)
 

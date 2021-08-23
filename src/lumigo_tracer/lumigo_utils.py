@@ -747,6 +747,22 @@ def lumigo_dumps(
     )
 
 
+def concat_old_body_to_new(old_body: Optional[str], new_body: bytes) -> str:
+    """
+    We have only a dumped body from the previous request,
+    so to concatenate the new body we should undo the lumigo_dumps.
+    Note that the old body is dumped bytes
+    """
+    if not new_body:
+        return old_body or ""
+    if not old_body:
+        return lumigo_dumps(new_body)
+    if old_body.endswith(TRUNCATE_SUFFIX):
+        return old_body
+    undumped_body = (old_body or "").encode().strip(b'"')
+    return lumigo_dumps(undumped_body + new_body)
+
+
 def is_kill_switch_on():
     return str(os.environ.get(KILL_SWITCH, "")).lower() == "true"
 
