@@ -367,23 +367,22 @@ def report_json(region: Optional[str], msgs: List[dict], should_retry: bool = Tr
     return duration
 
 
+def write_extension_file(data: dict, span_type: str):
+    to_send = aws_dump(data).encode() + b"#DONE#"
+    file_name = f"{hashlib.md5(to_send).hexdigest()}_{span_type}"
+    file_path = os.path.join(EXTENSION_DIR, file_name)
+    with open(file_path, "wb") as span_file:
+        span_file.write(to_send)
+
+
 def write_spans_to_files(spans: List[Dict], max_spans=MAX_NUMBER_OF_SPANS) -> None:
     to_send = spans[:max_spans]
     get_logger().info(f"writing [{len(spans)}] spans to files, spans: {len(to_send)}")
     Path(EXTENSION_DIR).mkdir(parents=True, exist_ok=True)
     for span in to_send:
-        to_send = aws_dump(span).encode() + b"#DONE#"
-        file_name = f"{hashlib.md5(to_send).hexdigest()}_span"
-        file_path = os.path.join(EXTENSION_DIR, file_name)
-        with open(file_path, "wb") as span_file:
-            span_file.write(to_send)
+        write_extension_file(span, "span")
     done_object = {"spansCount": len(to_send)}
-    done_span = aws_dump(done_object).encode() + b"#DONE#"
-    file_name = f"{hashlib.md5(done_span).hexdigest()}_done"
-    file_path = os.path.join(EXTENSION_DIR, file_name)
-    get_logger().info(f"writing done span to file {file_path}")
-    with open(file_path, "wb") as span_file:
-        span_file.write(done_span)
+    write_extension_file(done_object, "done")
 
 
 def _publish_spans_to_kinesis(to_send: bytes, region: str) -> int:

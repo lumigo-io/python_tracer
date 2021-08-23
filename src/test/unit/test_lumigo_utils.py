@@ -462,17 +462,24 @@ def test_report_json_extension_spans_mode(monkeypatch, reporter_mock):
 
     files_paths = []
     for span in spans:
-        to_send = aws_dump(span).encode() + b"#DONE#"
-        file_name = f"{hashlib.md5(to_send).hexdigest()}_span"
-        file_path = f"/tmp/lumigo-spans/{file_name}"
-        files_paths.append(file_path)
+        files_paths.append(get_span_file_name(span, "span"))
     done_object = {"spansCount": len(spans)}
-    done_span = aws_dump(done_object).encode() + b"#DONE#"
-    file_name = f"{hashlib.md5(done_span).hexdigest()}_done"
-    file_path = f"/tmp/lumigo-spans/{file_name}"
-    files_paths.append(file_path)
-    for file_name in glob.glob("/tmp/lumigo-spans/*"):
+    files_paths.append(get_span_file_name(done_object, "done"))
+    files = glob.glob("/tmp/lumigo-spans/*")
+    assert len(files) == size_factor + 1
+    for file_name in files:
+        file_content = open(file_name, "r").read()
+        suffix = file_content[-6:]
+        json.loads(file_content[:-6])
+        assert suffix == "#DONE#"
         assert file_name in files_paths
+
+
+def get_span_file_name(span, _type):
+    to_send = aws_dump(span).encode() + b"#DONE#"
+    file_name = f"{hashlib.md5(to_send).hexdigest()}_{_type}"
+    file_path = f"/tmp/lumigo-spans/{file_name}"
+    return file_path
 
 
 @pytest.mark.parametrize(
