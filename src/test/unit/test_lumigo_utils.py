@@ -47,6 +47,7 @@ from lumigo_tracer.lumigo_utils import (
     INTERNAL_ANALYTICS_PREFIX,
     InternalState,
     aws_dump,
+    EXTENSION_FILE_SUFFIX,
 )
 import json
 
@@ -469,14 +470,15 @@ def test_report_json_extension_spans_mode(monkeypatch, reporter_mock):
     assert len(files) == size_factor + 1
     for file_name in files:
         file_content = open(file_name, "r").read()
-        suffix = file_content[-6:]
-        json.loads(file_content[:-6])
-        assert suffix == "#DONE#"
+        suffix_len = len(EXTENSION_FILE_SUFFIX)
+        suffix = file_content[suffix_len:]
+        json.loads(file_content[:suffix_len])
+        assert suffix == EXTENSION_FILE_SUFFIX
         assert file_name in files_paths
 
 
 def get_span_file_name(span, _type):
-    to_send = aws_dump(span).encode() + b"#DONE#"
+    to_send = aws_dump(span).encode() + EXTENSION_FILE_SUFFIX.encode()
     file_name = f"{hashlib.md5(to_send).hexdigest()}_{_type}"
     file_path = f"/tmp/lumigo-spans/{file_name}"
     return file_path

@@ -45,6 +45,7 @@ MAX_NUMBER_OF_SPANS: int = int(os.environ.get("LUMIGO_MAX_NUMBER_OF_SPANS", 2000
 EDGE_TIMEOUT = float(os.environ.get("LUMIGO_EDGE_TIMEOUT", SECONDS_TO_TIMEOUT))
 MAX_VARS_SIZE = 100_000
 MAX_VAR_LEN = 1024
+EXTENSION_FILE_SUFFIX = "#DONE#"
 DEFAULT_MAX_ENTRY_SIZE = 2048
 FrameVariables = Dict[str, str]
 OMITTING_KEYS_REGEXES = [
@@ -368,7 +369,7 @@ def report_json(region: Optional[str], msgs: List[dict], should_retry: bool = Tr
 
 
 def write_extension_file(data: dict, span_type: str):
-    to_send = aws_dump(data).encode() + b"#DONE#"
+    to_send = aws_dump(data).encode() + EXTENSION_FILE_SUFFIX.encode()
     file_name = f"{hashlib.md5(to_send).hexdigest()}_{span_type}"
     file_path = os.path.join(EXTENSION_DIR, file_name)
     with open(file_path, "wb") as span_file:
