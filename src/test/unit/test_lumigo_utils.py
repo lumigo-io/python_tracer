@@ -471,8 +471,8 @@ def test_report_json_extension_spans_mode(monkeypatch, reporter_mock):
     for file_name in files:
         file_content = open(file_name, "r").read()
         suffix_len = len(EXTENSION_FILE_SUFFIX)
-        suffix = file_content[suffix_len:]
-        json.loads(file_content[:suffix_len])
+        suffix = file_content[-suffix_len:]
+        json.loads(file_content[:-suffix_len])
         assert suffix == EXTENSION_FILE_SUFFIX
         assert file_name in files_paths
 
