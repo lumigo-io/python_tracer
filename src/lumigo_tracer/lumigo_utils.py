@@ -41,9 +41,11 @@ STEP_FUNCTION_UID_KEY = "step_function_uid"
 # number of spans that are too big to enter the reported message before break
 TOO_BIG_SPANS_THRESHOLD = 5
 MAX_SIZE_FOR_REQUEST: int = int(os.environ.get("LUMIGO_MAX_SIZE_FOR_REQUEST", 900_000))
+MAX_NUMBER_OF_SPANS: int = int(os.environ.get("LUMIGO_MAX_NUMBER_OF_SPANS", 2000))
 EDGE_TIMEOUT = float(os.environ.get("LUMIGO_EDGE_TIMEOUT", SECONDS_TO_TIMEOUT))
 MAX_VARS_SIZE = 100_000
 MAX_VAR_LEN = 1024
+EXTENSION_FILE_SUFFIX = "#DONE#"
 DEFAULT_MAX_ENTRY_SIZE = 2048
 FrameVariables = Dict[str, str]
 OMITTING_KEYS_REGEXES = [
@@ -328,8 +330,7 @@ def report_json(region: Optional[str], msgs: List[dict], should_retry: bool = Tr
         return 0
     if should_use_tracer_extension():
         with lumigo_safe_execute("report json file: writing spans to file"):
-            get_logger().debug("Using tracer extension")
-            write_spans_to_file(to_send + b"#DONE#")
+            write_spans_to_files(msgs)
         return 0
     if region == CHINA_REGION:
         return _publish_spans_to_kinesis(to_send, CHINA_REGION)
@@ -367,13 +368,22 @@ def report_json(region: Optional[str], msgs: List[dict], should_retry: bool = Tr
     return duration
 
 
-def write_spans_to_file(to_send: bytes) -> None:
-    file_name = f"{hashlib.md5(to_send).hexdigest()}_single"
-    Path(EXTENSION_DIR).mkdir(parents=True, exist_ok=True)
+def write_extension_file(data: dict, span_type: str):
+    to_send = aws_dump(data).encode() + EXTENSION_FILE_SUFFIX.encode()
+    file_name = f"{hashlib.md5(to_send).hexdigest()}_{span_type}"
     file_path = os.path.join(EXTENSION_DIR, file_name)
-    get_logger().info(f"writing spans to file {file_path}")
-    with open(file_path, "wb") as spans_file:
-        spans_file.write(to_send)
+    with open(file_path, "wb") as span_file:
+        span_file.write(to_send)
+
+
+def write_spans_to_files(spans: List[Dict], max_spans=MAX_NUMBER_OF_SPANS) -> None:
+    to_send = spans[:max_spans]
+    get_logger().info(f"writing [{len(spans)}] spans to files, spans: {len(to_send)}")
+    Path(EXTENSION_DIR).mkdir(parents=True, exist_ok=True)
+    for span in to_send:
+        write_extension_file(span, "span")
+    done_object = {"spansCount": len(to_send)}
+    write_extension_file(done_object, "done")
 
 
 def _publish_spans_to_kinesis(to_send: bytes, region: str) -> int:
