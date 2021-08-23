@@ -6,6 +6,7 @@ from collections import OrderedDict
 from decimal import Decimal
 import datetime
 import http.client
+import glob
 import socket
 
 import boto3
@@ -45,6 +46,8 @@ from lumigo_tracer.lumigo_utils import (
     internal_analytics_message,
     INTERNAL_ANALYTICS_PREFIX,
     InternalState,
+    aws_dump,
+    EXTENSION_FILE_SUFFIX,
     concat_old_body_to_new,
 )
 import json
@@ -446,25 +449,40 @@ def test_get_edge_host(arg, host, monkeypatch):
     assert get_edge_host("region") == host
 
 
-def test_report_json_extension(monkeypatch, reporter_mock):
+def test_report_json_extension_spans_mode(monkeypatch, reporter_mock):
     monkeypatch.setattr(Configuration, "should_report", True)
     monkeypatch.setenv("LUMIGO_USE_TRACER_EXTENSION", "TRUE")
-    single = [{"a": "b"}]
-    to_send = _create_request_body(single, True).encode()
-    md5str = str(hashlib.md5(to_send + b"#DONE#").hexdigest())
-    file_name = f"{md5str}_single"
+    spans = []
+    size_factor = 100
+    for i in range(size_factor):
+        spans.append(
+            {
+                i: "a" * size_factor,
+            }
+        )
+    report_json(None, spans)
+
+    files_paths = []
+    for span in spans:
+        files_paths.append(get_span_file_name(span, "span"))
+    done_object = {"spansCount": len(spans)}
+    files_paths.append(get_span_file_name(done_object, "done"))
+    files = glob.glob("/tmp/lumigo-spans/*")
+    assert len(files) == size_factor + 1
+    for file_name in files:
+        file_content = open(file_name, "r").read()
+        suffix_len = len(EXTENSION_FILE_SUFFIX)
+        suffix = file_content[-suffix_len:]
+        json.loads(file_content[:-suffix_len])
+        assert suffix == EXTENSION_FILE_SUFFIX
+        assert file_name in files_paths
+
+
+def get_span_file_name(span, _type):
+    to_send = aws_dump(span).encode() + EXTENSION_FILE_SUFFIX.encode()
+    file_name = f"{hashlib.md5(to_send).hexdigest()}_{_type}"
     file_path = f"/tmp/lumigo-spans/{file_name}"
-    asserting_extension(file_path, single)
-    # test that same file doesnt cause error
-    asserting_extension(file_path, single)
-
-
-def asserting_extension(file_path, single):
-    duration = report_json(None, [{"a": "b"}])
-    content = open(file_path, "r").read()[:-6]
-    span_from_file = json.loads(content)
-    assert span_from_file == single
-    assert duration == 0
+    return file_path
 
 
 @pytest.mark.parametrize(
