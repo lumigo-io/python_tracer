@@ -67,6 +67,7 @@ DOMAIN_SCRUBBER_REGEXES = [
 SKIP_SCRUBBING_KEYS = [EXECUTION_TAGS_KEY]
 LUMIGO_SECRET_MASKING_REGEX_BACKWARD_COMP = "LUMIGO_BLACKLIST_REGEX"
 LUMIGO_SECRET_MASKING_REGEX = "LUMIGO_SECRET_MASKING_REGEX"
+LUMIGO_SYNC_TRACING = "LUMIGO_SYNC_TRACING"
 WARN_CLIENT_PREFIX = "Lumigo Warning"
 INTERNAL_ANALYTICS_PREFIX = "Lumigo Analytic Log"
 TRUNCATE_SUFFIX = "...[too long]"
@@ -134,6 +135,7 @@ class Configuration:
     edge_kinesis_aws_access_key_id: Optional[str] = None
     edge_kinesis_aws_secret_access_key: Optional[str] = None
     should_scrub_known_services: bool = False
+    is_sync_tracer: bool = False
 
     @staticmethod
     def get_max_entry_size(has_error: bool = False) -> int:
@@ -239,6 +241,7 @@ def config(
     Configuration.should_scrub_known_services = (
         os.environ.get("LUMIGO_SCRUB_KNOWN_SERVICES") == "true"
     )
+    Configuration.is_sync_tracer = os.environ.get(LUMIGO_SYNC_TRACING, "FALSE").lower() == "true"
 
 
 def _is_span_has_error(span: dict) -> bool:
@@ -747,6 +750,8 @@ def lumigo_dumps(
         return "[" + ", ".join(organs) + "]"
 
     try:
+        if isinstance(d, str) and d.endswith(TRUNCATE_SUFFIX):
+            return d
         retval = aws_dump(d, decimal_safe=decimal_safe)
     except TypeError:
         if enforce_jsonify:

@@ -17,7 +17,12 @@ from urllib3 import HTTPConnectionPool
 import lumigo_tracer
 from lumigo_tracer import lumigo_utils
 from lumigo_tracer.auto_tag import auto_tag_event
-from lumigo_tracer.lumigo_utils import EXECUTION_TAGS_KEY, DEFAULT_MAX_ENTRY_SIZE, Configuration
+from lumigo_tracer.lumigo_utils import (
+    EXECUTION_TAGS_KEY,
+    DEFAULT_MAX_ENTRY_SIZE,
+    Configuration,
+    TRUNCATE_SUFFIX,
+)
 from lumigo_tracer.wrappers.http.http_parser import Parser
 from lumigo_tracer.spans_container import SpansContainer
 from lumigo_tracer.wrappers.http.http_data_classes import HttpRequest
@@ -516,13 +521,14 @@ def test_aggregating_response_body():
         ),
     )
 
-    big_response_chunk = b"leak" * DEFAULT_MAX_ENTRY_SIZE
+    big_response_chunk = b'leak"' * DEFAULT_MAX_ENTRY_SIZE
     for _ in range(10):
         update_event_response(
             span["id"], host=None, status_code=200, headers=None, body=big_response_chunk
         )
     body = list(SpansContainer.get_span().spans.values())[0]["info"]["httpInfo"]["response"]["body"]
     assert len(body) <= len(big_response_chunk)
+    assert json.dumps(big_response_chunk.decode()).startswith(body[: -len(TRUNCATE_SUFFIX)])
 
 
 def test_double_response_size_limit_on_error_status_code(context, monkeypatch, token):
