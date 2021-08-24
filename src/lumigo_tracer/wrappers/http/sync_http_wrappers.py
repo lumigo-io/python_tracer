@@ -260,23 +260,24 @@ def _requests_wrapper(func, instance, args, kwargs):
         with lumigo_safe_execute("requests wrapper exception occurred"):
             method = safe_get_list(args, 0, kwargs.get("method", "")).upper()
             url = safe_get_list(args, 1, kwargs.get("url"))
-            if HttpState.previous_request and HttpState.previous_request.host in url:
-                span = SpansContainer.get_span().get_span_by_id(HttpState.previous_span_id)
-            else:
-                span = add_request_event(
-                    None,
-                    HttpRequest(
-                        host=url,
-                        method=method,
-                        uri=url,
-                        body=kwargs.get("data"),
-                        headers=kwargs.get("headers"),
-                        instance_id=id(instance),
-                    ),
-                )
-                span_id = span["id"]
-                HttpState.request_id_to_span_id[get_lumigo_connection_id(instance)] = span_id
-            SpansContainer.add_exception_to_span(span, exception, [])
+            if Configuration.is_sync_tracer:
+                if HttpState.previous_request:
+                    span = SpansContainer.get_span().get_span_by_id(HttpState.previous_span_id)
+                else:
+                    span = add_request_event(
+                        None,
+                        HttpRequest(
+                            host=url,
+                            method=method,
+                            uri=url,
+                            body=kwargs.get("data"),
+                            headers=kwargs.get("headers"),
+                            instance_id=id(instance),
+                        ),
+                    )
+                    span_id = span["id"]
+                    HttpState.request_id_to_span_id[get_lumigo_connection_id(instance)] = span_id
+                SpansContainer.add_exception_to_span(span, exception, [])
         raise
     with lumigo_safe_execute("requests wrapper time updates"):
         span_id = HttpState.response_id_to_span_id.get(

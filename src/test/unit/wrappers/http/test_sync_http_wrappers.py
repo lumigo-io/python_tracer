@@ -294,6 +294,8 @@ def test_wrapping_requests_times(monkeypatch, context, token):
     ],
 )
 def test_requests_failure_before_http_call(monkeypatch, context, func_to_patch, token):
+    monkeypatch.setenv("LUMIGO_SYNC_TRACING", "true")
+
     @lumigo_tracer.lumigo_tracer()
     def lambda_test_function(event, context):
         try:
@@ -317,6 +319,8 @@ def test_requests_failure_before_http_call(monkeypatch, context, func_to_patch, 
 
 
 def test_requests_failure_with_kwargs(monkeypatch, context, token):
+    monkeypatch.setenv("LUMIGO_SYNC_TRACING", "true")
+
     @lumigo_tracer.lumigo_tracer()
     def lambda_test_function(event, context):
         try:
