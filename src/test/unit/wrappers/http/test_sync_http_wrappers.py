@@ -528,7 +528,7 @@ def test_aggregating_response_body():
         )
     body = list(SpansContainer.get_span().spans.values())[0]["info"]["httpInfo"]["response"]["body"]
     assert len(body) <= len(big_response_chunk)
-    assert json.dumps(big_response_chunk.decode()).startswith(body[: -len(TRUNCATE_SUFFIX)])
+    assert body[: -len(TRUNCATE_SUFFIX)] in json.dumps(big_response_chunk.decode())
 
 
 def test_double_response_size_limit_on_error_status_code(context, monkeypatch, token):
