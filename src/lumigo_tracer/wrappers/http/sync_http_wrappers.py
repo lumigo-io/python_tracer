@@ -97,7 +97,9 @@ def update_event_response(
         http_info = last_event.get("info", {}).get("httpInfo", {})
         if not host:
             host = http_info.get("host", "unknown")
-        body = concat_old_body_to_new(http_info.get("response", {}).get("body"), body).encode()
+        old_body = http_info.get("response", {}).get("body")
+        if old_body:
+            body = concat_old_body_to_new(old_body, body).encode()
 
         has_error = is_error_code(status_code)
         max_size = Configuration.get_max_entry_size(has_error)
