@@ -118,8 +118,8 @@ class SpansContainer:
 
     def start(self, event=None, context=None):
         to_send = self._generate_start_span()
-        if not Configuration.send_only_if_error and not should_use_tracer_extension():
-            report_duration = lumigo_utils.report_json(region=self.region, msgs=[to_send])
+        if not Configuration.send_only_if_error:
+            report_duration = lumigo_utils.report_json(region=self.region, msgs=[to_send], with_done=False)
             self.function_span["reporter_rtt"] = report_duration
         else:
             get_logger().debug("Skip sending start because tracer in 'send only if error' mode .")
@@ -140,6 +140,7 @@ class SpansContainer:
                 return
             remaining_time = context.get_remaining_time_in_millis() / 1000
             buffer = get_timeout_buffer(remaining_time)
+            print(f"buffer: [{buffer}] remaining_time: [{remaining_time}]")
             if buffer >= remaining_time or remaining_time < 2:
                 get_logger().debug("Skip setting timeout timer - Too short timeout.")
                 return
