@@ -318,7 +318,7 @@ def report_json(
     :param region: The region to use as default if not configured otherwise.
     :param msgs: the message to send.
     :param should_retry: False to disable the default retry on unsuccessful sending
-    :param is_start_span: if True write_spans_to_files will also write the done file indicating the total number
+    :param is_start_span: a flag to indicate if this is the start_span
      of spans that will be written
     :return: The duration of reporting (in milliseconds),
                 or 0 if we didn't send (due to configuration or fail).
