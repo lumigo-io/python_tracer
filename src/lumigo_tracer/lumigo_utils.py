@@ -316,6 +316,7 @@ def report_json(region: Optional[str], msgs: List[dict], should_retry: bool = Tr
     :return: The duration of reporting (in milliseconds),
                 or 0 if we didn't send (due to configuration or fail).
     """
+    print(f"reporting json [{len(msgs)}]")
     if not InternalState.should_report_to_edge():
         get_logger().info("Skip sending messages due to previous timeout")
         return 0
@@ -378,7 +379,7 @@ def write_extension_file(data: dict, span_type: str):
 
 def write_spans_to_files(spans: List[Dict], max_spans=MAX_NUMBER_OF_SPANS) -> None:
     to_send = spans[:max_spans]
-    get_logger().info(f"writing [{len(spans)}] spans to files, spans: {len(to_send)}")
+    get_logger().info(f"writing [{len(to_send)}] spans to files to [{EXTENSION_DIR}]")
     Path(EXTENSION_DIR).mkdir(parents=True, exist_ok=True)
     for span in to_send:
         write_extension_file(span, "span")
