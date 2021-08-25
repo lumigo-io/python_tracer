@@ -105,7 +105,7 @@ class SpansContainer:
             self.base_msg,
         )
         self.span_ids_to_send: Set[str] = set()
-        self.spans: List[Dict] = []
+        self.spans: Dict[str, Dict] = {}
         if is_new_invocation:
             SpansContainer.is_cold = False
 
@@ -127,7 +127,7 @@ class SpansContainer:
 
     def handle_timeout(self, *args):
         get_logger().info("The tracer reached the end of the timeout timer")
-        to_send = [s for s in self.spans if s["id"] in self.span_ids_to_send]
+        to_send = [self.spans[span_id] for span_id in self.span_ids_to_send]
         self.span_ids_to_send.clear()
         if Configuration.send_only_if_error:
             to_send.append(self._generate_start_span())
@@ -151,44 +151,48 @@ class SpansContainer:
         This function parses an request event and add it to the span.
         """
         new_span = recursive_json_join(span, self.base_msg)
-        self.spans.append(new_span)
-        self.span_ids_to_send.add(span["id"])
+        span_id = new_span["id"]
+        self.spans[span_id] = new_span
+        self.span_ids_to_send.add(span_id)
         return new_span
 
-    def get_last_span(self) -> Optional[dict]:
-        if not self.spans:
+    def get_span_by_id(self, span_id: Optional[str]) -> Optional[dict]:
+        if not span_id:
             return None
-        return self.spans[-1]
+        return self.spans.get(span_id)
 
-    def get_span_by_id(self, span_id: str) -> Optional[dict]:
-        for span in self.spans:
-            if span.get("id") == span_id:
-                return span
-        return None
+    def pop_span(self, span_id: Optional[str]) -> Optional[dict]:
+        if not span_id:
+            return None
+        self.span_ids_to_send.discard(span_id)
+        return self.spans.pop(span_id, None)
 
-    def pop_last_span(self) -> Optional[dict]:
-        return self.spans.pop() if self.spans else None
-
-    def update_event_end_time(self) -> None:
+    def update_event_end_time(self, span_id: str) -> None:
         """
         This function assumes synchronous execution - we update the last http event.
         """
-        if self.spans:
-            span = self.spans[-1]
-            span["ended"] = get_current_ms_time()
-            self.span_ids_to_send.add(span["id"])
+        if span_id in self.spans:
+            self.spans[span_id]["ended"] = get_current_ms_time()
+            self.span_ids_to_send.add(span_id)
+        else:
+            get_logger().warning(f"update_event_end_time: Got unknown span id: {span_id}")
 
     def update_event_times(
-        self, start_time: Optional[datetime] = None, end_time: Optional[datetime] = None
+        self,
+        span_id: str,
+        start_time: Optional[datetime] = None,
+        end_time: Optional[datetime] = None,
     ) -> None:
         """
         This function assumes synchronous execution - we update the last http event.
         """
-        if self.spans:
+        if span_id in self.spans:
             start_timestamp = start_time.timestamp() if start_time else time.time()
             end_timestamp = end_time.timestamp() if end_time else time.time()
-            self.spans[-1]["started"] = int(start_timestamp * 1000)
-            self.spans[-1]["ended"] = int(end_timestamp * 1000)
+            self.spans[span_id]["started"] = int(start_timestamp * 1000)
+            self.spans[span_id]["ended"] = int(end_timestamp * 1000)
+        else:
+            get_logger().warning(f"update_event_times: Got unknown span id: {span_id}")
 
     @staticmethod
     def _create_exception_event(
@@ -224,8 +228,9 @@ class SpansContainer:
     def add_step_end_event(self, ret_val):
         message_id = str(uuid.uuid4())
         step_function_span = create_step_function_span(message_id)
-        self.spans.append(recursive_json_join(step_function_span, self.base_msg))
-        self.span_ids_to_send.add(step_function_span["id"])
+        span_id = step_function_span["id"]
+        self.spans[span_id] = recursive_json_join(step_function_span, self.base_msg)
+        self.span_ids_to_send.add(span_id)
         if isinstance(ret_val, dict):
             ret_val[LUMIGO_EVENT_KEY] = {STEP_FUNCTION_UID_KEY: message_id}
             get_logger().debug(f"Added key {LUMIGO_EVENT_KEY} to the user's return value")
@@ -260,12 +265,12 @@ class SpansContainer:
         if _is_span_has_error(self.function_span):
             self._set_error_extra_data(event)
         spans_contain_errors: bool = any(
-            _is_span_has_error(s) for s in self.spans + [self.function_span]
-        )
+            _is_span_has_error(s) for s in self.spans.values()
+        ) or _is_span_has_error(self.function_span)
 
         if (not Configuration.send_only_if_error) or spans_contain_errors:
             to_send = [self.function_span] + [
-                s for s in self.spans if s["id"] in self.span_ids_to_send
+                span for span_id, span in self.spans.items() if span_id in self.span_ids_to_send
             ]
             reported_rtt = lumigo_utils.report_json(region=self.region, msgs=to_send)
         else:

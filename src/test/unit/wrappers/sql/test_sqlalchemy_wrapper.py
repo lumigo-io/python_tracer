@@ -34,7 +34,7 @@ def test_happy_flow(context, db):
         return result.fetchone()
 
     assert lambda_test_function({}, context) == (1, "saart")
-    http_spans = SpansContainer.get_span().spans
+    http_spans = list(SpansContainer.get_span().spans.values())
 
     assert len(http_spans) == 2
     assert http_spans[0]["query"] == '"INSERT INTO users (name) VALUES (?)"'
@@ -58,7 +58,7 @@ def test_non_existing_table(context, db):
     with pytest.raises(OperationalError):
         lambda_test_function({}, context)
 
-    http_spans = SpansContainer.get_span().spans
+    http_spans = list(SpansContainer.get_span().spans.values())
 
     assert len(http_spans) == 1
     assert http_spans[0]["query"] == '"SELECT others.id \\nFROM others"'
@@ -76,7 +76,7 @@ def test_pruning_long_strings(context, db):
         conn.execute(Users.insert().values(name="a" * (DEFAULT_MAX_ENTRY_SIZE * 5)))
 
     lambda_test_function({}, context)
-    http_spans = SpansContainer.get_span().spans
+    http_spans = list(SpansContainer.get_span().spans.values())
 
     assert len(http_spans) == 1
     assert len(http_spans[0]["values"]) <= DEFAULT_MAX_ENTRY_SIZE * 2

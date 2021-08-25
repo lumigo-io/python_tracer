@@ -369,7 +369,7 @@ def test_wrapping_step_function(event, expected_triggered_by, expected_message_i
     return_value = json.loads(span.function_span["return_value"])
     assert return_value["result"] == 1
     assert return_value[LUMIGO_EVENT_KEY][STEP_FUNCTION_UID_KEY]
-    assert span.spans[0]["info"]["httpInfo"]["host"] == "StepFunction"
+    assert list(span.spans.values())[0]["info"]["httpInfo"]["host"] == "StepFunction"
 
 
 def test_omitting_keys(context):
@@ -384,7 +384,8 @@ def test_omitting_keys(context):
     span = SpansContainer.get_span()
     assert span.function_span["return_value"] == '{"secret_password": "****"}'
     assert span.function_span["event"] == '{"key": "****"}'
-    spans = json.loads(_create_request_body(SpansContainer.get_span().spans, True))
+    http_spans = list(SpansContainer.get_span().spans.values())
+    spans = json.loads(_create_request_body(http_spans, True))
     assert spans[0]["info"]["httpInfo"]["request"]["body"] == json.dumps(
         {"a": "b", "myPassword": "****"}
     )

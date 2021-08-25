@@ -48,6 +48,8 @@ from lumigo_tracer.lumigo_utils import (
     InternalState,
     aws_dump,
     EXTENSION_FILE_SUFFIX,
+    concat_old_body_to_new,
+    TRUNCATE_SUFFIX,
 )
 import json
 
@@ -266,6 +268,10 @@ def test_format_frames__check_all_keys_and_values():
         (  # non jsonable
             {"set"},
             "{'set'}",
+        ),
+        (  # redump already dumped and truncated json (avoid re-escaping)
+            f'{{"a": "b{TRUNCATE_SUFFIX}',
+            f'{{"a": "b{TRUNCATE_SUFFIX}',
         ),
     ],
 )
@@ -643,3 +649,22 @@ def test_internal_analytics_message(capsys):
     assert capsys.readouterr().out.startswith(INTERNAL_ANALYTICS_PREFIX)
     internal_analytics_message("Message")
     assert capsys.readouterr().out == ""
+
+
+@pytest.mark.parametrize(
+    "old, new, expected",
+    [
+        (b"1", b"2", b"12"),  # happy flow
+        (b"", b"2", b"2"),  # no old
+        (b"1", b"", b"1"),  # no new
+        (b"12", b"34567", b'"1234...[too long]'),  # together pass max size
+        (b"123456", b"789", b'"1234...[too long]'),  # old pass max size
+        (b'{"a": "b"}', b"", b'{"a": "b"}'),  # json
+        (b'a"b', b"c", b'a"bc'),  # data with "
+        (b'{"a": "\\""}', b"", b'{"a": "\\""}'),  # json with "
+        (b"\xa0", b"\xa1", b"\xa0\xa1"),  # non decode-able string
+    ],
+)
+def test_concat_old_body_to_new(old, new, expected, monkeypatch):
+    monkeypatch.setattr(Configuration, "max_entry_size", 5)
+    assert concat_old_body_to_new(lumigo_dumps(old), new) == lumigo_dumps(expected)

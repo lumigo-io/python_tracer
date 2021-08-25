@@ -1,4 +1,6 @@
 import importlib
+from typing import Optional
+
 import uuid
 
 from lumigo_tracer.libs.wrapt import wrap_function_wrapper
@@ -17,13 +19,16 @@ except Exception:
 
 
 SQL_SPAN = "mySql"
+_last_span_id: Optional[str] = None
 
 
 def _before_cursor_execute(conn, cursor, statement, parameters, context, executemany):
+    global _last_span_id
     with lumigo_safe_execute("handle sqlalchemy before execute"):
+        _last_span_id = str(uuid.uuid4())
         SpansContainer.get_span().add_span(
             {
-                "id": str(uuid.uuid4()),
+                "id": _last_span_id,
                 "type": SQL_SPAN,
                 "started": get_current_ms_time(),
                 "connectionParameters": {
@@ -40,7 +45,7 @@ def _before_cursor_execute(conn, cursor, statement, parameters, context, execute
 
 def _after_cursor_execute(conn, cursor, statement, parameters, context, executemany):
     with lumigo_safe_execute("handle sqlalchemy after execute"):
-        span = SpansContainer.get_span().get_last_span()
+        span = SpansContainer.get_span().get_span_by_id(_last_span_id)
         if not span:
             get_logger().warning("Redis span ended without a record on its start")
             return
@@ -49,7 +54,7 @@ def _after_cursor_execute(conn, cursor, statement, parameters, context, executem
 
 def _handle_error(context):
     with lumigo_safe_execute("handle sqlalchemy error"):
-        span = SpansContainer.get_span().get_last_span()
+        span = SpansContainer.get_span().get_span_by_id(_last_span_id)
         if not span:
             get_logger().warning("Redis span ended without a record on its start")
             return

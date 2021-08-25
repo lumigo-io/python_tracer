@@ -33,7 +33,7 @@ def test_pymongo_happy_flow(monkeypatch, start_event, success_event):
     monitor.started(start_event)
     monitor.succeeded(success_event)
 
-    spans = SpansContainer.get_span().spans
+    spans = list(SpansContainer.get_span().spans.values())
     assert len(spans) == 1
     assert spans[0]["request"] == '"cmd"'
     assert spans[0]["ended"] > spans[0]["started"]
@@ -45,7 +45,7 @@ def test_pymongo_only_start(monkeypatch, start_event):
     monitor = LumigoMongoMonitoring()
     monitor.started(start_event)
 
-    spans = SpansContainer.get_span().spans
+    spans = list(SpansContainer.get_span().spans.values())
     assert len(spans) == 1
     assert spans[0]["request"] == '"cmd"'
     assert "duration" not in spans[0]
@@ -56,7 +56,7 @@ def test_pymongo_error(monkeypatch, start_event, fail_event):
     monitor.started(start_event)
     monitor.failed(fail_event)
 
-    spans = SpansContainer.get_span().spans
+    spans = list(SpansContainer.get_span().spans.values())
     assert len(spans) == 1
     assert spans[0]["request"] == '"cmd"'
     assert spans[0]["ended"] > spans[0]["started"]
@@ -79,7 +79,7 @@ def test_pymongo_concurrent_events(monkeypatch, start_event, success_event):
     )
     monitor.succeeded(success_event)
 
-    spans = SpansContainer.get_span().spans
+    spans = list(SpansContainer.get_span().spans.values())
     assert len(spans) == 2
     assert spans[0]["mongoRequestId"] == "rid"
     assert spans[0]["ended"] > spans[0]["started"]

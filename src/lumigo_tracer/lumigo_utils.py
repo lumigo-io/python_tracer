@@ -67,6 +67,7 @@ DOMAIN_SCRUBBER_REGEXES = [
 SKIP_SCRUBBING_KEYS = [EXECUTION_TAGS_KEY]
 LUMIGO_SECRET_MASKING_REGEX_BACKWARD_COMP = "LUMIGO_BLACKLIST_REGEX"
 LUMIGO_SECRET_MASKING_REGEX = "LUMIGO_SECRET_MASKING_REGEX"
+LUMIGO_SYNC_TRACING = "LUMIGO_SYNC_TRACING"
 WARN_CLIENT_PREFIX = "Lumigo Warning"
 INTERNAL_ANALYTICS_PREFIX = "Lumigo Analytic Log"
 TRUNCATE_SUFFIX = "...[too long]"
@@ -134,6 +135,7 @@ class Configuration:
     edge_kinesis_aws_access_key_id: Optional[str] = None
     edge_kinesis_aws_secret_access_key: Optional[str] = None
     should_scrub_known_services: bool = False
+    is_sync_tracer: bool = False
 
     @staticmethod
     def get_max_entry_size(has_error: bool = False) -> int:
@@ -239,6 +241,7 @@ def config(
     Configuration.should_scrub_known_services = (
         os.environ.get("LUMIGO_SCRUB_KNOWN_SERVICES") == "true"
     )
+    Configuration.is_sync_tracer = os.environ.get(LUMIGO_SYNC_TRACING, "FALSE").lower() == "true"
 
 
 def _is_span_has_error(span: dict) -> bool:
@@ -318,7 +321,6 @@ def report_json(region: Optional[str], msgs: List[dict], should_retry: bool = Tr
     :return: The duration of reporting (in milliseconds),
                 or 0 if we didn't send (due to configuration or fail).
     """
-    print(f"reporting json [{len(msgs)}]")
     if not InternalState.should_report_to_edge():
         get_logger().info("Skip sending messages due to previous timeout")
         return 0
@@ -752,6 +754,8 @@ def lumigo_dumps(
         return "[" + ", ".join(organs) + "]"
 
     try:
+        if isinstance(d, str) and d.endswith(TRUNCATE_SUFFIX):
+            return d
         retval = aws_dump(d, decimal_safe=decimal_safe)
     except TypeError:
         if enforce_jsonify:
@@ -760,6 +764,22 @@ def lumigo_dumps(
     return (
         (retval[:max_size] + TRUNCATE_SUFFIX) if len(retval) >= max_size or is_truncated else retval
     )
+
+
+def concat_old_body_to_new(old_body: Optional[str], new_body: bytes) -> str:
+    """
+    We have only a dumped body from the previous request,
+    so to concatenate the new body we should undo the lumigo_dumps.
+    Note that the old body is dumped bytes
+    """
+    if not new_body:
+        return old_body or ""
+    if not old_body:
+        return lumigo_dumps(new_body)
+    if old_body.endswith(TRUNCATE_SUFFIX):
+        return old_body
+    undumped_body = (old_body or "").encode().strip(b'"')
+    return lumigo_dumps(undumped_body + new_body)
 
 
 def is_kill_switch_on():
