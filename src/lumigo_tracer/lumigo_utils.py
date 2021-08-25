@@ -391,7 +391,7 @@ def write_spans_to_files(spans: List[Dict], max_spans=MAX_NUMBER_OF_SPANS, with_
         write_extension_file(span, "span")
     if with_done:
         done_object = {"spansCount": len(to_send)}
-        print(f"created done - {done_object}")
+        get_logger().info(f"created done - {done_object}")
         write_extension_file(done_object, "done")
 
 
