@@ -310,7 +310,7 @@ def get_edge_host(region: Optional[str] = None) -> str:
 
 
 def report_json(
-    region: Optional[str], msgs: List[dict], should_retry: bool = True, with_done=True
+    region: Optional[str], msgs: List[dict], should_retry: bool = True, is_start_span=True
 ) -> int:
     """
     This function sends the information back to the edge.
@@ -318,7 +318,7 @@ def report_json(
     :param region: The region to use as default if not configured otherwise.
     :param msgs: the message to send.
     :param should_retry: False to disable the default retry on unsuccessful sending
-    :param with_done: if True write_spans_to_files will also write the done file indicating the total number
+    :param is_start_span: if True write_spans_to_files will also write the done file indicating the total number
      of spans that will be written
     :return: The duration of reporting (in milliseconds),
                 or 0 if we didn't send (due to configuration or fail).
@@ -337,7 +337,7 @@ def report_json(
         return 0
     if should_use_tracer_extension():
         with lumigo_safe_execute("report json file: writing spans to file"):
-            write_spans_to_files(spans=msgs, with_done=with_done)
+            write_spans_to_files(spans=msgs, with_done=is_start_span)
         return 0
     if region == CHINA_REGION:
         return _publish_spans_to_kinesis(to_send, CHINA_REGION)

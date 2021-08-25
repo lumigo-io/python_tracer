@@ -119,7 +119,7 @@ class SpansContainer:
         to_send = self._generate_start_span()
         if not Configuration.send_only_if_error:
             report_duration = lumigo_utils.report_json(
-                region=self.region, msgs=[to_send], with_done=False
+                region=self.region, msgs=[to_send], is_start_span=False
             )
             self.function_span["reporter_rtt"] = report_duration
         else:
