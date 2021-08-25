@@ -74,15 +74,15 @@ def s3_bucket_resource():
 
 
 @pytest.mark.slow
-def test_dynamo_db(ddb_resource, region):
+def test_dynamo_db(ddb_resource, region, context):
     @lumigo_tracer(token=TOKEN)
-    def lambda_test_function():
+    def lambda_test_function(event, context):
         boto3.resource("dynamodb", region_name=region).Table(ddb_resource).put_item(
             Item={"key": "1"}
         )
 
-    lambda_test_function()
-    events = SpansContainer.get_span().spans
+    lambda_test_function({}, context)
+    events = list(SpansContainer.get_span().spans.values())
     assert len(events) == 1
     assert events[0]["info"]["httpInfo"]["host"] == f"dynamodb.{region}.amazonaws.com"
     assert events[0]["info"]["resourceName"] == ddb_resource
@@ -91,13 +91,13 @@ def test_dynamo_db(ddb_resource, region):
 
 
 @pytest.mark.slow
-def test_sns(sns_resource, region):
+def test_sns(sns_resource, region, context):
     @lumigo_tracer(token=TOKEN)
-    def lambda_test_function():
+    def lambda_test_function(event, context):
         boto3.resource("sns").Topic(sns_resource).publish(Message=json.dumps({"test": "test"}))
 
-    lambda_test_function()
-    events = SpansContainer.get_span().spans
+    lambda_test_function({}, context)
+    events = list(SpansContainer.get_span().spans.values())
     assert len(events) == 1
     assert events[0]["info"]["httpInfo"]["host"] == f"sns.{region}.amazonaws.com"
     assert events[0]["info"]["resourceName"] == sns_resource
@@ -105,15 +105,15 @@ def test_sns(sns_resource, region):
 
 
 @pytest.mark.slow
-def test_lambda(lambda_resource, region):
+def test_lambda(lambda_resource, region, context):
     @lumigo_tracer(token=TOKEN)
-    def lambda_test_function():
+    def lambda_test_function(event, context):
         boto3.client("lambda").invoke(
             FunctionName=lambda_resource, InvocationType="Event", Payload=b"null"
         )
 
-    lambda_test_function()
-    events = SpansContainer.get_span().spans
+    lambda_test_function({}, context)
+    events = list(SpansContainer.get_span().spans.values())
     assert len(events) == 1
     assert events[0]["info"]["httpInfo"]["host"] == f"lambda.{region}.amazonaws.com"
     assert events[0]["info"]["resourceName"] == lambda_resource
@@ -126,9 +126,9 @@ def test_lambda(lambda_resource, region):
 
 
 @pytest.mark.slow
-def test_kinesis(kinesis_resource, region):
+def test_kinesis(kinesis_resource, region, context):
     @lumigo_tracer(token=TOKEN)
-    def lambda_test_function():
+    def lambda_test_function(event, context):
         client = boto3.client("kinesis")
         client.put_record(StreamName=kinesis_resource, Data=b"my data", PartitionKey="1")
         client.put_records(
@@ -139,8 +139,8 @@ def test_kinesis(kinesis_resource, region):
             ],
         )
 
-    lambda_test_function()
-    events = SpansContainer.get_span().spans
+    lambda_test_function({}, context)
+    events = list(SpansContainer.get_span().spans.values())
     assert len(events) == 2
     # Single message.
     assert events[0]["info"]["httpInfo"]["host"] == f"kinesis.{region}.amazonaws.com"
@@ -155,9 +155,9 @@ def test_kinesis(kinesis_resource, region):
 
 
 @pytest.mark.slow
-def test_sqs(sqs_resource, region):
+def test_sqs(sqs_resource, region, context):
     @lumigo_tracer(token=TOKEN)
-    def lambda_test_function():
+    def lambda_test_function(event, context):
         client = boto3.client("sqs")
         client.send_message(QueueUrl=sqs_resource, MessageBody="myMessage")
         client.send_message_batch(
@@ -168,8 +168,8 @@ def test_sqs(sqs_resource, region):
             ],
         )
 
-    lambda_test_function()
-    events = SpansContainer.get_span().spans
+    lambda_test_function({}, context)
+    events = list(SpansContainer.get_span().spans.values())
     assert len(events) == 2
     # Single message.
     assert events[0]["info"]["httpInfo"]["host"] == f"{region}.queue.amazonaws.com"
@@ -182,17 +182,17 @@ def test_sqs(sqs_resource, region):
 
 
 @pytest.mark.slow
-def test_s3(s3_bucket_resource):
+def test_s3(s3_bucket_resource, context):
     @lumigo_tracer(token=TOKEN)
-    def lambda_test_function():
+    def lambda_test_function(event, context):
         s3_client = boto3.client("s3")
         # usecase 1 - create file
         s3_client.put_object(Bucket=s3_bucket_resource, Key="0")
         # usecase 2 - boto3 creates a file-like object
         s3_client.upload_file(os.path.abspath(__file__), s3_bucket_resource, "test.txt")
 
-    lambda_test_function()
-    events = SpansContainer.get_span().spans
+    lambda_test_function({}, context)
+    events = list(SpansContainer.get_span().spans.values())
     assert len(events) == 2
     assert events[0]["info"]["messageId"]
     assert events[0]["info"]["resourceName"] == s3_bucket_resource
@@ -200,13 +200,13 @@ def test_s3(s3_bucket_resource):
 
 
 @pytest.mark.slow
-def test_get_body_from_aws_response(sqs_resource, region):
+def test_get_body_from_aws_response(sqs_resource, region, context):
     @lumigo_tracer(token=TOKEN)
-    def lambda_test_function():
+    def lambda_test_function(event, context):
         boto3.client("sqs").send_message(QueueUrl=sqs_resource, MessageBody="myMessage")
 
-    lambda_test_function()
-    events = SpansContainer.get_span().spans
+    lambda_test_function({}, context)
+    events = list(SpansContainer.get_span().spans.values())
     # making sure there is any data in the body.
     body = events[0]["info"]["httpInfo"]["response"]["body"]
     assert body and body != "b''"

@@ -18,7 +18,7 @@ REDIS_SPAN = "redis"
 
 def command_started(
     command: str, request_args: Union[Dict, List[Dict]], connection_options: Optional[Dict]
-):
+) -> str:
     span_id = str(uuid.uuid4())
     host = (connection_options or {}).get("host")
     port = (connection_options or {}).get("port")
@@ -32,11 +32,12 @@ def command_started(
             "connectionOptions": {"host": host, "port": port},
         }
     )
+    return span_id
 
 
-def command_finished(ret_val: Dict):
+def command_finished(span_id: str, ret_val: Dict):
     with lumigo_safe_execute("redis command finished"):
-        span = SpansContainer.get_span().get_last_span()
+        span = SpansContainer.get_span().get_span_by_id(span_id)
         if not span:
             get_logger().warning("Redis span ended without a record on its start")
             return
@@ -45,9 +46,9 @@ def command_finished(ret_val: Dict):
         )
 
 
-def command_failed(exception: Exception):
+def command_failed(span_id: str, exception: Exception):
     with lumigo_safe_execute("redis command failed"):
-        span = SpansContainer.get_span().get_last_span()
+        span = SpansContainer.get_span().get_span_by_id(span_id)
         if not span:
             get_logger().warning("Redis span ended without a record on its start")
             return
@@ -57,33 +58,35 @@ def command_failed(exception: Exception):
 
 
 def execute_command_wrapper(func, instance, args, kwargs):
+    span_id = None
     with lumigo_safe_execute("redis start"):
         command = args[0] if args else None
         request_args = args[1:] if args and len(args) > 1 else None
         connection_options = instance.connection_pool.connection_kwargs
-        command_started(command, request_args, connection_options)
+        span_id = command_started(command, request_args, connection_options)
     try:
         ret_val = func(*args, **kwargs)
-        command_finished(ret_val)
+        command_finished(span_id, ret_val)
         return ret_val
     except Exception as e:
-        command_failed(e)
+        command_failed(span_id, e)
         raise
 
 
 def execute_wrapper(func, instance, args, kwargs):
+    span_id = None
     with lumigo_safe_execute("redis start"):
         commands = instance.command_stack
         command = [cmd[0] for cmd in commands if cmd] or None
         request_args = [cmd[1:] for cmd in commands if cmd and len(cmd) > 1]
         connection_options = instance.connection_pool.connection_kwargs
-        command_started(lumigo_dumps(command), request_args, connection_options)
+        span_id = command_started(lumigo_dumps(command), request_args, connection_options)
     try:
         ret_val = func(*args, **kwargs)
-        command_finished(ret_val)
+        command_finished(span_id, ret_val)
         return ret_val
     except Exception as e:
-        command_failed(e)
+        command_failed(span_id, e)
         raise
 
 
