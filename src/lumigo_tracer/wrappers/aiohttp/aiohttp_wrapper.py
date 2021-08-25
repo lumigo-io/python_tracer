@@ -1,0 +1,82 @@
+from lumigo_tracer.lumigo_utils import lumigo_safe_execute, get_logger, concat_old_body_to_new
+from lumigo_tracer.libs.wrapt import wrap_function_wrapper
+from lumigo_tracer.spans_container import SpansContainer
+from lumigo_tracer.wrappers.http.http_data_classes import HttpRequest
+from lumigo_tracer.wrappers.http.sync_http_wrappers import add_request_event, update_event_response
+
+try:
+    import aiohttp
+except Exception:
+    aiohttp = None
+
+LUMIGO_SPAN_ID_KEY = "_lumigo_span_id"
+trace_config = None
+
+
+def aiohttp_session_init_wrapper(func, instance, args, kwargs):
+    traces = kwargs.get("trace_configs") or []
+    traces.append(trace_config)
+    kwargs.update({"trace_configs": traces})
+    return func(*args, **kwargs)
+
+
+async def on_request_start(session, trace_config_ctx, params):
+    with lumigo_safe_execute("add request event"):
+        span = add_request_event(
+            span_id=None,
+            parse_params=HttpRequest(
+                host=params.url.host,
+                method=params.method,
+                uri=str(params.url),
+                headers=dict(params.headers),
+                body=b"",
+            ),
+        )
+        setattr(trace_config_ctx, LUMIGO_SPAN_ID_KEY, span["id"])
+
+
+async def on_request_chunk_sent(session, trace_config_ctx, params):
+    span_id = getattr(trace_config_ctx, LUMIGO_SPAN_ID_KEY)
+    span = SpansContainer.get_span().get_span_by_id(span_id)
+    http_info = span.get("info", {}).get("httpInfo", {})
+    http_info["request"]["body"] = concat_old_body_to_new(
+        http_info.get("request", {}).get("body"), params.chunk
+    )
+
+
+async def on_request_end(session, trace_config_ctx, params):
+    span_id = getattr(trace_config_ctx, LUMIGO_SPAN_ID_KEY)
+    update_event_response(
+        span_id, params.url.host, params.response.status, dict(params.response.headers), b""
+    )
+
+
+async def on_response_chunk_received(session, trace_config_ctx, params):
+    span_id = getattr(trace_config_ctx, LUMIGO_SPAN_ID_KEY)
+    span = SpansContainer.get_span().get_span_by_id(span_id)
+    http_info = span.get("info", {}).get("httpInfo", {})
+    http_info["response"]["body"] = concat_old_body_to_new(
+        http_info.get("response", {}).get("body"), params.chunk
+    )
+
+
+async def on_request_exception(session, trace_config_ctx, params):
+    span_id = getattr(trace_config_ctx, LUMIGO_SPAN_ID_KEY)
+    span = SpansContainer.get_span().get_span_by_id(span_id)
+    SpansContainer.add_exception_to_span(span, params.exception, [])
+
+
+def wrap_aiohttp():
+    with lumigo_safe_execute("wrap http calls"):
+        get_logger().debug("wrapping http requests")
+        if aiohttp:
+            wrap_function_wrapper(
+                "aiohttp.client", "ClientSession.__init__", aiohttp_session_init_wrapper
+            )
+            global trace_config
+            trace_config = aiohttp.TraceConfig()
+            trace_config.on_request_start.append(on_request_start)
+            trace_config.on_request_chunk_sent.append(on_request_chunk_sent)
+            trace_config.on_request_end.append(on_request_end)
+            trace_config.on_response_chunk_received.append(on_response_chunk_received)
+            trace_config.on_request_exception.append(on_request_exception)
