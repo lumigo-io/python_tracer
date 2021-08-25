@@ -141,7 +141,6 @@ class SpansContainer:
                 return
             remaining_time = context.get_remaining_time_in_millis() / 1000
             buffer = get_timeout_buffer(remaining_time)
-            print(f"buffer: [{buffer}] remaining_time: [{remaining_time}]")
             if buffer >= remaining_time or remaining_time < 2:
                 get_logger().debug("Skip setting timeout timer - Too short timeout.")
                 return
