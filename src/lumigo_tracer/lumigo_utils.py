@@ -309,7 +309,9 @@ def get_edge_host(region: Optional[str] = None) -> str:
     return host
 
 
-def report_json(region: Optional[str], msgs: List[dict], should_retry: bool = True, with_done=True) -> int:
+def report_json(
+    region: Optional[str], msgs: List[dict], should_retry: bool = True, with_done=True
+) -> int:
     """
     This function sends the information back to the edge.
 

@@ -24,7 +24,6 @@ from lumigo_tracer.lumigo_utils import (
     get_region,
     is_provision_concurrency_initialization,
     get_stacktrace,
-    should_use_tracer_extension,
 )
 from lumigo_tracer import lumigo_utils
 from lumigo_tracer.parsing_utils import parse_trace_id, safe_split_get, recursive_json_join
@@ -119,7 +118,9 @@ class SpansContainer:
     def start(self, event=None, context=None):
         to_send = self._generate_start_span()
         if not Configuration.send_only_if_error:
-            report_duration = lumigo_utils.report_json(region=self.region, msgs=[to_send], with_done=False)
+            report_duration = lumigo_utils.report_json(
+                region=self.region, msgs=[to_send], with_done=False
+            )
             self.function_span["reporter_rtt"] = report_duration
         else:
             get_logger().debug("Skip sending start because tracer in 'send only if error' mode .")
