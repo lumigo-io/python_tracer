@@ -310,7 +310,7 @@ def get_edge_host(region: Optional[str] = None) -> str:
 
 
 def report_json(
-    region: Optional[str], msgs: List[dict], should_retry: bool = True, is_start_span=True
+    region: Optional[str], msgs: List[dict], should_retry: bool = True, is_start_span=False
 ) -> int:
     """
     This function sends the information back to the edge.
@@ -337,7 +337,8 @@ def report_json(
         return 0
     if should_use_tracer_extension():
         with lumigo_safe_execute("report json file: writing spans to file"):
-            write_spans_to_files(spans=msgs, with_done=is_start_span)
+            with_done = not is_start_span
+            write_spans_to_files(spans=msgs, with_done=with_done)
         return 0
     if region == CHINA_REGION:
         return _publish_spans_to_kinesis(to_send, CHINA_REGION)
