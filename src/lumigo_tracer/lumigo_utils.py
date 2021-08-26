@@ -380,6 +380,7 @@ def write_extension_file(data: dict, span_type: str):
     to_send = aws_dump(data).encode() + EXTENSION_FILE_SUFFIX.encode()
     file_name = f"{hashlib.md5(to_send).hexdigest()}_{span_type}"
     file_path = os.path.join(EXTENSION_DIR, file_name)
+    print(f"created span [{file_name}]")
     with open(file_path, "wb") as span_file:
         span_file.write(to_send)
 
@@ -391,7 +392,7 @@ def write_spans_to_files(spans: List[Dict], max_spans=MAX_NUMBER_OF_SPANS, with_
     for span in to_send:
         write_extension_file(span, "span")
     if with_done:
-        done_object = {"spansCount": len(to_send)}
+        done_object = {"spansCount": len(to_send) + 1}  # plus the start span
         get_logger().info(f"Created done - {done_object}")
         write_extension_file(done_object, "done")
 
