@@ -465,12 +465,12 @@ def test_report_json_extension_spans_mode(monkeypatch, reporter_mock):
                 i: "a" * size_factor,
             }
         )
-    report_json(None, spans)
+    report_json(region=None, msgs=spans, is_start_span=False)
 
     files_paths = []
     for span in spans:
         files_paths.append(get_span_file_name(span, "span"))
-    done_object = {"spansCount": len(spans)}
+    done_object = {"spansCount": len(spans) + 1}
     files_paths.append(get_span_file_name(done_object, "done"))
     files = glob.glob("/tmp/lumigo-spans/*")
     assert len(files) == size_factor + 1

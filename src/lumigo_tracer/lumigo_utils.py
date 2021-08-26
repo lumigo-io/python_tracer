@@ -380,7 +380,6 @@ def write_extension_file(data: dict, span_type: str):
     to_send = aws_dump(data).encode() + EXTENSION_FILE_SUFFIX.encode()
     file_name = f"{hashlib.md5(to_send).hexdigest()}_{span_type}"
     file_path = os.path.join(EXTENSION_DIR, file_name)
-    print(f"created span [{file_name}]")
     with open(file_path, "wb") as span_file:
         span_file.write(to_send)
 
