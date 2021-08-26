@@ -21,7 +21,7 @@ from lumigo_tracer.wrappers.http.http_data_classes import HttpState
 
 @pytest.fixture(autouse=True)
 def reporter_mock(monkeypatch, request):
-    if request.node.get_closest_marker("skip_lumigo_utils_reporter"):
+    if request.node.get_closest_marker("dont_mock_lumigo_utils_reporter"):
         return
     lumigo_utils.Configuration.should_report = False
     reporter_mock = mock.Mock(lumigo_utils.report_json)

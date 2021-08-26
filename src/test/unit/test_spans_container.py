@@ -40,7 +40,7 @@ def test_spans_container_not_send_start_span_on_send_only_on_errors_mode(monkeyp
     assert _is_start_span_sent() is False
 
 
-@pytest.mark.skip_lumigo_utils_reporter
+@pytest.mark.dont_mock_lumigo_utils_reporter
 def test_start(monkeypatch):
     lumigo_utils_mock = mock.Mock()
     monkeypatch.setenv("LUMIGO_USE_TRACER_EXTENSION", "true")
