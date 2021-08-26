@@ -1,10 +1,12 @@
 import copy
+import mock
 import inspect
 import json
 from datetime import datetime
 
 import pytest
 
+from lumigo_tracer import lumigo_utils
 from lumigo_tracer.wrappers.http.http_parser import HTTP_TYPE
 from lumigo_tracer.spans_container import (
     SpansContainer,
@@ -36,6 +38,17 @@ def test_spans_container_not_send_start_span_on_send_only_on_errors_mode(monkeyp
     SpansContainer.create_span()
     SpansContainer.get_span().start()
     assert _is_start_span_sent() is False
+
+
+@pytest.mark.skip_lumigo_utils_reporter
+def test_start(monkeypatch):
+    lumigo_utils_mock = mock.Mock()
+    monkeypatch.setenv("LUMIGO_USE_TRACER_EXTENSION", "true")
+    monkeypatch.setattr(lumigo_utils, "write_extension_file", lumigo_utils_mock)
+    monkeypatch.setattr(SpansContainer, "_generate_start_span", lambda *args, **kwargs: {"a": "a"})
+    monkeypatch.setattr(Configuration, "should_report", True)
+    SpansContainer().start()
+    lumigo_utils_mock.assert_called_once_with({"a": "a"}, "span")
 
 
 def test_spans_container_end_function_got_none_return_value(monkeypatch):
