@@ -61,3 +61,21 @@ def test_aiohttp_exception(context, token):
     assert http_spans[0].get("info", {}).get("httpInfo", {}).get("host") == "www.google.com"
     assert "started" in http_spans[0]
     assert http_spans[0]["error"]
+
+
+def test_aiohttp_session_init_wrapper_misused_traces(context, token):
+    @lumigo_tracer.lumigo_tracer(token=token)
+    def lambda_test_function(event, context):
+        async def main():
+            async with aiohttp.ClientSession(trace_configs="123"):
+                pass
+
+        loop = asyncio.get_event_loop()
+        return loop.run_until_complete(main())
+
+    with pytest.raises(Exception):
+        lambda_test_function({}, context)
+
+    assert not SpansContainer.get_span().spans
+    function_span = SpansContainer.get_span().function_span
+    assert function_span.get("error", {}).get("type") == "AttributeError"

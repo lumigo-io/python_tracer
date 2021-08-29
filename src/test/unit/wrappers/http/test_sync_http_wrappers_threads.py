@@ -40,8 +40,9 @@ def test_run_in_executor(context, token):
         async def main():
             loop = asyncio.get_event_loop()
             future1 = loop.run_in_executor(None, requests.get, "http://www.google.com")
-            response1 = await future1
-            return response1.text
+            future2 = loop.run_in_executor(None, requests.get, "http://www.google.com")
+            responses = await asyncio.gather(future1, future2)
+            return responses[0].text
 
         loop = asyncio.get_event_loop()
         return loop.run_until_complete(main())

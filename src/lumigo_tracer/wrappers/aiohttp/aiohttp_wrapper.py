@@ -16,8 +16,9 @@ trace_config = None
 def aiohttp_session_init_wrapper(func, instance, args, kwargs):
     with lumigo_safe_execute("aiohttp aiohttp_session_init_wrapper"):
         traces = kwargs.get("trace_configs") or []
-        traces.append(trace_config)
-        kwargs.update({"trace_configs": traces})
+        if isinstance(traces, list):
+            traces.append(trace_config)
+            kwargs.update({"trace_configs": traces})
     return func(*args, **kwargs)
 
 
