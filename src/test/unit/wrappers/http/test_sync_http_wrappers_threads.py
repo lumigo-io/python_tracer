@@ -1,3 +1,6 @@
+import asyncio
+
+import requests
 import urllib.request
 import concurrent.futures
 import json
@@ -29,3 +32,26 @@ def test_lambda_with_threads(context, token):
             "my_index"
         ]
         assert request_index == response_index
+
+
+def test_run_in_executor(context, token):
+    @lumigo_tracer.lumigo_tracer(token=token)
+    def lambda_test_function(event, context):
+        async def main():
+            loop = asyncio.get_event_loop()
+            future1 = loop.run_in_executor(None, requests.get, "http://www.google.com")
+            future2 = loop.run_in_executor(None, requests.get, "http://www.google.com")
+            responses = await asyncio.gather(future1, future2)
+            return responses[0].text
+
+        loop = asyncio.get_event_loop()
+        return loop.run_until_complete(main())
+
+    result = lambda_test_function({}, context)
+    assert result
+    http_spans = list(SpansContainer.get_span().spans.values())
+    assert http_spans
+    assert http_spans[0].get("info", {}).get("httpInfo", {}).get("host") == "www.google.com"
+    assert "started" in http_spans[0]
+    assert "ended" in http_spans[0]
+    assert "user-agent" in http_spans[0]["info"]["httpInfo"]["request"]["headers"]
