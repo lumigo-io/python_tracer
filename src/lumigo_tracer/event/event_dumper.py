@@ -9,7 +9,8 @@ from lumigo_tracer.lumigo_utils import (
     get_logger,
     is_api_gw_event,
     lumigo_dumps,
-    Configuration, should_use_tracer_extension,
+    Configuration,
+    should_use_tracer_extension,
 )
 
 EVENT_MAX_SIZE = 6 * 1024 * 1024
