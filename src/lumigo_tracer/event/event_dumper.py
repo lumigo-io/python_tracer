@@ -9,8 +9,10 @@ from lumigo_tracer.lumigo_utils import (
     get_logger,
     is_api_gw_event,
     lumigo_dumps,
-    Configuration,
+    Configuration, should_use_tracer_extension,
 )
+
+EVENT_MAX_SIZE = 6 * 1024 * 1024
 
 API_GW_KEYS_ORDER = str_to_list(os.environ.get("LUMIGO_API_GW_KEYS_ORDER", "")) or [
     "version",
@@ -247,6 +249,8 @@ class EventDumper:
         event: Dict, handlers: List[EventParseHandler] = None, has_error: bool = False
     ) -> str:
         max_size = Configuration.get_max_entry_size(has_error)
+        if should_use_tracer_extension():
+            max_size = EVENT_MAX_SIZE
         handlers = handlers or [
             ApiGWHandler(),
             SNSHandler(),
