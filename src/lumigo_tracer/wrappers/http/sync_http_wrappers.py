@@ -49,6 +49,7 @@ def add_request_event(span_id: Optional[str], parse_params: HttpRequest) -> Dict
         return {}
     parser = get_parser(parse_params.host)()
     msg = parser.parse_request(parse_params)
+
     if span_id:
         msg["id"] = span_id
     HttpState.previous_request = parse_params
