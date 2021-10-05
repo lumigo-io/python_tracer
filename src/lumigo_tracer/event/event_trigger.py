@@ -7,6 +7,7 @@ from lumigo_tracer.lumigo_utils import (
     STEP_FUNCTION_UID_KEY,
     LUMIGO_EVENT_KEY,
     md5hash,
+    should_use_tracer_extension,
 )
 
 TRIGGER_CREATION_TIME_KEY = "approxEventCreationTime"
@@ -24,6 +25,8 @@ def parse_triggered_by(event: dict):
     * {triggeredBy: unknown}
     * {triggeredBy: apigw, api: <host>, resource: <>, httpMethod: <>, stage: <>, identity: <>, referer: <>}
     """
+    if should_use_tracer_extension():
+        return _parse_unknown(event)
     with lumigo_safe_execute("triggered by"):
         if not isinstance(event, dict):
             if _is_step_function(event):

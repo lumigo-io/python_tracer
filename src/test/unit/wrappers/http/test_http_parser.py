@@ -1,4 +1,5 @@
 import json
+import os
 
 import pytest
 from lumigo_tracer.lumigo_utils import Configuration
@@ -30,6 +31,12 @@ def test_get_parser_check_headers():
     url = "api.dev.com"
     headers = {"x-amzn-requestid": "1234"}
     assert get_parser(url, headers) == ServerlessAWSParser
+
+
+def test_get_parser_with_extension_returns_default_parser(monkeypatch):
+    monkeypatch.setattr(os, "environ", {"LUMIGO_USE_TRACER_EXTENSION": "TRUE"})
+    url = "https://ne3kjv28fh.execute-api.us-west-2.amazonaws.com/doriaviram"
+    assert get_parser(url, {}) == Parser
 
 
 def test_get_parser_s3():
