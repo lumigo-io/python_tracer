@@ -1,5 +1,3 @@
-import os
-
 import pytest
 
 from lumigo_tracer.event.event_trigger import parse_triggered_by
@@ -477,8 +475,7 @@ def test_parse_triggered_by(event, output):
     assert parse_triggered_by(event) == output
 
 
-def test_parse_triggered_by_with_extension_should_be_unknown(monkeypatch):
-    monkeypatch.setattr(os, "environ", {"LUMIGO_USE_TRACER_EXTENSION": "TRUE"})
+def test_parse_triggered_by_with_extension_should_be_unknown(monkeypatch, with_extension):
     event = {
         "httpMethod": "GET",
         "resource": "resource",

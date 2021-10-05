@@ -35,6 +35,11 @@ def cancel_timeout_mechanism(monkeypatch):
     monkeypatch.setattr(Configuration, "timeout_timer", False)
 
 
+@pytest.fixture()
+def with_extension(monkeypatch):
+    monkeypatch.setattr(os, "environ", {"LUMIGO_USE_TRACER_EXTENSION": "TRUE"})
+
+
 @pytest.fixture(autouse=True)
 def remove_caches(monkeypatch):
     get_omitting_regex.cache_clear()
