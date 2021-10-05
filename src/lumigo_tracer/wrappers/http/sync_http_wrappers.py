@@ -54,7 +54,6 @@ def add_request_event(span_id: Optional[str], parse_params: HttpRequest) -> Dict
     HttpState.previous_request = parse_params
     new_span = SpansContainer.get_span().add_span(msg)
     HttpState.previous_span_id = new_span["id"]
-
     return new_span
 
 
