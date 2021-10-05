@@ -21,7 +21,6 @@ from lumigo_tracer.lumigo_utils import (
     get_current_ms_time,
     is_error_code,
     is_aws_arn,
-    should_use_tracer_extension,
 )
 from lumigo_tracer.wrappers.http.http_data_classes import HttpRequest, HttpState
 
@@ -313,8 +312,6 @@ class ApiGatewayV2Parser(ServerlessAWSParser):
 
 
 def get_parser(url: str, headers: Optional[dict] = None) -> Type[Parser]:
-    if should_use_tracer_extension():
-        return Parser
     service = safe_split_get(url, ".", 0)
     if service == "dynamodb":
         return DynamoParser

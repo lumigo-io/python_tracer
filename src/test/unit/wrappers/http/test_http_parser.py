@@ -32,12 +32,6 @@ def test_get_parser_check_headers():
     assert get_parser(url, headers) == ServerlessAWSParser
 
 
-def test_get_parser_with_extension_returns_default_parser(monkeypatch, with_extension):
-    url = "s3.eu-west-1.amazonaws.com"
-    headers = {"key": "value"}
-    assert get_parser(url, headers) == Parser
-
-
 def test_get_parser_s3():
     url = "s3.eu-west-1.amazonaws.com"
     headers = {"key": "value"}
