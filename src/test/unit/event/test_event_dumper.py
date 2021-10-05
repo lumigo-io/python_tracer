@@ -1,4 +1,5 @@
 import json
+import os
 from collections import OrderedDict
 import pytest
 
@@ -481,6 +482,13 @@ def test_parse_cloudfront_event(cloudfront_event):
             }
         )
     )
+
+
+def test_event_size_insnt_trancated_when_using_extension(monkeypatch):
+    monkeypatch.setattr(os, "environ", {"LUMIGO_USE_TRACER_EXTENSION": "TRUE"})
+    event = {"a": "a" * Configuration.get_max_entry_size(True) * 2}
+    untruncated = EventDumper.dump_event(event)
+    assert untruncated == json.dumps(event)
 
 
 def test_dump_event_has_error_should_double_limit_size():
