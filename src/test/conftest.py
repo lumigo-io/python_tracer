@@ -18,6 +18,8 @@ from lumigo_tracer.lumigo_utils import (
 from lumigo_tracer.spans_container import SpansContainer
 from lumigo_tracer.wrappers.http.http_data_classes import HttpState
 
+USE_TRACER_EXTENSION = "LUMIGO_USE_TRACER_EXTENSION"
+
 
 @pytest.fixture(autouse=True)
 def reporter_mock(monkeypatch, request):
@@ -33,6 +35,11 @@ def reporter_mock(monkeypatch, request):
 @pytest.fixture(autouse=True)
 def cancel_timeout_mechanism(monkeypatch):
     monkeypatch.setattr(Configuration, "timeout_timer", False)
+
+
+@pytest.fixture()
+def with_extension(monkeypatch):
+    monkeypatch.setenv(USE_TRACER_EXTENSION, "TRUE")
 
 
 @pytest.fixture(autouse=True)

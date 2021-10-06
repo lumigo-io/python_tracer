@@ -18,6 +18,7 @@ from lumigo_tracer.lumigo_utils import (
     get_edge_host,
     TRUNCATE_SUFFIX,
     concat_old_body_to_new,
+    EDGE_SUFFIX,
 )
 from lumigo_tracer.spans_container import SpansContainer
 from lumigo_tracer.wrappers.http.http_data_classes import HttpRequest, HttpState
@@ -35,7 +36,7 @@ HookedData = namedtuple("HookedData", ["headers", "path"])
 
 
 def is_lumigo_edge(host: Optional[str]) -> bool:
-    if host and get_edge_host() in host:
+    if host and (get_edge_host() in host or host.endswith(EDGE_SUFFIX)):
         return True
     return False
 
