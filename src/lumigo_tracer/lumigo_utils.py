@@ -30,7 +30,8 @@ except Exception:
     boto3 = None
 
 EXECUTION_TAGS_KEY = "lumigo_execution_tags_no_scrub"
-EDGE_HOST = "{region}.lumigo-tracer-edge.golumigo.com"
+EDGE_SUFFIX = "golumigo.com"
+EDGE_HOST = "{region}.lumigo-tracer-edge." + EDGE_SUFFIX
 EDGE_PATH = "/api/spans"
 HTTPS_PREFIX = "https://"
 LOG_FORMAT = "#LUMIGO# - %(asctime)s - %(levelname)s - %(message)s"
