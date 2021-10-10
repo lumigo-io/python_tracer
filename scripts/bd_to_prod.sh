@@ -51,7 +51,7 @@ echo "Creating lumigo-python-tracer layer"
 ./scripts/prepare_layer_files.sh
 
 echo "Creating layer latest version arn table md file (LAYERS.md)"
-../utils/common_bash/create_layer.sh --layer-name lumigo-python-tracer --region ALL --package-folder python --version $(git describe --abbrev=0 --tags) --runtimes "python3.6 python3.7 python3.8"
+../utils/common_bash/create_layer.sh --layer-name lumigo-python-tracer --region ALL --package-folder python --version $(git describe --abbrev=0 --tags) --runtimes "python3.6 python3.7 python3.8 python3.9"
 
 cd ../larn && npm i -g
 larn -r python3.6 -n layers/LAYERS36 --filter lumigo-python-tracer -p ~/python_tracer
