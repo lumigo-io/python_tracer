@@ -393,7 +393,8 @@ def write_spans_to_files(spans: List[Dict], max_spans=MAX_NUMBER_OF_SPANS, with_
         write_extension_file(span, "span")
     if with_done:
         done_object = {
-            "spansCount": len(to_send) + int(not Configuration.send_only_if_error)
+            "random": os.urandom(12).hex(),
+            "spansCount": len(to_send) + int(not Configuration.send_only_if_error),
         }  # plus the start span
         get_logger().info(f"Created done - {done_object}")
         write_extension_file(done_object, "done")

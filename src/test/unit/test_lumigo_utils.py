@@ -2,6 +2,7 @@ import importlib.util
 import inspect
 import hashlib
 import logging
+import os
 from collections import OrderedDict
 from decimal import Decimal
 import datetime
@@ -457,6 +458,10 @@ def test_get_edge_host(arg, host, monkeypatch):
 def test_report_json_extension_spans_mode(monkeypatch, reporter_mock):
     monkeypatch.setattr(Configuration, "should_report", True)
     monkeypatch.setenv("LUMIGO_USE_TRACER_EXTENSION", "TRUE")
+    mocked_urandom = MagicMock()
+    mocked_urandom.hex = MagicMock(return_value="my_mocked_data")
+    monkeypatch.setattr(os, "urandom", lambda *args, **kwargs: mocked_urandom)
+    assert os.urandom(12).hex() == "my_mocked_data"
     spans = []
     size_factor = 100
     for i in range(size_factor):
@@ -470,7 +475,7 @@ def test_report_json_extension_spans_mode(monkeypatch, reporter_mock):
     files_paths = []
     for span in spans:
         files_paths.append(get_span_file_name(span, "span"))
-    done_object = {"spansCount": len(spans) + 1}
+    done_object = {"random": "my_mocked_data", "spansCount": len(spans) + 1}
     files_paths.append(get_span_file_name(done_object, "done"))
     files = glob.glob("/tmp/lumigo-spans/*")
     assert len(files) == size_factor + 1
