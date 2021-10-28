@@ -461,7 +461,6 @@ def test_report_json_extension_spans_mode(monkeypatch, reporter_mock):
     mocked_urandom = MagicMock()
     mocked_urandom.hex = MagicMock(return_value="my_mocked_data")
     monkeypatch.setattr(os, "urandom", lambda *args, **kwargs: mocked_urandom)
-    assert os.urandom(12).hex() == "my_mocked_data"
     spans = []
     size_factor = 100
     for i in range(size_factor):
