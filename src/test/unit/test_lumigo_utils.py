@@ -7,7 +7,6 @@ from collections import OrderedDict
 from decimal import Decimal
 import datetime
 import http.client
-import glob
 import socket
 
 import boto3
@@ -48,7 +47,6 @@ from lumigo_tracer.lumigo_utils import (
     INTERNAL_ANALYTICS_PREFIX,
     InternalState,
     aws_dump,
-    EXTENSION_FILE_SUFFIX,
     concat_old_body_to_new,
     TRUNCATE_SUFFIX,
 )
@@ -461,8 +459,12 @@ def test_report_json_extension_spans_mode(monkeypatch, reporter_mock):
     mocked_urandom = MagicMock()
     mocked_urandom.hex = MagicMock(return_value="my_mocked_data")
     monkeypatch.setattr(os, "urandom", lambda *args, **kwargs: mocked_urandom)
+
+    start_span = [{"span": "true"}]
+    report_json(region=None, msgs=start_span, is_start_span=True)
+
     spans = []
-    size_factor = 100
+    size_factor = 2
     for i in range(size_factor):
         spans.append(
             {
@@ -471,24 +473,16 @@ def test_report_json_extension_spans_mode(monkeypatch, reporter_mock):
         )
     report_json(region=None, msgs=spans, is_start_span=False)
 
-    files_paths = []
-    for span in spans:
-        files_paths.append(get_span_file_name(span, "span"))
-    done_object = {"random": "my_mocked_data", "spansCount": len(spans) + 1}
-    files_paths.append(get_span_file_name(done_object, "done"))
-    files = glob.glob("/tmp/lumigo-spans/*")
-    assert len(files) == size_factor + 1
-    for file_name in files:
-        file_content = open(file_name, "r").read()
-        suffix_len = len(EXTENSION_FILE_SUFFIX)
-        suffix = file_content[-suffix_len:]
-        json.loads(file_content[:-suffix_len])
-        assert suffix == EXTENSION_FILE_SUFFIX
-        assert file_name in files_paths
+    start_file_path = get_span_file_name(start_span, "span")
+    end_file_path = get_span_file_name(spans, "end")
+    start_file_content = json.loads(open(start_file_path, "r").read())
+    end_file_content = json.loads(open(end_file_path, "r").read())
+    assert start_span == start_file_content
+    assert json.dumps(end_file_content) == json.dumps(spans)
 
 
-def get_span_file_name(span, _type):
-    to_send = aws_dump(span).encode() + EXTENSION_FILE_SUFFIX.encode()
+def get_span_file_name(spans, _type):
+    to_send = aws_dump(spans).encode()
     file_name = f"{hashlib.md5(to_send).hexdigest()}_{_type}"
     file_path = f"/tmp/lumigo-spans/{file_name}"
     return file_path
