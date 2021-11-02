@@ -464,7 +464,7 @@ def test_report_json_extension_spans_mode(monkeypatch, reporter_mock):
     report_json(region=None, msgs=start_span, is_start_span=True)
 
     spans = []
-    size_factor = 2
+    size_factor = 100
     for i in range(size_factor):
         spans.append(
             {
