@@ -94,7 +94,7 @@ def should_use_tracer_extension() -> bool:
 
 
 def get_extension_dir() -> str:
-    return (os.environ.get(LUMIGO_SPANS_DIR) or LUMIGO_SPANS_DIR).lower()
+    return (os.environ.get("LUMIGO_SPANS_DIR_KEY") or LUMIGO_SPANS_DIR).lower()
 
 
 def get_region() -> str:
@@ -396,7 +396,7 @@ def write_spans_to_files(
     spans: List[Dict], max_spans=MAX_NUMBER_OF_SPANS, is_start_span=True
 ) -> None:
     to_send = spans[:max_spans]
-    Path(LUMIGO_SPANS_DIR).mkdir(parents=True, exist_ok=True)
+    Path(get_extension_dir()).mkdir(parents=True, exist_ok=True)
     if is_start_span:
         get_logger().info("Creating start span file")
         write_extension_file(to_send, "span")
