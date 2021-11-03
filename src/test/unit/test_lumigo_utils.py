@@ -453,11 +453,11 @@ def test_get_edge_host(arg, host, monkeypatch):
     assert get_edge_host("region") == host
 
 
-def test_report_json_extension_spans_mode(monkeypatch, reporter_mock):
+def test_report_json_extension_spans_mode(monkeypatch, reporter_mock, tmpdir):
+    monkeypatch.setattr(lumigo_utils, "get_extension_dir", lambda *args, **kwargs: "tmp")
     monkeypatch.setattr(Configuration, "should_report", True)
     monkeypatch.setenv("LUMIGO_USE_TRACER_EXTENSION", "TRUE")
-    mocked_urandom = MagicMock()
-    mocked_urandom.hex = MagicMock(return_value="my_mocked_data")
+    mocked_urandom = MagicMock(hex=MagicMock(return_value="my_mocked_data"))
     monkeypatch.setattr(os, "urandom", lambda *args, **kwargs: mocked_urandom)
 
     start_span = [{"span": "true"}]

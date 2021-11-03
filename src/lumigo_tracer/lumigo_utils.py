@@ -75,7 +75,7 @@ NUMBER_OF_SPANS_IN_REPORT_OPTIMIZATION = 200
 DEFAULT_KEY_DEPTH = 4
 LUMIGO_TOKEN_KEY = "LUMIGO_TRACER_TOKEN"
 LUMIGO_USE_TRACER_EXTENSION = "LUMIGO_USE_TRACER_EXTENSION"
-EXTENSION_DIR = "/tmp/lumigo-spans"
+LUMIGO_SPANS_DIR = "/tmp/lumigo-spans"
 KILL_SWITCH = "LUMIGO_SWITCH_OFF"
 ERROR_SIZE_LIMIT_MULTIPLIER = 2
 CHINA_REGION = "cn-northwest-1"
@@ -92,6 +92,9 @@ edge_connection = None
 def should_use_tracer_extension() -> bool:
     return (os.environ.get(LUMIGO_USE_TRACER_EXTENSION) or "false").lower() == "true"
 
+
+def get_extension_dir() -> str:
+    return (os.environ.get(LUMIGO_SPANS_DIR) or LUMIGO_SPANS_DIR).lower()
 
 def get_region() -> str:
     return os.environ.get("AWS_REGION") or "UNKNOWN"
@@ -378,7 +381,7 @@ def report_json(
 def write_extension_file(data: List[Dict], span_type: str):
     to_send = aws_dump(data).encode()
     file_name = f"{hashlib.md5(to_send).hexdigest()}_{span_type}"
-    file_path = os.path.join(EXTENSION_DIR, file_name)
+    file_path = os.path.join(LUMIGO_SPANS_DIR, file_name)
     with open(file_path, "wb") as span_file:
         span_file.write(to_send)
         get_logger().info(f"Wrote span to file to [{file_path}]")
@@ -388,7 +391,7 @@ def write_spans_to_files(
     spans: List[Dict], max_spans=MAX_NUMBER_OF_SPANS, is_start_span=True
 ) -> None:
     to_send = spans[:max_spans]
-    Path(EXTENSION_DIR).mkdir(parents=True, exist_ok=True)
+    Path(LUMIGO_SPANS_DIR).mkdir(parents=True, exist_ok=True)
     if is_start_span:
         get_logger().info("Creating start span file")
         write_extension_file(to_send, "span")
