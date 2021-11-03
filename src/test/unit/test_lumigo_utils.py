@@ -454,8 +454,8 @@ def test_get_edge_host(arg, host, monkeypatch):
 
 
 def test_report_json_extension_spans_mode(monkeypatch, reporter_mock, tmpdir):
-    extension_dor = tmpdir.mkdir("tmp")
-    monkeypatch.setattr(lumigo_utils, "get_extension_dir", lambda *args, **kwargs: extension_dor)
+    extension_dir = tmpdir.mkdir("tmp")
+    monkeypatch.setattr(lumigo_utils, "get_extension_dir", lambda *args, **kwargs: extension_dir)
     monkeypatch.setattr(uuid, "uuid4", lambda *args, **kwargs: "span_name")
     monkeypatch.setattr(Configuration, "should_report", True)
     monkeypatch.setenv("LUMIGO_USE_TRACER_EXTENSION", "TRUE")
