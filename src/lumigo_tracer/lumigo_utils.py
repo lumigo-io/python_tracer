@@ -378,10 +378,14 @@ def report_json(
     return duration
 
 
+def get_span_file_name(span_type: str):
+    unique_name = str(uuid.uuid4())
+    return os.path.join(get_extension_dir(), f"{unique_name}_{span_type}")
+
+
 def write_extension_file(data: List[Dict], span_type: str):
     to_send = aws_dump(data).encode()
-    file_name = f"{hashlib.md5(to_send).hexdigest()}_{span_type}"
-    file_path = os.path.join(LUMIGO_SPANS_DIR, file_name)
+    file_path = get_span_file_name(span_type)
     with open(file_path, "wb") as span_file:
         span_file.write(to_send)
         get_logger().info(f"Wrote span to file to [{file_path}]")

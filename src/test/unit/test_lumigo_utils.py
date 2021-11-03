@@ -3,11 +3,13 @@ import inspect
 import hashlib
 import logging
 import os
+import uuid
 from collections import OrderedDict
 from decimal import Decimal
 import datetime
 import http.client
 import socket
+from unittest.mock import Mock
 
 import boto3
 from mock import Mock, MagicMock
@@ -454,7 +456,9 @@ def test_get_edge_host(arg, host, monkeypatch):
 
 
 def test_report_json_extension_spans_mode(monkeypatch, reporter_mock, tmpdir):
-    monkeypatch.setattr(lumigo_utils, "get_extension_dir", lambda *args, **kwargs: "tmp")
+    extension_dor = tmpdir.mkdir("tmp")
+    monkeypatch.setattr(lumigo_utils, "get_extension_dir", lambda *args, **kwargs: extension_dor)
+    monkeypatch.setattr(uuid, "uuid4", lambda *args, **kwargs: "span_name")
     monkeypatch.setattr(Configuration, "should_report", True)
     monkeypatch.setenv("LUMIGO_USE_TRACER_EXTENSION", "TRUE")
     mocked_urandom = MagicMock(hex=MagicMock(return_value="my_mocked_data"))
@@ -464,7 +468,7 @@ def test_report_json_extension_spans_mode(monkeypatch, reporter_mock, tmpdir):
     report_json(region=None, msgs=start_span, is_start_span=True)
 
     spans = []
-    size_factor = 100
+    size_factor = 1
     for i in range(size_factor):
         spans.append(
             {
@@ -472,20 +476,13 @@ def test_report_json_extension_spans_mode(monkeypatch, reporter_mock, tmpdir):
             }
         )
     report_json(region=None, msgs=spans, is_start_span=False)
-
-    start_file_path = get_span_file_name(start_span, "span")
-    end_file_path = get_span_file_name(spans, "end")
-    start_file_content = json.loads(open(start_file_path, "r").read())
-    end_file_content = json.loads(open(end_file_path, "r").read())
+    start_path_path = f"{lumigo_utils.get_extension_dir()}/span_name_span"
+    end_path_path = f"{lumigo_utils.get_extension_dir()}/span_name_end"
+    start_file_content = json.loads(open(start_path_path, "r").read())
+    end_file_content = json.loads(open(end_path_path, "r").read())
     assert start_span == start_file_content
     assert json.dumps(end_file_content) == json.dumps(spans)
 
-
-def get_span_file_name(spans, _type):
-    to_send = aws_dump(spans).encode()
-    file_name = f"{hashlib.md5(to_send).hexdigest()}_{_type}"
-    file_path = f"/tmp/lumigo-spans/{file_name}"
-    return file_path
 
 
 @pytest.mark.parametrize(
