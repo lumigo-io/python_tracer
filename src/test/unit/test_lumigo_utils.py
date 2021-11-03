@@ -1,6 +1,5 @@
 import importlib.util
 import inspect
-import hashlib
 import logging
 import os
 import uuid
@@ -12,7 +11,7 @@ import socket
 from unittest.mock import Mock
 
 import boto3
-from mock import Mock, MagicMock
+from mock import MagicMock
 
 import pytest
 from lumigo_tracer import lumigo_utils
@@ -48,7 +47,6 @@ from lumigo_tracer.lumigo_utils import (
     internal_analytics_message,
     INTERNAL_ANALYTICS_PREFIX,
     InternalState,
-    aws_dump,
     concat_old_body_to_new,
     TRUNCATE_SUFFIX,
 )
@@ -482,7 +480,6 @@ def test_report_json_extension_spans_mode(monkeypatch, reporter_mock, tmpdir):
     end_file_content = json.loads(open(end_path_path, "r").read())
     assert start_span == start_file_content
     assert json.dumps(end_file_content) == json.dumps(spans)
-
 
 
 @pytest.mark.parametrize(

@@ -96,6 +96,7 @@ def should_use_tracer_extension() -> bool:
 def get_extension_dir() -> str:
     return (os.environ.get(LUMIGO_SPANS_DIR) or LUMIGO_SPANS_DIR).lower()
 
+
 def get_region() -> str:
     return os.environ.get("AWS_REGION") or "UNKNOWN"
 
