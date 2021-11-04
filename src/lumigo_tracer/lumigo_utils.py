@@ -46,7 +46,6 @@ MAX_NUMBER_OF_SPANS: int = int(os.environ.get("LUMIGO_MAX_NUMBER_OF_SPANS", 2000
 EDGE_TIMEOUT = float(os.environ.get("LUMIGO_EDGE_TIMEOUT", SECONDS_TO_TIMEOUT))
 MAX_VARS_SIZE = 100_000
 MAX_VAR_LEN = 1024
-EXTENSION_FILE_SUFFIX = "#DONE#"
 DEFAULT_MAX_ENTRY_SIZE = 2048
 FrameVariables = Dict[str, str]
 OMITTING_KEYS_REGEXES = [
@@ -76,7 +75,7 @@ NUMBER_OF_SPANS_IN_REPORT_OPTIMIZATION = 200
 DEFAULT_KEY_DEPTH = 4
 LUMIGO_TOKEN_KEY = "LUMIGO_TRACER_TOKEN"
 LUMIGO_USE_TRACER_EXTENSION = "LUMIGO_USE_TRACER_EXTENSION"
-EXTENSION_DIR = "/tmp/lumigo-spans"
+LUMIGO_SPANS_DIR = "/tmp/lumigo-spans"
 KILL_SWITCH = "LUMIGO_SWITCH_OFF"
 ERROR_SIZE_LIMIT_MULTIPLIER = 2
 CHINA_REGION = "cn-northwest-1"
@@ -92,6 +91,10 @@ edge_connection = None
 
 def should_use_tracer_extension() -> bool:
     return (os.environ.get(LUMIGO_USE_TRACER_EXTENSION) or "false").lower() == "true"
+
+
+def get_extension_dir() -> str:
+    return (os.environ.get("LUMIGO_EXTENSION_SPANS_DIR_KEY") or LUMIGO_SPANS_DIR).lower()
 
 
 def get_region() -> str:
@@ -338,8 +341,7 @@ def report_json(
         return 0
     if should_use_tracer_extension():
         with lumigo_safe_execute("report json file: writing spans to file"):
-            with_done = not is_start_span
-            write_spans_to_files(spans=msgs, with_done=with_done)
+            write_spans_to_files(spans=msgs, is_start_span=is_start_span)
         return 0
     if region == CHINA_REGION:
         return _publish_spans_to_kinesis(to_send, CHINA_REGION)
@@ -377,26 +379,30 @@ def report_json(
     return duration
 
 
-def write_extension_file(data: dict, span_type: str):
-    to_send = aws_dump(data).encode() + EXTENSION_FILE_SUFFIX.encode()
-    file_name = f"{hashlib.md5(to_send).hexdigest()}_{span_type}"
-    file_path = os.path.join(EXTENSION_DIR, file_name)
+def get_span_file_name(span_type: str):
+    unique_name = str(uuid.uuid4())
+    return os.path.join(get_extension_dir(), f"{unique_name}_{span_type}")
+
+
+def write_extension_file(data: List[Dict], span_type: str):
+    to_send = aws_dump(data).encode()
+    file_path = get_span_file_name(span_type)
     with open(file_path, "wb") as span_file:
         span_file.write(to_send)
+        get_logger().info(f"Wrote span to file to [{file_path}]")
 
 
-def write_spans_to_files(spans: List[Dict], max_spans=MAX_NUMBER_OF_SPANS, with_done=True) -> None:
+def write_spans_to_files(
+    spans: List[Dict], max_spans=MAX_NUMBER_OF_SPANS, is_start_span=True
+) -> None:
     to_send = spans[:max_spans]
-    get_logger().info(f"writing [{len(to_send)}] spans to files to [{EXTENSION_DIR}]")
-    Path(EXTENSION_DIR).mkdir(parents=True, exist_ok=True)
-    for span in to_send:
-        write_extension_file(span, "span")
-    if with_done:
-        done_object = {
-            "spansCount": len(to_send) + int(not Configuration.send_only_if_error)
-        }  # plus the start span
-        get_logger().info(f"Created done - {done_object}")
-        write_extension_file(done_object, "done")
+    Path(get_extension_dir()).mkdir(parents=True, exist_ok=True)
+    if is_start_span:
+        get_logger().info("Creating start span file")
+        write_extension_file(to_send, "span")
+    else:
+        get_logger().info("Creating end span file")
+        write_extension_file(to_send, "end")
 
 
 def _publish_spans_to_kinesis(to_send: bytes, region: str) -> int:

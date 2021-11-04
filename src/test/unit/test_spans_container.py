@@ -48,7 +48,7 @@ def test_start(monkeypatch):
     monkeypatch.setattr(SpansContainer, "_generate_start_span", lambda *args, **kwargs: {"a": "a"})
     monkeypatch.setattr(Configuration, "should_report", True)
     SpansContainer().start()
-    lumigo_utils_mock.assert_called_once_with({"a": "a"}, "span")
+    lumigo_utils_mock.assert_called_once_with([{"a": "a"}], "span")
 
 
 def test_spans_container_end_function_got_none_return_value(monkeypatch):

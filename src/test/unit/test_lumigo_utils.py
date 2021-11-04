@@ -1,16 +1,17 @@
 import importlib.util
 import inspect
-import hashlib
 import logging
+import os
+import uuid
 from collections import OrderedDict
 from decimal import Decimal
 import datetime
 import http.client
-import glob
 import socket
+from unittest.mock import Mock
 
 import boto3
-from mock import Mock, MagicMock
+from mock import MagicMock
 
 import pytest
 from lumigo_tracer import lumigo_utils
@@ -46,8 +47,6 @@ from lumigo_tracer.lumigo_utils import (
     internal_analytics_message,
     INTERNAL_ANALYTICS_PREFIX,
     InternalState,
-    aws_dump,
-    EXTENSION_FILE_SUFFIX,
     concat_old_body_to_new,
     TRUNCATE_SUFFIX,
 )
@@ -454,9 +453,18 @@ def test_get_edge_host(arg, host, monkeypatch):
     assert get_edge_host("region") == host
 
 
-def test_report_json_extension_spans_mode(monkeypatch, reporter_mock):
+def test_report_json_extension_spans_mode(monkeypatch, reporter_mock, tmpdir):
+    extension_dir = tmpdir.mkdir("tmp")
+    monkeypatch.setattr(uuid, "uuid4", lambda *args, **kwargs: "span_name")
     monkeypatch.setattr(Configuration, "should_report", True)
     monkeypatch.setenv("LUMIGO_USE_TRACER_EXTENSION", "TRUE")
+    monkeypatch.setenv("LUMIGO_EXTENSION_SPANS_DIR_KEY", extension_dir)
+    mocked_urandom = MagicMock(hex=MagicMock(return_value="my_mocked_data"))
+    monkeypatch.setattr(os, "urandom", lambda *args, **kwargs: mocked_urandom)
+
+    start_span = [{"span": "true"}]
+    report_json(region=None, msgs=start_span, is_start_span=True)
+
     spans = []
     size_factor = 100
     for i in range(size_factor):
@@ -466,28 +474,12 @@ def test_report_json_extension_spans_mode(monkeypatch, reporter_mock):
             }
         )
     report_json(region=None, msgs=spans, is_start_span=False)
-
-    files_paths = []
-    for span in spans:
-        files_paths.append(get_span_file_name(span, "span"))
-    done_object = {"spansCount": len(spans) + 1}
-    files_paths.append(get_span_file_name(done_object, "done"))
-    files = glob.glob("/tmp/lumigo-spans/*")
-    assert len(files) == size_factor + 1
-    for file_name in files:
-        file_content = open(file_name, "r").read()
-        suffix_len = len(EXTENSION_FILE_SUFFIX)
-        suffix = file_content[-suffix_len:]
-        json.loads(file_content[:-suffix_len])
-        assert suffix == EXTENSION_FILE_SUFFIX
-        assert file_name in files_paths
-
-
-def get_span_file_name(span, _type):
-    to_send = aws_dump(span).encode() + EXTENSION_FILE_SUFFIX.encode()
-    file_name = f"{hashlib.md5(to_send).hexdigest()}_{_type}"
-    file_path = f"/tmp/lumigo-spans/{file_name}"
-    return file_path
+    start_path_path = f"{lumigo_utils.get_extension_dir()}/span_name_span"
+    end_path_path = f"{lumigo_utils.get_extension_dir()}/span_name_end"
+    start_file_content = json.loads(open(start_path_path, "r").read())
+    end_file_content = json.loads(open(end_path_path, "r").read())
+    assert start_span == start_file_content
+    assert json.dumps(end_file_content) == json.dumps(spans)
 
 
 @pytest.mark.parametrize(
