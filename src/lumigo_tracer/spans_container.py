@@ -23,7 +23,8 @@ from lumigo_tracer.lumigo_utils import (
     get_current_ms_time,
     get_region,
     is_provision_concurrency_initialization,
-    get_stacktrace, write_extension_file,
+    get_stacktrace,
+    write_extension_file,
 )
 from lumigo_tracer import lumigo_utils
 from lumigo_tracer.parsing_utils import parse_trace_id, safe_split_get, recursive_json_join
