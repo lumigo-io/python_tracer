@@ -2,6 +2,7 @@ import copy
 import mock
 import inspect
 import json
+import uuid
 from datetime import datetime
 
 import pytest
@@ -59,8 +60,11 @@ def test_spans_container_end_function_got_none_return_value(monkeypatch):
 
 
 def test_spans_container_end_function_not_send_spans_on_send_only_on_errors_mode(
-    monkeypatch, dummy_span
+    monkeypatch, dummy_span, tmpdir
 ):
+    extension_dir = tmpdir.mkdir("tmp")
+    monkeypatch.setenv("LUMIGO_EXTENSION_SPANS_DIR_KEY", extension_dir)
+    monkeypatch.setattr(uuid, "uuid4", lambda *args, **kwargs: "span_name")
     Configuration.send_only_if_error = True
 
     SpansContainer.create_span()
@@ -69,6 +73,9 @@ def test_spans_container_end_function_not_send_spans_on_send_only_on_errors_mode
     SpansContainer.get_span().add_span(dummy_span)
 
     reported_ttl = SpansContainer.get_span().end({})
+    stop_path_path = f"{lumigo_utils.get_extension_dir()}/span_name_stop"
+    stop_file_content = json.loads(open(stop_path_path, "r").read())
+    assert json.dumps(stop_file_content) == json.dumps([{}])
     assert reported_ttl is None
 
 
