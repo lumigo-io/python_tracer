@@ -69,7 +69,6 @@ def test_spans_container_end_function_not_send_spans_on_send_only_on_errors_mode
 
     SpansContainer.create_span()
     SpansContainer.get_span().start()
-
     SpansContainer.get_span().add_span(dummy_span)
 
     reported_ttl = SpansContainer.get_span().end({})
