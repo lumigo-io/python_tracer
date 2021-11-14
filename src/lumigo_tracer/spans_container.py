@@ -278,7 +278,7 @@ class SpansContainer:
             get_logger().debug(
                 "No Spans were sent, `Configuration.send_only_if_error` is on and no span has error"
             )
-            write_extension_file([{}], "stop")
+            # write_extension_file([{}], "stop")
         return reported_rtt
 
     def _set_error_extra_data(self, event):
