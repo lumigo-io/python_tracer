@@ -1,4 +1,6 @@
 import copy
+import os
+
 import mock
 import inspect
 import json
@@ -62,36 +64,32 @@ def test_spans_container_end_function_got_none_return_value(monkeypatch):
 def test_spans_container_end_function_not_send_spans_on_send_only_on_errors_mode(
     monkeypatch, dummy_span, tmpdir
 ):
-    extension_dir = tmpdir.mkdir("tmp")
-    monkeypatch.setenv("LUMIGO_EXTENSION_SPANS_DIR_KEY", extension_dir)
     monkeypatch.setenv("LUMIGO_USE_TRACER_EXTENSION", "TRUE")
-    monkeypatch.setattr(uuid, "uuid4", lambda *args, **kwargs: "span_name")
-    Configuration.send_only_if_error = True
-
-    SpansContainer.create_span()
-    SpansContainer.get_span().start()
-    SpansContainer.get_span().add_span(dummy_span)
-
-    reported_ttl = SpansContainer.get_span().end({})
-    stop_path_path = f"{lumigo_utils.get_extension_dir()}/span_name_stop"
+    reported_ttl, stop_path_path = only_if_error(dummy_span, monkeypatch, tmpdir)
     stop_file_content = json.loads(open(stop_path_path, "r").read())
     assert json.dumps(stop_file_content) == json.dumps([{}])
     assert reported_ttl is None
 
 
-def test_spans_container_end_shoudnt_try_to_create_file_if_not_using_extension(
+def test_spans_container_end_shoudnt_create_file_if_not_using_extension(
     monkeypatch, dummy_span, tmpdir
 ):
+    reported_ttl, stop_path_path = only_if_error(dummy_span, monkeypatch, tmpdir)
+    assert os.path.isfile(stop_path_path) is False
+    assert reported_ttl is None
+
+
+def only_if_error(dummy_span, monkeypatch, tmpdir):
+    extension_dir = tmpdir.mkdir("tmp")
+    monkeypatch.setenv("LUMIGO_EXTENSION_SPANS_DIR_KEY", extension_dir)
     monkeypatch.setattr(uuid, "uuid4", lambda *args, **kwargs: "span_name")
     Configuration.send_only_if_error = True
-    lumigo_utils_mock = mock.Mock()
-    monkeypatch.setattr(lumigo_utils, "write_extension_file", lumigo_utils_mock)
     SpansContainer.create_span()
     SpansContainer.get_span().start()
     SpansContainer.get_span().add_span(dummy_span)
     reported_ttl = SpansContainer.get_span().end({})
-    lumigo_utils_mock.assert_not_called()
-    assert reported_ttl is None
+    stop_path_path = f"{lumigo_utils.get_extension_dir()}/span_name_stop"
+    return reported_ttl, stop_path_path
 
 
 def test_spans_container_end_function_send_spans_on_send_only_on_errors_mode(
@@ -115,7 +113,6 @@ def test_spans_container_end_function_send_spans_on_send_only_on_errors_mode(
 def test_spans_container_end_function_send_only_on_errors_mode_false_not_effecting(
     monkeypatch, dummy_span
 ):
-
     SpansContainer.create_span()
     SpansContainer.get_span().start()
 
