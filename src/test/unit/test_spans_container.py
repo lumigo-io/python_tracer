@@ -79,6 +79,21 @@ def test_spans_container_end_function_not_send_spans_on_send_only_on_errors_mode
     assert reported_ttl is None
 
 
+def test_spans_container_end_shoudnt_try_to_create_file_if_not_using_extension(
+    monkeypatch, dummy_span, tmpdir
+):
+    monkeypatch.setattr(uuid, "uuid4", lambda *args, **kwargs: "span_name")
+    Configuration.send_only_if_error = True
+    lumigo_utils_mock = mock.Mock()
+    monkeypatch.setattr(lumigo_utils, "write_extension_file", lumigo_utils_mock)
+    SpansContainer.create_span()
+    SpansContainer.get_span().start()
+    SpansContainer.get_span().add_span(dummy_span)
+    reported_ttl = SpansContainer.get_span().end({})
+    lumigo_utils_mock.assert_not_called()
+    assert reported_ttl is None
+
+
 def test_spans_container_end_function_send_spans_on_send_only_on_errors_mode(
     monkeypatch, dummy_span
 ):
