@@ -86,6 +86,7 @@ def only_if_error(dummy_span, monkeypatch, tmpdir):
     Configuration.send_only_if_error = True
     SpansContainer.create_span()
     SpansContainer.get_span().start()
+
     SpansContainer.get_span().add_span(dummy_span)
     reported_ttl = SpansContainer.get_span().end({})
     stop_path_path = f"{lumigo_utils.get_extension_dir()}/span_name_stop"
@@ -99,6 +100,7 @@ def test_spans_container_end_function_send_spans_on_send_only_on_errors_mode(
 
     SpansContainer.create_span()
     SpansContainer.get_span().start()
+
     SpansContainer.get_span().add_span(dummy_span)
     try:
         1 / 0
