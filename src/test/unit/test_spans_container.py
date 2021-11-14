@@ -64,6 +64,7 @@ def test_spans_container_end_function_not_send_spans_on_send_only_on_errors_mode
 ):
     extension_dir = tmpdir.mkdir("tmp")
     monkeypatch.setenv("LUMIGO_EXTENSION_SPANS_DIR_KEY", extension_dir)
+    monkeypatch.setenv("LUMIGO_USE_TRACER_EXTENSION", "TRUE")
     monkeypatch.setattr(uuid, "uuid4", lambda *args, **kwargs: "span_name")
     Configuration.send_only_if_error = True
 

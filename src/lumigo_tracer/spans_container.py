@@ -6,7 +6,6 @@ from datetime import datetime
 import time
 import uuid
 import signal
-from pathlib import Path
 from typing import List, Dict, Optional, Callable, Set
 
 from lumigo_tracer.event.event_dumper import EventDumper
@@ -27,7 +26,6 @@ from lumigo_tracer.lumigo_utils import (
     get_stacktrace,
     write_extension_file,
     should_use_tracer_extension,
-    get_extension_dir,
 )
 from lumigo_tracer import lumigo_utils
 from lumigo_tracer.parsing_utils import parse_trace_id, safe_split_get, recursive_json_join
