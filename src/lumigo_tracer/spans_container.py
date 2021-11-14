@@ -282,7 +282,6 @@ class SpansContainer:
                 "No Spans were sent, `Configuration.send_only_if_error` is on and no span has error"
             )
             if should_use_tracer_extension():
-                Path(get_extension_dir()).mkdir(parents=True, exist_ok=True)
                 write_extension_file([{}], "stop")
         return reported_rtt
 

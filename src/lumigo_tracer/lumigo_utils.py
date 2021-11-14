@@ -385,6 +385,7 @@ def get_span_file_name(span_type: str):
 
 
 def write_extension_file(data: List[Dict], span_type: str):
+    Path(get_extension_dir()).mkdir(parents=True, exist_ok=True)
     to_send = aws_dump(data).encode()
     file_path = get_span_file_name(span_type)
     with open(file_path, "wb") as span_file:
@@ -396,7 +397,6 @@ def write_spans_to_files(
     spans: List[Dict], max_spans=MAX_NUMBER_OF_SPANS, is_start_span=True
 ) -> None:
     to_send = spans[:max_spans]
-    Path(get_extension_dir()).mkdir(parents=True, exist_ok=True)
     if is_start_span:
         get_logger().info("Creating start span file")
         write_extension_file(to_send, "span")
