@@ -25,6 +25,7 @@ from lumigo_tracer.lumigo_utils import (
     is_provision_concurrency_initialization,
     get_stacktrace,
     write_extension_file,
+    should_use_tracer_extension,
 )
 from lumigo_tracer import lumigo_utils
 from lumigo_tracer.parsing_utils import parse_trace_id, safe_split_get, recursive_json_join
@@ -278,7 +279,8 @@ class SpansContainer:
             get_logger().debug(
                 "No Spans were sent, `Configuration.send_only_if_error` is on and no span has error"
             )
-            # write_extension_file([{}], "stop")
+            if should_use_tracer_extension():
+                write_extension_file([{}], "stop")
         return reported_rtt
 
     def _set_error_extra_data(self, event):
