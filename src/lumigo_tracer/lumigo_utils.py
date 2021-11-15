@@ -34,7 +34,7 @@ EDGE_SUFFIX = "golumigo.com"
 EDGE_HOST = "{region}.lumigo-tracer-edge." + EDGE_SUFFIX
 EDGE_PATH = "/api/spans"
 HTTPS_PREFIX = "https://"
-LOG_FORMAT = "#LUMIGO# - %(asctime)s - %(levelname)s - %(message)s"
+LOG_FORMAT = "#LUMIGO# - %(levelname)s - %(asctime)s - %(message)s"
 SECONDS_TO_TIMEOUT = 0.5
 COOLDOWN_AFTER_TIMEOUT_DURATION = datetime.timedelta(seconds=10)
 LUMIGO_EVENT_KEY = "_lumigo"
