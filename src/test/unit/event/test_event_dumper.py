@@ -417,7 +417,7 @@ def test_parse_event_sqs():
 
 def test_parse_event_sqs_with_extension(monkeypatch):
     monkeypatch.setenv("LUMIGO_USE_TRACER_EXTENSION", "TRUE")
-    not_order_sns_event = {
+    not_order_sqs_event = {
         "Records": [
             {
                 "messageId": "059f36b4-87a3-44ab-83d2-661975830a7d",
@@ -438,9 +438,9 @@ def test_parse_event_sqs_with_extension(monkeypatch):
         ]
     }
 
-    order_sns_event = EventDumper.dump_event(event=not_order_sns_event)
+    order_sns_event = EventDumper.dump_event(event=not_order_sqs_event)
 
-    assert order_sns_event == lumigo_dumps(OrderedDict(not_order_sns_event))
+    assert order_sns_event == lumigo_dumps(OrderedDict(not_order_sqs_event))
 
 
 def test_is_s3_event(s3_event):
