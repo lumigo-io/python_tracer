@@ -390,7 +390,7 @@ def write_extension_file(data: List[Dict], span_type: str):
     file_path = get_span_file_name(span_type)
     with open(file_path, "wb") as span_file:
         span_file.write(to_send)
-        get_logger().info(f"Wrote span to file to [{file_path}]")
+        get_logger().info(f"Wrote span to file to [{file_path}][{len(to_send)}]")
 
 
 def write_spans_to_files(
