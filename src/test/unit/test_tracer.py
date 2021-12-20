@@ -196,7 +196,6 @@ def test_wrapping_enhanced_print_backward_compatible(context):
     @lumigo_tracer(enhance_print=True)
     def lambda_test_function(event, context):
         print("hello")
-        assert Configuration.enhanced_print is False
         return 1
 
     with CaptureOutput() as capturer:

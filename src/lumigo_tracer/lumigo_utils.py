@@ -127,7 +127,6 @@ class Configuration:
     host: str = ""
     token: Optional[str] = ""
     verbose: bool = True
-    enhanced_print: bool = False
     is_step_function: bool = False
     timeout_timer: bool = True
     timeout_timer_buffer: Optional[float] = None
