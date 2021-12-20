@@ -1,12 +1,9 @@
 import inspect
-import logging
-import builtins
 from functools import wraps
 
 from lumigo_tracer.auto_tag.auto_tag_event import AutoTagEvent
 from lumigo_tracer.lumigo_utils import (
     config,
-    Configuration,
     get_logger,
     lumigo_safe_execute,
     is_aws_environment,
@@ -49,11 +46,7 @@ def _lumigo_tracer(func):
         _add_wrap_flag_to_context(*args)
         executed = False
         ret_val = None
-        local_print = print
-        local_logging_format = logging.Formatter.format
         try:
-            if Configuration.enhanced_print:
-                _enhance_output(args, local_print, local_logging_format)
             SpansContainer.create_span(*args, is_new_invocation=True)
             with lumigo_safe_execute("auto tag"):
                 AutoTagEvent.auto_tag_event(args[0])
@@ -66,10 +59,8 @@ def _lumigo_tracer(func):
                     SpansContainer.get_span().add_exception_event(e, inspect.trace())
                 raise
             finally:
-                SpansContainer.get_span().end(ret_val, *args)
-                if Configuration.enhanced_print:
-                    builtins.print = local_print
-                    logging.Formatter.format = local_logging_format
+                with lumigo_safe_execute("end"):
+                    SpansContainer.get_span().end(ret_val, *args)
             return ret_val
         except Exception:
             # The case where our wrapping raised an exception
@@ -81,19 +72,6 @@ def _lumigo_tracer(func):
                 raise
 
     return lambda_wrapper
-
-
-def _enhance_output(args, local_print, local_logging_format):
-    if len(args) < 2:
-        return
-    request_id = getattr(args[1], "aws_request_id", "")
-    prefix = f"RequestId: {request_id}"
-    builtins.print = lambda *args, **kwargs: local_print(
-        *[_add_prefix_for_each_line(prefix, str(arg)) for arg in args], **kwargs
-    )
-    logging.Formatter.format = lambda self, record: _add_prefix_for_each_line(
-        prefix, local_logging_format(self, record)
-    )
 
 
 def _add_prefix_for_each_line(prefix: str, text: str):

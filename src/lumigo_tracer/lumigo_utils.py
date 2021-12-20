@@ -171,7 +171,7 @@ def config(
     :param edge_host: The host to send the events. Leave empty for default.
     :param should_report: Whether we should send the events. Change to True in the production.
     :param token: The token to use when sending back the events.
-    :param enhance_print: Should we add prefix to the print (so the logs will be in the platform).
+    :param enhance_print: Deprecated - Should we add prefix to the print (so the logs will be in the platform).
     :param step_function: Is this function is a part of a step function?
     :param timeout_timer: Should we start a timer to send the traced data before timeout acceded.
     :param timeout_timer_buffer: The buffer (seconds) that we take before reaching timeout to send the traces to lumigo.
@@ -195,9 +195,6 @@ def config(
     elif not is_aws_environment():
         Configuration.should_report = False
     Configuration.host = edge_host or os.environ.get("LUMIGO_TRACER_HOST", "")
-    Configuration.enhanced_print = (
-        enhance_print or os.environ.get("LUMIGO_ENHANCED_PRINT", "").lower() == "true"
-    )
     Configuration.verbose = verbose and os.environ.get("LUMIGO_VERBOSE", "").lower() != "false"
     Configuration.get_key_depth = get_key_depth or int(
         os.environ.get("LUMIGO_EVENT_KEY_DEPTH", DEFAULT_KEY_DEPTH)

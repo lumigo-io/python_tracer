@@ -5,9 +5,7 @@ import traceback
 from decimal import Decimal
 import http.client
 import os
-import sys
 from functools import wraps
-import logging
 from unittest.mock import MagicMock, ANY
 
 import boto3
@@ -183,20 +181,7 @@ def test_wrapping_with_parameters(context):
     assert Configuration.should_report == "123"
 
 
-def test_wrapping_with_print_override(context):
-    @lumigo_tracer(enhance_print=True)
-    def lambda_test_function(event, context):
-        print("hello\nworld")
-        return 1
-
-    with CaptureOutput() as capturer:
-        assert lambda_test_function({}, context) == 1
-        assert Configuration.enhanced_print is True
-        assert "RequestId: 1234 hello" in capturer.get_lines()
-        assert "RequestId: 1234 world" in capturer.get_lines()
-
-
-def test_wrapping_without_print_override(context):
+def test_wrapping_print_happy_flow(context):
     @lumigo_tracer()
     def lambda_test_function(event, context):
         print("hello")
@@ -204,7 +189,18 @@ def test_wrapping_without_print_override(context):
 
     with CaptureOutput() as capturer:
         assert lambda_test_function({}, context) == 1
+        assert any(line == "hello" for line in capturer.get_lines())
+
+
+def test_wrapping_enhanced_print_backward_compatible(context):
+    @lumigo_tracer(enhance_print=True)
+    def lambda_test_function(event, context):
+        print("hello")
         assert Configuration.enhanced_print is False
+        return 1
+
+    with CaptureOutput() as capturer:
+        assert lambda_test_function({}, context) == 1
         assert any(line == "hello" for line in capturer.get_lines())
 
 
@@ -271,78 +267,6 @@ def test_lumigo_chalice_create_extra_lambdas(monkeypatch, context):
     # should create a new span (but return the original value)
     assert handler({}, context) == "hello world"
     assert SpansContainer._span
-
-
-def test_wrapping_with_logging_override_default_usage(caplog, context):
-    @lumigo_tracer(enhance_print=True)
-    def lambda_test_function(event, context):
-        logging.warning("hello\nworld")
-        return 1
-
-    assert lambda_test_function({}, context) == 1
-    assert Configuration.enhanced_print is True
-    assert any("RequestId: 1234" in line and "hello" in line for line in caplog.text.split("\n"))
-    assert any("RequestId: 1234" in line and "world" in line for line in caplog.text.split("\n"))
-
-
-def test_wrapping_with_logging_exception(caplog, context):
-    @lumigo_tracer(enhance_print=True)
-    def lambda_test_function(event, context):
-        logger = logging.getLogger("logger_name")
-        handler = logging.StreamHandler()
-        logger.addHandler(handler)
-
-        try:
-            1 / 0
-        except Exception:  # You must call the logging.exception method just inside the except part.
-            logger.exception("hello")
-        return 1
-
-    assert lambda_test_function({}, context) == 1
-    #  Check all lines have exactly one RequestId.
-    for line in caplog.text.splitlines():
-        assert line.startswith("RequestId: 1234") and line.count("RequestId: 1234") == 1
-    #  Check the message was logged.
-    test_message = [line for line in caplog.text.splitlines() if line.endswith("hello")][0].replace(
-        " ", ""
-    )
-    assert "ERROR" in test_message and "hello" in test_message
-
-
-def test_wrapping_with_logging_override_complex_usage(context):
-    @lumigo_tracer(enhance_print=True)
-    def lambda_test_function(event, context):
-        handler = logging.StreamHandler(sys.stdout)
-        formatter = logging.Formatter("%(name)s [%(levelname)s] %(message)s")  # Format of a client.
-        handler.setFormatter(formatter)
-        logger = logging.getLogger("my_test")
-        logger.handlers = [handler]
-        logger.setLevel("INFO")
-
-        logger.info("hello\nworld")
-        return 1
-
-    with CaptureOutput() as capturer:
-        assert lambda_test_function({}, context) == 1
-        assert Configuration.enhanced_print is True
-        assert "RequestId: 1234 my_test [INFO] hello" in capturer.get_lines()
-        assert "RequestId: 1234 world" in capturer.get_lines()
-
-
-def test_wrapping_without_logging_override(caplog, context):
-    @lumigo_tracer()
-    def lambda_test_function(event, context):
-        logging.warning("hello\nworld")
-        return 1
-
-    assert lambda_test_function({}, context) == 1
-    assert Configuration.enhanced_print is False
-    assert any(
-        "RequestId: 1234" not in line and "world" in line for line in caplog.text.split("\n")
-    )
-    assert any(
-        "RequestId: 1234" not in line and "hello" in line for line in caplog.text.split("\n")
-    )
 
 
 @pytest.mark.parametrize(
