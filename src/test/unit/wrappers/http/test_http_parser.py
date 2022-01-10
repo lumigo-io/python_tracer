@@ -43,6 +43,12 @@ def test_get_parser_apigw():
     assert get_parser(url, {}) == ApiGatewayV2Parser
 
 
+def test_get_default_parser_when_using_extension(monkeypatch):
+    monkeypatch.setenv("LUMIGO_USE_TRACER_EXTENSION", "TRUE")
+    url = "https://ne3kjv28fh.execute-api.us-west-2.amazonaws.com/doriaviram"
+    assert get_parser(url, {}) == Parser
+
+
 def test_apigw_parse_response():
     parser = ApiGatewayV2Parser()
     headers = {"apigw-requestid": "LY_66j0dPHcESCg="}

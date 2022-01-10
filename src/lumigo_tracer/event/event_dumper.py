@@ -11,6 +11,7 @@ from lumigo_tracer.lumigo_utils import (
     lumigo_dumps,
     Configuration,
     should_use_tracer_extension,
+    aws_dump,
 )
 
 EVENT_MAX_SIZE = 6 * 1024 * 1024
@@ -251,7 +252,7 @@ class EventDumper:
     ) -> str:
         max_size = Configuration.get_max_entry_size(has_error)
         if should_use_tracer_extension():
-            max_size = EVENT_MAX_SIZE
+            return aws_dump(event)
         handlers = handlers or [
             ApiGWHandler(),
             SNSHandler(),

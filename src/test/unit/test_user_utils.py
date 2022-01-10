@@ -1,6 +1,5 @@
 from lumigo_tracer.spans_container import SpansContainer
 from lumigo_tracer.user_utils import (
-    report_error,
     warn,
     info,
     error,
@@ -11,15 +10,7 @@ from lumigo_tracer.user_utils import (
     MAX_TAGS,
     MAX_ELEMENTS_IN_EXTRA,
 )
-from lumigo_tracer.lumigo_utils import Configuration, EXECUTION_TAGS_KEY
-
-
-def test_report_error_with_enhance_print(capsys):
-    Configuration.enhanced_print = True
-    msg = "oh no - an error"
-    report_error(msg)
-    captured = capsys.readouterr()
-    assert captured.out == f"{LUMIGO_REPORT_ERROR_STRING} {msg}\n"
+from lumigo_tracer.lumigo_utils import EXECUTION_TAGS_KEY
 
 
 def test_err_without_alert_type_with_exception(capsys):
@@ -79,15 +70,6 @@ def test_basic_info_warn_error(capsys):
     assert captured[0] == info_msg
     assert captured[1] == warn_msg
     assert captured[2] == error_msg
-
-
-def test_report_error_without_enhance_print(capsys):
-    Configuration.enhanced_print = False
-    SpansContainer.get_span().function_span["id"] = "123"
-    msg = "oh no - an error"
-    report_error(msg)
-    captured = capsys.readouterr()
-    assert captured.out == f"RequestId: 123 {LUMIGO_REPORT_ERROR_STRING} {msg}\n"
 
 
 def test_add_execution_tag():
