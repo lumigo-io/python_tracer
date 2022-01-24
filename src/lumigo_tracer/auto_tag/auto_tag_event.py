@@ -4,7 +4,7 @@ from typing import Dict, List, Optional
 
 from lumigo_tracer.user_utils import add_execution_tag
 from lumigo_tracer.parsing_utils import str_to_list
-from lumigo_tracer.lumigo_utils import get_logger, is_api_gw_event
+from lumigo_tracer.lumigo_utils import get_logger, is_api_gw_event, Configuration
 
 AUTO_TAG_API_GW_HEADERS: Optional[List[str]] = (
     str_to_list(os.environ.get("LUMIGO_AUTO_TAG_API_GW_HEADERS", "")) or []
@@ -48,13 +48,25 @@ class ApiGWHandler(EventAutoTagHandler):
                     add_execution_tag(key, headers[key])
 
 
+class ConfigurationHandler(EventAutoTagHandler):
+    @staticmethod
+    def is_supported(event) -> bool:
+        return bool(event) and any(key in event for key in Configuration.auto_tag)
+
+    @staticmethod
+    def auto_tag(event: dict):
+        for key in Configuration.auto_tag:
+            if key in event:
+                add_execution_tag(key, event[key])
+
+
 class AutoTagEvent:
     @staticmethod
     def auto_tag_event(
         event: Optional[Dict] = None, handlers: Optional[List[EventAutoTagHandler]] = None
     ) -> None:
         if event:
-            handlers = handlers or [ApiGWHandler()]
+            handlers = handlers or [ApiGWHandler(), ConfigurationHandler()]
             for handler in handlers:
                 try:
                     if handler.is_supported(event):

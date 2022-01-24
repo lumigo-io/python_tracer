@@ -341,6 +341,21 @@ def test_wrapping_with_tags(context):
     ]
 
 
+def test_wrapping_with_auto_tags(context):
+    key = "my_key"
+    value = "my_value"
+
+    @lumigo_tracer(auto_tag=[key])
+    def lambda_test_function(event, context):
+        return "ret_value"
+
+    result = lambda_test_function({key: value}, context)
+    assert result == "ret_value"
+    assert SpansContainer.get_span().function_span[EXECUTION_TAGS_KEY] == [
+        {"key": key, "value": value}
+    ]
+
+
 def test_not_jsonable_return(monkeypatch, context):
     @lumigo_tracer()
     def lambda_test_function(event, context):

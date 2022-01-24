@@ -49,6 +49,7 @@ from lumigo_tracer.lumigo_utils import (
     InternalState,
     concat_old_body_to_new,
     TRUNCATE_SUFFIX,
+    DEFAULT_AUTO_TAG_KEY,
 )
 import json
 
@@ -396,6 +397,24 @@ def test_config_step_function_without_envs(monkeypatch, configuration_value):
     monkeypatch.delenv("LUMIGO_STEP_FUNCTION", raising=False)
     config(step_function=configuration_value)
     assert Configuration.is_step_function == configuration_value
+
+
+def test_config_lumigo_auto_tag(monkeypatch):
+    monkeypatch.setenv("LUMIGO_AUTO_TAG", "key1,key2")
+    config()
+    assert Configuration.auto_tag == ["key1", "key2"]
+
+
+def test_config_lumigo_no_auto_tag_env(monkeypatch):
+    monkeypatch.delenv("LUMIGO_AUTO_TAG", raising=False)
+    config()
+    assert Configuration.auto_tag == [DEFAULT_AUTO_TAG_KEY]
+
+
+def test_config_lumigo_auto_tag_kwarg(monkeypatch):
+    monkeypatch.delenv("LUMIGO_AUTO_TAG", raising=False)
+    config(auto_tag=["key1", "key2"])
+    assert Configuration.auto_tag == ["key1", "key2"]
 
 
 def test_config_lumigo_domains_scrubber_with_envs(monkeypatch):

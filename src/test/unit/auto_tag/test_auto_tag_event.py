@@ -1,7 +1,13 @@
+import pytest
+
 from lumigo_tracer.auto_tag import auto_tag_event
-from lumigo_tracer.auto_tag.auto_tag_event import EventAutoTagHandler, AutoTagEvent
+from lumigo_tracer.auto_tag.auto_tag_event import (
+    EventAutoTagHandler,
+    AutoTagEvent,
+    ConfigurationHandler,
+)
 from lumigo_tracer.spans_container import SpansContainer
-from lumigo_tracer.lumigo_utils import EXECUTION_TAGS_KEY
+from lumigo_tracer.lumigo_utils import EXECUTION_TAGS_KEY, Configuration
 
 
 class ExceptionHandler(EventAutoTagHandler):
@@ -278,3 +284,25 @@ def test_auto_tag_key_in_header(monkeypatch):
 
 def set_header_key(monkeypatch, header: str):
     monkeypatch.setattr(auto_tag_event, "AUTO_TAG_API_GW_HEADERS", [header])
+
+
+@pytest.mark.parametrize(
+    "config, event, expected",
+    [
+        (["key1"], {"key1": "value1"}, True),
+        (["key1"], {"key2": "value2"}, False),
+        ([], {}, False),
+    ],
+)
+def test_configuration_handler_is_supported(config, event, expected):
+    Configuration.auto_tag = config
+    assert ConfigurationHandler.is_supported(event) == expected
+
+
+def test_configuration_handler_auto_tag():
+    Configuration.auto_tag = ["key1", "key2", "key3"]
+    ConfigurationHandler.auto_tag({"key1": "value1", "key2": "value2", "other": "other"})
+    tags = SpansContainer.get_span().function_span[EXECUTION_TAGS_KEY]
+    assert len(tags) == 2
+    assert {"key": "key1", "value": "value1"} in tags
+    assert {"key": "key2", "value": "value2"} in tags
