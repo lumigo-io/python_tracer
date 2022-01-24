@@ -306,3 +306,19 @@ def test_configuration_handler_auto_tag():
     assert len(tags) == 2
     assert {"key": "key1", "value": "value1"} in tags
     assert {"key": "key2", "value": "value2"} in tags
+
+
+@pytest.mark.parametrize(
+    "value, expected",
+    [
+        (1, "1"),  # int
+        ({"a": "b"}, "{'a': 'b'}"),  # dict
+    ],
+)
+def test_configuration_handler_auto_tag_non_string(value, expected):
+    Configuration.auto_tag = ["key1"]
+
+    ConfigurationHandler.auto_tag({"key1": value})
+
+    tags = SpansContainer.get_span().function_span[EXECUTION_TAGS_KEY]
+    assert {"key": "key1", "value": expected} in tags
