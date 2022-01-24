@@ -247,7 +247,7 @@ def config(
     )
     Configuration.is_sync_tracer = os.environ.get(LUMIGO_SYNC_TRACING, "FALSE").lower() == "true"
     Configuration.auto_tag = auto_tag or os.environ.get(
-        "LUMIGO_AUTO_TAG", "DEFAULT_AUTO_TAG_KEY"
+        "LUMIGO_AUTO_TAG", DEFAULT_AUTO_TAG_KEY
     ).split(",")
 
 
