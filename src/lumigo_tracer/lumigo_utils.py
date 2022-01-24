@@ -82,6 +82,7 @@ CHINA_REGION = "cn-northwest-1"
 EDGE_KINESIS_STREAM_NAME = "prod_trc-inges-edge_edge-kinesis-stream"
 STACKTRACE_LINE_TO_DROP = "lumigo_tracer/tracer.py"
 Container = TypeVar("Container", dict, list)
+DEFAULT_AUTO_TAG_KEY = "LUMIGO_AUTO_TAG"
 
 _logger: Dict[str, logging.Logger] = {}
 
@@ -139,6 +140,7 @@ class Configuration:
     edge_kinesis_aws_secret_access_key: Optional[str] = None
     should_scrub_known_services: bool = False
     is_sync_tracer: bool = False
+    auto_tag: List[str] = []
 
     @staticmethod
     def get_max_entry_size(has_error: bool = False) -> int:
@@ -162,6 +164,7 @@ def config(
     edge_kinesis_stream_name: Optional[str] = None,
     edge_kinesis_aws_access_key_id: Optional[str] = None,
     edge_kinesis_aws_secret_access_key: Optional[str] = None,
+    auto_tag: Optional[List[str]] = None,
 ) -> None:
     """
     This function configure the lumigo wrapper.
@@ -181,6 +184,7 @@ def config(
     :param edge_kinesis_stream_name: The name of the Kinesis to push the spans in China region
     :param edge_kinesis_aws_access_key_id: The credentials to push to the Kinesis in China region
     :param edge_kinesis_aws_secret_access_key: The credentials to push to the Kinesis in China region
+    :param auto_tag: The keys from the event that should be used as execution tags.
     """
 
     Configuration.token = token or os.environ.get(LUMIGO_TOKEN_KEY, "")
@@ -242,6 +246,9 @@ def config(
         os.environ.get("LUMIGO_SCRUB_KNOWN_SERVICES") == "true"
     )
     Configuration.is_sync_tracer = os.environ.get(LUMIGO_SYNC_TRACING, "FALSE").lower() == "true"
+    Configuration.auto_tag = auto_tag or os.environ.get(
+        "LUMIGO_AUTO_TAG", DEFAULT_AUTO_TAG_KEY
+    ).split(",")
 
 
 def _is_span_has_error(span: dict) -> bool:
