@@ -190,9 +190,9 @@ class SpansContainer:
         """
         if span_id in self.spans:
             start_timestamp = start_time.timestamp() if start_time else time.time()
-            end_timestamp = end_time.timestamp() if end_time else time.time()
             self.spans[span_id]["started"] = int(start_timestamp * 1000)
-            self.spans[span_id]["ended"] = int(end_timestamp * 1000)
+            if end_time:
+                self.spans[span_id]["ended"] = end_time.timestamp()
         else:
             get_logger().warning(f"update_event_times: Got unknown span id: {span_id}")
 
