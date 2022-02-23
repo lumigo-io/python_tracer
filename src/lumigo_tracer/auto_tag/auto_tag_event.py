@@ -3,8 +3,8 @@ from abc import ABC, abstractmethod
 from typing import Dict, List, Optional
 
 from lumigo_tracer.user_utils import add_execution_tag
-from lumigo_tracer.parsing_utils import str_to_list
-from lumigo_tracer.lumigo_utils import get_logger, is_api_gw_event, Configuration
+from lumigo_tracer.parsing_utils import str_to_list, safe_get
+from lumigo_tracer.lumigo_utils import get_logger, is_api_gw_event, Configuration, warn_client
 
 AUTO_TAG_API_GW_HEADERS: Optional[List[str]] = (
     str_to_list(os.environ.get("LUMIGO_AUTO_TAG_API_GW_HEADERS", "")) or []
@@ -56,8 +56,12 @@ class ConfigurationHandler(EventAutoTagHandler):
     @staticmethod
     def auto_tag(event: dict):
         for key in Configuration.auto_tag:
-            if key in event:
-                add_execution_tag(key, event[key])
+            try:
+                value = safe_get(event, key.split("."))  # type: ignore
+                if value:
+                    add_execution_tag(key, value)
+            except Exception as err:
+                warn_client(f"Failed to auto tag key {key}: {err}")
 
 
 class AutoTagEvent:
