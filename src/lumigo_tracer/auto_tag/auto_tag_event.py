@@ -51,7 +51,7 @@ class ApiGWHandler(EventAutoTagHandler):
 class ConfigurationHandler(EventAutoTagHandler):
     @staticmethod
     def is_supported(event: dict) -> bool:
-        return bool(event) and any(key in event for key in Configuration.auto_tag)
+        return bool(event) and any(key.split(".")[0] in event for key in Configuration.auto_tag)
 
     @staticmethod
     def auto_tag(event: dict):

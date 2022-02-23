@@ -341,18 +341,19 @@ def test_wrapping_with_tags(context):
     ]
 
 
-def test_wrapping_with_auto_tags(context):
-    key = "my_key"
-    value = "my_value"
-
+@pytest.mark.parametrize(
+    "key, event",
+    [("my_key", {"my_key": "my_value"}), ("my_key.key2", {"my_key": {"key2": "my_value"}})],
+)
+def test_wrapping_with_auto_tags(context, key, event):
     @lumigo_tracer(auto_tag=[key])
     def lambda_test_function(event, context):
         return "ret_value"
 
-    result = lambda_test_function({key: value}, context)
+    result = lambda_test_function(event, context)
     assert result == "ret_value"
     assert SpansContainer.get_span().function_span[EXECUTION_TAGS_KEY] == [
-        {"key": key, "value": value}
+        {"key": key, "value": "my_value"}
     ]
 
 
