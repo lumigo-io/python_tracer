@@ -1,3 +1,5 @@
+import datetime
+
 import pytest
 
 from lumigo_tracer.auto_tag import auto_tag_event
@@ -299,13 +301,43 @@ def test_configuration_handler_is_supported(config, event, expected):
     assert ConfigurationHandler.is_supported(event) == expected
 
 
-def test_configuration_handler_auto_tag():
-    Configuration.auto_tag = ["key1", "key2", "key3"]
-    ConfigurationHandler.auto_tag({"key1": "value1", "key2": "value2", "other": "other"})
+@pytest.mark.parametrize(
+    "auto_tag_keys, event, result_tags",
+    [
+        (  # happy flow non-nested
+            ["key1", "key2", "key3"],
+            {"key1": "value1", "key2": "value2", "other": "other"},
+            [{"key": "key1", "value": "value1"}, {"key": "key2", "value": "value2"}],
+        ),
+        (["key1.key2"], {"key1": "value1"}, []),  # not exists inner key
+        (["key1.key2"], {"other": "other"}, []),  # not exists outer key
+        (  # happy flow nested
+            ["key1.key2"],
+            {"key1": {"key2": "value"}, "key3": "other"},
+            [{"key": "key1.key2", "value": "value"}],
+        ),
+        (  # happy flow nested multiple keys
+            ["key1.key2", "key3.key4"],
+            {"key1": {"key2": "value"}, "key3": {"key4": "value2"}, "key5": "other"},
+            [{"key": "key1.key2", "value": "value"}, {"key": "key3.key4", "value": "value2"}],
+        ),
+    ],
+)
+def test_configuration_handler_auto_tag(auto_tag_keys, event, result_tags):
+    Configuration.auto_tag = auto_tag_keys
+    ConfigurationHandler.auto_tag(event)
     tags = SpansContainer.get_span().function_span[EXECUTION_TAGS_KEY]
-    assert len(tags) == 2
-    assert {"key": "key1", "value": "value1"} in tags
-    assert {"key": "key2", "value": "value2"} in tags
+    assert len(tags) == len(result_tags)
+    for tag in result_tags:
+        assert tag in tags
+
+
+def test_configuration_handler_auto_tag_failure(capsys):
+    Configuration.auto_tag = [None, "key2"]
+    ConfigurationHandler.auto_tag({"key1": datetime, "key2": "value"})
+    tags = SpansContainer.get_span().function_span[EXECUTION_TAGS_KEY]
+    assert tags == [{"key": "key2", "value": "value"}]
+    assert "Failed to auto tag" in capsys.readouterr().out
 
 
 @pytest.mark.parametrize(
