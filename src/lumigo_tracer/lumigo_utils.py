@@ -373,7 +373,7 @@ def report_json(
         internal_analytics_message("report: socket.timeout")
     except Exception as e:
         if should_retry:
-            get_logger().exception(f"Could not report to {host}. Retrying.", exc_info=e)
+            get_logger().info(f"Could not report to {host}. Retrying.", exc_info=e)
             edge_connection = establish_connection(host)
             report_json(region, msgs, should_retry=False)
         else:

@@ -247,3 +247,12 @@ def test_malformed_txid(monkeypatch, context):
     result = SpansContainer.get_span().get_patched_root()
     output_trace_id = result.split(";")[0].split("=")[1].split("-")[2]
     assert output_trace_id == SpansContainer.get_span().transaction_id
+
+
+def test_unfinished_request():
+    container = SpansContainer.get_span()
+    container.add_span({"id": "1", "extra": "a"})
+    start = datetime(2022, 2, 21, 1, 1)
+    container.update_event_times(span_id="1", start_time=start)
+    assert container.get_span_by_id("1")["started"]
+    assert "ended" not in container.get_span_by_id("1")
