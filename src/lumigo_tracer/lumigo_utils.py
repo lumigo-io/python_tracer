@@ -361,10 +361,13 @@ def report_json(
     try:
         start_time = time.time()
         edge_connection.request(
-            "POST", EDGE_PATH, to_send, headers={"Content-Type": "application/json"}
+            "POST",
+            EDGE_PATH,
+            to_send,
+            headers={"Content-Type": "application/json", "Authorization": Configuration.token},
         )
         response = edge_connection.getresponse()
-        response.read()  # We most read the response to keep the connection available
+        response.read()  # We must read the response to keep the connection available
         duration = int((time.time() - start_time) * 1000)
         get_logger().info(f"successful reporting, code: {getattr(response, 'code', 'unknown')}")
     except socket.timeout:
@@ -645,6 +648,8 @@ def _recursive_omitting(
     if free_space < 0:
         return d, free_space
     should_skip_key = False
+    if isinstance(key, bytes):
+        key = key.decode()
     if isinstance(d, dict) and omit_skip_path:
         should_skip_key = omit_skip_path[0] == key
         omit_skip_path = omit_skip_path[1:] if should_skip_key else None
