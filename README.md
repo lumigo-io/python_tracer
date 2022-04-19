@@ -156,3 +156,4 @@ We've provided an easy way to run the unit test suite:
 * To run all unit tests, simply run `py.test` in the root folder.
 * To deploy services for component tests, run `sls deploy` from the root test directory. This only needs to take place when the resources change.
 * To run component tests, add the `--all` flag: `py.test --all`
+
