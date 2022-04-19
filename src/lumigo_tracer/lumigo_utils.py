@@ -30,6 +30,7 @@ except Exception:
     boto3 = None
 
 EXECUTION_TAGS_KEY = "lumigo_execution_tags_no_scrub"
+MANUAL_TRACES_KEY = "manualTraces"
 EDGE_SUFFIX = "golumigo.com"
 EDGE_HOST = "{region}.lumigo-tracer-edge." + EDGE_SUFFIX
 EDGE_PATH = "/api/spans"
@@ -64,7 +65,7 @@ DOMAIN_SCRUBBER_REGEXES = [
     r"kms\..*\.amazonaws\.com",
     r"sts\..*amazonaws\.com",
 ]
-SKIP_SCRUBBING_KEYS = [EXECUTION_TAGS_KEY]
+SKIP_SCRUBBING_KEYS = [EXECUTION_TAGS_KEY, MANUAL_TRACES_KEY]
 LUMIGO_SECRET_MASKING_REGEX_BACKWARD_COMP = "LUMIGO_BLACKLIST_REGEX"
 LUMIGO_SECRET_MASKING_REGEX = "LUMIGO_SECRET_MASKING_REGEX"
 LUMIGO_SYNC_TRACING = "LUMIGO_SYNC_TRACING"

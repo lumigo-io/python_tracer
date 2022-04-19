@@ -9,8 +9,10 @@ from lumigo_tracer.user_utils import (
     MAX_TAG_VALUE_LEN,
     MAX_TAGS,
     MAX_ELEMENTS_IN_EXTRA,
+    start_manual_trace,
+    stop_manual_trace,
 )
-from lumigo_tracer.lumigo_utils import EXECUTION_TAGS_KEY
+from lumigo_tracer.lumigo_utils import EXECUTION_TAGS_KEY, MANUAL_TRACES_KEY
 
 
 def test_err_without_alert_type_with_exception(capsys):
@@ -79,6 +81,12 @@ def test_add_execution_tag():
     assert SpansContainer.get_span().function_span[EXECUTION_TAGS_KEY] == [
         {"key": key, "value": value}
     ]
+
+
+def test_start_manual_trace_simple_flow():
+    start_manual_trace("1")
+    stop_manual_trace("1")
+    assert SpansContainer.get_span().function_span[MANUAL_TRACES_KEY]
 
 
 def test_add_execution_key_tag_empty(capsys):

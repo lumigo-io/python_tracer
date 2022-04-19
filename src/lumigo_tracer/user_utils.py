@@ -133,3 +133,21 @@ def add_execution_tag(key: str, value: str, should_log_errors: bool = True) -> b
             warn_client(ADD_TAG_ERROR_MSG_PREFIX)
         return False
     return True
+
+
+def start_manual_trace(name: str):
+    """
+    Use this function to add an manual-trace to your function.
+    This value can be viewed within the Lumigo platform - Transaction page.
+    :param name: The name of your trace, eg: "Starting loading regexes".
+    """
+    SpansContainer.get_span().start_manual_trace(str(name))
+
+
+def stop_manual_trace(name: str):
+    """
+    Use this function to add an manual-trace to your function.
+    This value can be viewed within the Lumigo platform - Transaction page.
+    :param name: The name of your trace, eg: "Starting loading regexes".
+    """
+    SpansContainer.get_span().stop_manual_trace(str(name))

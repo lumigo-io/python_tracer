@@ -143,7 +143,6 @@ Getting your machine ready to develop against the package is a straightforward p
 1. Create a virtual environment for the project `virtualenv venv -p python3`
 1. Activate the virtualenv: `. venv/bin/activate`
 1. Install dependencies: `pip install -r requirements.txt`
-1. Navigate to the source directory: `cd src` and 
 1. Run the setup script: `python setup.py develop`.
 1. Run `pre-commit install` in your repository to install pre-commit hooks
 

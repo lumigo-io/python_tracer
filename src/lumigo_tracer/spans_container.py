@@ -26,6 +26,7 @@ from lumigo_tracer.lumigo_utils import (
     get_stacktrace,
     write_extension_file,
     should_use_tracer_extension,
+    MANUAL_TRACES_KEY,
 )
 from lumigo_tracer import lumigo_utils
 from lumigo_tracer.parsing_utils import parse_trace_id, safe_split_get, recursive_json_join
@@ -102,11 +103,13 @@ class SpansContainer:
                 },
                 "isMalformedTransactionId": malformed_txid,
                 EXECUTION_TAGS_KEY: [],
+                "manualTraces": [],
             },
             self.base_msg,
         )
         self.span_ids_to_send: Set[str] = set()
         self.spans: Dict[str, Dict] = {}
+        self.manual_trace_timers: Dict[str, int] = {}
         if is_new_invocation:
             SpansContainer.is_cold = False
 
@@ -242,6 +245,18 @@ class SpansContainer:
 
     def add_tag(self, key: str, value: str) -> None:
         self.function_span[EXECUTION_TAGS_KEY].append({"key": key, "value": value})
+
+    def start_manual_trace(self, name: str) -> None:
+        now = int(datetime.now().timestamp() * 1000)
+        self.manual_trace_timers[name] = now
+
+    def stop_manual_trace(self, name: str) -> None:
+        manual_trace_started = self.manual_trace_timers.pop(name, None)
+        if manual_trace_started:
+            now = int(datetime.now().timestamp() * 1000)
+            self.function_span[MANUAL_TRACES_KEY].append(
+                {"name": name, "startTime": manual_trace_started, "endTime": now}
+            )
 
     def end(self, ret_val=None, event: Optional[dict] = None, context=None) -> Optional[int]:
         TimeoutMechanism.stop()
