@@ -103,13 +103,13 @@ class SpansContainer:
                 },
                 "isMalformedTransactionId": malformed_txid,
                 EXECUTION_TAGS_KEY: [],
-                "manualTraces": [],
+                MANUAL_TRACES_KEY: [],
             },
             self.base_msg,
         )
         self.span_ids_to_send: Set[str] = set()
         self.spans: Dict[str, Dict] = {}
-        self.manual_trace_timers: Dict[str, int] = {}
+        self.manual_trace_start_times: Dict[str, int] = {}
         if is_new_invocation:
             SpansContainer.is_cold = False
 
@@ -247,13 +247,13 @@ class SpansContainer:
         self.function_span[EXECUTION_TAGS_KEY].append({"key": key, "value": value})
 
     def start_manual_trace(self, name: str) -> None:
-        now = int(datetime.now().timestamp() * 1000)
-        self.manual_trace_timers[name] = now
+        now = get_current_ms_time()
+        self.manual_trace_start_times[name] = now
 
     def stop_manual_trace(self, name: str) -> None:
-        manual_trace_started = self.manual_trace_timers.pop(name, None)
+        manual_trace_started = self.manual_trace_start_times.pop(name, None)
         if manual_trace_started:
-            now = int(datetime.now().timestamp() * 1000)
+            now = get_current_ms_time()
             self.function_span[MANUAL_TRACES_KEY].append(
                 {"name": name, "startTime": manual_trace_started, "endTime": now}
             )
