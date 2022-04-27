@@ -240,11 +240,18 @@ class SqsParser(ServerlessAWSParser):
 
     @staticmethod
     def _extract_message_id(response_body: bytes) -> Optional[str]:
-        return safe_key_from_xml(
-            response_body, "SendMessageResponse/SendMessageResult/MessageId"  # Single.
-        ) or safe_key_from_xml(
-            response_body,
-            "SendMessageBatchResponse/SendMessageBatchResult/SendMessageBatchResultEntry/0/MessageId",  # Batch.
+        return (
+            safe_key_from_xml(
+                response_body, "SendMessageResponse/SendMessageResult/MessageId"  # Single.
+            )
+            or safe_key_from_xml(  # noqa: W503
+                response_body,
+                "SendMessageBatchResponse/SendMessageBatchResult/SendMessageBatchResultEntry/0/MessageId",  # Batch.
+            )
+            or safe_key_from_xml(  # noqa: W503
+                response_body,
+                "SendMessageBatchResponse/SendMessageBatchResult/SendMessageBatchResultEntry/MessageId",  # Batch.
+            )
         )
 
 
