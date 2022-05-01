@@ -22,6 +22,7 @@ from lumigo_tracer.lumigo_utils import (
     EXECUTION_TAGS_KEY,
     report_json,
     EDGE_KINESIS_STREAM_NAME,
+    SKIP_COLLECTING_HTTP_BODY_KEY,
 )
 
 from lumigo_tracer.spans_container import SpansContainer
@@ -201,6 +202,21 @@ def test_wrapping_enhanced_print_backward_compatible(context):
     with CaptureOutput() as capturer:
         assert lambda_test_function({}, context) == 1
         assert any(line == "hello" for line in capturer.get_lines())
+
+
+def test_skip_collecting_http_body(monkeypatch, context):
+    monkeypatch.setenv(SKIP_COLLECTING_HTTP_BODY_KEY, "true")
+
+    @lumigo_tracer()
+    def lambda_test_function(event, context):
+        d = {"a": "b", "myPassword": "123"}
+        conn = http.client.HTTPConnection("www.google.com")
+        conn.request("POST", "/", json.dumps(d))
+        return {"secret_password": "lumigo rulz"}
+
+    lambda_test_function({}, context)
+    http_spans = list(SpansContainer.get_span().spans.values())
+    assert http_spans[0]["info"]["httpInfo"]["request"]["body"] == ""
 
 
 def test_lumigo_chalice(context):
