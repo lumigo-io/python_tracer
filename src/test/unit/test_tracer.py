@@ -211,7 +211,7 @@ def test_skip_collecting_http_body(monkeypatch, context):
     def lambda_test_function(event, context):
         conn = http.client.HTTPConnection("www.google.com")
         conn.request("POST", "/", json.dumps({"a": "b"}))
-        return {"hello": "world rulz"}
+        return {"hello": "world"}
 
     lambda_test_function({}, context)
     http_spans = list(SpansContainer.get_span().spans.values())
