@@ -209,10 +209,9 @@ def test_skip_collecting_http_body(monkeypatch, context):
 
     @lumigo_tracer()
     def lambda_test_function(event, context):
-        d = {"a": "b", "myPassword": "123"}
         conn = http.client.HTTPConnection("www.google.com")
-        conn.request("POST", "/", json.dumps(d))
-        return {"secret_password": "lumigo rulz"}
+        conn.request("POST", "/", json.dumps({"a": "b"}))
+        return {"hello": "world rulz"}
 
     lambda_test_function({}, context)
     http_spans = list(SpansContainer.get_span().spans.values())
