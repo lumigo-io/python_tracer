@@ -74,8 +74,12 @@ def add_unparsed_request(span_id: Optional[str], parse_params: HttpRequest) -> O
             if http_info.get("host") == parse_params.host:
                 if "response" not in http_info:
                     SpansContainer.get_span().get_span_by_id(span_id)
-                    http_info["request"]["body"] = concat_old_body_to_new(
-                        http_info.get("request", {}).get("body"), parse_params.body
+                    http_info["request"]["body"] = (
+                        concat_old_body_to_new(
+                            http_info.get("request", {}).get("body"), parse_params.body
+                        )
+                        if not Configuration.skip_collecting_http_body
+                        else ""
                     )
                     if HttpState.previous_span_id == span_id and HttpState.previous_request:
                         HttpState.previous_request.body += parse_params.body
@@ -130,7 +134,7 @@ def _update_request_data_increased_size_limit(http_info: dict, max_size: int) ->
                 max_size,
                 omit_skip_path=HttpState.omit_skip_path,
             )
-            if HttpState.previous_request.body
+            if HttpState.previous_request.body and not Configuration.skip_collecting_http_body
             else "",
             "headers": lumigo_dumps(HttpState.previous_request.headers, max_size),
         }
