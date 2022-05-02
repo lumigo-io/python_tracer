@@ -254,7 +254,8 @@ def config(
         "LUMIGO_AUTO_TAG", DEFAULT_AUTO_TAG_KEY
     ).split(",")
     Configuration.skip_collecting_http_body = (
-        skip_collecting_http_body
+        not Configuration.verbose
+        or skip_collecting_http_body  # noqa: W503
         or os.environ.get(SKIP_COLLECTING_HTTP_BODY_KEY, "false").lower() == "true"  # noqa: W503
     )
 

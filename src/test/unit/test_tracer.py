@@ -204,8 +204,12 @@ def test_wrapping_enhanced_print_backward_compatible(context):
         assert any(line == "hello" for line in capturer.get_lines())
 
 
-def test_skip_collecting_http_body(monkeypatch, context):
-    monkeypatch.setenv(SKIP_COLLECTING_HTTP_BODY_KEY, "true")
+@pytest.mark.parametrize("is_verbose", [True, False])
+def test_skip_collecting_http_parts(monkeypatch, context, is_verbose):
+    if is_verbose:
+        monkeypatch.setenv("LUMIGO_VERBOSE", "false")
+    else:
+        monkeypatch.setenv(SKIP_COLLECTING_HTTP_BODY_KEY, "true")
 
     @lumigo_tracer()
     def lambda_test_function(event, context):
@@ -216,6 +220,12 @@ def test_skip_collecting_http_body(monkeypatch, context):
     lambda_test_function({}, context)
     http_spans = list(SpansContainer.get_span().spans.values())
     assert http_spans[0]["info"]["httpInfo"]["request"]["body"] == ""
+    if is_verbose:
+        assert "uri" not in http_spans[0]["info"]["httpInfo"]["request"]
+        assert "headers" not in http_spans[0]["info"]["httpInfo"]["request"]
+    else:
+        assert http_spans[0]["info"]["httpInfo"]["request"]["uri"] == "www.google.com/"
+        assert http_spans[0]["info"]["httpInfo"]["request"]["headers"]
 
 
 def test_lumigo_chalice(context):
