@@ -13,6 +13,7 @@ from lumigo_tracer.wrappers.http.http_parser import (
     EventBridgeParser,
     LambdaParser,
     S3Parser,
+    SqsParser,
 )
 
 
@@ -110,6 +111,18 @@ def test_lambda_parser_resource_name(uri, resource_name):
     )
     response = parser.parse_request(params)
     assert response["info"]["resourceName"] == resource_name
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        b'<?xml version="1.0"?><SendMessageBatchResponse xmlns="http://queue.amazonaws.com/doc/2012-11-05/"><SendMessageBatchResult><SendMessageBatchResultEntry><Id>123</Id><MessageId>85dc3997-b060-47bc-9d89-c754d7260dbd</MessageId><MD5OfMessageBody>485b9ada0d1f06d60d71145304704c27</MD5OfMessageBody></SendMessageBatchResultEntry></SendMessageBatchResult><ResponseMetadata><RequestId>41295a06-b432-55b5-a8aa-00e764c8b9cf</RequestId></ResponseMetadata></SendMessageBatchResponse>',
+        b'<?xml version="1.0"?><SendMessageResponse xmlns="http://queue.amazonAwsParser.com/doc/2012-11-05/"><SendMessageResult><MessageId>85dc3997-b060-47bc-9d89-c754d7260dbd</MessageId><MD5OfMessageBody>c5cb6abef11b88049177473a73ed662f</MD5OfMessageBody></SendMessageResult><ResponseMetadata><RequestId>b6b5a045-23c6-5e3a-a54f-f7dd99f7b379</RequestId></ResponseMetadata></SendMessageResponse>',
+    ],
+)
+def test_sqs_parser_message_id(body):
+    response = SqsParser().parse_response("dummy", 200, {}, body=body)
+    assert response["info"]["messageId"] == "85dc3997-b060-47bc-9d89-c754d7260dbd"
 
 
 @pytest.mark.parametrize(
