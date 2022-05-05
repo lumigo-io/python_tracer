@@ -4,7 +4,7 @@
 
 This is lumigo/python_tracer, Lumigo's Python agent for distributed tracing and performance monitoring.
 
-Supported Python Runtimes: 3.6, 3.7, 3.8
+Supported Python Runtimes: 3.6, 3.7, 3.8 and 3.9
 
 # Usage
 The package allows you to pursue automated metric gathering through Lambda Layers, automated metric gathering and instrumentation through the Serverless framework, or manual metric creation and implementation.
