@@ -19,9 +19,6 @@ from lumigo_tracer.user_utils import (
 from lumigo_tracer.lumigo_utils import EXECUTION_TAGS_KEY, MANUAL_TRACES_KEY
 
 
-
-
-
 def test_manual_traces_context_manager():
     with ManualTrace("long_operation"):
         time.sleep(1)
