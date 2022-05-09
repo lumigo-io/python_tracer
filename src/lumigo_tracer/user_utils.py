@@ -110,6 +110,25 @@ def validate_tag(key, value, tags_len, should_log_errors):
     return True
 
 
+def manual_trace(func):
+    def wrapper(*args, **kwargs):
+        with ManualTrace(func.__name__):
+            func(*args, **kwargs)
+
+    return wrapper
+
+
+class ManualTrace:
+    def __init__(self, name):
+        self.name = name
+
+    def __enter__(self):
+        start_manual_trace(self.name)
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        stop_manual_trace(self.name)
+
+
 def add_execution_tag(key: str, value: str, should_log_errors: bool = True) -> bool:
     """
     Use this function to add an execution_tag to your function with a dynamic value.
