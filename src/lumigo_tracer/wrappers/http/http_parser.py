@@ -48,7 +48,7 @@ class Parser:
             additional_info = {
                 "headers": lumigo_dumps(parse_params.headers),
                 "body": lumigo_dumps(parse_params.body, omit_skip_path=HttpState.omit_skip_path)
-                if parse_params.body
+                if parse_params.body and not Configuration.skip_collecting_http_body
                 else "",
                 "method": parse_params.method,
                 "uri": parse_params.uri,
@@ -78,7 +78,9 @@ class Parser:
         if Configuration.verbose and not should_scrub_domain(url):
             additional_info = {
                 "headers": lumigo_dumps(headers, max_size),
-                "body": lumigo_dumps(body, max_size) if body else "",
+                "body": lumigo_dumps(body, max_size)
+                if body and not Configuration.skip_collecting_http_body
+                else "",
                 "statusCode": status_code,
             }
         else:
@@ -240,11 +242,18 @@ class SqsParser(ServerlessAWSParser):
 
     @staticmethod
     def _extract_message_id(response_body: bytes) -> Optional[str]:
-        return safe_key_from_xml(
-            response_body, "SendMessageResponse/SendMessageResult/MessageId"  # Single.
-        ) or safe_key_from_xml(
-            response_body,
-            "SendMessageBatchResponse/SendMessageBatchResult/SendMessageBatchResultEntry/0/MessageId",  # Batch.
+        return (
+            safe_key_from_xml(
+                response_body, "SendMessageResponse/SendMessageResult/MessageId"  # Single.
+            )
+            or safe_key_from_xml(  # noqa: W503
+                response_body,
+                "SendMessageBatchResponse/SendMessageBatchResult/SendMessageBatchResultEntry/0/MessageId",  # Batch.
+            )
+            or safe_key_from_xml(  # noqa: W503
+                response_body,
+                "SendMessageBatchResponse/SendMessageBatchResult/SendMessageBatchResultEntry/MessageId",  # Batch.
+            )
         )
 
 

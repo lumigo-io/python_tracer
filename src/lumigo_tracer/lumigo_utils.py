@@ -84,6 +84,7 @@ EDGE_KINESIS_STREAM_NAME = "prod_trc-inges-edge_edge-kinesis-stream"
 STACKTRACE_LINE_TO_DROP = "lumigo_tracer/tracer.py"
 Container = TypeVar("Container", dict, list)
 DEFAULT_AUTO_TAG_KEY = "LUMIGO_AUTO_TAG"
+SKIP_COLLECTING_HTTP_BODY_KEY = "LUMIGO_SKIP_COLLECTING_HTTP_BODY"
 
 _logger: Dict[str, logging.Logger] = {}
 
@@ -142,6 +143,7 @@ class Configuration:
     should_scrub_known_services: bool = False
     is_sync_tracer: bool = False
     auto_tag: List[str] = []
+    skip_collecting_http_body: bool = False
 
     @staticmethod
     def get_max_entry_size(has_error: bool = False) -> int:
@@ -166,6 +168,7 @@ def config(
     edge_kinesis_aws_access_key_id: Optional[str] = None,
     edge_kinesis_aws_secret_access_key: Optional[str] = None,
     auto_tag: Optional[List[str]] = None,
+    skip_collecting_http_body: bool = False,
 ) -> None:
     """
     This function configure the lumigo wrapper.
@@ -186,6 +189,7 @@ def config(
     :param edge_kinesis_aws_access_key_id: The credentials to push to the Kinesis in China region
     :param edge_kinesis_aws_secret_access_key: The credentials to push to the Kinesis in China region
     :param auto_tag: The keys from the event that should be used as execution tags.
+    :param skip_collecting_http_body: Should we not collect the HTTP request and response bodies.
     """
 
     Configuration.token = token or os.environ.get(LUMIGO_TOKEN_KEY, "")
@@ -233,7 +237,7 @@ def config(
     Configuration.max_entry_size = int(os.environ.get("LUMIGO_MAX_ENTRY_SIZE", max_entry_size))
     Configuration.edge_kinesis_stream_name = (
         edge_kinesis_stream_name
-        or os.environ.get("LUMIGO_EDGE_KINESIS_STREAM_NAME")  # noqa`
+        or os.environ.get("LUMIGO_EDGE_KINESIS_STREAM_NAME")  # noqa
         or EDGE_KINESIS_STREAM_NAME  # noqa
     )
     Configuration.edge_kinesis_aws_access_key_id = edge_kinesis_aws_access_key_id or os.environ.get(
@@ -250,6 +254,11 @@ def config(
     Configuration.auto_tag = auto_tag or os.environ.get(
         "LUMIGO_AUTO_TAG", DEFAULT_AUTO_TAG_KEY
     ).split(",")
+    Configuration.skip_collecting_http_body = (
+        not Configuration.verbose
+        or skip_collecting_http_body  # noqa: W503
+        or os.environ.get(SKIP_COLLECTING_HTTP_BODY_KEY, "false").lower() == "true"  # noqa: W503
+    )
 
 
 def _is_span_has_error(span: dict) -> bool:
