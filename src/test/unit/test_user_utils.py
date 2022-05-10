@@ -14,7 +14,7 @@ from lumigo_tracer.user_utils import (
     start_manual_trace,
     stop_manual_trace,
     manual_trace,
-    manual_trace_sync
+    manual_trace_sync,
 )
 from lumigo_tracer.lumigo_utils import EXECUTION_TAGS_KEY, MANUAL_TRACES_KEY
 
