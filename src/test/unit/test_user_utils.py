@@ -13,14 +13,14 @@ from lumigo_tracer.user_utils import (
     MAX_ELEMENTS_IN_EXTRA,
     start_manual_trace,
     stop_manual_trace,
-    ManualTrace,
     manual_trace,
+    manual_trace_context
 )
 from lumigo_tracer.lumigo_utils import EXECUTION_TAGS_KEY, MANUAL_TRACES_KEY
 
 
 def test_manual_traces_context_manager():
-    with ManualTrace("long_operation"):
+    with manual_trace_context("long_operation"):
         time.sleep(1)
     manual_tracers = SpansContainer.get_span().function_span[MANUAL_TRACES_KEY]
     assert manual_tracers[0]["name"] == "long_operation"

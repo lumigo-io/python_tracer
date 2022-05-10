@@ -1,5 +1,6 @@
 import json
 import logging
+from contextlib import contextmanager
 from typing import Dict, Optional
 
 from lumigo_tracer.spans_container import SpansContainer
@@ -112,21 +113,19 @@ def validate_tag(key, value, tags_len, should_log_errors):
 
 def manual_trace(func):
     def wrapper(*args, **kwargs):
-        with ManualTrace(func.__name__):
+        with manual_trace_context(func.__name__):
             func(*args, **kwargs)
 
     return wrapper
 
 
-class ManualTrace:
-    def __init__(self, name):
-        self.name = name
-
-    def __enter__(self):
-        start_manual_trace(self.name)
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        stop_manual_trace(self.name)
+@contextmanager
+def manual_trace_context(name):
+    start_manual_trace(name)
+    try:
+        yield
+    finally:
+        stop_manual_trace(name)
 
 
 def add_execution_tag(key: str, value: str, should_log_errors: bool = True) -> bool:
