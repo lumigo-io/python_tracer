@@ -113,14 +113,14 @@ def validate_tag(key, value, tags_len, should_log_errors):
 
 def manual_trace(func):
     def wrapper(*args, **kwargs):
-        with manual_trace_context(func.__name__):
+        with manual_trace_sync(func.__name__):
             func(*args, **kwargs)
 
     return wrapper
 
 
 @contextmanager
-def manual_trace_context(name):
+def manual_trace_sync(name):
     start_manual_trace(name)
     try:
         yield
