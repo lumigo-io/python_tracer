@@ -1,5 +1,6 @@
 import json
 import logging
+from contextlib import contextmanager
 from typing import Dict, Optional
 
 from lumigo_tracer.spans_container import SpansContainer
@@ -110,6 +111,23 @@ def validate_tag(key, value, tags_len, should_log_errors):
     return True
 
 
+def manual_trace(func):
+    def wrapper(*args, **kwargs):
+        with manual_trace_sync(func.__name__):
+            func(*args, **kwargs)
+
+    return wrapper
+
+
+@contextmanager
+def manual_trace_sync(name):
+    start_manual_trace(name)
+    try:
+        yield
+    finally:
+        stop_manual_trace(name)
+
+
 def add_execution_tag(key: str, value: str, should_log_errors: bool = True) -> bool:
     """
     Use this function to add an execution_tag to your function with a dynamic value.
@@ -133,3 +151,21 @@ def add_execution_tag(key: str, value: str, should_log_errors: bool = True) -> b
             warn_client(ADD_TAG_ERROR_MSG_PREFIX)
         return False
     return True
+
+
+def start_manual_trace(name: str):
+    """
+    Use this function to add an manual-trace to your function.
+    This value can be viewed within the Lumigo platform - Transaction page.
+    :param name: The name of your trace, eg: "Starting loading regexes".
+    """
+    SpansContainer.get_span().start_manual_trace(str(name))
+
+
+def stop_manual_trace(name: str):
+    """
+    Use this function to add an manual-trace to your function.
+    This value can be viewed within the Lumigo platform - Transaction page.
+    :param name: The name of your trace, eg: "Starting loading regexes".
+    """
+    SpansContainer.get_span().stop_manual_trace(str(name))

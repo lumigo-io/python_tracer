@@ -17,7 +17,12 @@ from lumigo_tracer.spans_container import (
     FUNCTION_TYPE,
     MALFORMED_TXID,
 )
-from lumigo_tracer.lumigo_utils import Configuration, EXECUTION_TAGS_KEY
+from lumigo_tracer.lumigo_utils import (
+    Configuration,
+    EXECUTION_TAGS_KEY,
+    MANUAL_TRACES_KEY,
+    get_current_ms_time,
+)
 
 
 @pytest.fixture
@@ -202,6 +207,50 @@ def test_add_tag():
     assert SpansContainer.get_span().function_span[EXECUTION_TAGS_KEY] == [
         {"key": key, "value": value}
     ]
+
+
+def test_start_manual_trace_simple_flow():
+    before = get_current_ms_time()
+    SpansContainer.get_span().start_manual_trace("11")
+    SpansContainer.get_span().stop_manual_trace("11")
+
+    manual_tracers = SpansContainer.get_span().function_span[MANUAL_TRACES_KEY]
+    after = get_current_ms_time()
+
+    assert len(manual_tracers) == 1
+    assert before <= manual_tracers[0]["startTime"] <= manual_tracers[0]["endTime"] <= after
+
+
+def test_end_manual_trace_name_not_exist():
+    SpansContainer.get_span().stop_manual_trace("11")
+
+    manual_tracers = SpansContainer.get_span().function_span[MANUAL_TRACES_KEY]
+    assert manual_tracers == []
+
+
+def test_start_manual_trace_start_twice():
+    SpansContainer.get_span().start_manual_trace("11")
+    SpansContainer.get_span().start_manual_trace("11")
+    SpansContainer.get_span().stop_manual_trace("11")
+
+    manual_tracers = SpansContainer.get_span().function_span[MANUAL_TRACES_KEY]
+    assert len(manual_tracers) == 1
+
+
+def test_start_manual_trace_multiple():
+    before = get_current_ms_time()
+    SpansContainer.get_span().start_manual_trace("11")
+    SpansContainer.get_span().start_manual_trace("22")
+    SpansContainer.get_span().stop_manual_trace("11")
+    SpansContainer.get_span().stop_manual_trace("22")
+
+    manual_tracers = SpansContainer.get_span().function_span[MANUAL_TRACES_KEY]
+
+    after = get_current_ms_time()
+
+    assert len(manual_tracers) == 2
+    for manual_trace in manual_tracers:
+        assert before <= manual_trace["startTime"] <= manual_trace["endTime"] <= after
 
 
 def test_get_tags_len():

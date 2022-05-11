@@ -7,7 +7,7 @@ from lumigo_tracer.wrappers.http.sync_http_wrappers import add_request_event, up
 try:
     import aiohttp
 except Exception:
-    aiohttp = None
+    aiohttp = None  # type: ignore
 
 LUMIGO_SPAN_ID_KEY = "_lumigo_span_id"
 
