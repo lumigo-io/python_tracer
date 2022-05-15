@@ -22,29 +22,30 @@ Learn more in our [documentation on auto-instrumentation](https://docs.lumigo.io
 
 ## Manually
 
-To manually configure Lumigo in your Lambda functions:
-
-* Install the package: 
+To manually configure Lumigo in your Lambda functions, install the package: 
 
 ```bash
 pip install lumigo_tracer
 ```
 
-* Import the package in your Lambda code: 
+Import the package in your Lambda code: 
 
 ```python
 `from lumigo_tracer import lumigo_tracer`
 ```
 
-* Next, wrap your `handler` in Lumigo's `trace` function (note: replace `YOUR-TOKEN-HERE` with your Lumigo API token):
+Next, wrap your `handler` in Lumigo's `trace` function:
 
 ```python
-@lumigo_tracer(token='YOUR-TOKEN-HERE')
+@lumigo_tracer()
 def my_lambda(event, context):
     print('I can finally troubleshoot!')
 ```
 
-* Your function is now fully instrumented
+Finally, set your Lumigo token as the `LUMIGO_TRACER_TOKEN` environment variable of your Lambda function; refer to the [Using AWS Lambda environment variables](https://docs.aws.amazon.com/lambda/latest/dg/configuration-envvars.html#configuration-envvars-encryption) documentation for more information. Your Lumigo token is available in Settings -> Tracing -> Manual tracing.
+
+We advise you to use the most secure available to you to store secrets such as your `LUMIGO_TRACER_TOKEN`; additionally, AWS provides integrations for [AWS Key Management Service](https://docs.aws.amazon.com/whitepapers/latest/kms-best-practices/encrypting-lambda-environment-variables.html) that keep the values of your Lambda environment variables secure.
+
 
 ## Configuration
 `@lumigo/python_tracer` offers several different configuration options. Pass these to the Lambda function as environment variables:
@@ -55,10 +56,11 @@ def my_lambda(event, context):
 * `LUMIGO_SWITCH_OFF=TRUE` - In the event a critical issue arises, this turns off all actions that Lumigo takes in response to your code. This happens without a deployment, and is picked up on the next function run once the environment variable is present.
 
 ### Step Functions
+
 If your function is part of a set of step functions, you can add the flag `step_function: true` to the Lumigo tracer import. Alternatively, you can configure the step function using an environment variable `LUMIGO_STEP_FUNCTION=True`. When this is active, Lumigo tracks all states in the step function in a single transaction, easing debugging and observability.
 
 ```
-@lumigo_tracer(token='XXX', step_function=True)
+@lumigo_tracer(step_function=True)
 def my_lambda(event, context):
     print('Step function visibility!')
 ```
@@ -110,27 +112,30 @@ In addition to native code integration, Lumigo also provides tools for integrati
 ## Chalice
 
 To work with the `lumigo_tracer` in a Chalice-driven function, perform the following:
-* Import the `LumigoChalice` tracer: `from lumigo_tracer import LumigoChalice`
-* Encapsulate your Chalice app within the LumigoChalice wrapper:
 
 ```python
+from lumigo_tracer import LumigoChalice
+
 app = Chalice(app_name='chalice')
-app = LumigoChalice(app, token="XXX")
+app = LumigoChalice(app)
 ```
+
+Remember to set your Lumigo token as the value of the `LUMIGO_TRACER_TOKEN` environment variable.
 
 ## Sentry/Raven Lambda Integration
 To integrate the `lumigo_tracer` with Raven, perform the following:
 
-* Include the ` lumigo_tracer` attribute in your code: `from lumigo_tracer import lumigo_tracer`
-* Include the `@lumigo_tracer` decorator **beneath** the Raven decorator:
-
 ```python
+from lumigo_tracer import lumigo_tracer
+
 @RavenLambdaWrapper()
-@lumigo_tracer(token='XXX')
+@lumigo_tracer()
 def lambda_handler (event, context):  return  {
  'statusCode' :  200,
  'body' : json.dumps( 'Hi!' ) }
 ```
+
+Remember to set your Lumigo token as the value of the `LUMIGO_TRACER_TOKEN` environment variable.
 
 # Contributing
 
