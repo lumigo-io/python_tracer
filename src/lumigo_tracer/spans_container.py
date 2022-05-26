@@ -27,6 +27,7 @@ from lumigo_tracer.lumigo_utils import (
     write_extension_file,
     should_use_tracer_extension,
     MANUAL_TRACES_KEY,
+    lumigo_safe_execute,
 )
 from lumigo_tracer import lumigo_utils
 from lumigo_tracer.parsing_utils import parse_trace_id, safe_split_get, recursive_json_join
@@ -132,12 +133,14 @@ class SpansContainer:
         self.start_timeout_timer(context)
 
     def handle_timeout(self, *args):
-        get_logger().info("The tracer reached the end of the timeout timer")
-        to_send = [self.spans[span_id] for span_id in self.span_ids_to_send]
-        self.span_ids_to_send.clear()
-        if Configuration.send_only_if_error:
-            to_send.append(self._generate_start_span())
-        lumigo_utils.report_json(region=self.region, msgs=to_send)
+        with lumigo_safe_execute("spans container: handle_timeout"):
+            get_logger().info("The tracer reached the end of the timeout timer")
+            spans_id_copy = self.span_ids_to_send.copy()
+            to_send = [self.spans[span_id] for span_id in spans_id_copy]
+            self.span_ids_to_send.clear()
+            if Configuration.send_only_if_error:
+                to_send.append(self._generate_start_span())
+            lumigo_utils.report_json(region=self.region, msgs=to_send)
 
     def start_timeout_timer(self, context=None) -> None:
         if Configuration.timeout_timer:
