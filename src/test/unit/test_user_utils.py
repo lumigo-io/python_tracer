@@ -33,13 +33,15 @@ def test_manual_traces_decorator():
     @manual_trace
     def long_operation():
         time.sleep(1)
+        return 1
 
-    long_operation()
+    res = long_operation()
     manual_tracers = SpansContainer.get_span().function_span[MANUAL_TRACES_KEY]
     assert manual_tracers[0]["name"] == "long_operation"
     duration = manual_tracers[0]["endTime"] - manual_tracers[0]["startTime"]
     assert duration > 1000
     assert duration < 1010
+    assert res == 1
 
 
 def test_err_without_alert_type_with_exception(capsys):

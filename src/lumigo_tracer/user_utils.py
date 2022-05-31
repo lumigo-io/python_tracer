@@ -114,7 +114,7 @@ def validate_tag(key, value, tags_len, should_log_errors):
 def manual_trace(func):
     def wrapper(*args, **kwargs):
         with manual_trace_sync(func.__name__):
-            func(*args, **kwargs)
+            return func(*args, **kwargs)
 
     return wrapper
 
