@@ -1,3 +1,4 @@
+import re
 from typing import Union, List, Dict
 
 from lumigo_tracer.parsing_utils import recursive_get_key, safe_get, safe_split_get
@@ -256,6 +257,31 @@ def _parse_dynamomdb_event(event) -> Dict[str, Union[int, List[str]]]:
     }
 
 
-def _parse_sqs_event(event) -> Dict[str, Union[int, List[str]]]:
+def _parse_sqs_event(event) -> Dict[str, Union[int, str, List[str]]]:
+    if _is_sns_to_sqs_event(event):
+        sns_sqs = _parse_sns_to_sqs_event(event)
+        if sns_sqs:
+            return sns_sqs
     mids = [record["messageId"] for record in event["Records"] if record.get("messageId")]
     return {MESSAGE_IDS_KEY: mids} if len(mids) > 1 else {MESSAGE_ID_KEY: mids[0]}
+
+
+def _is_sns_to_sqs_event(event) -> bool:
+    for record in event.get("Records", []):
+        body = record.get("body", "")
+        if "SimpleNotificationService" not in body or "TopicArn" not in body:
+            return False
+    return True
+
+
+def _parse_sns_to_sqs_event(event) -> Dict[str, Union[int, str, List[str]]]:
+    message_ids = []
+    for record in event.get("Records", []):
+        body = record.get("body")
+        if not body and not isinstance(body, str):
+            return {}
+        message_id = re.search(r'"MessageId" : "(\w{8}-\w{4}-\w{4}-\w{4}-\w{12})"', body)
+        if not message_id:
+            return {}
+        message_ids.append(message_id.group(1))
+    return {"triggeredBy": "sns-sqs", MESSAGE_IDS_KEY: message_ids}
