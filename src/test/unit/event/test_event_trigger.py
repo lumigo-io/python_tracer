@@ -162,10 +162,21 @@ from lumigo_tracer.lumigo_utils import Configuration
                 ]
             },
             {
-                "triggeredBy": "sns-sqs",
                 "arn": "arn:aws:sqs:us-east-1:123456789:sqs-queue-name",
-                "messageIds": ["2c78f253-4cd9-57bb-8bc3-a965e40a293e"],
+                "messageIdToChainResource": [
+                    {
+                        "TopicArn": "arn:aws:sns:us-west-2:723663554526:tracer-test-saart-temp-Pttcj",
+                        "childMessageId": "f4ceb23d-2ae7-44d3-b171-df7ab2d10a81",
+                        "parentMessageId": "2c78f253-4cd9-57bb-8bc3-a965e40a293e",
+                        "resourceType": "sns",
+                    }
+                ],
+                "messageIds": [
+                    "f4ceb23d-2ae7-44d3-b171-df7ab2d10a81",
+                    "2c78f253-4cd9-57bb-8bc3-a965e40a293e",
+                ],
                 "recordsNum": 1,
+                "triggeredBy": "sqs",
             },
         ),
         (  # SQS that is *not* SNS-SQS (the messageId is malformed)
