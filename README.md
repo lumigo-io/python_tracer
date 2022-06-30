@@ -12,7 +12,7 @@ The package allows you to pursue automated metric gathering through Lambda Layer
 ## With Lambda layers
 * When configuring your Lambda functions, include the appropriate Lambda Layer ARN [from these tables](https://github.com/lumigo-io/python_tracer/tree/master/layers)
 
-*Note* - Lambda Layers are an optional feature. If you decide to use this capability, the list of Lambda layers available is available [here.](https://github.com/lumigo-io/lumigo-node/blob/master/layers).
+*Note* - Lambda Layers are an optional feature. If you decide to use this capability, the list of Lambda layers available is available [here.](https://github.com/lumigo-io/python_tracer/tree/master/layers).
 
 Learn more in our [documentation on auto-instrumentation](https://docs.lumigo.io/docs/auto-instrumentation).
 
