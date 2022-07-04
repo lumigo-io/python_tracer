@@ -262,17 +262,13 @@ def _parse_sqs_event(event) -> Dict[str, Union[int, str, List[str], List[Dict[st
     message_ids = []
     chained_resources: List[Dict[str, str]] = []
     for record in event.get("Records", []):
-        record_message_id = None
-        if record.get("messageId"):
-            record_message_id = record["messageId"]
-            message_ids.append(record_message_id)
-        body = record.get("body", "")
-        if (
-            record_message_id
-            and isinstance(body, str)
-            and "SimpleNotificationService" in body
-            and "TopicArn" in body
-        ):
+        record_message_id = record.get("messageId")
+        if not record_message_id:
+            continue
+        record_message_id = record["messageId"]
+        message_ids.append(record_message_id)
+        if _is_sns_inside_sqs_record(record):
+            body = record.get("body", "")
             message_id = re.search(r'"MessageId" : "(\w{8}-\w{4}-\w{4}-\w{4}-\w{12})"', body)
             topic_arn = re.search(r'"TopicArn" : "(arn:aws:sns:[\w\-:]+)"', body)
             if message_id and topic_arn:
@@ -293,3 +289,8 @@ def _parse_sqs_event(event) -> Dict[str, Union[int, str, List[str], List[Dict[st
     if chained_resources:
         result[MESSAGE_ID_TO_CHAINED_RESOURCE] = chained_resources
     return result
+
+
+def _is_sns_inside_sqs_record(record: dict):
+    body = record.get("body", "")
+    return isinstance(body, str) and "SimpleNotificationService" in body and "TopicArn" in body
