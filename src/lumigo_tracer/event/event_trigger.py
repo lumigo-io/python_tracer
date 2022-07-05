@@ -265,7 +265,6 @@ def _parse_sqs_event(event) -> Dict[str, Union[int, str, List[str], List[Dict[st
         record_message_id = record.get("messageId")
         if not record_message_id:
             continue
-        record_message_id = record["messageId"]
         message_ids.append(record_message_id)
         if _is_sns_inside_sqs_record(record):
             body = record.get("body", "")
@@ -292,5 +291,5 @@ def _parse_sqs_event(event) -> Dict[str, Union[int, str, List[str], List[Dict[st
 
 
 def _is_sns_inside_sqs_record(record: dict):
-    body = record.get("body", "")
+    body = record.get("body")
     return isinstance(body, str) and "SimpleNotificationService" in body and "TopicArn" in body
