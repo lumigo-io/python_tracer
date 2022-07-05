@@ -25,7 +25,7 @@ def test_manual_traces_context_manager():
     manual_tracers = SpansContainer.get_span().function_span[MANUAL_TRACES_KEY]
     assert manual_tracers[0]["name"] == "long_operation"
     duration = manual_tracers[0]["endTime"] - manual_tracers[0]["startTime"]
-    assert duration > 1000
+    assert duration >= 1000
     assert duration < 1010
 
 
@@ -39,7 +39,7 @@ def test_manual_traces_decorator():
     manual_tracers = SpansContainer.get_span().function_span[MANUAL_TRACES_KEY]
     assert manual_tracers[0]["name"] == "long_operation"
     duration = manual_tracers[0]["endTime"] - manual_tracers[0]["startTime"]
-    assert duration > 1000
+    assert duration >= 1000
     assert duration < 1010
     assert res == 1
 
