@@ -103,35 +103,6 @@ These tags will be searchable from within the Lumigo platform.
 * Each tag key length can have 50 characters at most.
 * Each tag value length can have 70 characters at most.
 
-# Frameworks
-
-In addition to native code integration, Lumigo also provides tools for integrating with popular Python frameworks.
-
-## Chalice
-
-To work with the `lumigo_tracer` in a Chalice-driven function, perform the following:
-* Import the `LumigoChalice` tracer: `from lumigo_tracer import LumigoChalice`
-* Encapsulate your Chalice app within the LumigoChalice wrapper:
-
-```python
-app = Chalice(app_name='chalice')
-app = LumigoChalice(app, token="XXX")
-```
-
-## Sentry/Raven Lambda Integration
-To integrate the `lumigo_tracer` with Raven, perform the following:
-
-* Include the ` lumigo_tracer` attribute in your code: `from lumigo_tracer import lumigo_tracer`
-* Include the `@lumigo_tracer` decorator **beneath** the Raven decorator:
-
-```python
-@RavenLambdaWrapper()
-@lumigo_tracer(token='XXX')
-def lambda_handler (event, context):  return  {
- 'statusCode' :  200,
- 'body' : json.dumps( 'Hi!' ) }
-```
-
 # Contributing
 
 Contributions to this project are welcome from all! Below are a couple pointers on how to prepare your machine, as well as some information on testing.
