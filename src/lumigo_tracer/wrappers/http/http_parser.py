@@ -166,11 +166,12 @@ class DynamoParser(ServerlessAWSParser):
 
 class SnsParser(ServerlessAWSParser):
     def parse_request(self, parse_params: HttpRequest) -> dict:
+        arn = safe_key_from_query(parse_params.body, "TopicArn") or safe_key_from_query(parse_params.body, "TargetArn")
         return recursive_json_join(
             {
                 "info": {
-                    "resourceName": safe_key_from_query(parse_params.body, "TopicArn"),
-                    "targetArn": safe_key_from_query(parse_params.body, "TopicArn"),
+                    "resourceName": arn,
+                    "targetArn": arn,
                 }
             },
             super().parse_request(parse_params),
