@@ -1,3 +1,4 @@
+import re
 from typing import Union, List, Dict
 
 from lumigo_tracer.parsing_utils import recursive_get_key, safe_get, safe_split_get
@@ -14,6 +15,7 @@ MESSAGE_ID_KEY = "messageId"
 MESSAGE_IDS_KEY = "messageIds"
 TOTAL_SIZE_BYTES = "totalSizeBytes"
 RECORDS_NUM = "recordsNum"
+MESSAGE_ID_TO_CHAINED_RESOURCE = "messageIdToChainResource"
 
 
 def parse_triggered_by(event: dict):
@@ -256,6 +258,38 @@ def _parse_dynamomdb_event(event) -> Dict[str, Union[int, List[str]]]:
     }
 
 
-def _parse_sqs_event(event) -> Dict[str, Union[int, List[str]]]:
-    mids = [record["messageId"] for record in event["Records"] if record.get("messageId")]
-    return {MESSAGE_IDS_KEY: mids} if len(mids) > 1 else {MESSAGE_ID_KEY: mids[0]}
+def _parse_sqs_event(event) -> Dict[str, Union[int, str, List[str], List[Dict[str, str]]]]:
+    message_ids = []
+    chained_resources: List[Dict[str, str]] = []
+    for record in event.get("Records", []):
+        record_message_id = record.get("messageId")
+        if not record_message_id:
+            continue
+        message_ids.append(record_message_id)
+        if _is_sns_inside_sqs_record(record):
+            body = record.get("body", "")
+            message_id = re.search(r'"MessageId" : "(\w{8}-\w{4}-\w{4}-\w{4}-\w{12})"', body)
+            topic_arn = re.search(r'"TopicArn" : "(arn:aws:sns:[\w\-:]+)"', body)
+            if message_id and topic_arn:
+                message_ids.append(message_id.group(1))
+                chained_resources.append(
+                    {
+                        "resourceType": "sns",
+                        "TopicArn": topic_arn.group(1),
+                        "childMessageId": record_message_id,
+                        "parentMessageId": message_id.group(1),
+                    }
+                )
+    result: Dict[str, Union[int, str, List[str], List[Dict[str, str]]]] = {}
+    if len(message_ids) > 1:
+        result[MESSAGE_IDS_KEY] = message_ids
+    else:
+        result[MESSAGE_ID_KEY] = message_ids[0]
+    if chained_resources:
+        result[MESSAGE_ID_TO_CHAINED_RESOURCE] = chained_resources
+    return result
+
+
+def _is_sns_inside_sqs_record(record: dict):
+    body = record.get("body")
+    return isinstance(body, str) and "SimpleNotificationService" in body and "TopicArn" in body

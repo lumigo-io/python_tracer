@@ -14,6 +14,7 @@ from lumigo_tracer.wrappers.http.http_parser import (
     LambdaParser,
     S3Parser,
     SqsParser,
+    SnsParser,
 )
 
 
@@ -321,3 +322,29 @@ def test_event_bridge_parser_response_sad_flow():
     parser = EventBridgeParser()
     response = parser.parse_response("", 200, {}, body=b"not a json")
     assert not response["info"]["messageIds"]
+
+
+def test_sns_parser_resource_name_topic_arn():
+    parser = SnsParser()
+    params = HttpRequest(
+        host="host",
+        method="PUT",
+        uri="uri",
+        headers={},
+        body=b"TopicArn=arn:aws:sns:us-west-2:123456:sns-name",
+    )
+    response = parser.parse_request(params)
+    assert response["info"]["resourceName"] == "arn:aws:sns:us-west-2:123456:sns-name"
+
+
+def test_sns_parser_resource_name_target_arn():
+    parser = SnsParser()
+    params = HttpRequest(
+        host="host",
+        method="PUT",
+        uri="uri",
+        headers={},
+        body=b"TargetArn=arn:aws:sns:us-west-2:123456:sns-name",
+    )
+    response = parser.parse_request(params)
+    assert response["info"]["resourceName"] == "arn:aws:sns:us-west-2:123456:sns-name"

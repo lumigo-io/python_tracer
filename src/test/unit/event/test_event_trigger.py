@@ -139,6 +139,75 @@ from lumigo_tracer.lumigo_utils import Configuration
                 "recordsNum": 2,
             },
         ),
+        (  # SNS-SQS example trigger
+            {
+                "Records": [
+                    {
+                        "messageId": "f4ceb23d-2ae7-44d3-b171-df7ab2d10a81",
+                        "receiptHandle": "BLABLA",
+                        "body": '{\n  "Type" : "Notification",\n  "MessageId" : "2c78f253-4cd9-57bb-8bc3-a965e40a293e",\n  "TopicArn" : "arn:aws:sns:us-west-2:723663554526:tracer-test-saart-temp-Pttcj",\n  "Message" : "{}",\n  "Timestamp" : "2022-06-29T19:22:59.929Z",\n  "SignatureVersion" : "1",\n  "Signature" : "BLABLA",\n  "SigningCertURL" : "https://sns.us-west-2.amazonaws.com/SimpleNotificationService-blablabla.pem",\n  "UnsubscribeURL" : "https://sns.us-west-2.amazonaws.com/?Action=Unsubscribe&SubscriptionArn=arn:aws:sns:us-west-2:723663554526:tracer-test-saart-temp-Pttcj:blablabla"\n}',
+                        "attributes": {
+                            "ApproximateReceiveCount": "1",
+                            "AWSTraceHeader": "Root=1-62bca693-5fa5fe5643dd0b8814c6524c;Parent=50e9a851030eeaee;Sampled=0",
+                            "SentTimestamp": "1656530579970",
+                            "SenderId": "saart",
+                            "ApproximateFirstReceiveTimestamp": "1656530580976",
+                        },
+                        "messageAttributes": {},
+                        "md5OfBody": "11111111111111",
+                        "eventSource": "aws:sqs",
+                        "eventSourceARN": "arn:aws:sqs:us-east-1:123456789:sqs-queue-name",
+                        "awsRegion": "us-west-2",
+                    }
+                ]
+            },
+            {
+                "arn": "arn:aws:sqs:us-east-1:123456789:sqs-queue-name",
+                "messageIdToChainResource": [
+                    {
+                        "TopicArn": "arn:aws:sns:us-west-2:723663554526:tracer-test-saart-temp-Pttcj",
+                        "childMessageId": "f4ceb23d-2ae7-44d3-b171-df7ab2d10a81",
+                        "parentMessageId": "2c78f253-4cd9-57bb-8bc3-a965e40a293e",
+                        "resourceType": "sns",
+                    }
+                ],
+                "messageIds": [
+                    "f4ceb23d-2ae7-44d3-b171-df7ab2d10a81",
+                    "2c78f253-4cd9-57bb-8bc3-a965e40a293e",
+                ],
+                "recordsNum": 1,
+                "triggeredBy": "sqs",
+            },
+        ),
+        (  # SQS that is *not* SNS-SQS (the messageId is malformed)
+            {
+                "Records": [
+                    {
+                        "messageId": "f4ceb23d-2ae7-44d3-b171-df7ab2d10a81",
+                        "receiptHandle": "BLABLA",
+                        "body": '{\n  "Type" : "Notification",\n  "MessageId" : "something else",\n  "TopicArn" : "arn:aws:sns:us-west-2:723663554526:tracer-test-saart-temp-Pttcj",\n  "Message" : "{}",\n  "Timestamp" : "2022-06-29T19:22:59.929Z",\n  "SignatureVersion" : "1",\n  "Signature" : "BLABLA",\n  "SigningCertURL" : "https://sns.us-west-2.amazonaws.com/SimpleNotificationService-blablabla.pem",\n  "UnsubscribeURL" : "https://sns.us-west-2.amazonaws.com/?Action=Unsubscribe&SubscriptionArn=arn:aws:sns:us-west-2:723663554526:tracer-test-saart-temp-Pttcj:blablabla"\n}',
+                        "attributes": {
+                            "ApproximateReceiveCount": "1",
+                            "AWSTraceHeader": "Root=1-62bca693-5fa5fe5643dd0b8814c6524c;Parent=50e9a851030eeaee;Sampled=0",
+                            "SentTimestamp": "1656530579970",
+                            "SenderId": "saart",
+                            "ApproximateFirstReceiveTimestamp": "1656530580976",
+                        },
+                        "messageAttributes": {},
+                        "md5OfBody": "11111111111111",
+                        "eventSource": "aws:sqs",
+                        "eventSourceARN": "arn:aws:sqs:us-east-1:123456789:sqs-queue-name",
+                        "awsRegion": "us-west-2",
+                    }
+                ]
+            },
+            {
+                "triggeredBy": "sqs",
+                "arn": "arn:aws:sqs:us-east-1:123456789:sqs-queue-name",
+                "messageId": "f4ceb23d-2ae7-44d3-b171-df7ab2d10a81",
+                "recordsNum": 1,
+            },
+        ),
         (  # Step Function
             {
                 "bla": "saart",
