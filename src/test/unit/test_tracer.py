@@ -228,7 +228,10 @@ def test_skip_collecting_http_parts(monkeypatch, context, is_verbose):
         assert http_spans[0]["info"]["httpInfo"]["request"]["headers"]
 
 
-def test_lumigo_chalice(context):
+def test_lumigo_chalice(context, monkeypatch):
+    # mimic aws env
+    monkeypatch.setenv("AWS_LAMBDA_FUNCTION_VERSION", "true")
+
     class App:
         @property
         def a(self):
@@ -255,7 +258,7 @@ def test_lumigo_chalice(context):
 
 def test_lumigo_chalice_create_extra_lambdas(monkeypatch, context):
     # mimic aws env
-    monkeypatch.setitem(os.environ, "AWS_LAMBDA_FUNCTION_VERSION", "true")
+    monkeypatch.setenv("AWS_LAMBDA_FUNCTION_VERSION", "true")
 
     class Chalice:
         """
@@ -291,6 +294,18 @@ def test_lumigo_chalice_create_extra_lambdas(monkeypatch, context):
     # should create a new span (but return the original value)
     assert handler({}, context) == "hello world"
     assert SpansContainer._span
+
+
+def test_lumigo_chalice_disabled_when_not_in_aws(monkeypatch):
+    monkeypatch.delenv("AWS_LAMBDA_FUNCTION_VERSION", raising=False)
+    monkeypatch.delenv("LUMIGO_SWITCH_OFF", raising=False)
+    assert LumigoChalice("myApp") == "myApp"
+
+
+def test_lumigo_chalice_disabled_when_switch_off(monkeypatch):
+    monkeypatch.setenv("AWS_LAMBDA_FUNCTION_VERSION", "true")
+    monkeypatch.setenv("LUMIGO_SWITCH_OFF", "true")
+    assert LumigoChalice("myApp") == "myApp"
 
 
 @pytest.mark.parametrize(
