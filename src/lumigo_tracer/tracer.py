@@ -112,7 +112,7 @@ class LumigoChalice:
     def __new__(cls, app, *args, **kwargs):
         if is_aws_environment() and not is_kill_switch_on():
             return super().__new__(cls)
-        get_logger().debug("Running outside an AWS environment, disabling LumigoChalice")
+        get_logger().debug("Disabling LumigoChalice")
         return app
 
     def __init__(self, app, *args, **kwargs):
