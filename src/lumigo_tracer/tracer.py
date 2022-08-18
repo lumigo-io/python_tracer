@@ -109,6 +109,12 @@ class LumigoChalice:
         "on_dynamodb_record",
     ]
 
+    def __new__(cls, app, *args, **kwargs):
+        if is_aws_environment() and not is_kill_switch_on():
+            return super().__new__(cls)
+        get_logger().debug("Disabling LumigoChalice")
+        return app
+
     def __init__(self, app, *args, **kwargs):
         self.lumigo_conf_args = args
         self.lumigo_conf_kwargs = kwargs
