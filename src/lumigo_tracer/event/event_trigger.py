@@ -227,10 +227,7 @@ def _parse_streams(event: dict) -> Dict[str, str]:
     if triggered_by == "sqs":
         result.update(_parse_sqs_event(event))
     elif triggered_by == "kinesis":
-        result[MESSAGE_ID_KEY] = safe_get(event, ["Records", 0, "kinesis", "sequenceNumber"])
-        event_id = safe_get(event, ["Records", 0, "eventID"])
-        if isinstance(event_id, str):
-            result["shardId"] = event_id.split(":", 1)[0]
+        result.update(_parse_kinesis_event(event))
     elif triggered_by == "dynamodb":
         result.update(_parse_dynamomdb_event(event))
     return result
@@ -256,6 +253,25 @@ def _parse_dynamomdb_event(event) -> Dict[str, Union[int, List[str]]]:
         TRIGGER_CREATION_TIME_KEY: creation_time,
         TOTAL_SIZE_BYTES: total_size_bytes,
     }
+
+
+def _parse_kinesis_event(event) -> Dict[str, Union[int, str, List[str], List[Dict[str, str]]]]:
+    result = {}
+    message_ids = []
+    records = safe_get(event, ["Records"], default=[])
+    for record in records:
+        message_id = safe_get(record, ["kinesis", "sequenceNumber"])
+        if message_id:
+            message_ids.append(message_id)
+    if message_ids:
+        if len(message_ids) == 1:
+            result[MESSAGE_ID_KEY] = message_ids[0]
+        else:
+            result[MESSAGE_IDS_KEY] = message_ids
+    event_id = safe_get(event, ["Records", 0, "eventID"])
+    if isinstance(event_id, str):
+        result["shardId"] = event_id.split(":", 1)[0]
+    return result
 
 
 def _parse_sqs_event(event) -> Dict[str, Union[int, str, List[str], List[Dict[str, str]]]]:
