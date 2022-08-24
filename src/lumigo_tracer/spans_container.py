@@ -112,6 +112,7 @@ class SpansContainer:
             "type": ENRICHMENT_TYPE,
             "token": Configuration.token,
             "invocation_id": request_id,
+            "transaction_id": transaction_id,
         }
         self.execution_tags: List[Dict[str, str]] = []
         self.span_ids_to_send: Set[str] = set()
