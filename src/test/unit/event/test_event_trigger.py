@@ -100,6 +100,31 @@ from lumigo_tracer.lumigo_utils import Configuration
                 "shardId": "shardId-000000000006",
             },
         ),
+        (  # kinesis example trigger - multiple records
+            {
+                "Records": [
+                    {
+                        "eventSourceARN": "arn:aws:kinesis:us-east-1:123456789:stream/kinesis-stream-name",
+                        "eventSource": "aws:kinesis",
+                        "eventID": "shardId-000000000006:49590338271490256608559692538361571095921575989136588898",
+                        "kinesis": {"sequenceNumber": "12"},
+                    },
+                    {
+                        "eventSourceARN": "arn:aws:kinesis:us-east-1:123456789:stream/kinesis-stream-name",
+                        "eventSource": "aws:kinesis",
+                        "eventID": "shardId-000000000006:49590338271490256608559692538361571095921575989136588898",
+                        "kinesis": {"sequenceNumber": "34"},
+                    },
+                ]
+            },
+            {
+                "triggeredBy": "kinesis",
+                "arn": "arn:aws:kinesis:us-east-1:123456789:stream/kinesis-stream-name",
+                "messageIds": ["12", "34"],
+                "recordsNum": 2,
+                "shardId": "shardId-000000000006",
+            },
+        ),
         (  # SQS example trigger
             {
                 "Records": [
