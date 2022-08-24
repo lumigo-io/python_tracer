@@ -9,7 +9,7 @@ from lumigo_tracer.auto_tag.auto_tag_event import (
     ConfigurationHandler,
 )
 from lumigo_tracer.spans_container import SpansContainer
-from lumigo_tracer.lumigo_utils import EXECUTION_TAGS_KEY, Configuration
+from lumigo_tracer.lumigo_utils import Configuration
 
 
 class ExceptionHandler(EventAutoTagHandler):
@@ -25,7 +25,7 @@ class ExceptionHandler(EventAutoTagHandler):
 def test_auto_tag_event_is_none():
     AutoTagEvent.auto_tag_event(event=None)
 
-    assert SpansContainer.get_span().function_span[EXECUTION_TAGS_KEY] == []
+    assert SpansContainer.get_span().execution_tags == []
 
 
 def test_auto_tag_exception():
@@ -33,7 +33,7 @@ def test_auto_tag_exception():
 
     AutoTagEvent.auto_tag_event(event=event, handlers=[ExceptionHandler()])
 
-    assert SpansContainer.get_span().function_span[EXECUTION_TAGS_KEY] == []
+    assert SpansContainer.get_span().execution_tags == []
 
 
 def test_auto_tag_key_not_in_header(monkeypatch):
@@ -156,7 +156,7 @@ def test_auto_tag_key_not_in_header(monkeypatch):
 
     AutoTagEvent.auto_tag_event(event=event)
 
-    assert SpansContainer.get_span().function_span[EXECUTION_TAGS_KEY] == []
+    assert SpansContainer.get_span().execution_tags == []
 
 
 def test_auto_tag_key_in_header(monkeypatch):
@@ -279,7 +279,7 @@ def test_auto_tag_key_in_header(monkeypatch):
 
     AutoTagEvent.auto_tag_event(event=event)
 
-    assert SpansContainer.get_span().function_span[EXECUTION_TAGS_KEY] == [
+    assert SpansContainer.get_span().execution_tags == [
         {"key": "Accept", "value": "application/json, text/plain, */*"}
     ]
 
@@ -326,7 +326,7 @@ def test_configuration_handler_is_supported(config, event, expected):
 def test_configuration_handler_auto_tag(auto_tag_keys, event, result_tags):
     Configuration.auto_tag = auto_tag_keys
     ConfigurationHandler.auto_tag(event)
-    tags = SpansContainer.get_span().function_span[EXECUTION_TAGS_KEY]
+    tags = SpansContainer.get_span().execution_tags
     assert len(tags) == len(result_tags)
     for tag in result_tags:
         assert tag in tags
@@ -335,7 +335,7 @@ def test_configuration_handler_auto_tag(auto_tag_keys, event, result_tags):
 def test_configuration_handler_auto_tag_failure(capsys):
     Configuration.auto_tag = [None, "key2"]
     ConfigurationHandler.auto_tag({"key1": datetime, "key2": "value"})
-    tags = SpansContainer.get_span().function_span[EXECUTION_TAGS_KEY]
+    tags = SpansContainer.get_span().execution_tags
     assert tags == [{"key": "key2", "value": "value"}]
     assert "Failed to auto tag" in capsys.readouterr().out
 
@@ -352,5 +352,5 @@ def test_configuration_handler_auto_tag_non_string(value, expected):
 
     ConfigurationHandler.auto_tag({"key1": value})
 
-    tags = SpansContainer.get_span().function_span[EXECUTION_TAGS_KEY]
+    tags = SpansContainer.get_span().execution_tags
     assert {"key": "key1", "value": expected} in tags

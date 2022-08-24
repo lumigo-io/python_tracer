@@ -25,7 +25,7 @@ from lumigo_tracer.lumigo_utils import (
     SKIP_COLLECTING_HTTP_BODY_KEY,
 )
 
-from lumigo_tracer.spans_container import SpansContainer
+from lumigo_tracer.spans_container import SpansContainer, ENRICHMENT_TYPE
 from moto import mock_kinesis
 
 TOKEN = "t_10faa5e13e7844aaa1234"
@@ -365,7 +365,7 @@ def test_can_not_wrap_twice(reporter_mock, context):
     assert reporter_mock.call_count == 2
 
 
-def test_wrapping_with_tags(context):
+def test_wrapping_with_tags(context, reporter_mock):
     key = "my_key"
     value = "my_value"
 
@@ -376,25 +376,25 @@ def test_wrapping_with_tags(context):
 
     result = lambda_test_function({}, context)
     assert result == "ret_value"
-    assert SpansContainer.get_span().function_span[EXECUTION_TAGS_KEY] == [
-        {"key": key, "value": value}
-    ]
+    final_send = reporter_mock.call_args_list[-1][1]["msgs"]
+    enrichment_span = next(s for s in final_send if s["type"] == ENRICHMENT_TYPE)
+    assert enrichment_span[EXECUTION_TAGS_KEY] == [{"key": key, "value": value}]
 
 
 @pytest.mark.parametrize(
     "key, event",
     [("my_key", {"my_key": "my_value"}), ("my_key.key2", {"my_key": {"key2": "my_value"}})],
 )
-def test_wrapping_with_auto_tags(context, key, event):
+def test_wrapping_with_auto_tags(context, key, event, reporter_mock):
     @lumigo_tracer(auto_tag=[key])
     def lambda_test_function(event, context):
         return "ret_value"
 
     result = lambda_test_function(event, context)
     assert result == "ret_value"
-    assert SpansContainer.get_span().function_span[EXECUTION_TAGS_KEY] == [
-        {"key": key, "value": "my_value"}
-    ]
+    final_send = reporter_mock.call_args_list[-1][1]["msgs"]
+    enrichment_span = next(s for s in final_send if s["type"] == ENRICHMENT_TYPE)
+    assert enrichment_span[EXECUTION_TAGS_KEY] == [{"key": key, "value": "my_value"}]
 
 
 def test_not_jsonable_return(monkeypatch, context):

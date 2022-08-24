@@ -18,7 +18,6 @@ import lumigo_tracer
 from lumigo_tracer import lumigo_utils
 from lumigo_tracer.auto_tag import auto_tag_event
 from lumigo_tracer.lumigo_utils import (
-    EXECUTION_TAGS_KEY,
     DEFAULT_MAX_ENTRY_SIZE,
     Configuration,
     TRUNCATE_SUFFIX,
@@ -355,7 +354,7 @@ def test_wrapping_with_tags_for_api_gw_headers(monkeypatch, context, token):
     result = lambda_test_function(api_gw_event(), context)
 
     assert result == "ret_value"
-    assert SpansContainer.get_span().function_span[EXECUTION_TAGS_KEY] == [
+    assert SpansContainer.get_span().execution_tags == [
         {"key": "Accept", "value": "application/json, text/plain, */*"}
     ]
 
