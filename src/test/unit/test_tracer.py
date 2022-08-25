@@ -365,6 +365,11 @@ def test_can_not_wrap_twice(reporter_mock, context):
     assert reporter_mock.call_count == 2
 
 
+def get_enrichment_spans(reporter_mock):
+    final_send = reporter_mock.call_args_list[-1][1]["msgs"]
+    return [s for s in final_send if s["type"] == ENRICHMENT_TYPE]
+
+
 def test_wrapping_with_tags(context, reporter_mock):
     key = "my_key"
     value = "my_value"
@@ -376,9 +381,9 @@ def test_wrapping_with_tags(context, reporter_mock):
 
     result = lambda_test_function({}, context)
     assert result == "ret_value"
-    final_send = reporter_mock.call_args_list[-1][1]["msgs"]
-    enrichment_span = next(s for s in final_send if s["type"] == ENRICHMENT_TYPE)
-    assert enrichment_span[EXECUTION_TAGS_KEY] == [{"key": key, "value": value}]
+    enrichment_spans = get_enrichment_spans(reporter_mock)
+    assert len(enrichment_spans) == 1
+    assert enrichment_spans[0][EXECUTION_TAGS_KEY] == [{"key": key, "value": value}]
 
 
 @pytest.mark.parametrize(
@@ -392,9 +397,9 @@ def test_wrapping_with_auto_tags(context, key, event, reporter_mock):
 
     result = lambda_test_function(event, context)
     assert result == "ret_value"
-    final_send = reporter_mock.call_args_list[-1][1]["msgs"]
-    enrichment_span = next(s for s in final_send if s["type"] == ENRICHMENT_TYPE)
-    assert enrichment_span[EXECUTION_TAGS_KEY] == [{"key": key, "value": "my_value"}]
+    enrichment_spans = get_enrichment_spans(reporter_mock)
+    assert len(enrichment_spans) == 1
+    assert enrichment_spans[0][EXECUTION_TAGS_KEY] == [{"key": key, "value": "my_value"}]
 
 
 def test_not_jsonable_return(monkeypatch, context):

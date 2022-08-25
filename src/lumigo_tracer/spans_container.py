@@ -154,7 +154,7 @@ class SpansContainer:
             to_send = [self.spans[span_id] for span_id in spans_id_copy]
             enrichment_span = self.generate_enrichment_span()
             if enrichment_span:
-                to_send.append(enrichment_span)
+                to_send.insert(0, enrichment_span)
             self.span_ids_to_send.clear()
             if Configuration.send_only_if_error:
                 to_send.append(self._generate_start_span())
