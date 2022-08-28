@@ -505,11 +505,13 @@ def get_logger(logger_name="lumigo"):
 
 
 @contextmanager
-def lumigo_safe_execute(part_name=""):
+def lumigo_safe_execute(part_name="", severity=logging.ERROR):
     try:
         yield
     except Exception as e:
-        get_logger().exception(f"An exception occurred in lumigo's code {part_name}", exc_info=e)
+        get_logger().log(
+            severity, f"An exception occurred in lumigo's code {part_name}", exc_info=e
+        )
 
 
 def is_aws_environment():

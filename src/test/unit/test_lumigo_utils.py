@@ -50,6 +50,7 @@ from lumigo_tracer.lumigo_utils import (
     concat_old_body_to_new,
     TRUNCATE_SUFFIX,
     DEFAULT_AUTO_TAG_KEY,
+    lumigo_safe_execute,
 )
 import json
 
@@ -665,3 +666,10 @@ def test_internal_analytics_message(capsys):
 def test_concat_old_body_to_new(old, new, expected, monkeypatch):
     monkeypatch.setattr(Configuration, "max_entry_size", 5)
     assert concat_old_body_to_new(lumigo_dumps(old), new) == lumigo_dumps(expected)
+
+
+@pytest.mark.parametrize("severity", [logging.DEBUG, logging.ERROR])
+def test_lumigo_safe_execute_with_level(severity, caplog):
+    with lumigo_safe_execute("test", severity=severity):
+        raise ValueError("Failing")
+    assert caplog.records[-1].levelno == severity
