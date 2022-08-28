@@ -300,7 +300,7 @@ class EventBridgeParser(Parser):
         try:
             parsed_body = json.loads(body)
         except json.JSONDecodeError as e:
-            get_logger().debug("Error while trying to parse eventBridge request body", exc_info=e)
+            get_logger().debug("Error while trying to parse eventBridge response body", exc_info=e)
             parsed_body = {}
         message_ids = []
         if isinstance(parsed_body.get("Entries"), list):
@@ -327,6 +327,8 @@ class ApiGatewayV2Parser(ServerlessAWSParser):
 def get_parser(url: str, headers: Optional[dict] = None) -> Type[Parser]:
     if should_use_tracer_extension():
         return Parser
+    if "amazonaws.com" not in url and not (headers or {}).get("x-amzn-requestid"):
+        return Parser
     service = safe_split_get(url, ".", 0)
     if service == "dynamodb":
         return DynamoParser
@@ -345,6 +347,4 @@ def get_parser(url: str, headers: Optional[dict] = None) -> Type[Parser]:
         return SqsParser
     elif "execute-api" in url:
         return ApiGatewayV2Parser
-    elif url.endswith("amazonaws.com") or (headers and headers.get("x-amzn-requestid")):
-        return ServerlessAWSParser
-    return Parser
+    return ServerlessAWSParser
