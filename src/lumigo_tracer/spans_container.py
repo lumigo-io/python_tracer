@@ -6,7 +6,7 @@ from datetime import datetime
 import time
 import uuid
 import signal
-from typing import List, Dict, Optional, Callable, Set
+from typing import List, Dict, Optional, Callable, Set, Union
 
 from lumigo_tracer.event.event_dumper import EventDumper
 from lumigo_tracer.lumigo_utils import (
@@ -36,6 +36,7 @@ from lumigo_tracer.event.event_trigger import parse_triggered_by
 _VERSION_PATH = os.path.join(os.path.dirname(__file__), "VERSION")
 MAX_LAMBDA_TIME = 15 * 60 * 1000
 FUNCTION_TYPE = "function"
+ENRICHMENT_TYPE = "enrichment"
 MALFORMED_TXID = "000000000000000000000000"
 
 
@@ -103,11 +104,17 @@ class SpansContainer:
                     **(trigger_by or {}),
                 },
                 "isMalformedTransactionId": malformed_txid,
-                EXECUTION_TAGS_KEY: [],
                 MANUAL_TRACES_KEY: [],
             },
             self.base_msg,
         )
+        self.base_enrichment_span = {
+            "type": ENRICHMENT_TYPE,
+            "token": Configuration.token,
+            "invocation_id": request_id,
+            "transaction_id": transaction_id,
+        }
+        self.execution_tags: List[Dict[str, str]] = []
         self.span_ids_to_send: Set[str] = set()
         self.spans: Dict[str, Dict] = {}
         self.manual_trace_start_times: Dict[str, int] = {}
@@ -120,6 +127,14 @@ class SpansContainer:
         to_send["ended"] = to_send["started"]
         to_send["maxFinishTime"] = self.max_finish_time
         return to_send
+
+    def generate_enrichment_span(self) -> Optional[Dict[str, Union[str, int]]]:
+        if not self.execution_tags:
+            return None
+        return recursive_json_join(
+            {"sending_time": get_current_ms_time(), EXECUTION_TAGS_KEY: self.execution_tags.copy()},
+            self.base_enrichment_span,
+        )
 
     def start(self, event=None, context=None):
         to_send = self._generate_start_span()
@@ -137,6 +152,9 @@ class SpansContainer:
             get_logger().info("The tracer reached the end of the timeout timer")
             spans_id_copy = self.span_ids_to_send.copy()
             to_send = [self.spans[span_id] for span_id in spans_id_copy]
+            enrichment_span = self.generate_enrichment_span()
+            if enrichment_span:
+                to_send.insert(0, enrichment_span)
             self.span_ids_to_send.clear()
             if Configuration.send_only_if_error:
                 to_send.append(self._generate_start_span())
@@ -244,10 +262,10 @@ class SpansContainer:
             get_logger().debug(f"Added key {LUMIGO_EVENT_KEY} to the user's return value")
 
     def get_tags_len(self) -> int:
-        return len(self.function_span[EXECUTION_TAGS_KEY])
+        return len(self.execution_tags)
 
     def add_tag(self, key: str, value: str) -> None:
-        self.function_span[EXECUTION_TAGS_KEY].append({"key": key, "value": value})
+        self.execution_tags.append({"key": key, "value": value})
 
     def start_manual_trace(self, name: str) -> None:
         now = get_current_ms_time()
@@ -292,6 +310,9 @@ class SpansContainer:
             to_send = [self.function_span] + [
                 span for span_id, span in self.spans.items() if span_id in self.span_ids_to_send
             ]
+            enrichment_span = self.generate_enrichment_span()
+            if enrichment_span:
+                to_send.append(enrichment_span)
             reported_rtt = lumigo_utils.report_json(region=self.region, msgs=to_send)
         else:
             get_logger().debug(
