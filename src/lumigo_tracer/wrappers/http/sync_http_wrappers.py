@@ -1,12 +1,17 @@
+from collections import namedtuple
+from typing import Optional, Dict
 from datetime import datetime
-import http.client
 from io import BytesIO
 import importlib.util
+import http.client
+import logging
 import random
-from typing import Optional, Dict
 
-from lumigo_tracer.libs.wrapt import wrap_function_wrapper
+from lumigo_tracer.wrappers.http.http_data_classes import HttpRequest, HttpState
 from lumigo_tracer.parsing_utils import safe_get_list, recursive_json_join
+from lumigo_tracer.wrappers.http.http_parser import get_parser, HTTP_TYPE
+from lumigo_tracer.libs.wrapt import wrap_function_wrapper
+from lumigo_tracer.spans_container import SpansContainer
 from lumigo_tracer.lumigo_utils import (
     get_logger,
     lumigo_safe_execute,
@@ -20,11 +25,6 @@ from lumigo_tracer.lumigo_utils import (
     concat_old_body_to_new,
     EDGE_SUFFIX,
 )
-from lumigo_tracer.spans_container import SpansContainer
-from lumigo_tracer.wrappers.http.http_data_classes import HttpRequest, HttpState
-from collections import namedtuple
-
-from lumigo_tracer.wrappers.http.http_parser import get_parser, HTTP_TYPE
 
 _BODY_HEADER_SPLITTER = b"\r\n\r\n"
 _FLAGS_HEADER_SPLITTER = b"\r\n"
@@ -185,7 +185,7 @@ def _http_send_wrapper(func, instance, args, kwargs):
         None,
         None,
     )
-    with lumigo_safe_execute("parse request"):
+    with lumigo_safe_execute("parse request", severity=logging.DEBUG):
         if isinstance(data, bytes) and _BODY_HEADER_SPLITTER in data:
             headers, body = data.split(_BODY_HEADER_SPLITTER, 1)
             hooked_headers = getattr(instance, LUMIGO_HEADERS_HOOK_KEY, None)

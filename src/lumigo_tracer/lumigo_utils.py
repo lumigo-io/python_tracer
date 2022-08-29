@@ -386,7 +386,7 @@ def report_json(
         internal_analytics_message("report: socket.timeout")
     except Exception as e:
         if should_retry:
-            get_logger().info(f"Could not report to {host}. Retrying.", exc_info=e)
+            get_logger().info(f"Could not report to {host}: ({str(e)}). Retrying.")
             edge_connection = establish_connection(host)
             report_json(region, msgs, should_retry=False)
         else:
@@ -505,11 +505,13 @@ def get_logger(logger_name="lumigo"):
 
 
 @contextmanager
-def lumigo_safe_execute(part_name=""):
+def lumigo_safe_execute(part_name="", severity=logging.ERROR):
     try:
         yield
     except Exception as e:
-        get_logger().exception(f"An exception occurred in lumigo's code {part_name}", exc_info=e)
+        get_logger().log(
+            severity, f"An exception occurred in lumigo's code {part_name}", exc_info=e
+        )
 
 
 def is_aws_environment():
