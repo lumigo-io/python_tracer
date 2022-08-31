@@ -23,6 +23,7 @@ from lumigo_tracer.lumigo_utils import (
     report_json,
     EDGE_KINESIS_STREAM_NAME,
     SKIP_COLLECTING_HTTP_BODY_KEY,
+    LUMIGO_PROPAGATE_W3C,
 )
 
 from lumigo_tracer.spans_container import SpansContainer, ENRICHMENT_TYPE
@@ -246,6 +247,8 @@ def test_add_w3c_headers_to_http_without_headers(monkeypatch, context, propagate
 
 
 def test_add_w3c_headers_to_http_with_headers_as_args(monkeypatch, context, aws_env):
+    monkeypatch.setenv(LUMIGO_PROPAGATE_W3C, "TRUE")
+
     @lumigo_tracer()
     def lambda_test_function(event, context):
         conn = http.client.HTTPConnection("www.google.com")
@@ -259,6 +262,8 @@ def test_add_w3c_headers_to_http_with_headers_as_args(monkeypatch, context, aws_
 
 
 def test_add_w3c_headers_to_http_with_headers_as_kwargs(monkeypatch, context, aws_env):
+    monkeypatch.setenv(LUMIGO_PROPAGATE_W3C, "TRUE")
+
     @lumigo_tracer()
     def lambda_test_function(event, context):
         conn = http.client.HTTPConnection("www.google.com")

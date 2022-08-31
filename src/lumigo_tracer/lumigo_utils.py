@@ -145,7 +145,7 @@ class Configuration:
     is_sync_tracer: bool = False
     auto_tag: List[str] = []
     skip_collecting_http_body: bool = False
-    propagate_w3c: bool = True
+    propagate_w3c: bool = False
 
     @staticmethod
     def get_max_entry_size(has_error: bool = False) -> int:
@@ -171,7 +171,7 @@ def config(
     edge_kinesis_aws_secret_access_key: Optional[str] = None,
     auto_tag: Optional[List[str]] = None,
     skip_collecting_http_body: bool = False,
-    propagate_w3c: bool = True,
+    propagate_w3c: bool = False,
 ) -> None:
     """
     This function configure the lumigo wrapper.
@@ -256,7 +256,7 @@ def config(
     )
     Configuration.is_sync_tracer = os.environ.get(LUMIGO_SYNC_TRACING, "FALSE").lower() == "true"
     Configuration.propagate_w3c = (
-        propagate_w3c and os.environ.get(LUMIGO_PROPAGATE_W3C, "true").lower() == "true"
+        propagate_w3c or os.environ.get(LUMIGO_PROPAGATE_W3C, "false").lower() == "true"
     )
     Configuration.auto_tag = auto_tag or os.environ.get(
         "LUMIGO_AUTO_TAG", DEFAULT_AUTO_TAG_KEY
