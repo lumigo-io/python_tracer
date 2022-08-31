@@ -27,11 +27,11 @@ from lumigo_tracer.lumigo_utils import (
     MANUAL_TRACES_KEY,
     lumigo_safe_execute,
 )
-from lumigo_tracer.parsing_utils import parse_trace_id, safe_split_get, recursive_json_join
-from lumigo_tracer.event.event_trigger import parse_triggered_by
-from lumigo_tracer.w3c_context import add_w3c_trace_propagator
-from lumigo_tracer.event.event_dumper import EventDumper
 from lumigo_tracer import lumigo_utils
+from lumigo_tracer.event.event_dumper import EventDumper
+from lumigo_tracer.w3c_context import add_w3c_trace_propagator
+from lumigo_tracer.event.event_trigger import parse_triggered_by
+from lumigo_tracer.parsing_utils import parse_trace_id, safe_split_get, recursive_json_join
 
 _VERSION_PATH = os.path.join(os.path.dirname(__file__), "VERSION")
 MAX_LAMBDA_TIME = 15 * 60 * 1000

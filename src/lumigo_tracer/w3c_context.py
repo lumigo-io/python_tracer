@@ -2,7 +2,8 @@ import re
 import random
 from typing import Dict, Optional
 
-#  copied from https://github.com/open-telemetry/opentelemetry-python/blob/cad776a2031c84fb3c3a1af90ee2a939f3394b9a/opentelemetry-api/src/opentelemetry/trace/propagation/tracecontext.py#L28
+# parts of this files were copied from:
+# https://github.com/open-telemetry/opentelemetry-python/blob/cad776a2031c84fb3c3a1af90ee2a939f3394b9a/opentelemetry-api/src/opentelemetry/trace/propagation/tracecontext.py#L28
 TRACEPARENT_HEADER_NAME = "traceparent"
 TRACESTATE_HEADER_NAME = "tracestate"
 TRACEPARENT_HEADER_FORMAT = (
@@ -30,7 +31,7 @@ def get_trace_id(headers: Dict[str, str], transaction_id: str, message_id: str):
     if match:
         version = match.group(1)
         trace_id = match.group(2)
-        span_id = match.group(3)  # we will ignore this field
+        span_id = match.group(3)
         trace_flags = match.group(4)
     if not match or trace_id == "0" * 32 or span_id == "0" * 16 or version == "ff":
         version = "00"  # constant
