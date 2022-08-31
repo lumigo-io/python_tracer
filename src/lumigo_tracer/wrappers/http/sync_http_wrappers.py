@@ -28,6 +28,7 @@ from lumigo_tracer.lumigo_utils import (
 
 _BODY_HEADER_SPLITTER = b"\r\n\r\n"
 _FLAGS_HEADER_SPLITTER = b"\r\n"
+HEADERS_ARG_INDEX_REQUEST = 3
 LUMIGO_HEADERS_HOOK_KEY = "_lumigo_headers_hook"
 LUMIGO_CONNECTION_ID_KEY = "_lumigo_connection_id"
 
@@ -47,7 +48,7 @@ def add_request_event(span_id: Optional[str], parse_params: HttpRequest) -> Dict
     """
     if is_lumigo_edge(parse_params.host):
         return {}
-    parser = get_parser(parse_params.host)()
+    parser = get_parser(parse_params.host, parse_params.headers)()
     msg = parser.parse_request(parse_params)
     if span_id:
         msg["id"] = span_id
@@ -245,10 +246,15 @@ def _headers_reminder_wrapper(func, instance, args, kwargs):
     Remember the headers helps us to improve performances on requests that use this flow.
     """
     with lumigo_safe_execute("add hooked data"):
+        headers = safe_get_list(args, HEADERS_ARG_INDEX_REQUEST) or kwargs.get("headers") or {}
+        if Configuration.propagate_w3c:
+            SpansContainer.get_span().add_w3c_trace_propagator(headers)
+            kwargs["headers"] = headers
+            args = args[:HEADERS_ARG_INDEX_REQUEST]
         setattr(
             instance,
             LUMIGO_HEADERS_HOOK_KEY,
-            HookedData(headers=kwargs.get("headers"), path=args[1]),
+            HookedData(headers=headers, path=args[1]),
         )
     return func(*args, **kwargs)
 

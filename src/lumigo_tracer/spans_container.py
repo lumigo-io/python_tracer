@@ -1,14 +1,12 @@
-import copy
-import inspect
 import os
-from datetime import datetime
-
+import copy
 import time
 import uuid
 import signal
+import inspect
+from datetime import datetime
 from typing import List, Dict, Optional, Callable, Set, Union
 
-from lumigo_tracer.event.event_dumper import EventDumper
 from lumigo_tracer.lumigo_utils import (
     Configuration,
     LUMIGO_EVENT_KEY,
@@ -29,9 +27,11 @@ from lumigo_tracer.lumigo_utils import (
     MANUAL_TRACES_KEY,
     lumigo_safe_execute,
 )
-from lumigo_tracer import lumigo_utils
 from lumigo_tracer.parsing_utils import parse_trace_id, safe_split_get, recursive_json_join
 from lumigo_tracer.event.event_trigger import parse_triggered_by
+from lumigo_tracer.w3c_context import add_w3c_trace_propagator
+from lumigo_tracer.event.event_dumper import EventDumper
+from lumigo_tracer import lumigo_utils
 
 _VERSION_PATH = os.path.join(os.path.dirname(__file__), "VERSION")
 MAX_LAMBDA_TIME = 15 * 60 * 1000
@@ -340,6 +340,10 @@ class SpansContainer:
         current_time = int(time.time())
         root = safe_split_get(self.trace_root, "-", 0)
         return f"Root={root}-{hex(current_time)[2:]}-{self.transaction_id}{self.trace_id_suffix}"
+
+    def add_w3c_trace_propagator(self, headers: Dict[str, str]):
+        if self.transaction_id:
+            add_w3c_trace_propagator(headers, self.transaction_id)
 
     @classmethod
     def get_span(cls) -> "SpansContainer":

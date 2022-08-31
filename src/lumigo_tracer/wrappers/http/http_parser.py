@@ -23,6 +23,7 @@ from lumigo_tracer.lumigo_utils import (
     is_aws_arn,
     should_use_tracer_extension,
 )
+from lumigo_tracer.w3c_context import is_w3c_headers, get_w3c_message_id
 from lumigo_tracer.wrappers.http.http_data_classes import HttpRequest, HttpState
 
 HTTP_TYPE = "http"
@@ -324,9 +325,20 @@ class ApiGatewayV2Parser(ServerlessAWSParser):
         )
 
 
+class W3CParser(Parser):
+    def parse_request(self, parse_params: HttpRequest) -> dict:
+        message_id = get_w3c_message_id(parse_params.headers)
+        return recursive_json_join(
+            {"info": {"messageId": message_id}} if message_id else {},
+            super().parse_request(parse_params),
+        )
+
+
 def get_parser(url: str, headers: Optional[dict] = None) -> Type[Parser]:
     if should_use_tracer_extension():
         return Parser
+    if headers and is_w3c_headers(headers):
+        return W3CParser
     if "amazonaws.com" not in url and not (headers or {}).get("x-amzn-requestid"):
         return Parser
     service = safe_split_get(url, ".", 0)

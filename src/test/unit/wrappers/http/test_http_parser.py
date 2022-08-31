@@ -2,6 +2,7 @@ import json
 
 import pytest
 from lumigo_tracer.lumigo_utils import Configuration
+from lumigo_tracer.w3c_context import TRACEPARENT_HEADER_NAME
 
 from lumigo_tracer.wrappers.http.http_data_classes import HttpRequest
 from lumigo_tracer.wrappers.http.http_parser import (
@@ -15,6 +16,7 @@ from lumigo_tracer.wrappers.http.http_parser import (
     S3Parser,
     SqsParser,
     SnsParser,
+    W3CParser,
 )
 
 
@@ -48,6 +50,17 @@ def test_get_parser_apigw():
 def test_get_parser_non_aws():
     url = "events.other.service"
     assert get_parser(url, {}) == Parser
+
+
+def test_get_parser_w3c_header():
+    url = "saart.info"
+    assert (
+        get_parser(
+            url,
+            {TRACEPARENT_HEADER_NAME: "00-11111111111111111111111100000000-aaaaaaaaaaaaaaaa-01"},
+        )
+        == W3CParser
+    )
 
 
 def test_get_default_parser_when_using_extension(monkeypatch):

@@ -28,6 +28,8 @@ from lumigo_tracer.lumigo_utils import (
 from lumigo_tracer.spans_container import SpansContainer, ENRICHMENT_TYPE
 from moto import mock_kinesis
 
+from lumigo_tracer.w3c_context import TRACEPARENT_HEADER_NAME
+
 TOKEN = "t_10faa5e13e7844aaa1234"
 
 
@@ -226,6 +228,47 @@ def test_skip_collecting_http_parts(monkeypatch, context, is_verbose):
     else:
         assert http_spans[0]["info"]["httpInfo"]["request"]["uri"] == "www.google.com/"
         assert http_spans[0]["info"]["httpInfo"]["request"]["headers"]
+
+
+@pytest.mark.parametrize("propagate_w3c", [True, False])
+def test_add_w3c_headers_to_http_without_headers(monkeypatch, context, propagate_w3c, aws_env):
+    @lumigo_tracer(propagate_w3c=propagate_w3c)
+    def lambda_test_function(event, context):
+        conn = http.client.HTTPConnection("www.google.com")
+        conn.request("POST", "/", json.dumps({"a": "b"}))
+        return {"hello": "world"}
+
+    lambda_test_function({}, context)
+    http_spans = list(SpansContainer.get_span().spans.values())
+    assert (
+        TRACEPARENT_HEADER_NAME in http_spans[0]["info"]["httpInfo"]["request"]["headers"]
+    ) == propagate_w3c
+
+
+def test_add_w3c_headers_to_http_with_headers_as_args(monkeypatch, context, aws_env):
+    @lumigo_tracer()
+    def lambda_test_function(event, context):
+        conn = http.client.HTTPConnection("www.google.com")
+        conn.request("POST", "/", json.dumps({"a": "b"}), {"another": "header"})
+        return {"hello": "world"}
+
+    lambda_test_function({}, context)
+    http_spans = list(SpansContainer.get_span().spans.values())
+    assert TRACEPARENT_HEADER_NAME in http_spans[0]["info"]["httpInfo"]["request"]["headers"]
+    assert "another" in http_spans[0]["info"]["httpInfo"]["request"]["headers"]
+
+
+def test_add_w3c_headers_to_http_with_headers_as_kwargs(monkeypatch, context, aws_env):
+    @lumigo_tracer()
+    def lambda_test_function(event, context):
+        conn = http.client.HTTPConnection("www.google.com")
+        conn.request("POST", "/", json.dumps({"a": "b"}), headers={"another": "header"})
+        return {"hello": "world"}
+
+    lambda_test_function({}, context)
+    http_spans = list(SpansContainer.get_span().spans.values())
+    assert TRACEPARENT_HEADER_NAME in http_spans[0]["info"]["httpInfo"]["request"]["headers"]
+    assert "another" in http_spans[0]["info"]["httpInfo"]["request"]["headers"]
 
 
 def test_lumigo_chalice(context, monkeypatch):
