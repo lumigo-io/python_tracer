@@ -16,7 +16,6 @@ from lumigo_tracer.wrappers.http.http_parser import (
     S3Parser,
     SqsParser,
     SnsParser,
-    W3CParser,
 )
 
 
@@ -50,17 +49,6 @@ def test_get_parser_apigw():
 def test_get_parser_non_aws():
     url = "events.other.service"
     assert get_parser(url, {}) == Parser
-
-
-def test_get_parser_w3c_header():
-    url = "saart.info"
-    assert (
-        get_parser(
-            url,
-            {TRACEPARENT_HEADER_NAME: "00-11111111111111111111111100000000-aaaaaaaaaaaaaaaa-01"},
-        )
-        == W3CParser
-    )
 
 
 def test_get_default_parser_when_using_extension(monkeypatch):
@@ -366,3 +354,36 @@ def test_sns_parser_resource_name_target_arn():
     )
     response = parser.parse_request(params)
     assert response["info"]["resourceName"] == "arn:aws:sns:us-west-2:123456:sns-name"
+
+
+def test_base_parser_with_w3c():
+    parser = Parser()
+    params = HttpRequest(
+        host="host",
+        method="PUT",
+        uri="uri",
+        headers={
+            TRACEPARENT_HEADER_NAME: "00-11111111111111111111111100000000-aaaaaaaaaaaaaaaa-01"
+        },
+        body=b"TargetArn=arn:aws:sns:us-west-2:123456:sns-name",
+    )
+    response = parser.parse_request(params)
+    assert response["info"]["messageId"] == "aaaaaaaaaaaaaaaa"
+
+
+def test_parser_w3c_weaker_then_other_message_id():
+    parser = DynamoParser()
+    params = HttpRequest(
+        host="",
+        method="POST",
+        uri="",
+        headers={
+            "x-amz-target": "DynamoDB_20120810.PutItem",
+            TRACEPARENT_HEADER_NAME: "00-11111111111111111111111100000000-aaaaaaaaaaaaaaaa-01",
+        },
+        body=json.dumps({"TableName": "resourceName", "Item": {"key": {"S": "value"}}}),
+    )
+    response = parser.parse_request(params)
+    assert response["info"]["resourceName"] == "resourceName"
+    assert response["info"]["dynamodbMethod"] == "PutItem"
+    assert response["info"]["messageId"] == "1ad3dccc8064a706957c2c06ce3796bb"

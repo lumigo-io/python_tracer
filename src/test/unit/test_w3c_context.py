@@ -5,6 +5,7 @@ from lumigo_tracer.w3c_context import (
     TRACESTATE_HEADER_NAME,
     add_w3c_trace_propagator,
     get_w3c_message_id,
+    is_w3c_headers,
 )
 
 
@@ -62,3 +63,18 @@ def test_add_w3c_trace_propagator_malformed_header():
 )
 def test_get_w3c_message_id(headers, expected):
     assert get_w3c_message_id(headers) == expected
+
+
+@pytest.mark.parametrize(
+    "headers, expected",
+    [
+        (
+            {TRACEPARENT_HEADER_NAME: "00-11111111111111111111111100000000-aaaaaaaaaaaaaaaa-01"},
+            True,
+        ),
+        ({TRACEPARENT_HEADER_NAME: "00-malformed-aaaaaaaaaaaaaaaa-01"}, False),
+        ({}, False),
+    ],
+)
+def test_is_w3c_headers(headers, expected):
+    assert is_w3c_headers(headers) == expected
