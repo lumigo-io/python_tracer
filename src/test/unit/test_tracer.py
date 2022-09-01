@@ -241,9 +241,8 @@ def test_add_w3c_headers_to_http_without_headers(monkeypatch, context, propagate
 
     lambda_test_function({}, context)
     http_spans = list(SpansContainer.get_span().spans.values())
-    assert (
-        TRACEPARENT_HEADER_NAME in http_spans[0]["info"]["httpInfo"]["request"]["headers"]
-    ) == propagate_w3c
+    actual_headers = json.loads(http_spans[0]["info"]["httpInfo"]["request"]["headers"])
+    assert (TRACEPARENT_HEADER_NAME in actual_headers) == propagate_w3c
 
 
 def test_add_w3c_headers_to_http_with_headers_as_args(monkeypatch, context, aws_env):
@@ -252,13 +251,16 @@ def test_add_w3c_headers_to_http_with_headers_as_args(monkeypatch, context, aws_
     @lumigo_tracer()
     def lambda_test_function(event, context):
         conn = http.client.HTTPConnection("www.google.com")
-        conn.request("POST", "/", json.dumps({"a": "b"}), {"another": "header"})
+        conn.request(
+            "POST", "/", json.dumps({"a": "b"}), {"another": "header"}, encode_chunked=True
+        )
         return {"hello": "world"}
 
     lambda_test_function({}, context)
     http_spans = list(SpansContainer.get_span().spans.values())
-    assert TRACEPARENT_HEADER_NAME in http_spans[0]["info"]["httpInfo"]["request"]["headers"]
-    assert "another" in http_spans[0]["info"]["httpInfo"]["request"]["headers"]
+    actual_headers = json.loads(http_spans[0]["info"]["httpInfo"]["request"]["headers"])
+    assert actual_headers[TRACEPARENT_HEADER_NAME]
+    assert actual_headers["another"] == "header"
 
 
 def test_add_w3c_headers_to_http_with_headers_as_kwargs(monkeypatch, context, aws_env):
@@ -272,8 +274,9 @@ def test_add_w3c_headers_to_http_with_headers_as_kwargs(monkeypatch, context, aw
 
     lambda_test_function({}, context)
     http_spans = list(SpansContainer.get_span().spans.values())
-    assert TRACEPARENT_HEADER_NAME in http_spans[0]["info"]["httpInfo"]["request"]["headers"]
-    assert "another" in http_spans[0]["info"]["httpInfo"]["request"]["headers"]
+    actual_headers = json.loads(http_spans[0]["info"]["httpInfo"]["request"]["headers"])
+    assert actual_headers[TRACEPARENT_HEADER_NAME]
+    assert actual_headers["another"] == "header"
 
 
 def test_lumigo_chalice(context, monkeypatch):

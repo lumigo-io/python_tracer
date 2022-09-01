@@ -372,6 +372,10 @@ def test_base_parser_with_w3c():
 
 
 def test_parser_w3c_weaker_then_other_message_id():
+    """
+    We want to make sure that if we have a collision - both a W3C messageId and a messageId from other parser,
+     then we should use the other parser's MessageId.
+    """
     parser = DynamoParser()
     params = HttpRequest(
         host="",
