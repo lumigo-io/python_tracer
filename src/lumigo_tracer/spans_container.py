@@ -126,12 +126,12 @@ class SpansContainer:
         to_send["id"] = f"{to_send['id']}_started"
         to_send["ended"] = to_send["started"]
         to_send["maxFinishTime"] = self.max_finish_time
-        return to_send
+        return to_send  # type: ignore[no-any-return]
 
     def generate_enrichment_span(self) -> Optional[Dict[str, Union[str, int]]]:
         if not self.execution_tags:
             return None
-        return recursive_json_join(
+        return recursive_json_join(  # type: ignore[no-any-return]
             {"sending_time": get_current_ms_time(), EXECUTION_TAGS_KEY: self.execution_tags.copy()},
             self.base_enrichment_span,
         )
@@ -180,7 +180,7 @@ class SpansContainer:
         span_id = new_span["id"]
         self.spans[span_id] = new_span
         self.span_ids_to_send.add(span_id)
-        return new_span
+        return new_span  # type: ignore[no-any-return]
 
     def get_span_by_id(self, span_id: Optional[str]) -> Optional[dict]:
         if not span_id:

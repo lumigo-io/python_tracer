@@ -106,7 +106,7 @@ class EventParseHandler(ABC):
 class S3Handler(EventParseHandler):
     @staticmethod
     def is_supported(event: Event) -> bool:
-        return event.record_event_source == "aws:s3"
+        return event.record_event_source == "aws:s3"  # type: ignore[no-any-return]
 
     @staticmethod
     def parse(event) -> OrderedDict:
@@ -196,7 +196,7 @@ class ApiGWHandler(EventParseHandler):
 class SNSHandler(EventParseHandler):
     @staticmethod
     def is_supported(event: Event) -> bool:
-        return safe_get(event.raw_event, ["Records", 0, "EventSource"]) == "aws:sns"
+        return safe_get(event.raw_event, ["Records", 0, "EventSource"]) == "aws:sns"  # type: ignore[no-any-return]
 
     @staticmethod
     def parse(event) -> OrderedDict:
@@ -215,7 +215,7 @@ class SNSHandler(EventParseHandler):
 class SQSHandler(EventParseHandler):
     @staticmethod
     def is_supported(event: Event) -> bool:
-        return event.record_event_source == "aws:sqs"
+        return event.record_event_source == "aws:sqs"  # type: ignore[no-any-return]
 
     @staticmethod
     def parse(event) -> OrderedDict:
@@ -234,11 +234,11 @@ class SQSHandler(EventParseHandler):
 class DDBHandler(EventParseHandler):
     @staticmethod
     def is_supported(event: Event) -> bool:
-        return event.record_event_source == "aws:dynamodb"
+        return event.record_event_source == "aws:dynamodb"  # type: ignore[no-any-return]
 
     @staticmethod
     def parse(event) -> OrderedDict:
-        return event
+        return event  # type: ignore[no-any-return]
 
     @staticmethod
     def get_omit_skip_path() -> Optional[List[str]]:

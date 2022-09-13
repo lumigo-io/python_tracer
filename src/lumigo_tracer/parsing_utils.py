@@ -52,7 +52,7 @@ def safe_split_get(string: str, sep: str, index: int, default=None) -> str:
     """
     if not isinstance(string, str):
         return default
-    return safe_get_list(string.split(sep), index, default)
+    return safe_get_list(string.split(sep), index, default)  # type: ignore[no-any-return]
 
 
 def safe_key_from_json(json_str: bytes, key: object, default=None) -> Union[str, list]:
@@ -61,9 +61,9 @@ def safe_key_from_json(json_str: bytes, key: object, default=None) -> Union[str,
     If the key doesn't found or the input string is not a valid json, returns the default.
     """
     try:
-        return json.loads(json_str).get(key, default)
+        return json.loads(json_str).get(key, default)  # type: ignore[no-any-return]
     except json.JSONDecodeError:
-        return default
+        return default  # type: ignore[no-any-return]
 
 
 def safe_key_from_xml(xml_str: bytes, key: str, default=None):

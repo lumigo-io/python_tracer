@@ -109,7 +109,7 @@ class ServerlessAWSParser(Parser):
         span_id = headers.get("x-amzn-requestid") or headers.get("x-amz-requestid")
         if span_id:
             additional_info["id"] = span_id
-        return recursive_json_join(
+        return recursive_json_join(  # type: ignore[no-any-return]
             additional_info, super().parse_response(url, status_code, headers, body)
         )
 
@@ -136,7 +136,7 @@ class DynamoParser(ServerlessAWSParser):
     def _extract_table_name(body: dict, method: str) -> Optional[str]:
         name = body.get("TableName")
         if not name and method == "BatchWriteItem" and isinstance(body.get("RequestItems"), dict):
-            return next(iter(body["RequestItems"]))
+            return next(iter(body["RequestItems"]))  # type: ignore[no-any-return]
         return name
 
     def parse_request(self, parse_params: HttpRequest) -> dict:
@@ -148,7 +148,7 @@ class DynamoParser(ServerlessAWSParser):
             get_logger().debug("Error while trying to parse ddb request body", exc_info=e)
             parsed_body = {}
 
-        return recursive_json_join(
+        return recursive_json_join(  # type: ignore[no-any-return]
             {
                 "info": {
                     "resourceName": self._extract_table_name(parsed_body, method),
@@ -169,7 +169,7 @@ class SnsParser(ServerlessAWSParser):
         arn = safe_key_from_query(parse_params.body, "TopicArn") or safe_key_from_query(
             parse_params.body, "TargetArn"
         )
-        return recursive_json_join(
+        return recursive_json_join(  # type: ignore[no-any-return]
             {
                 "info": {
                     "resourceName": arn,
@@ -180,7 +180,7 @@ class SnsParser(ServerlessAWSParser):
         )
 
     def parse_response(self, url: str, status_code: int, headers, body: bytes) -> dict:
-        return recursive_json_join(
+        return recursive_json_join(  # type: ignore[no-any-return]
             {
                 "info": {
                     "messageId": safe_key_from_xml(body, "PublishResponse/PublishResult/MessageId")
@@ -193,7 +193,7 @@ class SnsParser(ServerlessAWSParser):
 class LambdaParser(ServerlessAWSParser):
     def parse_request(self, parse_params: HttpRequest) -> dict:
         decoded_uri = safe_split_get(unquote(parse_params.uri), "/", 3)
-        return recursive_json_join(
+        return recursive_json_join(  # type: ignore[no-any-return]
             {
                 "info": {
                     "resourceName": extract_function_name_from_arn(decoded_uri)
@@ -208,13 +208,13 @@ class LambdaParser(ServerlessAWSParser):
 
 class KinesisParser(ServerlessAWSParser):
     def parse_request(self, parse_params: HttpRequest) -> dict:
-        return recursive_json_join(
+        return recursive_json_join(  # type: ignore[no-any-return]
             {"info": {"resourceName": safe_key_from_json(parse_params.body, "StreamName")}},
             super().parse_request(parse_params),
         )
 
     def parse_response(self, url: str, status_code: int, headers, body: bytes) -> dict:
-        return recursive_json_join(
+        return recursive_json_join(  # type: ignore[no-any-return]
             {"info": {"messageId": KinesisParser._extract_message_id(body)}},
             super().parse_response(url, status_code, headers, body),
         )
@@ -232,20 +232,20 @@ class KinesisParser(ServerlessAWSParser):
 
 class SqsParser(ServerlessAWSParser):
     def parse_request(self, parse_params: HttpRequest) -> dict:
-        return recursive_json_join(
+        return recursive_json_join(  # type: ignore[no-any-return]
             {"info": {"resourceName": safe_key_from_query(parse_params.body, "QueueUrl")}},
             super().parse_request(parse_params),
         )
 
     def parse_response(self, url: str, status_code: int, headers, body: bytes) -> dict:
-        return recursive_json_join(
+        return recursive_json_join(  # type: ignore[no-any-return]
             {"info": {"messageId": SqsParser._extract_message_id(body)}},
             super().parse_response(url, status_code, headers, body),
         )
 
     @staticmethod
     def _extract_message_id(response_body: bytes) -> Optional[str]:
-        return (
+        return (  # type: ignore[no-any-return]
             safe_key_from_xml(
                 response_body, "SendMessageResponse/SendMessageResult/MessageId"  # Single.
             )
@@ -265,13 +265,13 @@ class S3Parser(Parser):
         resource_name = safe_split_get(parse_params.host, ".", 0)
         if resource_name == "s3":
             resource_name = safe_split_get(parse_params.uri, "/", 1)
-        return recursive_json_join(
+        return recursive_json_join(  # type: ignore[no-any-return]
             {"info": {"resourceName": resource_name}},
             super().parse_request(parse_params),
         )
 
     def parse_response(self, url: str, status_code: int, headers, body: bytes) -> dict:
-        return recursive_json_join(
+        return recursive_json_join(  # type: ignore[no-any-return]
             {"info": {"messageId": headers.get("x-amz-request-id")}},
             super().parse_response(url, status_code, headers, body),
         )
@@ -291,7 +291,7 @@ class EventBridgeParser(Parser):
             resource_names = {
                 e["EventBusName"] for e in parsed_body["Entries"] if e.get("EventBusName")
             }
-        return recursive_json_join(
+        return recursive_json_join(  # type: ignore[no-any-return]
             {"info": {"resourceNames": list(resource_names) or None}},
             super().parse_request(parse_params),
         )
@@ -305,7 +305,7 @@ class EventBridgeParser(Parser):
         message_ids = []
         if isinstance(parsed_body.get("Entries"), list):
             message_ids = [e["EventId"] for e in parsed_body["Entries"] if e.get("EventId")]
-        return recursive_json_join(
+        return recursive_json_join(  # type: ignore[no-any-return]
             {"info": {"messageIds": message_ids}},
             super().parse_response(url, status_code, headers, body),
         )
@@ -318,7 +318,7 @@ class ApiGatewayV2Parser(ServerlessAWSParser):
         aws_request_id = headers.get("x-amzn-requestid")
         apigw_request_id = headers.get("apigw-requestid")
         message_id = aws_request_id or apigw_request_id
-        return recursive_json_join(
+        return recursive_json_join(  # type: ignore[no-any-return]
             {"info": {"messageId": message_id}},
             super().parse_response(url, status_code, headers, body),
         )

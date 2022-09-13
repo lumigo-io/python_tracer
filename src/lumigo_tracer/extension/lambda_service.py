@@ -21,7 +21,7 @@ class LambdaService:
         self.ready_for_next_event()
         result = self.next_event_future.result()  # type: ignore
         self.next_event_future = None
-        return result
+        return result  # type: ignore[no-any-return]
 
     def events_generator(self) -> Generator[Dict[str, str], None, None]:
         try:

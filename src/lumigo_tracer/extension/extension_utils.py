@@ -51,7 +51,7 @@ def get_current_bandwidth() -> Optional[int]:
 def request_event(extension_id: str) -> Dict[str, str]:
     url = f"http://{os.environ['AWS_LAMBDA_RUNTIME_API']}/2020-01-01/extension/event/next"
     headers = {"Lambda-Extension-Identifier": extension_id}
-    return json.loads(urllib.request.urlopen(urllib.request.Request(url, headers=headers)).read())
+    return json.loads(urllib.request.urlopen(urllib.request.Request(url, headers=headers)).read())  # type: ignore[no-any-return]
 
 
 def get_extension_logger():
