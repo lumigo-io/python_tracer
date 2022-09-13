@@ -8,12 +8,12 @@ _lambda_service: Optional["LambdaService"] = None
 
 
 class LambdaService:
-    def __init__(self, extension_id):
+    def __init__(self, extension_id):  # type: ignore[no-untyped-def]
         self.extension_id: str = extension_id
         self.thread: ThreadPoolExecutor = ThreadPoolExecutor()
         self.next_event_future = None
 
-    def ready_for_next_event(self):
+    def ready_for_next_event(self):  # type: ignore[no-untyped-def]
         if not self.next_event_future:
             self.next_event_future = self.thread.submit(request_event, self.extension_id)
 

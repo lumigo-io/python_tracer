@@ -54,5 +54,5 @@ def request_event(extension_id: str) -> Dict[str, str]:
     return json.loads(urllib.request.urlopen(urllib.request.Request(url, headers=headers)).read())  # type: ignore[no-any-return]
 
 
-def get_extension_logger():
+def get_extension_logger():  # type: ignore[no-untyped-def]
     return get_logger("lumigo-extension")

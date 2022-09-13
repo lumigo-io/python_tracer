@@ -79,7 +79,7 @@ SQS_KEYS_ORDER = str_to_list(os.environ.get("LUMIGO_SQS_KEYS_ORDER", "")) or [
 
 
 class Event:
-    def __init__(self, event):
+    def __init__(self, event):  # type: ignore[no-untyped-def]
         """
         Cache propeties of the event in order improve performance.
         """
@@ -95,7 +95,7 @@ class EventParseHandler(ABC):
 
     @staticmethod
     @abstractmethod
-    def parse(event) -> OrderedDict:
+    def parse(event) -> OrderedDict:  # type: ignore[no-untyped-def]
         raise NotImplementedError()
 
     @staticmethod
@@ -109,7 +109,7 @@ class S3Handler(EventParseHandler):
         return event.record_event_source == "aws:s3"  # type: ignore[no-any-return]
 
     @staticmethod
-    def parse(event) -> OrderedDict:
+    def parse(event) -> OrderedDict:  # type: ignore[no-untyped-def]
         new_event: OrderedDict = OrderedDict()
         new_event["Records"] = []
 
@@ -142,7 +142,7 @@ class CloudfrontHandler(EventParseHandler):
         return bool(safe_get(event.raw_event, ["Records", 0, "cf", "config", "distributionId"], {}))
 
     @staticmethod
-    def parse(event) -> OrderedDict:
+    def parse(event) -> OrderedDict:  # type: ignore[no-untyped-def]
         new_event: OrderedDict = OrderedDict()
         new_event["Records"] = []
 
@@ -170,7 +170,7 @@ class ApiGWHandler(EventParseHandler):
         return is_api_gw_event(event=event.raw_event)
 
     @staticmethod
-    def parse(event) -> OrderedDict:
+    def parse(event) -> OrderedDict:  # type: ignore[no-untyped-def]
         new_event: OrderedDict = OrderedDict()
         # Add order keys
         for order_key in API_GW_KEYS_ORDER:
@@ -199,7 +199,7 @@ class SNSHandler(EventParseHandler):
         return safe_get(event.raw_event, ["Records", 0, "EventSource"]) == "aws:sns"  # type: ignore[no-any-return]
 
     @staticmethod
-    def parse(event) -> OrderedDict:
+    def parse(event) -> OrderedDict:  # type: ignore[no-untyped-def]
         new_sns_event: OrderedDict = OrderedDict()
         new_sns_event["Records"] = []
         # Add order keys
@@ -218,7 +218,7 @@ class SQSHandler(EventParseHandler):
         return event.record_event_source == "aws:sqs"  # type: ignore[no-any-return]
 
     @staticmethod
-    def parse(event) -> OrderedDict:
+    def parse(event) -> OrderedDict:  # type: ignore[no-untyped-def]
         new_sqs_event: OrderedDict = OrderedDict()
         new_sqs_event["Records"] = []
         # Add order keys
@@ -237,7 +237,7 @@ class DDBHandler(EventParseHandler):
         return event.record_event_source == "aws:dynamodb"  # type: ignore[no-any-return]
 
     @staticmethod
-    def parse(event) -> OrderedDict:
+    def parse(event) -> OrderedDict:  # type: ignore[no-untyped-def]
         return event  # type: ignore[no-any-return]
 
     @staticmethod

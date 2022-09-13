@@ -12,7 +12,7 @@ from lumigo_tracer import lumigo_tracer
 ORIGINAL_HANDLER_KEY = "LUMIGO_ORIGINAL_HANDLER"
 
 
-def get_original_handler():
+def get_original_handler():  # type: ignore[no-untyped-def]
     try:
         return aws_get_handler(os.environ[ORIGINAL_HANDLER_KEY])
     except KeyError:
@@ -22,7 +22,7 @@ def get_original_handler():
 
 
 @lumigo_tracer()
-def _handler(*args, **kwargs):
+def _handler(*args, **kwargs):  # type: ignore[no-untyped-def]
     original_handler = get_original_handler()
     return original_handler(*args, **kwargs)
 

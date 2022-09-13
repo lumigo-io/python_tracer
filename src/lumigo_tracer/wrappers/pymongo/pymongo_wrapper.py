@@ -20,7 +20,7 @@ if monitoring:
         request_to_span_id: Dict[str, str] = {}
         MONGO_SPAN = "mongoDb"
 
-        def started(self, event):
+        def started(self, event):  # type: ignore[no-untyped-def]
             with lumigo_safe_execute("pymongo started"):
                 span_id = str(uuid.uuid4())
                 LumigoMongoMonitoring.request_to_span_id[event.request_id] = span_id
@@ -38,7 +38,7 @@ if monitoring:
                     }
                 )
 
-        def succeeded(self, event):
+        def succeeded(self, event):  # type: ignore[no-untyped-def]
             with lumigo_safe_execute("pymongo succeed"):
                 if event.request_id not in LumigoMongoMonitoring.request_to_span_id:
                     get_logger().warning("Mongo span ended without a record on its start")
@@ -52,7 +52,7 @@ if monitoring:
                     }
                 )
 
-        def failed(self, event):
+        def failed(self, event):  # type: ignore[no-untyped-def]
             with lumigo_safe_execute("pymongo failed"):
                 if event.request_id not in LumigoMongoMonitoring.request_to_span_id:
                     get_logger().warning("Mongo span ended without a record on its start")
@@ -71,7 +71,7 @@ else:
     LumigoMongoMonitoring = None  # type: ignore
 
 
-def wrap_pymongo():
+def wrap_pymongo():  # type: ignore[no-untyped-def]
     with lumigo_safe_execute("wrap pymogno"):
         if monitoring:
             get_logger().debug("wrapping pymongo")

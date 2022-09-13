@@ -8,7 +8,7 @@ from .aiohttp.aiohttp_wrapper import wrap_aiohttp
 already_wrapped = False
 
 
-def wrap(force: bool = False):
+def wrap(force: bool = False):  # type: ignore[no-untyped-def]
     global already_wrapped
     if not already_wrapped:
         # Never wrap http calls twice - it will create duplicate body

@@ -109,12 +109,12 @@ class InternalState:
     internal_error_already_logged = False
 
     @staticmethod
-    def reset():
+    def reset():  # type: ignore[no-untyped-def]
         InternalState.timeout_on_connection = None
         InternalState.internal_error_already_logged = False
 
     @staticmethod
-    def mark_timeout_to_edge():
+    def mark_timeout_to_edge():  # type: ignore[no-untyped-def]
         InternalState.timeout_on_connection = datetime.datetime.now()
 
     @staticmethod
@@ -270,7 +270,7 @@ def _is_span_has_error(span: dict) -> bool:
     )
 
 
-def _get_event_base64_size(event) -> int:
+def _get_event_base64_size(event) -> int:  # type: ignore[no-untyped-def]
     return len(b64encode(aws_dump(event).encode()))
 
 
@@ -306,7 +306,7 @@ def _create_request_body(
     return aws_dump(spans_to_send)[:max_size]
 
 
-def establish_connection(host=None):
+def establish_connection(host=None):  # type: ignore[no-untyped-def]
     try:
         if not host:
             host = get_edge_host(os.environ.get("AWS_REGION"))
@@ -326,7 +326,7 @@ def get_edge_host(region: Optional[str] = None) -> str:
     return host
 
 
-def report_json(
+def report_json(  # type: ignore[no-untyped-def]
     region: Optional[str], msgs: List[dict], should_retry: bool = True, is_start_span=False
 ) -> int:
     """
@@ -395,12 +395,12 @@ def report_json(
     return duration
 
 
-def get_span_file_name(span_type: str):
+def get_span_file_name(span_type: str):  # type: ignore[no-untyped-def]
     unique_name = str(uuid.uuid4())
     return os.path.join(get_extension_dir(), f"{unique_name}_{span_type}")
 
 
-def write_extension_file(data: List[Dict], span_type: str):
+def write_extension_file(data: List[Dict], span_type: str):  # type: ignore[no-untyped-def]
     Path(get_extension_dir()).mkdir(parents=True, exist_ok=True)
     to_send = aws_dump(data).encode()
     file_path = get_span_file_name(span_type)
@@ -409,7 +409,7 @@ def write_extension_file(data: List[Dict], span_type: str):
         get_logger().info(f"Wrote span to file to [{file_path}][{len(to_send)}]")
 
 
-def write_spans_to_files(
+def write_spans_to_files(  # type: ignore[no-untyped-def]
     spans: List[Dict], max_spans=MAX_NUMBER_OF_SPANS, is_start_span=True
 ) -> None:
     to_send = spans[:max_spans]
@@ -450,7 +450,7 @@ def _is_edge_kinesis_connection_cache_disabled() -> bool:
     return os.environ.get("LUMIGO_KINESIS_SHOULD_REUSE_CONNECTION", "").lower() == "false"
 
 
-def _get_edge_kinesis_boto_client(region: str, aws_access_key_id: str, aws_secret_access_key: str):
+def _get_edge_kinesis_boto_client(region: str, aws_access_key_id: str, aws_secret_access_key: str):  # type: ignore[no-untyped-def]
     global edge_kinesis_boto_client
     if not edge_kinesis_boto_client or _is_edge_kinesis_connection_cache_disabled():
         edge_kinesis_boto_client = boto3.client(
@@ -463,7 +463,7 @@ def _get_edge_kinesis_boto_client(region: str, aws_access_key_id: str, aws_secre
     return edge_kinesis_boto_client
 
 
-def _send_data_to_kinesis(
+def _send_data_to_kinesis(  # type: ignore[no-untyped-def]
     stream_name: str,
     to_send: bytes,
     region: str,
@@ -482,7 +482,7 @@ def _send_data_to_kinesis(
     get_logger().info("Successful sending to Kinesis")
 
 
-def get_logger(logger_name="lumigo"):
+def get_logger(logger_name="lumigo"):  # type: ignore[no-untyped-def]
     """
     This function returns lumigo's logger.
     The logger streams the logs to the stderr in format the explicitly say that those are lumigo's logs.
@@ -505,7 +505,7 @@ def get_logger(logger_name="lumigo"):
 
 
 @contextmanager
-def lumigo_safe_execute(part_name="", severity=logging.ERROR):
+def lumigo_safe_execute(part_name="", severity=logging.ERROR):  # type: ignore[no-untyped-def]
     try:
         yield
     except Exception as e:
@@ -514,7 +514,7 @@ def lumigo_safe_execute(part_name="", severity=logging.ERROR):
         )
 
 
-def is_aws_environment():
+def is_aws_environment():  # type: ignore[no-untyped-def]
     """
     :return: heuristically determine rather we're running on an aws environment.
     """
@@ -569,7 +569,7 @@ def _truncate_locals(f_locals: Dict[str, Any], free_space: int) -> FrameVariable
 
 class DecimalEncoder(json.JSONEncoder):
     # copied from python's runtime: runtime/lambda_runtime_marshaller.py:7-11
-    def default(self, o):
+    def default(self, o):  # type: ignore[no-untyped-def]
         if isinstance(o, decimal.Decimal):
             return float(o)
         raise TypeError(f"Object of type {o.__class__.__name__} is not JSON serializable")
@@ -610,7 +610,7 @@ def is_api_gw_event(event: dict) -> bool:
     )
 
 
-def create_step_function_span(message_id: str):
+def create_step_function_span(message_id: str):  # type: ignore[no-untyped-def]
     return {
         "id": str(uuid.uuid4()),
         "type": "http",
@@ -623,7 +623,7 @@ def create_step_function_span(message_id: str):
     }
 
 
-def get_timeout_buffer(remaining_time: float):
+def get_timeout_buffer(remaining_time: float):  # type: ignore[no-untyped-def]
     buffer = Configuration.timeout_timer_buffer
     if not buffer:
         buffer = max(0.5, min(0.1 * remaining_time, 3))
@@ -734,13 +734,13 @@ def omit_keys(
     return omitted, size < 0
 
 
-def aws_dump(d: Any, decimal_safe=False, **kwargs) -> str:
+def aws_dump(d: Any, decimal_safe=False, **kwargs) -> str:  # type: ignore[no-untyped-def]
     if decimal_safe:
         return json.dumps(d, cls=DecimalEncoder, **kwargs)
     return json.dumps(d, **kwargs)
 
 
-def lumigo_dumps(
+def lumigo_dumps(  # type: ignore[no-untyped-def]
     d: Union[bytes, str, dict, OrderedDict, list, None],
     max_size: Optional[int] = None,
     regexes: Optional[Pattern[str]] = None,
@@ -812,7 +812,7 @@ def concat_old_body_to_new(old_body: Optional[str], new_body: bytes) -> str:
     return lumigo_dumps(undumped_body + new_body)
 
 
-def is_kill_switch_on():
+def is_kill_switch_on():  # type: ignore[no-untyped-def]
     return str(os.environ.get(KILL_SWITCH, "")).lower() == "true"
 
 

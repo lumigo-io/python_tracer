@@ -136,7 +136,7 @@ class SpansContainer:
             self.base_enrichment_span,
         )
 
-    def start(self, event=None, context=None):
+    def start(self, event=None, context=None):  # type: ignore[no-untyped-def]
         to_send = self._generate_start_span()
         if not Configuration.send_only_if_error:
             report_duration = lumigo_utils.report_json(
@@ -147,7 +147,7 @@ class SpansContainer:
             get_logger().debug("Skip sending start because tracer in 'send only if error' mode .")
         self.start_timeout_timer(context)
 
-    def handle_timeout(self, *args):
+    def handle_timeout(self, *args):  # type: ignore[no-untyped-def]
         with lumigo_safe_execute("spans container: handle_timeout"):
             get_logger().info("The tracer reached the end of the timeout timer")
             spans_id_copy = self.span_ids_to_send.copy()
@@ -160,7 +160,7 @@ class SpansContainer:
                 to_send.append(self._generate_start_span())
             lumigo_utils.report_json(region=self.region, msgs=to_send)
 
-    def start_timeout_timer(self, context=None) -> None:
+    def start_timeout_timer(self, context=None) -> None:  # type: ignore[no-untyped-def]
         if Configuration.timeout_timer:
             if not hasattr(context, "get_remaining_time_in_millis"):
                 get_logger().info("Skip setting timeout timer - Could not get the remaining time.")
@@ -221,7 +221,7 @@ class SpansContainer:
             get_logger().warning(f"update_event_times: Got unknown span id: {span_id}")
 
     @staticmethod
-    def _create_exception_event(
+    def _create_exception_event(  # type: ignore[no-untyped-def]
         exc_type: str, message: str, stacktrace: str = "", frames: Optional[List[dict]] = None
     ):
         return {
@@ -232,7 +232,7 @@ class SpansContainer:
         }
 
     @staticmethod
-    def add_exception_to_span(
+    def add_exception_to_span(  # type: ignore[no-untyped-def]
         span: dict, exception: Exception, frames_infos: List[inspect.FrameInfo]
     ):
         message = exception.args[0] if exception.args else None
@@ -251,7 +251,7 @@ class SpansContainer:
         if self.function_span:
             self.add_exception_to_span(self.function_span, exception, frames_infos)
 
-    def add_step_end_event(self, ret_val):
+    def add_step_end_event(self, ret_val):  # type: ignore[no-untyped-def]
         message_id = str(uuid.uuid4())
         step_function_span = create_step_function_span(message_id)
         span_id = step_function_span["id"]
@@ -279,7 +279,7 @@ class SpansContainer:
                 {"name": name, "startTime": manual_trace_started, "endTime": now}
             )
 
-    def end(self, ret_val=None, event: Optional[dict] = None, context=None) -> Optional[int]:
+    def end(self, ret_val=None, event: Optional[dict] = None, context=None) -> Optional[int]:  # type: ignore[no-untyped-def]
         TimeoutMechanism.stop()
         reported_rtt = None
         self.previous_request = None
@@ -322,17 +322,17 @@ class SpansContainer:
                 write_extension_file([{}], "stop")
         return reported_rtt
 
-    def _set_error_extra_data(self, event):
+    def _set_error_extra_data(self, event):  # type: ignore[no-untyped-def]
         self.function_span["envs"] = _get_envs_for_span(has_error=True)
         if event:
             self.function_span["event"] = EventDumper.dump_event(
                 copy.deepcopy(event), has_error=True
             )
 
-    def can_path_root(self):
+    def can_path_root(self):  # type: ignore[no-untyped-def]
         return self.trace_root and self.transaction_id and self.trace_id_suffix
 
-    def get_patched_root(self):
+    def get_patched_root(self):  # type: ignore[no-untyped-def]
         """
         We're changing the root in order to pass/share the transaction id. More info:
         https://docs.aws.amazon.com/xray/latest/devguide/xray-api-sendingdata.html#xray-api-traceids
@@ -348,7 +348,7 @@ class SpansContainer:
         return cls.create_span()
 
     @classmethod
-    def create_span(cls, event=None, context=None, is_new_invocation=False) -> "SpansContainer":
+    def create_span(cls, event=None, context=None, is_new_invocation=False) -> "SpansContainer":  # type: ignore[no-untyped-def]
         """
         This function creates a span out of a given AWS context.
         The force flag delete any existing span-container (to handle with warm execution of lambdas).
@@ -390,19 +390,19 @@ class SpansContainer:
 
 class TimeoutMechanism:
     @staticmethod
-    def start(seconds: int, to_exec: Callable):
+    def start(seconds: int, to_exec: Callable):  # type: ignore[no-untyped-def]
         if Configuration.timeout_timer:
             signal.signal(signal.SIGALRM, to_exec)
             signal.setitimer(signal.ITIMER_REAL, seconds)
 
     @staticmethod
-    def stop():
+    def stop():  # type: ignore[no-untyped-def]
         if Configuration.timeout_timer:
             signal.alarm(0)
             signal.signal(signal.SIGALRM, signal.SIG_DFL)
 
     @staticmethod
-    def is_activated():
+    def is_activated():  # type: ignore[no-untyped-def]
         return Configuration.timeout_timer and signal.getsignal(signal.SIGALRM) != signal.SIG_DFL
 
 

@@ -139,18 +139,18 @@ def _update_request_data_increased_size_limit(http_info: dict, max_size: int) ->
     )
 
 
-def get_lumigo_connection_id(instance) -> Optional[int]:
+def get_lumigo_connection_id(instance) -> Optional[int]:  # type: ignore[no-untyped-def]
     return getattr(instance, LUMIGO_CONNECTION_ID_KEY, None)
 
 
-def set_lumigo_connection_id(instance):
+def set_lumigo_connection_id(instance):  # type: ignore[no-untyped-def]
     setattr(instance, LUMIGO_CONNECTION_ID_KEY, random.random())
 
 
 #   Wrappers  #
 
 
-def _http_init_wrapper(func, instance, args, kwargs):
+def _http_init_wrapper(func, instance, args, kwargs):  # type: ignore[no-untyped-def]
     """
     We need to attach a unique if to any HTTPConnection, because the runtime sometimes reuse the same connection
     (even to different hosts). See test test_lambda_wrapper_http_non_splitted_send for reference.
@@ -160,7 +160,7 @@ def _http_init_wrapper(func, instance, args, kwargs):
     return ret_val
 
 
-def _http_send_wrapper(func, instance, args, kwargs):
+def _http_send_wrapper(func, instance, args, kwargs):  # type: ignore[no-untyped-def]
     """
     This is the wrapper of the requests. it parses the http's message to conclude the url, headers, and body.
     Finally, it add an event to the span, and run the wrapped function (http.client.HTTPConnection.send).
@@ -237,7 +237,7 @@ def _http_send_wrapper(func, instance, args, kwargs):
     return ret_val
 
 
-def _headers_reminder_wrapper(func, instance, args, kwargs):
+def _headers_reminder_wrapper(func, instance, args, kwargs):  # type: ignore[no-untyped-def]
     """
     This is the wrapper of the function `http.client.HTTPConnection.request` that gets the headers.
     Remember the headers helps us to improve performances on requests that use this flow.
@@ -251,7 +251,7 @@ def _headers_reminder_wrapper(func, instance, args, kwargs):
     return func(*args, **kwargs)
 
 
-def _requests_wrapper(func, instance, args, kwargs):
+def _requests_wrapper(func, instance, args, kwargs):  # type: ignore[no-untyped-def]
     """
     This is the wrapper of the function `requests.request`.
     This function is being wrapped specifically because it initializes the connection by itself and parses the response,
@@ -292,7 +292,7 @@ def _requests_wrapper(func, instance, args, kwargs):
     return ret_val
 
 
-def _response_wrapper(func, instance, args, kwargs):
+def _response_wrapper(func, instance, args, kwargs):  # type: ignore[no-untyped-def]
     """
     This is the wrapper of the function that can be called only after that the http request was sent.
     Note that we don't examine the response data because it may change the original behaviour (ret_val.peek()).
@@ -309,7 +309,7 @@ def _response_wrapper(func, instance, args, kwargs):
     return ret_val
 
 
-def _read_wrapper(func, instance, args, kwargs):
+def _read_wrapper(func, instance, args, kwargs):  # type: ignore[no-untyped-def]
     """
     This is the wrapper of the function that can be called only after `getresponse` was called.
     """
@@ -323,12 +323,12 @@ def _read_wrapper(func, instance, args, kwargs):
     return ret_val
 
 
-def _read_stream_wrapper(func, instance, args, kwargs):
+def _read_stream_wrapper(func, instance, args, kwargs):  # type: ignore[no-untyped-def]
     ret_val = func(*args, **kwargs)
     return _read_stream_wrapper_generator(ret_val, instance)
 
 
-def _read_stream_wrapper_generator(stream_generator, instance):
+def _read_stream_wrapper_generator(stream_generator, instance):  # type: ignore[no-untyped-def]
     for partial_response in stream_generator:
         with lumigo_safe_execute("parse response.read_chunked"):
             span_id = HttpState.response_id_to_span_id.get(
@@ -340,7 +340,7 @@ def _read_stream_wrapper_generator(stream_generator, instance):
         yield partial_response
 
 
-def _putheader_wrapper(func, instance, args, kwargs):
+def _putheader_wrapper(func, instance, args, kwargs):  # type: ignore[no-untyped-def]
     """
     This is the wrapper of the function that called after that the http request was sent.
     Note that we don't examine the response data because it may change the original behaviour (ret_val.peek()).
@@ -351,7 +351,7 @@ def _putheader_wrapper(func, instance, args, kwargs):
     return ret_val
 
 
-def wrap_http_calls():
+def wrap_http_calls():  # type: ignore[no-untyped-def]
     with lumigo_safe_execute("wrap http calls"):
         get_logger().debug("wrapping http requests")
         wrap_function_wrapper("http.client", "HTTPConnection.send", _http_send_wrapper)

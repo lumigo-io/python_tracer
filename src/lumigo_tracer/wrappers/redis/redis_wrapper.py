@@ -35,7 +35,7 @@ def command_started(
     return span_id
 
 
-def command_finished(span_id: str, ret_val: Dict):
+def command_finished(span_id: str, ret_val: Dict):  # type: ignore[no-untyped-def]
     with lumigo_safe_execute("redis command finished"):
         span = SpansContainer.get_span().get_span_by_id(span_id)
         if not span:
@@ -46,7 +46,7 @@ def command_finished(span_id: str, ret_val: Dict):
         )
 
 
-def command_failed(span_id: str, exception: Exception):
+def command_failed(span_id: str, exception: Exception):  # type: ignore[no-untyped-def]
     with lumigo_safe_execute("redis command failed"):
         span = SpansContainer.get_span().get_span_by_id(span_id)
         if not span:
@@ -57,7 +57,7 @@ def command_failed(span_id: str, exception: Exception):
         )
 
 
-def execute_command_wrapper(func, instance, args, kwargs):
+def execute_command_wrapper(func, instance, args, kwargs):  # type: ignore[no-untyped-def]
     span_id = None
     with lumigo_safe_execute("redis start"):
         command = args[0] if args else None
@@ -73,7 +73,7 @@ def execute_command_wrapper(func, instance, args, kwargs):
         raise
 
 
-def execute_wrapper(func, instance, args, kwargs):
+def execute_wrapper(func, instance, args, kwargs):  # type: ignore[no-untyped-def]
     span_id = None
     with lumigo_safe_execute("redis start"):
         commands = instance.command_stack
@@ -90,7 +90,7 @@ def execute_wrapper(func, instance, args, kwargs):
         raise
 
 
-def wrap_redis():
+def wrap_redis():  # type: ignore[no-untyped-def]
     with lumigo_safe_execute("wrap redis"):
         if importlib.util.find_spec("redis"):
             get_logger().debug("wrapping redis")
