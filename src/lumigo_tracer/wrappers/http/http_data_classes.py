@@ -15,7 +15,7 @@ class HttpRequest:
         self.method = kwargs["method"]
         self.uri = kwargs["uri"]
         self.headers = {k.lower(): v for k, v in (kwargs.get("headers") or {}).items()}
-        self.body = kwargs.get("body")
+        self.body = kwargs.get("body")  # type: ignore
         self.instance_id = kwargs.get("instance_id")
 
     def clone(self, **kwargs):

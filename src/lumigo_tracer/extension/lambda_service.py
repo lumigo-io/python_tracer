@@ -19,7 +19,7 @@ class LambdaService:
 
     def block_until_next_event(self) -> Dict[str, str]:
         self.ready_for_next_event()
-        result = self.next_event_future.result()
+        result = self.next_event_future.result()  # type: ignore
         self.next_event_future = None
         return result
 

@@ -136,7 +136,7 @@ def recursive_json_join(d1: Optional[dict], d2: Optional[dict]):
     for key in set(itertools.chain(d1.keys(), d2.keys())):
         value = d1.get(key, d2.get(key))
         if isinstance(value, dict):
-            d[key] = recursive_json_join(d1.get(key), d2.get(key))  # type: ignore
+            d[key] = recursive_json_join(d1.get(key), d2.get(key))
         else:
             d[key] = value
     return d

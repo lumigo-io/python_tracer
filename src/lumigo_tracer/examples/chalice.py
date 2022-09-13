@@ -1,4 +1,4 @@
-from chalice import Chalice  # type: ignore
+from chalice import Chalice
 from lumigo_tracer import LumigoChalice
 
 app = Chalice(app_name="chalice")

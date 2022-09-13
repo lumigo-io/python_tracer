@@ -14,11 +14,9 @@ try:
 except Exception:
     monitoring = None
 
-if not monitoring:
-    LumigoMongoMonitoring = None
-else:
+if monitoring:
 
-    class LumigoMongoMonitoring(monitoring.CommandListener):  # type: ignore
+    class LumigoMongoMonitoring(monitoring.CommandListener):
         request_to_span_id: Dict[str, str] = {}
         MONGO_SPAN = "mongoDb"
 
@@ -67,6 +65,10 @@ else:
                         "error": lumigo_dumps(event.failure),
                     }
                 )
+
+
+else:
+    LumigoMongoMonitoring = None  # type: ignore
 
 
 def wrap_pymongo():

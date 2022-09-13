@@ -109,12 +109,10 @@ def update_event_response(
         has_error = is_error_code(status_code)
         max_size = Configuration.get_max_entry_size(has_error)
         headers = {k.lower(): v for k, v in headers.items()} if headers else {}
-        parser = get_parser(host, headers)()  # type: ignore
+        parser = get_parser(host, headers)()
         if has_error:
             _update_request_data_increased_size_limit(http_info, max_size)
-        update = parser.parse_response(  # type: ignore
-            host, status_code, headers, body  # type: ignore
-        )
+        update = parser.parse_response(host, status_code, headers, body)
         SpansContainer.get_span().add_span(recursive_json_join(update, last_event))
         return update.get("id", span_id)
     return span_id
@@ -191,21 +189,21 @@ def _http_send_wrapper(func, instance, args, kwargs):
             hooked_headers = getattr(instance, LUMIGO_HEADERS_HOOK_KEY, None)
             if hooked_headers and hooked_headers.headers:
                 # we will get here only if _headers_reminder_wrapper ran first. remove its traces.
-                headers = {k: ensure_str(v) for k, v in hooked_headers.headers.items()}
+                headers = {k: ensure_str(v) for k, v in hooked_headers.headers.items()}  # type: ignore
                 uri = f"{host}{hooked_headers.path}"
                 setattr(instance, LUMIGO_HEADERS_HOOK_KEY, None)
             elif _FLAGS_HEADER_SPLITTER in headers:
                 request_info, headers = headers.split(_FLAGS_HEADER_SPLITTER, 1)
-                headers = http.client.parse_headers(BytesIO(headers))
+                headers = http.client.parse_headers(BytesIO(headers))  # type: ignore
                 path_and_query_params = (
                     # Parse path from request info, remove method (GET | POST) and http version (HTTP/1.1)
                     request_info.decode("ascii")
-                    .replace(method, "")
+                    .replace(method, "")  # type: ignore
                     .replace(instance._http_vsn_str, "")
                     .strip()
                 )
                 uri = f"{host}{path_and_query_params}"
-                host = host or headers.get("Host")
+                host = host or headers.get("Host")  # type: ignore
             else:
                 headers = None
 
@@ -224,7 +222,7 @@ def _http_send_wrapper(func, instance, args, kwargs):
                 ),
             )
         else:
-            span = add_unparsed_request(
+            span = add_unparsed_request(  # type: ignore
                 HttpState.request_id_to_span_id.get(get_lumigo_connection_id(instance)),
                 HttpRequest(host=host, method=method, uri=uri, body=data, instance_id=id(instance)),
             )
