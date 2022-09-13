@@ -47,7 +47,7 @@ def _lumigo_tracer(func):
         executed = False
         ret_val = None
         try:
-            SpansContainer.create_span(*args, is_new_invocation=True)
+            SpansContainer.create_span(*args, is_new_invocation=True)  # type: ignore[misc]
             with lumigo_safe_execute("auto tag"):
                 AutoTagEvent.auto_tag_event(args[0])
             SpansContainer.get_span().start(*args)

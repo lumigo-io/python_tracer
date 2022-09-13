@@ -45,9 +45,9 @@ if monitoring:
                     return
                 span_id = LumigoMongoMonitoring.request_to_span_id.pop(event.request_id)
                 span = SpansContainer.get_span().get_span_by_id(span_id)
-                span.update(
+                span.update(  # type: ignore[union-attr]
                     {
-                        "ended": span["started"] + (event.duration_micros / 1000),
+                        "ended": span["started"] + (event.duration_micros / 1000),  # type: ignore[index]
                         "response": lumigo_dumps(event.reply),
                     }
                 )
@@ -59,9 +59,9 @@ if monitoring:
                     return
                 span_id = LumigoMongoMonitoring.request_to_span_id.pop(event.request_id)
                 span = SpansContainer.get_span().get_span_by_id(span_id)
-                span.update(
+                span.update(  # type: ignore[union-attr]
                     {
-                        "ended": span["started"] + (event.duration_micros / 1000),
+                        "ended": span["started"] + (event.duration_micros / 1000),  # type: ignore[index]
                         "error": lumigo_dumps(event.failure),
                     }
                 )

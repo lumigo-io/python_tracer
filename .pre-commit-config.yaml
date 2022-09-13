@@ -10,9 +10,9 @@ repos:
     rev: v0.971
     hooks:
     -   id: mypy
-        exclude: 'src/test/|src/lumigo_tracer/libs'
+        exclude: 'src/test/|src/lumigo_tracer/examples/|src/lumigo_tracer/libs/'
         entry: venv/bin/mypy
-        args: ['--explicit-package-bases', '--namespace-packages', '--check-untyped-defs', '--warn-redundant-casts', '--no-implicit-reexport', '--strict-equality', '--ignore-missing-imports', '--warn-unused-ignores']
+        args: ['--show-error-codes', '--check-untyped-defs', '--warn-redundant-casts', '--strict-equality', '--warn-unused-ignores', '--ignore-missing-imports']
 
 -   repo: https://gitlab.com/pycqa/flake8
     rev: 3.8.1

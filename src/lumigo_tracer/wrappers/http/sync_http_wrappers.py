@@ -109,10 +109,10 @@ def update_event_response(
         has_error = is_error_code(status_code)
         max_size = Configuration.get_max_entry_size(has_error)
         headers = {k.lower(): v for k, v in headers.items()} if headers else {}
-        parser = get_parser(host, headers)()
+        parser = get_parser(host, headers)()  # type: ignore[arg-type]
         if has_error:
             _update_request_data_increased_size_limit(http_info, max_size)
-        update = parser.parse_response(host, status_code, headers, body)
+        update = parser.parse_response(host, status_code, headers, body)  # type: ignore[arg-type]
         SpansContainer.get_span().add_span(recursive_json_join(update, last_event))
         return update.get("id", span_id)
     return span_id
@@ -223,12 +223,12 @@ def _http_send_wrapper(func, instance, args, kwargs):
             )
         else:
             span = add_unparsed_request(  # type: ignore
-                HttpState.request_id_to_span_id.get(get_lumigo_connection_id(instance)),
+                HttpState.request_id_to_span_id.get(get_lumigo_connection_id(instance)),  # type: ignore[arg-type]
                 HttpRequest(host=host, method=method, uri=uri, body=data, instance_id=id(instance)),
             )
         span_id = span["id"] if span else None
         if span_id:
-            HttpState.request_id_to_span_id[get_lumigo_connection_id(instance)] = span_id
+            HttpState.request_id_to_span_id[get_lumigo_connection_id(instance)] = span_id  # type: ignore[index]
 
     ret_val = func(*args, **kwargs)
     with lumigo_safe_execute("add response event"):
@@ -281,12 +281,12 @@ def _requests_wrapper(func, instance, args, kwargs):
                         ),
                     )
                     span_id = span["id"]
-                    HttpState.request_id_to_span_id[get_lumigo_connection_id(instance)] = span_id
-                SpansContainer.add_exception_to_span(span, exception, [])
+                    HttpState.request_id_to_span_id[get_lumigo_connection_id(instance)] = span_id  # type: ignore[index]
+                SpansContainer.add_exception_to_span(span, exception, [])  # type: ignore[arg-type]
         raise
     with lumigo_safe_execute("requests wrapper time updates"):
         span_id = HttpState.response_id_to_span_id.get(
-            get_lumigo_connection_id(ret_val.raw._original_response)
+            get_lumigo_connection_id(ret_val.raw._original_response)  # type: ignore[arg-type]
         )
         SpansContainer.get_span().update_event_times(span_id, start_time=start_time)
     return ret_val
@@ -299,13 +299,13 @@ def _response_wrapper(func, instance, args, kwargs):
     """
     ret_val = func(*args, **kwargs)
     with lumigo_safe_execute("parse response"):
-        span_id = HttpState.request_id_to_span_id.get(get_lumigo_connection_id(instance))
+        span_id = HttpState.request_id_to_span_id.get(get_lumigo_connection_id(instance))  # type: ignore[arg-type]
         set_lumigo_connection_id(ret_val)
-        HttpState.response_id_to_span_id[get_lumigo_connection_id(ret_val)] = span_id
+        HttpState.response_id_to_span_id[get_lumigo_connection_id(ret_val)] = span_id  # type: ignore[index,assignment]
         headers = dict(ret_val.headers.items())
         status_code = ret_val.code
-        new_span_id = update_event_response(span_id, instance.host, status_code, headers, b"")
-        HttpState.response_id_to_span_id[get_lumigo_connection_id(ret_val)] = new_span_id
+        new_span_id = update_event_response(span_id, instance.host, status_code, headers, b"")  # type: ignore[arg-type]
+        HttpState.response_id_to_span_id[get_lumigo_connection_id(ret_val)] = new_span_id  # type: ignore[index]
     return ret_val
 
 
@@ -316,9 +316,9 @@ def _read_wrapper(func, instance, args, kwargs):
     ret_val = func(*args, **kwargs)
     if ret_val:
         with lumigo_safe_execute("parse response.read"):
-            span_id = HttpState.response_id_to_span_id.get(get_lumigo_connection_id(instance))
+            span_id = HttpState.response_id_to_span_id.get(get_lumigo_connection_id(instance))  # type: ignore[arg-type]
             update_event_response(
-                span_id, None, instance.code, dict(instance.headers.items()), ret_val
+                span_id, None, instance.code, dict(instance.headers.items()), ret_val  # type: ignore[arg-type]
             )
     return ret_val
 
@@ -332,10 +332,10 @@ def _read_stream_wrapper_generator(stream_generator, instance):
     for partial_response in stream_generator:
         with lumigo_safe_execute("parse response.read_chunked"):
             span_id = HttpState.response_id_to_span_id.get(
-                get_lumigo_connection_id(instance._original_response)
+                get_lumigo_connection_id(instance._original_response)  # type: ignore[arg-type]
             )
             update_event_response(
-                span_id, None, instance.status, dict(instance.headers.items()), partial_response
+                span_id, None, instance.status, dict(instance.headers.items()), partial_response  # type: ignore[arg-type]
             )
         yield partial_response
 

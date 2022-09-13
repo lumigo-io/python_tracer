@@ -338,7 +338,7 @@ class SpansContainer:
         https://docs.aws.amazon.com/xray/latest/devguide/xray-api-sendingdata.html#xray-api-traceids
         """
         current_time = int(time.time())
-        root = safe_split_get(self.trace_root, "-", 0)
+        root = safe_split_get(self.trace_root, "-", 0)  # type: ignore[arg-type]
         return f"Root={root}-{hex(current_time)[2:]}-{self.transaction_id}{self.trace_id_suffix}"
 
     @classmethod

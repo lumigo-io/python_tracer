@@ -57,7 +57,7 @@ class ConfigurationHandler(EventAutoTagHandler):
     def auto_tag(event: dict):
         for key in Configuration.auto_tag:
             try:
-                value = safe_get(event, key.split("."))
+                value = safe_get(event, key.split("."))  # type: ignore[arg-type]
                 if value:
                     add_execution_tag(key, value)
             except Exception as err:

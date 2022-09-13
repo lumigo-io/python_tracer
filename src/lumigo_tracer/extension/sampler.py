@@ -75,6 +75,6 @@ class Sampler:
                     cpu_time=current_cpu - self.cpu_last_sample_value,
                 )
             )
-        self.memory_samples.append(MemorySample(memory_usage=current_memory, timestamp=now))
+        self.memory_samples.append(MemorySample(memory_usage=current_memory, timestamp=now))  # type: ignore[arg-type]
         self.cpu_last_sample_time = now
         self.cpu_last_sample_value = current_cpu

@@ -221,8 +221,8 @@ class KinesisParser(ServerlessAWSParser):
 
     @staticmethod
     def _extract_message_id(response_body: bytes) -> Optional[str]:
-        return safe_key_from_json(response_body, "SequenceNumber") or safe_get(
-            safe_key_from_json(response_body, "Records", []), [0, "SequenceNumber"]
+        return safe_key_from_json(response_body, "SequenceNumber") or safe_get(  # type: ignore[return-value]
+            safe_key_from_json(response_body, "Records", []), [0, "SequenceNumber"]  # type: ignore[arg-type]
         )
 
     @staticmethod
