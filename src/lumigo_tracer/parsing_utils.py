@@ -11,7 +11,7 @@ from collections.abc import Iterable
 from lumigo_tracer.lumigo_utils import Configuration, get_logger
 
 
-def safe_get(d: Union[dict, list], keys: List[Union[str, int]], default: Any = None) -> Any:
+def safe_get(d: Union[dict, list], keys: List[Union[str, int]], default: Any = None) -> Any:  # type: ignore[type-arg,type-arg]
     """
     :param d: Should be list or dict, otherwise return default.
     :param keys: If keys[i] is int, then it should be a list index. If keys[i] is string, then it should be a dict key.
@@ -30,7 +30,7 @@ def safe_get(d: Union[dict, list], keys: List[Union[str, int]], default: Any = N
     return functools.reduce(get_next_val, keys, d)
 
 
-def safe_get_list(lst: list, index: Union[int, str], default=None):  # type: ignore[no-untyped-def]
+def safe_get_list(lst: list, index: Union[int, str], default=None):  # type: ignore[no-untyped-def,type-arg]
     """
     This function return the organ in the `index` place from the given list.
     If this values doesn't exist, return default.
@@ -55,7 +55,7 @@ def safe_split_get(string: str, sep: str, index: int, default=None) -> str:  # t
     return safe_get_list(string.split(sep), index, default)  # type: ignore[no-any-return]
 
 
-def safe_key_from_json(json_str: bytes, key: object, default=None) -> Union[str, list]:  # type: ignore[no-untyped-def]
+def safe_key_from_json(json_str: bytes, key: object, default=None) -> Union[str, list]:  # type: ignore[no-untyped-def,type-arg]
     """
     This function tries to read the given str as json, and returns the value of the desired key.
     If the key doesn't found or the input string is not a valid json, returns the default.
@@ -122,7 +122,7 @@ def parse_trace_id(trace_id_str: str) -> Tuple[str, str, str]:
     return root, safe_split_get(root, "-", 2, default=""), suffix
 
 
-def recursive_json_join(d1: Optional[dict], d2: Optional[dict]):  # type: ignore[no-untyped-def]
+def recursive_json_join(d1: Optional[dict], d2: Optional[dict]):  # type: ignore[no-untyped-def,type-arg]
     """
     This function return the recursive joint dictionary, which means that for every (item, key) in the result
      dictionary it holds that:
@@ -159,7 +159,7 @@ def str_to_list(val: str) -> Optional[List[str]]:
     return None
 
 
-def str_to_tuple(val: str) -> Optional[Tuple]:
+def str_to_tuple(val: str) -> Optional[Tuple]:  # type: ignore[type-arg]
     try:
         if val:
             return tuple(val.split(","))
@@ -168,7 +168,7 @@ def str_to_tuple(val: str) -> Optional[Tuple]:
     return None
 
 
-def recursive_get_key(d: Union[List, Dict[str, Union[Dict, str]]], key, depth=None, default=None):  # type: ignore[no-untyped-def]
+def recursive_get_key(d: Union[List, Dict[str, Union[Dict, str]]], key, depth=None, default=None):  # type: ignore[no-untyped-def,type-arg,type-arg]
     if depth is None:
         depth = Configuration.get_key_depth
     if depth == 0:

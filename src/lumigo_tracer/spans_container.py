@@ -59,7 +59,7 @@ class SpansContainer:
         request_id: str = None,
         account: str = None,
         trace_id_suffix: str = None,
-        trigger_by: dict = None,
+        trigger_by: dict = None,  # type: ignore[type-arg]
         max_finish_time: int = None,
         is_new_invocation: bool = False,
         event: str = None,
@@ -116,12 +116,12 @@ class SpansContainer:
         }
         self.execution_tags: List[Dict[str, str]] = []
         self.span_ids_to_send: Set[str] = set()
-        self.spans: Dict[str, Dict] = {}
+        self.spans: Dict[str, Dict] = {}  # type: ignore[type-arg]
         self.manual_trace_start_times: Dict[str, int] = {}
         if is_new_invocation:
             SpansContainer.is_cold = False
 
-    def _generate_start_span(self) -> dict:
+    def _generate_start_span(self) -> dict:  # type: ignore[type-arg]
         to_send = self.function_span.copy()
         to_send["id"] = f"{to_send['id']}_started"
         to_send["ended"] = to_send["started"]
@@ -172,7 +172,7 @@ class SpansContainer:
                 return
             TimeoutMechanism.start(remaining_time - buffer, self.handle_timeout)
 
-    def add_span(self, span: dict) -> dict:
+    def add_span(self, span: dict) -> dict:  # type: ignore[type-arg]
         """
         This function parses an request event and add it to the span.
         """
@@ -182,12 +182,12 @@ class SpansContainer:
         self.span_ids_to_send.add(span_id)
         return new_span  # type: ignore[no-any-return]
 
-    def get_span_by_id(self, span_id: Optional[str]) -> Optional[dict]:
+    def get_span_by_id(self, span_id: Optional[str]) -> Optional[dict]:  # type: ignore[type-arg]
         if not span_id:
             return None
         return self.spans.get(span_id)
 
-    def pop_span(self, span_id: Optional[str]) -> Optional[dict]:
+    def pop_span(self, span_id: Optional[str]) -> Optional[dict]:  # type: ignore[type-arg]
         if not span_id:
             return None
         self.span_ids_to_send.discard(span_id)
@@ -222,7 +222,7 @@ class SpansContainer:
 
     @staticmethod
     def _create_exception_event(  # type: ignore[no-untyped-def]
-        exc_type: str, message: str, stacktrace: str = "", frames: Optional[List[dict]] = None
+        exc_type: str, message: str, stacktrace: str = "", frames: Optional[List[dict]] = None  # type: ignore[type-arg]
     ):
         return {
             "type": exc_type,
@@ -233,7 +233,7 @@ class SpansContainer:
 
     @staticmethod
     def add_exception_to_span(  # type: ignore[no-untyped-def]
-        span: dict, exception: Exception, frames_infos: List[inspect.FrameInfo]
+        span: dict, exception: Exception, frames_infos: List[inspect.FrameInfo]  # type: ignore[type-arg]
     ):
         message = exception.args[0] if exception.args else None
         if not isinstance(message, str):
@@ -279,7 +279,7 @@ class SpansContainer:
                 {"name": name, "startTime": manual_trace_started, "endTime": now}
             )
 
-    def end(self, ret_val=None, event: Optional[dict] = None, context=None) -> Optional[int]:  # type: ignore[no-untyped-def]
+    def end(self, ret_val=None, event: Optional[dict] = None, context=None) -> Optional[int]:  # type: ignore[no-untyped-def,type-arg]
         TimeoutMechanism.stop()
         reported_rtt = None
         self.previous_request = None
@@ -390,7 +390,7 @@ class SpansContainer:
 
 class TimeoutMechanism:
     @staticmethod
-    def start(seconds: int, to_exec: Callable):  # type: ignore[no-untyped-def]
+    def start(seconds: int, to_exec: Callable):  # type: ignore[no-untyped-def,type-arg]
         if Configuration.timeout_timer:
             signal.signal(signal.SIGALRM, to_exec)
             signal.setitimer(signal.ITIMER_REAL, seconds)

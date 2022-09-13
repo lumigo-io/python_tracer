@@ -17,7 +17,7 @@ REDIS_SPAN = "redis"
 
 
 def command_started(
-    command: str, request_args: Union[Dict, List[Dict]], connection_options: Optional[Dict]
+    command: str, request_args: Union[Dict, List[Dict]], connection_options: Optional[Dict]  # type: ignore[type-arg]
 ) -> str:
     span_id = str(uuid.uuid4())
     host = (connection_options or {}).get("host")
@@ -35,7 +35,7 @@ def command_started(
     return span_id
 
 
-def command_finished(span_id: str, ret_val: Dict):  # type: ignore[no-untyped-def]
+def command_finished(span_id: str, ret_val: Dict):  # type: ignore[no-untyped-def,type-arg]
     with lumigo_safe_execute("redis command finished"):
         span = SpansContainer.get_span().get_span_by_id(span_id)
         if not span:

@@ -24,7 +24,7 @@ class EventAutoTagHandler(ABC):
 
     @staticmethod
     @abstractmethod
-    def auto_tag(event) -> Dict:  # type: ignore[no-untyped-def]
+    def auto_tag(event) -> Dict:  # type: ignore[no-untyped-def,type-arg]
         raise NotImplementedError()
 
 
@@ -40,7 +40,7 @@ class ApiGWHandler(EventAutoTagHandler):
         return False
 
     @staticmethod
-    def auto_tag(event: dict):  # type: ignore[no-untyped-def]
+    def auto_tag(event: dict):  # type: ignore[no-untyped-def,type-arg]
         if AUTO_TAG_API_GW_HEADERS:
             headers = event.get("headers", [])
             for key in AUTO_TAG_API_GW_HEADERS:
@@ -50,11 +50,11 @@ class ApiGWHandler(EventAutoTagHandler):
 
 class ConfigurationHandler(EventAutoTagHandler):
     @staticmethod
-    def is_supported(event: dict) -> bool:
+    def is_supported(event: dict) -> bool:  # type: ignore[type-arg]
         return bool(event) and any(key.split(".")[0] in event for key in Configuration.auto_tag)
 
     @staticmethod
-    def auto_tag(event: dict):  # type: ignore[no-untyped-def]
+    def auto_tag(event: dict):  # type: ignore[no-untyped-def,type-arg]
         for key in Configuration.auto_tag:
             try:
                 value = safe_get(event, key.split("."))  # type: ignore[arg-type]
@@ -67,7 +67,7 @@ class ConfigurationHandler(EventAutoTagHandler):
 class AutoTagEvent:
     @staticmethod
     def auto_tag_event(
-        event: Optional[Dict] = None, handlers: Optional[List[EventAutoTagHandler]] = None
+        event: Optional[Dict] = None, handlers: Optional[List[EventAutoTagHandler]] = None  # type: ignore[type-arg]
     ) -> None:
         if event:
             handlers = handlers or [ApiGWHandler(), ConfigurationHandler()]

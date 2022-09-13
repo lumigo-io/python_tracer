@@ -41,7 +41,7 @@ def is_lumigo_edge(host: Optional[str]) -> bool:
     return False
 
 
-def add_request_event(span_id: Optional[str], parse_params: HttpRequest) -> Dict:
+def add_request_event(span_id: Optional[str], parse_params: HttpRequest) -> Dict:  # type: ignore[type-arg]
     """
     This function parses an request event and add it to the span.
     """
@@ -57,7 +57,7 @@ def add_request_event(span_id: Optional[str], parse_params: HttpRequest) -> Dict
     return new_span
 
 
-def add_unparsed_request(span_id: Optional[str], parse_params: HttpRequest) -> Optional[Dict]:
+def add_unparsed_request(span_id: Optional[str], parse_params: HttpRequest) -> Optional[Dict]:  # type: ignore[type-arg]
     """
     This function handle the case where we got a request the is not fully formatted as we expected,
     I.e. there isn't '\r\n' in the request data that <i>logically</i> splits the headers from the body.
@@ -88,7 +88,7 @@ def add_unparsed_request(span_id: Optional[str], parse_params: HttpRequest) -> O
 
 
 def update_event_response(
-    span_id: str, host: Optional[str], status_code: int, headers: dict, body: bytes
+    span_id: str, host: Optional[str], status_code: int, headers: dict, body: bytes  # type: ignore[type-arg]
 ) -> str:
     """
     :param host: If None, use the host from the last span, otherwise this is the first chuck and we can empty
@@ -118,7 +118,7 @@ def update_event_response(
     return span_id
 
 
-def _update_request_data_increased_size_limit(http_info: dict, max_size: int) -> None:
+def _update_request_data_increased_size_limit(http_info: dict, max_size: int) -> None:  # type: ignore[type-arg]
     if not HttpState.previous_request or not http_info.get("request"):
         return
     if not HttpState.previous_request.body.startswith(

@@ -42,7 +42,7 @@ class Parser:
                  |----- <FutureParser> ----\
     """
 
-    def parse_request(self, parse_params: HttpRequest) -> dict:
+    def parse_request(self, parse_params: HttpRequest) -> dict:  # type: ignore[type-arg]
         if Configuration.verbose and parse_params and not should_scrub_domain(parse_params.host):
             HttpState.omit_skip_path = self.get_omit_skip_path()
             additional_info = {
@@ -73,7 +73,7 @@ class Parser:
             "started": get_current_ms_time(),
         }
 
-    def parse_response(self, url: str, status_code: int, headers: dict, body: bytes) -> dict:
+    def parse_response(self, url: str, status_code: int, headers: dict, body: bytes) -> dict:  # type: ignore[type-arg]
         max_size = Configuration.get_max_entry_size(has_error=is_error_code(status_code))
         if Configuration.verbose and not should_scrub_domain(url):
             additional_info = {
@@ -101,7 +101,7 @@ class ServerlessAWSParser(Parser):
     # Override this field to add message id using the amz headers
     should_add_message_id = True
 
-    def parse_response(self, url: str, status_code: int, headers, body: bytes) -> dict:  # type: ignore[no-untyped-def]
+    def parse_response(self, url: str, status_code: int, headers, body: bytes) -> dict:  # type: ignore[no-untyped-def,type-arg]
         additional_info = {}
         message_id = headers.get("x-amzn-requestid")
         if message_id and self.should_add_message_id:
@@ -118,7 +118,7 @@ class DynamoParser(ServerlessAWSParser):
     should_add_message_id = False
 
     @staticmethod
-    def _extract_message_id(body: dict, method: str) -> Optional[str]:
+    def _extract_message_id(body: dict, method: str) -> Optional[str]:  # type: ignore[type-arg]
         if method == "PutItem" and body.get("Item"):
             return md5hash(body["Item"])
         elif method in ("UpdateItem", "DeleteItem") and body.get("Key"):
@@ -133,13 +133,13 @@ class DynamoParser(ServerlessAWSParser):
         return None
 
     @staticmethod
-    def _extract_table_name(body: dict, method: str) -> Optional[str]:
+    def _extract_table_name(body: dict, method: str) -> Optional[str]:  # type: ignore[type-arg]
         name = body.get("TableName")
         if not name and method == "BatchWriteItem" and isinstance(body.get("RequestItems"), dict):
             return next(iter(body["RequestItems"]))  # type: ignore[no-any-return]
         return name
 
-    def parse_request(self, parse_params: HttpRequest) -> dict:
+    def parse_request(self, parse_params: HttpRequest) -> dict:  # type: ignore[type-arg]
         target: str = parse_params.headers.get("x-amz-target", "")
         method = safe_split_get(target, ".", 1)
         try:
@@ -165,7 +165,7 @@ class DynamoParser(ServerlessAWSParser):
 
 
 class SnsParser(ServerlessAWSParser):
-    def parse_request(self, parse_params: HttpRequest) -> dict:
+    def parse_request(self, parse_params: HttpRequest) -> dict:  # type: ignore[type-arg]
         arn = safe_key_from_query(parse_params.body, "TopicArn") or safe_key_from_query(
             parse_params.body, "TargetArn"
         )
@@ -179,7 +179,7 @@ class SnsParser(ServerlessAWSParser):
             super().parse_request(parse_params),
         )
 
-    def parse_response(self, url: str, status_code: int, headers, body: bytes) -> dict:  # type: ignore[no-untyped-def]
+    def parse_response(self, url: str, status_code: int, headers, body: bytes) -> dict:  # type: ignore[no-untyped-def,type-arg]
         return recursive_json_join(  # type: ignore[no-any-return]
             {
                 "info": {
@@ -191,7 +191,7 @@ class SnsParser(ServerlessAWSParser):
 
 
 class LambdaParser(ServerlessAWSParser):
-    def parse_request(self, parse_params: HttpRequest) -> dict:
+    def parse_request(self, parse_params: HttpRequest) -> dict:  # type: ignore[type-arg]
         decoded_uri = safe_split_get(unquote(parse_params.uri), "/", 3)
         return recursive_json_join(  # type: ignore[no-any-return]
             {
@@ -207,13 +207,13 @@ class LambdaParser(ServerlessAWSParser):
 
 
 class KinesisParser(ServerlessAWSParser):
-    def parse_request(self, parse_params: HttpRequest) -> dict:
+    def parse_request(self, parse_params: HttpRequest) -> dict:  # type: ignore[type-arg]
         return recursive_json_join(  # type: ignore[no-any-return]
             {"info": {"resourceName": safe_key_from_json(parse_params.body, "StreamName")}},
             super().parse_request(parse_params),
         )
 
-    def parse_response(self, url: str, status_code: int, headers, body: bytes) -> dict:  # type: ignore[no-untyped-def]
+    def parse_response(self, url: str, status_code: int, headers, body: bytes) -> dict:  # type: ignore[no-untyped-def,type-arg]
         return recursive_json_join(  # type: ignore[no-any-return]
             {"info": {"messageId": KinesisParser._extract_message_id(body)}},
             super().parse_response(url, status_code, headers, body),
@@ -231,13 +231,13 @@ class KinesisParser(ServerlessAWSParser):
 
 
 class SqsParser(ServerlessAWSParser):
-    def parse_request(self, parse_params: HttpRequest) -> dict:
+    def parse_request(self, parse_params: HttpRequest) -> dict:  # type: ignore[type-arg]
         return recursive_json_join(  # type: ignore[no-any-return]
             {"info": {"resourceName": safe_key_from_query(parse_params.body, "QueueUrl")}},
             super().parse_request(parse_params),
         )
 
-    def parse_response(self, url: str, status_code: int, headers, body: bytes) -> dict:  # type: ignore[no-untyped-def]
+    def parse_response(self, url: str, status_code: int, headers, body: bytes) -> dict:  # type: ignore[no-untyped-def,type-arg]
         return recursive_json_join(  # type: ignore[no-any-return]
             {"info": {"messageId": SqsParser._extract_message_id(body)}},
             super().parse_response(url, status_code, headers, body),
@@ -261,7 +261,7 @@ class SqsParser(ServerlessAWSParser):
 
 
 class S3Parser(Parser):
-    def parse_request(self, parse_params: HttpRequest) -> dict:
+    def parse_request(self, parse_params: HttpRequest) -> dict:  # type: ignore[type-arg]
         resource_name = safe_split_get(parse_params.host, ".", 0)
         if resource_name == "s3":
             resource_name = safe_split_get(parse_params.uri, "/", 1)
@@ -270,7 +270,7 @@ class S3Parser(Parser):
             super().parse_request(parse_params),
         )
 
-    def parse_response(self, url: str, status_code: int, headers, body: bytes) -> dict:  # type: ignore[no-untyped-def]
+    def parse_response(self, url: str, status_code: int, headers, body: bytes) -> dict:  # type: ignore[no-untyped-def,type-arg]
         return recursive_json_join(  # type: ignore[no-any-return]
             {"info": {"messageId": headers.get("x-amz-request-id")}},
             super().parse_response(url, status_code, headers, body),
@@ -278,7 +278,7 @@ class S3Parser(Parser):
 
 
 class EventBridgeParser(Parser):
-    def parse_request(self, parse_params: HttpRequest) -> dict:
+    def parse_request(self, parse_params: HttpRequest) -> dict:  # type: ignore[type-arg]
         try:
             parsed_body = json.loads(parse_params.body)
         except json.JSONDecodeError as e:
@@ -296,7 +296,7 @@ class EventBridgeParser(Parser):
             super().parse_request(parse_params),
         )
 
-    def parse_response(self, url: str, status_code: int, headers, body: bytes) -> dict:  # type: ignore[no-untyped-def]
+    def parse_response(self, url: str, status_code: int, headers, body: bytes) -> dict:  # type: ignore[no-untyped-def,type-arg]
         try:
             parsed_body = json.loads(body)
         except json.JSONDecodeError as e:
@@ -314,7 +314,7 @@ class EventBridgeParser(Parser):
 class ApiGatewayV2Parser(ServerlessAWSParser):
     # API-GW V1 covered by ServerlessAWSParser
 
-    def parse_response(self, url: str, status_code: int, headers, body: bytes) -> dict:  # type: ignore[no-untyped-def]
+    def parse_response(self, url: str, status_code: int, headers, body: bytes) -> dict:  # type: ignore[no-untyped-def,type-arg]
         aws_request_id = headers.get("x-amzn-requestid")
         apigw_request_id = headers.get("apigw-requestid")
         message_id = aws_request_id or apigw_request_id
@@ -324,7 +324,7 @@ class ApiGatewayV2Parser(ServerlessAWSParser):
         )
 
 
-def get_parser(url: str, headers: Optional[dict] = None) -> Type[Parser]:
+def get_parser(url: str, headers: Optional[dict] = None) -> Type[Parser]:  # type: ignore[type-arg]
     if should_use_tracer_extension():
         return Parser
     if "amazonaws.com" not in url and not (headers or {}).get("x-amzn-requestid"):

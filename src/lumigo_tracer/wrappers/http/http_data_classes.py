@@ -6,7 +6,7 @@ class HttpRequest:
     host: str
     method: str
     uri: str
-    headers: dict
+    headers: dict  # type: ignore[type-arg]
     body: bytes
     instance_id: Optional[bytes]
 
