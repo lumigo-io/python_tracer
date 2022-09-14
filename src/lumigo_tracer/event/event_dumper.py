@@ -79,7 +79,7 @@ SQS_KEYS_ORDER = str_to_list(os.environ.get("LUMIGO_SQS_KEYS_ORDER", "")) or [
 
 
 class Event:
-    def __init__(self, event):
+    def __init__(self, event):  # type: ignore[no-untyped-def]
         """
         Cache propeties of the event in order improve performance.
         """
@@ -95,7 +95,7 @@ class EventParseHandler(ABC):
 
     @staticmethod
     @abstractmethod
-    def parse(event) -> OrderedDict:
+    def parse(event) -> OrderedDict:  # type: ignore[no-untyped-def,type-arg]
         raise NotImplementedError()
 
     @staticmethod
@@ -106,15 +106,15 @@ class EventParseHandler(ABC):
 class S3Handler(EventParseHandler):
     @staticmethod
     def is_supported(event: Event) -> bool:
-        return event.record_event_source == "aws:s3"
+        return event.record_event_source == "aws:s3"  # type: ignore[no-any-return]
 
     @staticmethod
-    def parse(event) -> OrderedDict:
-        new_event: OrderedDict = OrderedDict()
+    def parse(event) -> OrderedDict:  # type: ignore[no-untyped-def,type-arg]
+        new_event: OrderedDict = OrderedDict()  # type: ignore[type-arg]
         new_event["Records"] = []
 
         for rec in event.get("Records", []):
-            new_s3_record_event: OrderedDict = OrderedDict()
+            new_s3_record_event: OrderedDict = OrderedDict()  # type: ignore[type-arg]
             for key in S3_KEYS_ORDER:
                 if rec.get(key) is not None:
                     new_s3_record_event[key] = rec.get(key)
@@ -142,13 +142,13 @@ class CloudfrontHandler(EventParseHandler):
         return bool(safe_get(event.raw_event, ["Records", 0, "cf", "config", "distributionId"], {}))
 
     @staticmethod
-    def parse(event) -> OrderedDict:
-        new_event: OrderedDict = OrderedDict()
+    def parse(event) -> OrderedDict:  # type: ignore[no-untyped-def,type-arg]
+        new_event: OrderedDict = OrderedDict()  # type: ignore[type-arg]
         new_event["Records"] = []
 
         for rec in event.get("Records", []):
             cf_record = rec.get("cf", {})
-            new_cloudfront_record_event: OrderedDict = OrderedDict()
+            new_cloudfront_record_event: OrderedDict = OrderedDict()  # type: ignore[type-arg]
             new_cloudfront_record_event["cf"] = {}
             for key in CLOUDFRONT_KEYS_ORDER:
                 if cf_record.get(key):
@@ -170,8 +170,8 @@ class ApiGWHandler(EventParseHandler):
         return is_api_gw_event(event=event.raw_event)
 
     @staticmethod
-    def parse(event) -> OrderedDict:
-        new_event: OrderedDict = OrderedDict()
+    def parse(event) -> OrderedDict:  # type: ignore[no-untyped-def,type-arg]
+        new_event: OrderedDict = OrderedDict()  # type: ignore[type-arg]
         # Add order keys
         for order_key in API_GW_KEYS_ORDER:
             if event.get(order_key):
@@ -196,15 +196,15 @@ class ApiGWHandler(EventParseHandler):
 class SNSHandler(EventParseHandler):
     @staticmethod
     def is_supported(event: Event) -> bool:
-        return safe_get(event.raw_event, ["Records", 0, "EventSource"]) == "aws:sns"
+        return safe_get(event.raw_event, ["Records", 0, "EventSource"]) == "aws:sns"  # type: ignore[no-any-return]
 
     @staticmethod
-    def parse(event) -> OrderedDict:
-        new_sns_event: OrderedDict = OrderedDict()
+    def parse(event) -> OrderedDict:  # type: ignore[no-untyped-def,type-arg]
+        new_sns_event: OrderedDict = OrderedDict()  # type: ignore[type-arg]
         new_sns_event["Records"] = []
         # Add order keys
         for rec in event.get("Records"):
-            new_sns_record_event: OrderedDict = OrderedDict()
+            new_sns_record_event: OrderedDict = OrderedDict()  # type: ignore[type-arg]
             for key in SNS_KEYS_ORDER:
                 if rec["Sns"].get(key):
                     new_sns_record_event[key] = rec["Sns"].get(key)
@@ -215,15 +215,15 @@ class SNSHandler(EventParseHandler):
 class SQSHandler(EventParseHandler):
     @staticmethod
     def is_supported(event: Event) -> bool:
-        return event.record_event_source == "aws:sqs"
+        return event.record_event_source == "aws:sqs"  # type: ignore[no-any-return]
 
     @staticmethod
-    def parse(event) -> OrderedDict:
-        new_sqs_event: OrderedDict = OrderedDict()
+    def parse(event) -> OrderedDict:  # type: ignore[no-untyped-def,type-arg]
+        new_sqs_event: OrderedDict = OrderedDict()  # type: ignore[type-arg]
         new_sqs_event["Records"] = []
         # Add order keys
         for rec in event.get("Records"):
-            new_sqs_record_event: OrderedDict = OrderedDict()
+            new_sqs_record_event: OrderedDict = OrderedDict()  # type: ignore[type-arg]
             for key in SQS_KEYS_ORDER:
                 if rec.get(key):
                     new_sqs_record_event[key] = rec.get(key)
@@ -234,11 +234,11 @@ class SQSHandler(EventParseHandler):
 class DDBHandler(EventParseHandler):
     @staticmethod
     def is_supported(event: Event) -> bool:
-        return event.record_event_source == "aws:dynamodb"
+        return event.record_event_source == "aws:dynamodb"  # type: ignore[no-any-return]
 
     @staticmethod
-    def parse(event) -> OrderedDict:
-        return event
+    def parse(event) -> OrderedDict:  # type: ignore[no-untyped-def,type-arg]
+        return event  # type: ignore[no-any-return]
 
     @staticmethod
     def get_omit_skip_path() -> Optional[List[str]]:
@@ -248,7 +248,7 @@ class DDBHandler(EventParseHandler):
 class EventDumper:
     @staticmethod
     def dump_event(
-        event: Dict, handlers: List[EventParseHandler] = None, has_error: bool = False
+        event: Dict, handlers: List[EventParseHandler] = None, has_error: bool = False  # type: ignore[type-arg]
     ) -> str:
         max_size = Configuration.get_max_entry_size(has_error)
         if should_use_tracer_extension():

@@ -18,7 +18,7 @@ RECORDS_NUM = "recordsNum"
 MESSAGE_ID_TO_CHAINED_RESOURCE = "messageIdToChainResource"
 
 
-def parse_triggered_by(event: dict):
+def parse_triggered_by(event: dict):  # type: ignore[no-untyped-def,type-arg]
     """
     This function parses the event and build the dictionary that describes the given event.
 
@@ -51,12 +51,12 @@ def parse_triggered_by(event: dict):
     return _parse_unknown(event)
 
 
-def _parse_unknown(event: dict):
+def _parse_unknown(event: dict):  # type: ignore[no-untyped-def,type-arg]
     result = {"triggeredBy": "unknown"}
     return result
 
 
-def _is_step_function(event: Union[List, Dict]):
+def _is_step_function(event: Union[List, Dict]):  # type: ignore[no-untyped-def,type-arg,type-arg]
     return (
         Configuration.is_step_function
         and isinstance(event, (list, dict))  # noqa
@@ -64,7 +64,7 @@ def _is_step_function(event: Union[List, Dict]):
     )
 
 
-def _parse_step_function(event: dict):
+def _parse_step_function(event: dict):  # type: ignore[no-untyped-def,type-arg]
     result = {
         "triggeredBy": "stepFunction",
         "messageId": recursive_get_key(event, LUMIGO_EVENT_KEY)[STEP_FUNCTION_UID_KEY],
@@ -72,7 +72,7 @@ def _parse_step_function(event: dict):
     return result
 
 
-def _is_supported_http_method(event: dict):
+def _is_supported_http_method(event: dict):  # type: ignore[no-untyped-def,type-arg]
     return (
         "httpMethod" in event  # noqa
         and "headers" in event  # noqa
@@ -84,7 +84,7 @@ def _is_supported_http_method(event: dict):
     )  # noqa
 
 
-def _is_load_balancer_method(event: dict):
+def _is_load_balancer_method(event: dict):  # type: ignore[no-untyped-def,type-arg]
     return (
         "httpMethod" in event  # noqa
         and "headers" in event  # noqa
@@ -97,14 +97,14 @@ def _is_load_balancer_method(event: dict):
     )
 
 
-def _parse_http_method(event: dict):
+def _parse_http_method(event: dict):  # type: ignore[no-untyped-def,type-arg]
     version = event.get("version")
     if version and version.startswith("2.0"):
         return _parse_http_method_v2(event)
     return _parse_http_method_v1(event)
 
 
-def _parse_load_balancer_method(event: dict):
+def _parse_load_balancer_method(event: dict):  # type: ignore[no-untyped-def,type-arg]
     result = {
         "triggeredBy": "load_balancer",
         "httpMethod": event.get("httpMethod", ""),
@@ -114,7 +114,7 @@ def _parse_load_balancer_method(event: dict):
     return result
 
 
-def _parse_http_method_v1(event: dict):
+def _parse_http_method_v1(event: dict):  # type: ignore[no-untyped-def,type-arg]
     result = {
         "triggeredBy": "apigw",
         "httpMethod": event.get("httpMethod", ""),
@@ -128,7 +128,7 @@ def _parse_http_method_v1(event: dict):
     return result
 
 
-def _parse_http_method_v2(event: dict):
+def _parse_http_method_v2(event: dict):  # type: ignore[no-untyped-def,type-arg]
     result = {
         "triggeredBy": "apigw",
         "httpMethod": event.get("requestContext", {}).get("http", {}).get("method"),
@@ -140,11 +140,11 @@ def _parse_http_method_v2(event: dict):
     return result
 
 
-def _is_supported_sns(event: dict):
+def _is_supported_sns(event: dict):  # type: ignore[no-untyped-def,type-arg]
     return event.get("Records", [{}])[0].get("EventSource") == "aws:sns"
 
 
-def _parse_sns(event: dict):
+def _parse_sns(event: dict):  # type: ignore[no-untyped-def,type-arg]
     return {
         "triggeredBy": "sns",
         "arn": event["Records"][0]["Sns"]["TopicArn"],
@@ -153,7 +153,7 @@ def _parse_sns(event: dict):
     }
 
 
-def _is_event_bridge(event: dict):
+def _is_event_bridge(event: dict):  # type: ignore[no-untyped-def,type-arg]
     return (
         isinstance(event.get("version"), str)
         and isinstance(event.get("id"), str)  # noqa: W503
@@ -166,18 +166,18 @@ def _is_event_bridge(event: dict):
     )
 
 
-def _is_appsync(event: dict) -> bool:
+def _is_appsync(event: dict) -> bool:  # type: ignore[type-arg]
     host = safe_get(event, ["context", "request", "headers", "host"])
     if not host:
         host = safe_get(event, ["request", "headers", "host"])
     return isinstance(host, str) and "appsync-api" in host
 
 
-def _parse_event_bridge(event: dict):
+def _parse_event_bridge(event: dict):  # type: ignore[no-untyped-def,type-arg]
     return {"triggeredBy": "eventBridge", "messageId": event["id"]}
 
 
-def _parse_appsync(event: dict) -> dict:
+def _parse_appsync(event: dict) -> dict:  # type: ignore[type-arg]
     headers = safe_get(event, ["context", "request", "headers"])
     if not headers:
         headers = safe_get(event, ["request", "headers"])
@@ -187,11 +187,11 @@ def _parse_appsync(event: dict) -> dict:
     return {"triggeredBy": "appsync", "api": host, "messageId": message_id}
 
 
-def _is_supported_cw(event: dict):
+def _is_supported_cw(event: dict):  # type: ignore[no-untyped-def,type-arg]
     return event.get("detail-type") == "Scheduled Event" and "source" in event and "time" in event
 
 
-def _parse_cw(event: dict):
+def _parse_cw(event: dict):  # type: ignore[no-untyped-def,type-arg]
     resource = event.get("resources", ["/unknown"])[0].split("/")[1]
     return {
         "triggeredBy": "cloudwatch",
@@ -201,7 +201,7 @@ def _parse_cw(event: dict):
     }
 
 
-def _is_supported_streams(event: dict):
+def _is_supported_streams(event: dict):  # type: ignore[no-untyped-def,type-arg]
     return event.get("Records", [{}])[0].get("eventSource") in [
         "aws:kinesis",
         "aws:dynamodb",
@@ -210,7 +210,7 @@ def _is_supported_streams(event: dict):
     ]
 
 
-def _parse_streams(event: dict) -> Dict[str, str]:
+def _parse_streams(event: dict) -> Dict[str, str]:  # type: ignore[type-arg]
     """
     :return: {"triggeredBy": str, "arn": str}
     If has messageId, return also: {"messageId": str}
@@ -233,11 +233,11 @@ def _parse_streams(event: dict) -> Dict[str, str]:
     return result
 
 
-def _get_ddb_approx_creation_time_ms(event) -> int:
-    return event["Records"][0].get("dynamodb", {}).get("ApproximateCreationDateTime", 0) * 1000
+def _get_ddb_approx_creation_time_ms(event) -> int:  # type: ignore[no-untyped-def]
+    return event["Records"][0].get("dynamodb", {}).get("ApproximateCreationDateTime", 0) * 1000  # type: ignore[no-any-return]
 
 
-def _parse_dynamomdb_event(event) -> Dict[str, Union[int, List[str]]]:
+def _parse_dynamomdb_event(event) -> Dict[str, Union[int, List[str]]]:  # type: ignore[no-untyped-def]
     creation_time = _get_ddb_approx_creation_time_ms(event)
     mids = []
     total_size_bytes: int = 0
@@ -255,7 +255,7 @@ def _parse_dynamomdb_event(event) -> Dict[str, Union[int, List[str]]]:
     }
 
 
-def _parse_kinesis_event(event) -> Dict[str, Union[int, str, List[str], List[Dict[str, str]]]]:
+def _parse_kinesis_event(event) -> Dict[str, Union[int, str, List[str], List[Dict[str, str]]]]:  # type: ignore[no-untyped-def]
     result = {}
     message_ids = []
     records = safe_get(event, ["Records"], default=[])
@@ -274,7 +274,7 @@ def _parse_kinesis_event(event) -> Dict[str, Union[int, str, List[str], List[Dic
     return result
 
 
-def _parse_sqs_event(event) -> Dict[str, Union[int, str, List[str], List[Dict[str, str]]]]:
+def _parse_sqs_event(event) -> Dict[str, Union[int, str, List[str], List[Dict[str, str]]]]:  # type: ignore[no-untyped-def]
     message_ids = []
     chained_resources: List[Dict[str, str]] = []
     for record in event.get("Records", []):
@@ -306,6 +306,6 @@ def _parse_sqs_event(event) -> Dict[str, Union[int, str, List[str], List[Dict[st
     return result
 
 
-def _is_sns_inside_sqs_record(record: dict):
+def _is_sns_inside_sqs_record(record: dict):  # type: ignore[no-untyped-def,type-arg]
     body = record.get("body")
     return isinstance(body, str) and "SimpleNotificationService" in body and "TopicArn" in body

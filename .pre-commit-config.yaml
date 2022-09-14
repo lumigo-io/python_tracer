@@ -7,10 +7,12 @@ repos:
       additional_dependencies: ['click==8.0.4']
 
 -   repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v0.782
+    rev: v0.971
     hooks:
     -   id: mypy
-        args: ["--ignore-missing-imports"]
+        exclude: 'src/test/|src/lumigo_tracer/examples/|src/lumigo_tracer/test_module/|src/lumigo_tracer/libs/'
+        entry: venv/bin/mypy
+        args: ['--show-error-codes', '--check-untyped-defs', '--warn-redundant-casts', '--strict-equality', '--warn-unused-ignores', '--warn-return-any', '--disallow-untyped-defs', '--disallow-incomplete-defs', '--disallow-any-generics', '--ignore-missing-imports']
 
 -   repo: https://gitlab.com/pycqa/flake8
     rev: 3.8.1
