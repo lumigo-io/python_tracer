@@ -16,13 +16,13 @@ def generate_message_id() -> str:
     return "%016x" % random.getrandbits(64)
 
 
-def add_w3c_trace_propagator(headers: Dict[str, str], transaction_id: str):
+def add_w3c_trace_propagator(headers: Dict[str, str], transaction_id: str) -> None:
     message_id = generate_message_id()
     headers[TRACEPARENT_HEADER_NAME] = get_trace_id(headers, transaction_id, message_id)
     headers[TRACESTATE_HEADER_NAME] = get_trace_state(headers, message_id)
 
 
-def get_trace_id(headers: Dict[str, str], transaction_id: str, message_id: str):
+def get_trace_id(headers: Dict[str, str], transaction_id: str, message_id: str) -> str:
     version = None
     trace_id = None
     span_id = None
@@ -41,7 +41,7 @@ def get_trace_id(headers: Dict[str, str], transaction_id: str, message_id: str):
     return f"{version}-{trace_id}-{span_id}-{trace_flags}"
 
 
-def get_trace_state(headers: Dict[str, str], message_id: str):
+def get_trace_state(headers: Dict[str, str], message_id: str) -> str:
     lumigo_state = f"lumigo={message_id}"
     if headers.get(TRACESTATE_HEADER_NAME):
         return headers[TRACESTATE_HEADER_NAME] + f",{lumigo_state}"

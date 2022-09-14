@@ -341,7 +341,7 @@ class SpansContainer:
         root = safe_split_get(self.trace_root, "-", 0)  # type: ignore[arg-type]
         return f"Root={root}-{hex(current_time)[2:]}-{self.transaction_id}{self.trace_id_suffix}"
 
-    def add_w3c_trace_propagator(self, headers: Dict[str, str]):
+    def add_w3c_trace_propagator(self, headers: Dict[str, str]) -> None:
         if self.transaction_id:
             add_w3c_trace_propagator(headers, self.transaction_id)
 
