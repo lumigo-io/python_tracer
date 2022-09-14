@@ -32,7 +32,7 @@ class LumigoExtension:
         self.request_id: Optional[str] = None
         self.bandwidth: Optional[int] = None
 
-    def start_new_invocation(self, event: Dict[str, str]):
+    def start_new_invocation(self, event: Dict[str, str]):  # type: ignore[no-untyped-def]
         with lumigo_safe_execute("Extension: start_new_invocation"):
             current_bandwidth = get_current_bandwidth()
             if self.request_id:
@@ -43,12 +43,12 @@ class LumigoExtension:
             self.start_time = datetime.now()
             self.bandwidth = current_bandwidth
 
-    def shutdown(self):
+    def shutdown(self):  # type: ignore[no-untyped-def]
         with lumigo_safe_execute("Extension: shutdown"):
             current_bandwidth = get_current_bandwidth()
             self._finish_previous_invocation(current_bandwidth)
 
-    def _finish_previous_invocation(self, current_bandwidth: Optional[int]):
+    def _finish_previous_invocation(self, current_bandwidth: Optional[int]):  # type: ignore[no-untyped-def]
         self.sampler.stop_sampling()
         token = os.environ.get(lumigo_utils.LUMIGO_TOKEN_KEY)
         if not token:

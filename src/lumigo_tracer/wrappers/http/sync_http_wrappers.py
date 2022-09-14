@@ -41,7 +41,7 @@ def is_lumigo_edge(host: Optional[str]) -> bool:
     return False
 
 
-def add_request_event(span_id: Optional[str], parse_params: HttpRequest) -> Dict:
+def add_request_event(span_id: Optional[str], parse_params: HttpRequest) -> Dict:  # type: ignore[type-arg]
     """
     This function parses an request event and add it to the span.
     """
@@ -57,7 +57,7 @@ def add_request_event(span_id: Optional[str], parse_params: HttpRequest) -> Dict
     return new_span
 
 
-def add_unparsed_request(span_id: Optional[str], parse_params: HttpRequest) -> Optional[Dict]:
+def add_unparsed_request(span_id: Optional[str], parse_params: HttpRequest) -> Optional[Dict]:  # type: ignore[type-arg]
     """
     This function handle the case where we got a request the is not fully formatted as we expected,
     I.e. there isn't '\r\n' in the request data that <i>logically</i> splits the headers from the body.
@@ -88,7 +88,7 @@ def add_unparsed_request(span_id: Optional[str], parse_params: HttpRequest) -> O
 
 
 def update_event_response(
-    span_id: str, host: Optional[str], status_code: int, headers: dict, body: bytes
+    span_id: str, host: Optional[str], status_code: int, headers: dict, body: bytes  # type: ignore[type-arg]
 ) -> str:
     """
     :param host: If None, use the host from the last span, otherwise this is the first chuck and we can empty
@@ -109,18 +109,16 @@ def update_event_response(
         has_error = is_error_code(status_code)
         max_size = Configuration.get_max_entry_size(has_error)
         headers = {k.lower(): v for k, v in headers.items()} if headers else {}
-        parser = get_parser(host, headers)()  # type: ignore
+        parser = get_parser(host, headers)()  # type: ignore[arg-type]
         if has_error:
             _update_request_data_increased_size_limit(http_info, max_size)
-        update = parser.parse_response(  # type: ignore
-            host, status_code, headers, body  # type: ignore
-        )
+        update = parser.parse_response(host, status_code, headers, body)  # type: ignore[arg-type]
         SpansContainer.get_span().add_span(recursive_json_join(update, last_event))
         return update.get("id", span_id)
     return span_id
 
 
-def _update_request_data_increased_size_limit(http_info: dict, max_size: int) -> None:
+def _update_request_data_increased_size_limit(http_info: dict, max_size: int) -> None:  # type: ignore[type-arg]
     if not HttpState.previous_request or not http_info.get("request"):
         return
     if not HttpState.previous_request.body.startswith(
@@ -141,18 +139,18 @@ def _update_request_data_increased_size_limit(http_info: dict, max_size: int) ->
     )
 
 
-def get_lumigo_connection_id(instance) -> Optional[int]:
+def get_lumigo_connection_id(instance) -> Optional[int]:  # type: ignore[no-untyped-def]
     return getattr(instance, LUMIGO_CONNECTION_ID_KEY, None)
 
 
-def set_lumigo_connection_id(instance):
+def set_lumigo_connection_id(instance):  # type: ignore[no-untyped-def]
     setattr(instance, LUMIGO_CONNECTION_ID_KEY, random.random())
 
 
 #   Wrappers  #
 
 
-def _http_init_wrapper(func, instance, args, kwargs):
+def _http_init_wrapper(func, instance, args, kwargs):  # type: ignore[no-untyped-def]
     """
     We need to attach a unique if to any HTTPConnection, because the runtime sometimes reuse the same connection
     (even to different hosts). See test test_lambda_wrapper_http_non_splitted_send for reference.
@@ -162,7 +160,7 @@ def _http_init_wrapper(func, instance, args, kwargs):
     return ret_val
 
 
-def _http_send_wrapper(func, instance, args, kwargs):
+def _http_send_wrapper(func, instance, args, kwargs):  # type: ignore[no-untyped-def]
     """
     This is the wrapper of the requests. it parses the http's message to conclude the url, headers, and body.
     Finally, it add an event to the span, and run the wrapped function (http.client.HTTPConnection.send).
@@ -191,21 +189,21 @@ def _http_send_wrapper(func, instance, args, kwargs):
             hooked_headers = getattr(instance, LUMIGO_HEADERS_HOOK_KEY, None)
             if hooked_headers and hooked_headers.headers:
                 # we will get here only if _headers_reminder_wrapper ran first. remove its traces.
-                headers = {k: ensure_str(v) for k, v in hooked_headers.headers.items()}
+                headers = {k: ensure_str(v) for k, v in hooked_headers.headers.items()}  # type: ignore
                 uri = f"{host}{hooked_headers.path}"
                 setattr(instance, LUMIGO_HEADERS_HOOK_KEY, None)
             elif _FLAGS_HEADER_SPLITTER in headers:
                 request_info, headers = headers.split(_FLAGS_HEADER_SPLITTER, 1)
-                headers = http.client.parse_headers(BytesIO(headers))
+                headers = http.client.parse_headers(BytesIO(headers))  # type: ignore
                 path_and_query_params = (
                     # Parse path from request info, remove method (GET | POST) and http version (HTTP/1.1)
                     request_info.decode("ascii")
-                    .replace(method, "")
+                    .replace(method, "")  # type: ignore
                     .replace(instance._http_vsn_str, "")
                     .strip()
                 )
                 uri = f"{host}{path_and_query_params}"
-                host = host or headers.get("Host")
+                host = host or headers.get("Host")  # type: ignore
             else:
                 headers = None
 
@@ -224,13 +222,13 @@ def _http_send_wrapper(func, instance, args, kwargs):
                 ),
             )
         else:
-            span = add_unparsed_request(
-                HttpState.request_id_to_span_id.get(get_lumigo_connection_id(instance)),
+            span = add_unparsed_request(  # type: ignore
+                HttpState.request_id_to_span_id.get(get_lumigo_connection_id(instance)),  # type: ignore[arg-type]
                 HttpRequest(host=host, method=method, uri=uri, body=data, instance_id=id(instance)),
             )
         span_id = span["id"] if span else None
         if span_id:
-            HttpState.request_id_to_span_id[get_lumigo_connection_id(instance)] = span_id
+            HttpState.request_id_to_span_id[get_lumigo_connection_id(instance)] = span_id  # type: ignore[index]
 
     ret_val = func(*args, **kwargs)
     with lumigo_safe_execute("add response event"):
@@ -239,7 +237,7 @@ def _http_send_wrapper(func, instance, args, kwargs):
     return ret_val
 
 
-def _headers_reminder_wrapper(func, instance, args, kwargs):
+def _headers_reminder_wrapper(func, instance, args, kwargs):  # type: ignore[no-untyped-def]
     """
     This is the wrapper of the function `http.client.HTTPConnection.request` that gets the headers.
     Remember the headers helps us to improve performances on requests that use this flow.
@@ -253,7 +251,7 @@ def _headers_reminder_wrapper(func, instance, args, kwargs):
     return func(*args, **kwargs)
 
 
-def _requests_wrapper(func, instance, args, kwargs):
+def _requests_wrapper(func, instance, args, kwargs):  # type: ignore[no-untyped-def]
     """
     This is the wrapper of the function `requests.request`.
     This function is being wrapped specifically because it initializes the connection by itself and parses the response,
@@ -283,66 +281,66 @@ def _requests_wrapper(func, instance, args, kwargs):
                         ),
                     )
                     span_id = span["id"]
-                    HttpState.request_id_to_span_id[get_lumigo_connection_id(instance)] = span_id
-                SpansContainer.add_exception_to_span(span, exception, [])
+                    HttpState.request_id_to_span_id[get_lumigo_connection_id(instance)] = span_id  # type: ignore[index]
+                SpansContainer.add_exception_to_span(span, exception, [])  # type: ignore[arg-type]
         raise
     with lumigo_safe_execute("requests wrapper time updates"):
         span_id = HttpState.response_id_to_span_id.get(
-            get_lumigo_connection_id(ret_val.raw._original_response)
+            get_lumigo_connection_id(ret_val.raw._original_response)  # type: ignore[arg-type]
         )
         SpansContainer.get_span().update_event_times(span_id, start_time=start_time)
     return ret_val
 
 
-def _response_wrapper(func, instance, args, kwargs):
+def _response_wrapper(func, instance, args, kwargs):  # type: ignore[no-untyped-def]
     """
     This is the wrapper of the function that can be called only after that the http request was sent.
     Note that we don't examine the response data because it may change the original behaviour (ret_val.peek()).
     """
     ret_val = func(*args, **kwargs)
     with lumigo_safe_execute("parse response"):
-        span_id = HttpState.request_id_to_span_id.get(get_lumigo_connection_id(instance))
+        span_id = HttpState.request_id_to_span_id.get(get_lumigo_connection_id(instance))  # type: ignore[arg-type]
         set_lumigo_connection_id(ret_val)
-        HttpState.response_id_to_span_id[get_lumigo_connection_id(ret_val)] = span_id
+        HttpState.response_id_to_span_id[get_lumigo_connection_id(ret_val)] = span_id  # type: ignore[index,assignment]
         headers = dict(ret_val.headers.items())
         status_code = ret_val.code
-        new_span_id = update_event_response(span_id, instance.host, status_code, headers, b"")
-        HttpState.response_id_to_span_id[get_lumigo_connection_id(ret_val)] = new_span_id
+        new_span_id = update_event_response(span_id, instance.host, status_code, headers, b"")  # type: ignore[arg-type]
+        HttpState.response_id_to_span_id[get_lumigo_connection_id(ret_val)] = new_span_id  # type: ignore[index]
     return ret_val
 
 
-def _read_wrapper(func, instance, args, kwargs):
+def _read_wrapper(func, instance, args, kwargs):  # type: ignore[no-untyped-def]
     """
     This is the wrapper of the function that can be called only after `getresponse` was called.
     """
     ret_val = func(*args, **kwargs)
     if ret_val:
         with lumigo_safe_execute("parse response.read"):
-            span_id = HttpState.response_id_to_span_id.get(get_lumigo_connection_id(instance))
+            span_id = HttpState.response_id_to_span_id.get(get_lumigo_connection_id(instance))  # type: ignore[arg-type]
             update_event_response(
-                span_id, None, instance.code, dict(instance.headers.items()), ret_val
+                span_id, None, instance.code, dict(instance.headers.items()), ret_val  # type: ignore[arg-type]
             )
     return ret_val
 
 
-def _read_stream_wrapper(func, instance, args, kwargs):
+def _read_stream_wrapper(func, instance, args, kwargs):  # type: ignore[no-untyped-def]
     ret_val = func(*args, **kwargs)
     return _read_stream_wrapper_generator(ret_val, instance)
 
 
-def _read_stream_wrapper_generator(stream_generator, instance):
+def _read_stream_wrapper_generator(stream_generator, instance):  # type: ignore[no-untyped-def]
     for partial_response in stream_generator:
         with lumigo_safe_execute("parse response.read_chunked"):
             span_id = HttpState.response_id_to_span_id.get(
-                get_lumigo_connection_id(instance._original_response)
+                get_lumigo_connection_id(instance._original_response)  # type: ignore[arg-type]
             )
             update_event_response(
-                span_id, None, instance.status, dict(instance.headers.items()), partial_response
+                span_id, None, instance.status, dict(instance.headers.items()), partial_response  # type: ignore[arg-type]
             )
         yield partial_response
 
 
-def _putheader_wrapper(func, instance, args, kwargs):
+def _putheader_wrapper(func, instance, args, kwargs):  # type: ignore[no-untyped-def]
     """
     This is the wrapper of the function that called after that the http request was sent.
     Note that we don't examine the response data because it may change the original behaviour (ret_val.peek()).
@@ -353,7 +351,7 @@ def _putheader_wrapper(func, instance, args, kwargs):
     return ret_val
 
 
-def wrap_http_calls():
+def wrap_http_calls():  # type: ignore[no-untyped-def]
     with lumigo_safe_execute("wrap http calls"):
         get_logger().debug("wrapping http requests")
         wrap_function_wrapper("http.client", "HTTPConnection.send", _http_send_wrapper)
