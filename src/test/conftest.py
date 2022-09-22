@@ -113,3 +113,11 @@ def extension_clean():
 @pytest.fixture
 def token():
     return "t_10faa5e13e7844aaa1234"
+
+
+@pytest.fixture
+def aws_env(monkeypatch):
+    monkeypatch.setenv(
+        "_X_AMZN_TRACE_ID",
+        "Root=1-12345678-111111111111111111111111;Parent=blablablablabla;Sampled=0",
+    )

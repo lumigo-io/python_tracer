@@ -1,13 +1,13 @@
+import os
 import json
-import subprocess
 import boto3
 import pytest
-import os
-
+import subprocess
+import http.client
 
 from lumigo_tracer.tracer import lumigo_tracer
-from lumigo_tracer.spans_container import SpansContainer
 from lumigo_tracer.lumigo_utils import md5hash
+from lumigo_tracer.spans_container import SpansContainer
 
 TOKEN = "t_10faa5e13e7844aaa1234"
 
@@ -210,3 +210,40 @@ def test_get_body_from_aws_response(sqs_resource, region, context):
     # making sure there is any data in the body.
     body = events[0]["info"]["httpInfo"]["response"]["body"]
     assert body and body != "b''"
+
+
+@pytest.mark.slow
+@pytest.mark.parametrize("as_kwarg", [True, False])
+def test_w3c_headers_requests_with_headers(sqs_resource, region, context, aws_env, as_kwarg):
+    @lumigo_tracer(token=TOKEN, propagate_w3c=True)
+    def lambda_test_function(event, context):
+        conn = http.client.HTTPConnection("httpbin.org")
+        if as_kwarg:
+            conn.request("GET", "/anything", b"content", headers={"A": "B"})
+        else:
+            conn.request("GET", "/anything", b"content", {"A": "B"})
+        return conn.getresponse().read()
+
+    lambda_test_function({}, context)
+    events = list(SpansContainer.get_span().spans.values())
+    # making sure there is any data in the body.
+    body = json.loads(events[0]["info"]["httpInfo"]["response"]["body"])
+    assert body["data"] == "content"
+    assert body["headers"]["A"] == "B"
+    assert "Traceparent" in body["headers"]
+
+
+@pytest.mark.slow
+def test_w3c_headers_requests_without_headers(sqs_resource, region, context, aws_env):
+    @lumigo_tracer(token=TOKEN, propagate_w3c=True)
+    def lambda_test_function(event, context):
+        conn = http.client.HTTPConnection("httpbin.org")
+        conn.request("GET", "/anything", b"content")
+        return conn.getresponse().read()
+
+    lambda_test_function({}, context)
+    events = list(SpansContainer.get_span().spans.values())
+    # making sure there is any data in the body.
+    body = json.loads(events[0]["info"]["httpInfo"]["response"]["body"])
+    assert body["data"] == "content"
+    assert "Traceparent" in body["headers"]

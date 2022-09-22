@@ -400,6 +400,19 @@ def test_config_step_function_without_envs(monkeypatch, configuration_value):
     assert Configuration.is_step_function == configuration_value
 
 
+@pytest.mark.parametrize("value, expected", (("TRUE", True), ("FALSE", False)))
+def test_config_propagate_w3c_by_env(monkeypatch, value, expected):
+    monkeypatch.setenv("LUMIGO_PROPAGATE_W3C", value)
+    config()
+    assert Configuration.propagate_w3c == expected
+
+
+def test_config_propagate_w3c_default_value(monkeypatch):
+    monkeypatch.delenv("LUMIGO_PROPAGATE_W3C", raising=False)
+    config()
+    assert Configuration.propagate_w3c is False
+
+
 def test_config_lumigo_auto_tag(monkeypatch):
     monkeypatch.setenv("LUMIGO_AUTO_TAG", "key1,key2")
     config()

@@ -1,24 +1,24 @@
-import datetime
-import decimal
-import base64
-import hashlib
-import json
-import logging
 import os
 import re
 import uuid
-from functools import reduce, lru_cache
 import time
-import http.client
-import socket
-from collections import OrderedDict
+import json
 import random
-from typing import Union, List, Optional, Dict, Any, Tuple, Pattern, TypeVar
-from contextlib import contextmanager
-from base64 import b64encode
+import socket
+import base64
+import logging
+import decimal
+import hashlib
 import inspect
+import datetime
 import traceback
+import http.client
 from pathlib import Path
+from base64 import b64encode
+from collections import OrderedDict
+from contextlib import contextmanager
+from functools import reduce, lru_cache
+from typing import Union, List, Optional, Dict, Any, Tuple, Pattern, TypeVar
 
 LUMIGO_DOMAINS_SCRUBBER_KEY = "LUMIGO_DOMAINS_SCRUBBER"
 
@@ -69,6 +69,7 @@ SKIP_SCRUBBING_KEYS = [EXECUTION_TAGS_KEY, MANUAL_TRACES_KEY]
 LUMIGO_SECRET_MASKING_REGEX_BACKWARD_COMP = "LUMIGO_BLACKLIST_REGEX"
 LUMIGO_SECRET_MASKING_REGEX = "LUMIGO_SECRET_MASKING_REGEX"
 LUMIGO_SYNC_TRACING = "LUMIGO_SYNC_TRACING"
+LUMIGO_PROPAGATE_W3C = "LUMIGO_PROPAGATE_W3C"
 WARN_CLIENT_PREFIX = "Lumigo Warning"
 INTERNAL_ANALYTICS_PREFIX = "Lumigo Analytic Log"
 TRUNCATE_SUFFIX = "...[too long]"
@@ -144,6 +145,7 @@ class Configuration:
     is_sync_tracer: bool = False
     auto_tag: List[str] = []
     skip_collecting_http_body: bool = False
+    propagate_w3c: bool = False
 
     @staticmethod
     def get_max_entry_size(has_error: bool = False) -> int:
@@ -169,6 +171,7 @@ def config(
     edge_kinesis_aws_secret_access_key: Optional[str] = None,
     auto_tag: Optional[List[str]] = None,
     skip_collecting_http_body: bool = False,
+    propagate_w3c: bool = False,
 ) -> None:
     """
     This function configure the lumigo wrapper.
@@ -190,6 +193,7 @@ def config(
     :param edge_kinesis_aws_secret_access_key: The credentials to push to the Kinesis in China region
     :param auto_tag: The keys from the event that should be used as execution tags.
     :param skip_collecting_http_body: Should we not collect the HTTP request and response bodies.
+    :param propagate_w3c: Should we add W3C headers to the lambda's HTTP requests.
     """
 
     Configuration.token = token or os.environ.get(LUMIGO_TOKEN_KEY, "")
@@ -251,6 +255,9 @@ def config(
         os.environ.get("LUMIGO_SCRUB_KNOWN_SERVICES") == "true"
     )
     Configuration.is_sync_tracer = os.environ.get(LUMIGO_SYNC_TRACING, "FALSE").lower() == "true"
+    Configuration.propagate_w3c = (
+        propagate_w3c or os.environ.get(LUMIGO_PROPAGATE_W3C, "false").lower() == "true"
+    )
     Configuration.auto_tag = auto_tag or os.environ.get(
         "LUMIGO_AUTO_TAG", DEFAULT_AUTO_TAG_KEY
     ).split(",")

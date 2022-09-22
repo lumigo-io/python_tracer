@@ -23,6 +23,7 @@ from lumigo_tracer.lumigo_utils import (
     is_aws_arn,
     should_use_tracer_extension,
 )
+from lumigo_tracer.w3c_context import is_w3c_headers, get_w3c_message_id
 from lumigo_tracer.wrappers.http.http_data_classes import HttpRequest, HttpState
 
 HTTP_TYPE = "http"
@@ -61,6 +62,9 @@ class Parser:
                 "instance_id": parse_params.instance_id,
             }
 
+        message_id = None
+        if parse_params.headers and is_w3c_headers(parse_params.headers):
+            message_id = get_w3c_message_id(parse_params.headers)
         return {
             "id": str(uuid.uuid4()),
             "type": HTTP_TYPE,
@@ -68,7 +72,8 @@ class Parser:
                 "httpInfo": {
                     "host": parse_params.host if parse_params else "",
                     "request": additional_info,
-                }
+                },
+                **({"messageId": message_id} if message_id else {}),
             },
             "started": get_current_ms_time(),
         }
