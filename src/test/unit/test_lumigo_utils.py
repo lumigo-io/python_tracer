@@ -51,6 +51,7 @@ from lumigo_tracer.lumigo_utils import (
     TRUNCATE_SUFFIX,
     DEFAULT_AUTO_TAG_KEY,
     lumigo_safe_execute,
+    is_python_37,
 )
 import json
 
@@ -686,3 +687,20 @@ def test_lumigo_safe_execute_with_level(severity, caplog):
     with lumigo_safe_execute("test", severity=severity):
         raise ValueError("Failing")
     assert caplog.records[-1].levelno == severity
+
+
+@pytest.mark.parametrize(
+    "env_value, expected",
+    [
+        ("AWS_Lambda_python3.8", False),
+        ("AWS_Lambda_python3.7", True),
+    ],
+)
+def test_is_python_37(monkeypatch, env_value, expected):
+    monkeypatch.setenv("AWS_EXECUTION_ENV", env_value)
+    assert is_python_37() == expected
+
+
+def test_is_python_37_without_env(monkeypatch):
+    monkeypatch.delenv("AWS_EXECUTION_ENV", raising=False)
+    assert is_python_37() is False

@@ -844,6 +844,10 @@ def get_stacktrace(exception: Exception) -> str:
     return "".join(filter(lambda line: STACKTRACE_LINE_TO_DROP not in line, original_traceback))
 
 
+def is_python_37() -> bool:
+    return os.environ.get("AWS_EXECUTION_ENV") == "AWS_Lambda_python3.7"
+
+
 try:
     # Try to establish the connection in initialization
     if (
