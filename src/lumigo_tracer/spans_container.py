@@ -26,6 +26,7 @@ from lumigo_tracer.lumigo_utils import (
     should_use_tracer_extension,
     MANUAL_TRACES_KEY,
     lumigo_safe_execute,
+    is_python_37,
 )
 from lumigo_tracer import lumigo_utils
 from lumigo_tracer.event.event_dumper import EventDumper
@@ -292,13 +293,18 @@ class SpansContainer:
                 if ret_val is not None:
                     parsed_ret_val = lumigo_dumps(ret_val, enforce_jsonify=True, decimal_safe=True)
             except Exception as err:
-                suffix = ""
-                if err.args:
-                    suffix = f'Original message: "{err.args[0]}"'
-                self.function_span["error"] = self._create_exception_event(
-                    "ReturnValueError",
-                    "The lambda will probably fail due to bad return value. " + suffix,
-                )
+                if is_python_37():
+                    suffix = ""
+                    if err.args:
+                        suffix = f'Original message: "{err.args[0]}"'
+                    self.function_span["error"] = self._create_exception_event(
+                        "ReturnValueError",
+                        "The lambda will probably fail due to bad return value. " + suffix,
+                    )
+                else:
+                    get_logger().exception(
+                        "Could not serialize the return value of the lambda", exc_info=True
+                    )
         self.function_span.update({"return_value": parsed_ret_val})
         if _is_span_has_error(self.function_span):
             self._set_error_extra_data(event)

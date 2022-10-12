@@ -1,3 +1,5 @@
+import logging
+
 import datetime
 import json
 import re
@@ -453,7 +455,9 @@ def test_wrapping_with_auto_tags(context, key, event, reporter_mock):
     assert enrichment_spans[0][EXECUTION_TAGS_KEY] == [{"key": key, "value": "my_value"}]
 
 
-def test_not_jsonable_return(monkeypatch, context):
+def test_not_jsonable_return_value_python37(monkeypatch, context):
+    monkeypatch.setenv("AWS_EXECUTION_ENV", "AWS_Lambda_python3.7")
+
     @lumigo_tracer()
     def lambda_test_function(event, context):
         return {"a": datetime.datetime.now()}
@@ -466,6 +470,26 @@ def test_not_jsonable_return(monkeypatch, context):
     # following python's runtime: runtime/lambda_runtime_marshaller.py:27
     expected_message = 'The lambda will probably fail due to bad return value. Original message: "Object of type datetime is not JSON serializable"'
     assert function_span["error"]["message"] == expected_message
+
+
+def test_not_jsonable_return_value_non_python37(monkeypatch, context, caplog):
+    monkeypatch.setenv("AWS_EXECUTION_ENV", "AWS_Lambda_python3.8")
+
+    @lumigo_tracer()
+    def lambda_test_function(event, context):
+        return {"a": datetime.datetime.now()}
+
+    lambda_test_function({}, context)
+
+    function_span = SpansContainer.get_span().function_span
+    assert function_span["return_value"] is None
+    assert "error" not in function_span
+    assert next(
+        log
+        for log in caplog.records
+        if log.levelno == logging.ERROR
+        and "Could not serialize the return value of the lambda" in log.message
+    )
 
 
 @mock_kinesis
