@@ -484,9 +484,12 @@ def test_not_jsonable_return_value_non_python37(monkeypatch, context, caplog):
     function_span = SpansContainer.get_span().function_span
     assert function_span["return_value"] is None
     assert "error" not in function_span
-    log = caplog.records[-1]
-    assert log.levelno == logging.ERROR
-    assert "Could not serialize the return value of the lambda" in log.message
+    assert next(
+        log
+        for log in caplog.records
+        if log.levelno == logging.ERROR
+        and "Could not serialize the return value of the lambda" in log.message
+    )
 
 
 @mock_kinesis
