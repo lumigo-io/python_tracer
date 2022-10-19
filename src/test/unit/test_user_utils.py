@@ -189,7 +189,7 @@ def test_add_execution_tag_lambda_not_traced(kill_switch_value, is_aws_environme
     monkeypatch.setenv("AWS_LAMBDA_FUNCTION_VERSION", is_aws_environment_value)
 
     assert add_execution_tag("key", "my-value") is expected_ret_value
-    if not expected_ret_value:
+    if expected_ret_value is False:
         assert "Unable to add tag" in capsys.readouterr().out
     assert SpansContainer.get_span().execution_tags == expected_tags
 
