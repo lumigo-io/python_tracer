@@ -863,4 +863,4 @@ except Exception:
 
 
 def is_lambda_traced() -> bool:
-    return not (is_kill_switch_on() or not is_aws_environment())
+    return (not is_kill_switch_on()) and is_aws_environment()

@@ -104,7 +104,7 @@ def test_basic_info_warn_error(capsys):
     assert captured[2] == error_msg
 
 
-def test_add_execution_tag():
+def test_add_execution_tag(lambda_traced):
     key = "my_key"
     value = "my_value"
     assert add_execution_tag(key, value) is True
@@ -117,31 +117,31 @@ def test_start_manual_trace_simple_flow():
     assert SpansContainer.get_span().function_span[MANUAL_TRACES_KEY]
 
 
-def test_add_execution_key_tag_empty(capsys):
+def test_add_execution_key_tag_empty(capsys, lambda_traced):
     assert add_execution_tag("", "value") is False
     assert "Unable to add tag: key length" in capsys.readouterr().out
     assert SpansContainer.get_span().execution_tags == []
 
 
-def test_add_execution_value_tag_empty(capsys):
+def test_add_execution_value_tag_empty(capsys, lambda_traced):
     assert add_execution_tag("key", "") is False
     assert "Unable to add tag: value length" in capsys.readouterr().out
     assert SpansContainer.get_span().execution_tags == []
 
 
-def test_add_execution_tag_key_pass_max_chars(capsys):
+def test_add_execution_tag_key_pass_max_chars(capsys, lambda_traced):
     assert add_execution_tag("k" * (MAX_TAG_KEY_LEN + 1), "value") is False
     assert "Unable to add tag: key length" in capsys.readouterr().out
     assert SpansContainer.get_span().execution_tags == []
 
 
-def test_add_execution_tag_value_pass_max_chars(capsys):
+def test_add_execution_tag_value_pass_max_chars(capsys, lambda_traced):
     assert add_execution_tag("key", "v" * (MAX_TAG_VALUE_LEN + 1)) is False
     assert "Unable to add tag: value length" in capsys.readouterr().out
     assert SpansContainer.get_span().execution_tags == []
 
 
-def test_add_execution_tag_pass_max_tags(capsys):
+def test_add_execution_tag_pass_max_tags(capsys, lambda_traced):
     key = "my_key"
     value = "my_value"
 
@@ -172,15 +172,15 @@ def test_add_execution_tag_exception_catch(capsys):
 @pytest.mark.parametrize(
     ["kill_switch_value", "is_aws_environment_value", "expected_ret_value", "expected_tags"],
     [
-        (
+        (  # happy flow - lambda is traced
             "false",
             "true",
             True,
             [{"key": "key", "value": "my-value"}],
-        ),  # happy flow - lambda is traced
-        ("true", "true", False, []),  # kill switch off, is_aws_env true
-        ("false", "", False, []),  # kill switch off, is_aws_env false
+        ),
+        ("true", "true", False, []),  # kill switch on, is_aws_env true
         ("true", "", False, []),  # kill switch on, is_aws_env false
+        ("false", "", False, []),  # kill switch off, is_aws_env false
     ],
 )
 def test_add_execution_tag_lambda_not_traced(

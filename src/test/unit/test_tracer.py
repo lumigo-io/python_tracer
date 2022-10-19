@@ -423,7 +423,7 @@ def get_enrichment_spans(reporter_mock):
     return [s for s in final_send if s["type"] == ENRICHMENT_TYPE]
 
 
-def test_wrapping_with_tags(context, reporter_mock):
+def test_wrapping_with_tags(context, reporter_mock, lambda_traced):
     key = "my_key"
     value = "my_value"
 
@@ -443,7 +443,7 @@ def test_wrapping_with_tags(context, reporter_mock):
     "key, event",
     [("my_key", {"my_key": "my_value"}), ("my_key.key2", {"my_key": {"key2": "my_value"}})],
 )
-def test_wrapping_with_auto_tags(context, key, event, reporter_mock):
+def test_wrapping_with_auto_tags(context, key, event, reporter_mock, lambda_traced):
     @lumigo_tracer(auto_tag=[key])
     def lambda_test_function(event, context):
         return "ret_value"

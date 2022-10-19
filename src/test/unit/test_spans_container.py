@@ -202,7 +202,7 @@ def test_timeout_mechanism_timeout_occurred_send_new_spans(monkeypatch, context,
 
 
 def test_timeout_mechanism_timeout_occurred_but_finish_check_enrichment(
-    monkeypatch, context, dummy_span, reporter_mock
+    monkeypatch, context, dummy_span, reporter_mock, lambda_traced
 ):
     SpansContainer.create_span()
     SpansContainer.get_span().start(context=context)

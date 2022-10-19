@@ -159,7 +159,7 @@ def test_auto_tag_key_not_in_header(monkeypatch):
     assert SpansContainer.get_span().execution_tags == []
 
 
-def test_auto_tag_key_in_header(monkeypatch):
+def test_auto_tag_key_in_header(monkeypatch, lambda_traced):
     set_header_key(monkeypatch, "Accept")
 
     event = {
@@ -323,7 +323,7 @@ def test_configuration_handler_is_supported(config, event, expected):
         ),
     ],
 )
-def test_configuration_handler_auto_tag(auto_tag_keys, event, result_tags):
+def test_configuration_handler_auto_tag(auto_tag_keys, event, result_tags, lambda_traced):
     Configuration.auto_tag = auto_tag_keys
     ConfigurationHandler.auto_tag(event)
     tags = SpansContainer.get_span().execution_tags
@@ -332,7 +332,7 @@ def test_configuration_handler_auto_tag(auto_tag_keys, event, result_tags):
         assert tag in tags
 
 
-def test_configuration_handler_auto_tag_failure(capsys):
+def test_configuration_handler_auto_tag_failure(capsys, lambda_traced):
     Configuration.auto_tag = [None, "key2"]
     ConfigurationHandler.auto_tag({"key1": datetime, "key2": "value"})
     tags = SpansContainer.get_span().execution_tags
@@ -347,7 +347,7 @@ def test_configuration_handler_auto_tag_failure(capsys):
         ({"a": "b"}, "{'a': 'b'}"),  # dict
     ],
 )
-def test_configuration_handler_auto_tag_non_string(value, expected):
+def test_configuration_handler_auto_tag_non_string(value, expected, lambda_traced):
     Configuration.auto_tag = ["key1"]
 
     ConfigurationHandler.auto_tag({"key1": value})
