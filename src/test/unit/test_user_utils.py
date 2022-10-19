@@ -170,21 +170,27 @@ def test_add_execution_tag_exception_catch(capsys):
 
 
 @pytest.mark.parametrize(
+    ["kill_switch_value", "is_aws_environment_value", "expected_ret_value", "expected_tags"],
     [
-        "kill_switch_value",
-        "is_aws_environment_value",
-        "expected_ret_value",
-        "expected_tags"
-    ],
-    [
-        ("false", "true", True, [{'key': 'key', 'value': 'my-value'}]),  # happy flow - lambda is traced
+        (
+            "false",
+            "true",
+            True,
+            [{"key": "key", "value": "my-value"}],
+        ),  # happy flow - lambda is traced
         ("true", "true", False, []),  # kill switch off, is_aws_env true
         ("false", "", False, []),  # kill switch off, is_aws_env false
         ("true", "", False, []),  # kill switch on, is_aws_env false
-
-    ]
+    ],
 )
-def test_add_execution_tag_lambda_not_traced(kill_switch_value, is_aws_environment_value, expected_ret_value, expected_tags, capsys, monkeypatch):
+def test_add_execution_tag_lambda_not_traced(
+    kill_switch_value,
+    is_aws_environment_value,
+    expected_ret_value,
+    expected_tags,
+    capsys,
+    monkeypatch,
+):
     monkeypatch.setenv("LUMIGO_SWITCH_OFF", kill_switch_value)
     monkeypatch.setenv("AWS_LAMBDA_FUNCTION_VERSION", is_aws_environment_value)
 
@@ -192,4 +198,3 @@ def test_add_execution_tag_lambda_not_traced(kill_switch_value, is_aws_environme
     if expected_ret_value is False:
         assert "Unable to add tag" in capsys.readouterr().out
     assert SpansContainer.get_span().execution_tags == expected_tags
-

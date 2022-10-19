@@ -149,9 +149,7 @@ def add_execution_tag(key: str, value: str, should_log_errors: bool = True) -> b
                 return False
         else:
             if should_log_errors:
-                warn_client(
-                    f"{ADD_TAG_ERROR_MSG_PREFIX}: lambda is not traced"
-                )
+                warn_client(f"{ADD_TAG_ERROR_MSG_PREFIX}: lambda is not traced")
             return False
     except Exception:
         if should_log_errors:
