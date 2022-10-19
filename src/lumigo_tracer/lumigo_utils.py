@@ -860,3 +860,7 @@ except socket.timeout:
     InternalState.mark_timeout_to_edge()
 except Exception:
     pass
+
+
+def is_lambda_traced() -> bool:
+    return not (is_kill_switch_on() or not is_aws_environment())

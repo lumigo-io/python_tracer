@@ -1,4 +1,5 @@
 import time
+import pytest
 
 from lumigo_tracer.spans_container import SpansContainer
 from lumigo_tracer.user_utils import (
@@ -166,3 +167,29 @@ def test_add_execution_tag_exception_catch(capsys):
     assert add_execution_tag("key", ExceptionOnStr()) is False
     assert "Unable to add tag" in capsys.readouterr().out
     assert SpansContainer.get_span().execution_tags == []
+
+
+@pytest.mark.parametrize(
+    [
+        "kill_switch_value",
+        "is_aws_environment_value",
+        "expected_ret_value",
+        "expected_tags"
+    ],
+    [
+        ("false", "true", True, [{'key': 'key', 'value': 'my-value'}]),  # happy flow - lambda is traced
+        ("true", "true", False, []),  # kill switch off, is_aws_env true
+        ("false", "", False, []),  # kill switch off, is_aws_env false
+        ("true", "", False, []),  # kill switch on, is_aws_env false
+
+    ]
+)
+def test_add_execution_tag_lambda_not_traced(kill_switch_value, is_aws_environment_value, expected_ret_value, expected_tags, capsys, monkeypatch):
+    monkeypatch.setenv("LUMIGO_SWITCH_OFF", kill_switch_value)
+    monkeypatch.setenv("AWS_LAMBDA_FUNCTION_VERSION", is_aws_environment_value)
+
+    assert add_execution_tag("key", "my-value") is expected_ret_value
+    if not expected_ret_value:
+        assert "Unable to add tag" in capsys.readouterr().out
+    assert SpansContainer.get_span().execution_tags == expected_tags
+
