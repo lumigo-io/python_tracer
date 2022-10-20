@@ -344,7 +344,7 @@ def test_requests_failure_with_kwargs(monkeypatch, context, token):
     assert span["info"]["httpInfo"]["request"]["method"] == "POST"
 
 
-def test_wrapping_with_tags_for_api_gw_headers(monkeypatch, context, token):
+def test_wrapping_with_tags_for_api_gw_headers(monkeypatch, context, token, lambda_traced):
     monkeypatch.setattr(auto_tag_event, "AUTO_TAG_API_GW_HEADERS", ["Accept"])
 
     @lumigo_tracer.lumigo_tracer()

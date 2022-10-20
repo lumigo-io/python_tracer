@@ -4,7 +4,7 @@ from contextlib import contextmanager
 from typing import Dict, Optional
 
 from lumigo_tracer.spans_container import SpansContainer
-from lumigo_tracer.lumigo_utils import warn_client
+from lumigo_tracer.lumigo_utils import warn_client, is_lambda_traced
 
 LUMIGO_REPORT_ERROR_STRING = "[LUMIGO_LOG]"
 MAX_TAGS = 50
@@ -139,12 +139,17 @@ def add_execution_tag(key: str, value: str, should_log_errors: bool = True) -> b
     :param should_log_errors: Should a log message be printed in case the tag can't be added.
     """
     try:
-        key = str(key)
-        value = str(value)
-        tags_len = SpansContainer.get_span().get_tags_len()
-        if validate_tag(key, value, tags_len, should_log_errors):
-            SpansContainer.get_span().add_tag(key, value)
+        if is_lambda_traced():
+            key = str(key)
+            value = str(value)
+            tags_len = SpansContainer.get_span().get_tags_len()
+            if validate_tag(key, value, tags_len, should_log_errors):
+                SpansContainer.get_span().add_tag(key, value)
+            else:
+                return False
         else:
+            if should_log_errors:
+                warn_client(f"{ADD_TAG_ERROR_MSG_PREFIX}: lambda is not traced")
             return False
     except Exception:
         if should_log_errors:
