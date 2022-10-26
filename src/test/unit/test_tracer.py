@@ -1,3 +1,5 @@
+import logging
+
 import datetime
 import json
 import re
@@ -23,10 +25,13 @@ from lumigo_tracer.lumigo_utils import (
     report_json,
     EDGE_KINESIS_STREAM_NAME,
     SKIP_COLLECTING_HTTP_BODY_KEY,
+    LUMIGO_PROPAGATE_W3C,
 )
 
-from lumigo_tracer.spans_container import SpansContainer
+from lumigo_tracer.spans_container import SpansContainer, ENRICHMENT_TYPE
 from moto import mock_kinesis
+
+from lumigo_tracer.w3c_context import TRACEPARENT_HEADER_NAME
 
 TOKEN = "t_10faa5e13e7844aaa1234"
 
@@ -228,7 +233,58 @@ def test_skip_collecting_http_parts(monkeypatch, context, is_verbose):
         assert http_spans[0]["info"]["httpInfo"]["request"]["headers"]
 
 
-def test_lumigo_chalice(context):
+@pytest.mark.parametrize("propagate_w3c", [True, False])
+def test_add_w3c_headers_to_http_without_headers(monkeypatch, context, propagate_w3c, aws_env):
+    @lumigo_tracer(propagate_w3c=propagate_w3c)
+    def lambda_test_function(event, context):
+        conn = http.client.HTTPConnection("www.google.com")
+        conn.request("POST", "/", json.dumps({"a": "b"}))
+        return {"hello": "world"}
+
+    lambda_test_function({}, context)
+    http_spans = list(SpansContainer.get_span().spans.values())
+    actual_headers = json.loads(http_spans[0]["info"]["httpInfo"]["request"]["headers"])
+    assert (TRACEPARENT_HEADER_NAME in actual_headers) == propagate_w3c
+
+
+def test_add_w3c_headers_to_http_with_headers_as_args(monkeypatch, context, aws_env):
+    monkeypatch.setenv(LUMIGO_PROPAGATE_W3C, "TRUE")
+
+    @lumigo_tracer()
+    def lambda_test_function(event, context):
+        conn = http.client.HTTPConnection("www.google.com")
+        conn.request(
+            "POST", "/", json.dumps({"a": "b"}), {"another": "header"}, encode_chunked=True
+        )
+        return {"hello": "world"}
+
+    lambda_test_function({}, context)
+    http_spans = list(SpansContainer.get_span().spans.values())
+    actual_headers = json.loads(http_spans[0]["info"]["httpInfo"]["request"]["headers"])
+    assert actual_headers[TRACEPARENT_HEADER_NAME]
+    assert actual_headers["another"] == "header"
+
+
+def test_add_w3c_headers_to_http_with_headers_as_kwargs(monkeypatch, context, aws_env):
+    monkeypatch.setenv(LUMIGO_PROPAGATE_W3C, "TRUE")
+
+    @lumigo_tracer()
+    def lambda_test_function(event, context):
+        conn = http.client.HTTPConnection("www.google.com")
+        conn.request("POST", "/", json.dumps({"a": "b"}), headers={"another": "header"})
+        return {"hello": "world"}
+
+    lambda_test_function({}, context)
+    http_spans = list(SpansContainer.get_span().spans.values())
+    actual_headers = json.loads(http_spans[0]["info"]["httpInfo"]["request"]["headers"])
+    assert actual_headers[TRACEPARENT_HEADER_NAME]
+    assert actual_headers["another"] == "header"
+
+
+def test_lumigo_chalice(context, monkeypatch):
+    # mimic aws env
+    monkeypatch.setenv("AWS_LAMBDA_FUNCTION_VERSION", "true")
+
     class App:
         @property
         def a(self):
@@ -255,7 +311,7 @@ def test_lumigo_chalice(context):
 
 def test_lumigo_chalice_create_extra_lambdas(monkeypatch, context):
     # mimic aws env
-    monkeypatch.setitem(os.environ, "AWS_LAMBDA_FUNCTION_VERSION", "true")
+    monkeypatch.setenv("AWS_LAMBDA_FUNCTION_VERSION", "true")
 
     class Chalice:
         """
@@ -291,6 +347,18 @@ def test_lumigo_chalice_create_extra_lambdas(monkeypatch, context):
     # should create a new span (but return the original value)
     assert handler({}, context) == "hello world"
     assert SpansContainer._span
+
+
+def test_lumigo_chalice_disabled_when_not_in_aws(monkeypatch):
+    monkeypatch.delenv("AWS_LAMBDA_FUNCTION_VERSION", raising=False)
+    monkeypatch.delenv("LUMIGO_SWITCH_OFF", raising=False)
+    assert LumigoChalice("myApp") == "myApp"
+
+
+def test_lumigo_chalice_disabled_when_switch_off(monkeypatch):
+    monkeypatch.setenv("AWS_LAMBDA_FUNCTION_VERSION", "true")
+    monkeypatch.setenv("LUMIGO_SWITCH_OFF", "true")
+    assert LumigoChalice("myApp") == "myApp"
 
 
 @pytest.mark.parametrize(
@@ -350,7 +418,12 @@ def test_can_not_wrap_twice(reporter_mock, context):
     assert reporter_mock.call_count == 2
 
 
-def test_wrapping_with_tags(context):
+def get_enrichment_spans(reporter_mock):
+    final_send = reporter_mock.call_args_list[-1][1]["msgs"]
+    return [s for s in final_send if s["type"] == ENRICHMENT_TYPE]
+
+
+def test_wrapping_with_tags(context, reporter_mock, lambda_traced):
     key = "my_key"
     value = "my_value"
 
@@ -361,28 +434,30 @@ def test_wrapping_with_tags(context):
 
     result = lambda_test_function({}, context)
     assert result == "ret_value"
-    assert SpansContainer.get_span().function_span[EXECUTION_TAGS_KEY] == [
-        {"key": key, "value": value}
-    ]
+    enrichment_spans = get_enrichment_spans(reporter_mock)
+    assert len(enrichment_spans) == 1
+    assert enrichment_spans[0][EXECUTION_TAGS_KEY] == [{"key": key, "value": value}]
 
 
 @pytest.mark.parametrize(
     "key, event",
     [("my_key", {"my_key": "my_value"}), ("my_key.key2", {"my_key": {"key2": "my_value"}})],
 )
-def test_wrapping_with_auto_tags(context, key, event):
+def test_wrapping_with_auto_tags(context, key, event, reporter_mock, lambda_traced):
     @lumigo_tracer(auto_tag=[key])
     def lambda_test_function(event, context):
         return "ret_value"
 
     result = lambda_test_function(event, context)
     assert result == "ret_value"
-    assert SpansContainer.get_span().function_span[EXECUTION_TAGS_KEY] == [
-        {"key": key, "value": "my_value"}
-    ]
+    enrichment_spans = get_enrichment_spans(reporter_mock)
+    assert len(enrichment_spans) == 1
+    assert enrichment_spans[0][EXECUTION_TAGS_KEY] == [{"key": key, "value": "my_value"}]
 
 
-def test_not_jsonable_return(monkeypatch, context):
+def test_not_jsonable_return_value_python37(monkeypatch, context):
+    monkeypatch.setenv("AWS_EXECUTION_ENV", "AWS_Lambda_python3.7")
+
     @lumigo_tracer()
     def lambda_test_function(event, context):
         return {"a": datetime.datetime.now()}
@@ -395,6 +470,26 @@ def test_not_jsonable_return(monkeypatch, context):
     # following python's runtime: runtime/lambda_runtime_marshaller.py:27
     expected_message = 'The lambda will probably fail due to bad return value. Original message: "Object of type datetime is not JSON serializable"'
     assert function_span["error"]["message"] == expected_message
+
+
+def test_not_jsonable_return_value_non_python37(monkeypatch, context, caplog):
+    monkeypatch.setenv("AWS_EXECUTION_ENV", "AWS_Lambda_python3.8")
+
+    @lumigo_tracer()
+    def lambda_test_function(event, context):
+        return {"a": datetime.datetime.now()}
+
+    lambda_test_function({}, context)
+
+    function_span = SpansContainer.get_span().function_span
+    assert function_span["return_value"] is None
+    assert "error" not in function_span
+    assert next(
+        log
+        for log in caplog.records
+        if log.levelno == logging.ERROR
+        and "Could not serialize the return value of the lambda" in log.message
+    )
 
 
 @mock_kinesis

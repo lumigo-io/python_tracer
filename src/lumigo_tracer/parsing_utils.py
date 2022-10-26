@@ -11,7 +11,7 @@ from collections.abc import Iterable
 from lumigo_tracer.lumigo_utils import Configuration, get_logger
 
 
-def safe_get(d: Union[dict, list], keys: List[Union[str, int]], default: Any = None) -> Any:
+def safe_get(d: Union[dict, list], keys: List[Union[str, int]], default: Any = None) -> Any:  # type: ignore[type-arg,type-arg]
     """
     :param d: Should be list or dict, otherwise return default.
     :param keys: If keys[i] is int, then it should be a list index. If keys[i] is string, then it should be a dict key.
@@ -19,7 +19,7 @@ def safe_get(d: Union[dict, list], keys: List[Union[str, int]], default: Any = N
     :return: d[keys[0]][keys[1]]...
     """
 
-    def get_next_val(prev_result, key):
+    def get_next_val(prev_result, key):  # type: ignore[no-untyped-def]
         if isinstance(prev_result, dict) and isinstance(key, str):
             return prev_result.get(key, default)
         elif isinstance(prev_result, list) and isinstance(key, int):
@@ -30,7 +30,7 @@ def safe_get(d: Union[dict, list], keys: List[Union[str, int]], default: Any = N
     return functools.reduce(get_next_val, keys, d)
 
 
-def safe_get_list(lst: list, index: Union[int, str], default=None):
+def safe_get_list(lst: list, index: Union[int, str], default=None):  # type: ignore[no-untyped-def,type-arg]
     """
     This function return the organ in the `index` place from the given list.
     If this values doesn't exist, return default.
@@ -45,28 +45,28 @@ def safe_get_list(lst: list, index: Union[int, str], default=None):
     return lst[index] if len(lst) > index else default
 
 
-def safe_split_get(string: str, sep: str, index: int, default=None) -> str:
+def safe_split_get(string: str, sep: str, index: int, default=None) -> str:  # type: ignore[no-untyped-def]
     """
     This function splits the given string using the sep, and returns the organ in the `index` place.
     If such index doesn't exist, returns default.
     """
     if not isinstance(string, str):
         return default
-    return safe_get_list(string.split(sep), index, default)
+    return safe_get_list(string.split(sep), index, default)  # type: ignore[no-any-return]
 
 
-def safe_key_from_json(json_str: bytes, key: object, default=None) -> Union[str, list]:
+def safe_key_from_json(json_str: bytes, key: object, default=None) -> Union[str, list]:  # type: ignore[no-untyped-def,type-arg]
     """
     This function tries to read the given str as json, and returns the value of the desired key.
     If the key doesn't found or the input string is not a valid json, returns the default.
     """
     try:
-        return json.loads(json_str).get(key, default)
+        return json.loads(json_str).get(key, default)  # type: ignore[no-any-return]
     except json.JSONDecodeError:
-        return default
+        return default  # type: ignore[no-any-return]
 
 
-def safe_key_from_xml(xml_str: bytes, key: str, default=None):
+def safe_key_from_xml(xml_str: bytes, key: str, default=None):  # type: ignore[no-untyped-def]
     """
     This function tries to read the given str as XML, and returns the value of the desired key.
     If the key doesn't found or the input string is not a valid XML, returns the default.
@@ -88,7 +88,7 @@ def safe_key_from_xml(xml_str: bytes, key: str, default=None):
         return default
 
 
-def safe_key_from_query(body: bytes, key: str, default=None) -> str:
+def safe_key_from_query(body: bytes, key: str, default=None) -> str:  # type: ignore[no-untyped-def]
     """
     This function assumes that the first row in the body is the url arguments.
     We assume that the structure of the parameters is as follow:
@@ -122,7 +122,7 @@ def parse_trace_id(trace_id_str: str) -> Tuple[str, str, str]:
     return root, safe_split_get(root, "-", 2, default=""), suffix
 
 
-def recursive_json_join(d1: Optional[dict], d2: Optional[dict]):
+def recursive_json_join(d1: Optional[dict], d2: Optional[dict]):  # type: ignore[no-untyped-def,type-arg]
     """
     This function return the recursive joint dictionary, which means that for every (item, key) in the result
      dictionary it holds that:
@@ -136,7 +136,7 @@ def recursive_json_join(d1: Optional[dict], d2: Optional[dict]):
     for key in set(itertools.chain(d1.keys(), d2.keys())):
         value = d1.get(key, d2.get(key))
         if isinstance(value, dict):
-            d[key] = recursive_json_join(d1.get(key), d2.get(key))  # type: ignore
+            d[key] = recursive_json_join(d1.get(key), d2.get(key))
         else:
             d[key] = value
     return d
@@ -159,7 +159,7 @@ def str_to_list(val: str) -> Optional[List[str]]:
     return None
 
 
-def str_to_tuple(val: str) -> Optional[Tuple]:
+def str_to_tuple(val: str) -> Optional[Tuple]:  # type: ignore[type-arg]
     try:
         if val:
             return tuple(val.split(","))
@@ -168,7 +168,7 @@ def str_to_tuple(val: str) -> Optional[Tuple]:
     return None
 
 
-def recursive_get_key(d: Union[List, Dict[str, Union[Dict, str]]], key, depth=None, default=None):
+def recursive_get_key(d: Union[List, Dict[str, Union[Dict, str]]], key, depth=None, default=None):  # type: ignore[no-untyped-def,type-arg,type-arg]
     if depth is None:
         depth = Configuration.get_key_depth
     if depth == 0:

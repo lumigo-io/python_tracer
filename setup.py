@@ -9,7 +9,7 @@ setuptools.setup(
     version=open(VERSION_PATH).read(),
     author="Lumigo LTD (https://lumigo.io)",
     author_email="support@lumigo.io",
-    description="Lumigo Tracer for Python v3.6 / v3.7 runtimes",
+    description="Lumigo Tracer for Python v3.6 / v3.7 / 3.8 /3.9 runtimes",
     long_description_content_type="text/markdown",
     url="https://github.com/lumigo-io/python_tracer.git",
     package_dir={"": "src"},

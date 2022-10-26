@@ -9,19 +9,20 @@ from datetime import datetime
 
 import pytest
 
-from lumigo_tracer import lumigo_utils
+from lumigo_tracer import lumigo_utils, add_execution_tag
 from lumigo_tracer.wrappers.http.http_parser import HTTP_TYPE
 from lumigo_tracer.spans_container import (
     SpansContainer,
     TimeoutMechanism,
     FUNCTION_TYPE,
     MALFORMED_TXID,
+    ENRICHMENT_TYPE,
 )
 from lumigo_tracer.lumigo_utils import (
     Configuration,
-    EXECUTION_TAGS_KEY,
     MANUAL_TRACES_KEY,
     get_current_ms_time,
+    EXECUTION_TAGS_KEY,
 )
 
 
@@ -200,13 +201,35 @@ def test_timeout_mechanism_timeout_occurred_send_new_spans(monkeypatch, context,
     assert SpansContainer.get_span().span_ids_to_send
 
 
+def test_timeout_mechanism_timeout_occurred_but_finish_check_enrichment(
+    monkeypatch, context, dummy_span, reporter_mock, lambda_traced
+):
+    SpansContainer.create_span()
+    SpansContainer.get_span().start(context=context)
+    SpansContainer.get_span().add_span(dummy_span)
+    add_execution_tag("key", "value")
+    SpansContainer.get_span().handle_timeout()
+
+    add_execution_tag("new_key", "new_value")
+    SpansContainer.get_span().end(ret_val={"hello": "world"})
+
+    first_send = reporter_mock.call_args_list[1][1]["msgs"]
+    enrichment_span = next(s for s in first_send if s["type"] == ENRICHMENT_TYPE)
+    assert enrichment_span[EXECUTION_TAGS_KEY] == [{"key": "key", "value": "value"}]
+
+    final_send = reporter_mock.call_args_list[-1][1]["msgs"]
+    enrichment_span = next(s for s in final_send if s["type"] == ENRICHMENT_TYPE)
+    assert enrichment_span[EXECUTION_TAGS_KEY] == [
+        {"key": "key", "value": "value"},
+        {"key": "new_key", "value": "new_value"},
+    ]
+
+
 def test_add_tag():
     key = "my_key"
     value = "my_value"
     SpansContainer.get_span().add_tag(key, value)
-    assert SpansContainer.get_span().function_span[EXECUTION_TAGS_KEY] == [
-        {"key": key, "value": value}
-    ]
+    assert SpansContainer.get_span().execution_tags == [{"key": key, "value": value}]
 
 
 def test_start_manual_trace_simple_flow():

@@ -50,6 +50,8 @@ from lumigo_tracer.lumigo_utils import (
     concat_old_body_to_new,
     TRUNCATE_SUFFIX,
     DEFAULT_AUTO_TAG_KEY,
+    lumigo_safe_execute,
+    is_python_37,
 )
 import json
 
@@ -399,6 +401,19 @@ def test_config_step_function_without_envs(monkeypatch, configuration_value):
     assert Configuration.is_step_function == configuration_value
 
 
+@pytest.mark.parametrize("value, expected", (("TRUE", True), ("FALSE", False)))
+def test_config_propagate_w3c_by_env(monkeypatch, value, expected):
+    monkeypatch.setenv("LUMIGO_PROPAGATE_W3C", value)
+    config()
+    assert Configuration.propagate_w3c == expected
+
+
+def test_config_propagate_w3c_default_value(monkeypatch):
+    monkeypatch.delenv("LUMIGO_PROPAGATE_W3C", raising=False)
+    config()
+    assert Configuration.propagate_w3c is False
+
+
 def test_config_lumigo_auto_tag(monkeypatch):
     monkeypatch.setenv("LUMIGO_AUTO_TAG", "key1,key2")
     config()
@@ -665,3 +680,27 @@ def test_internal_analytics_message(capsys):
 def test_concat_old_body_to_new(old, new, expected, monkeypatch):
     monkeypatch.setattr(Configuration, "max_entry_size", 5)
     assert concat_old_body_to_new(lumigo_dumps(old), new) == lumigo_dumps(expected)
+
+
+@pytest.mark.parametrize("severity", [logging.DEBUG, logging.ERROR])
+def test_lumigo_safe_execute_with_level(severity, caplog):
+    with lumigo_safe_execute("test", severity=severity):
+        raise ValueError("Failing")
+    assert caplog.records[-1].levelno == severity
+
+
+@pytest.mark.parametrize(
+    "env_value, expected",
+    [
+        ("AWS_Lambda_python3.8", False),
+        ("AWS_Lambda_python3.7", True),
+    ],
+)
+def test_is_python_37(monkeypatch, env_value, expected):
+    monkeypatch.setenv("AWS_EXECUTION_ENV", env_value)
+    assert is_python_37() == expected
+
+
+def test_is_python_37_without_env(monkeypatch):
+    monkeypatch.delenv("AWS_EXECUTION_ENV", raising=False)
+    assert is_python_37() is False

@@ -4,7 +4,7 @@ from contextlib import contextmanager
 from typing import Dict, Optional
 
 from lumigo_tracer.spans_container import SpansContainer
-from lumigo_tracer.lumigo_utils import warn_client
+from lumigo_tracer.lumigo_utils import warn_client, is_lambda_traced
 
 LUMIGO_REPORT_ERROR_STRING = "[LUMIGO_LOG]"
 MAX_TAGS = 50
@@ -14,7 +14,7 @@ MAX_TAG_VALUE_LEN = 70
 ADD_TAG_ERROR_MSG_PREFIX = "Skipping add_execution_tag: Unable to add tag"
 
 
-def info(msg: str, alert_type: str = "ProgrammaticInfo", extra: Dict[str, str] = None):
+def info(msg: str, alert_type: str = "ProgrammaticInfo", extra: Dict[str, str] = None):  # type: ignore[no-untyped-def]
     """
     Use this function to create a log entry in your lumigo platform.
     You can use it to dynamically generate alerts programmatically with searchable fields.
@@ -27,7 +27,7 @@ def info(msg: str, alert_type: str = "ProgrammaticInfo", extra: Dict[str, str] =
     log(logging.INFO, msg, alert_type, extra)
 
 
-def warn(msg: str, alert_type: str = "ProgrammaticWarn", extra: Dict[str, str] = None):
+def warn(msg: str, alert_type: str = "ProgrammaticWarn", extra: Dict[str, str] = None):  # type: ignore[no-untyped-def]
     """
     Use this function to create a log entry in your lumigo platform.
     You can use it to dynamically generate alerts programmatically with searchable fields.
@@ -40,7 +40,7 @@ def warn(msg: str, alert_type: str = "ProgrammaticWarn", extra: Dict[str, str] =
     log(logging.WARN, msg, alert_type, extra)
 
 
-def error(
+def error(  # type: ignore[no-untyped-def]
     msg: str,
     alert_type: Optional[str] = None,
     extra: Optional[Dict[str, str]] = None,
@@ -65,7 +65,7 @@ def error(
     log(logging.ERROR, msg, alert_type, extra)
 
 
-def log(level: int, msg: str, error_type: str, extra: Optional[Dict[str, str]]):
+def log(level: int, msg: str, error_type: str, extra: Optional[Dict[str, str]]):  # type: ignore[no-untyped-def]
     filtered_extra = list(
         filter(
             lambda element: validate_tag(element[0], element[1], 0, True),
@@ -79,7 +79,7 @@ def log(level: int, msg: str, error_type: str, extra: Optional[Dict[str, str]]):
     print(LUMIGO_REPORT_ERROR_STRING, json.dumps(actual))
 
 
-def report_error(msg: str):
+def report_error(msg: str):  # type: ignore[no-untyped-def]
     message_with_initials = f"{LUMIGO_REPORT_ERROR_STRING} {msg}"
     message_with_request_id = (
         f"RequestId: {SpansContainer.get_span().function_span.get('id')} {message_with_initials}"
@@ -87,7 +87,7 @@ def report_error(msg: str):
     print(message_with_request_id)
 
 
-def validate_tag(key, value, tags_len, should_log_errors):
+def validate_tag(key, value, tags_len, should_log_errors):  # type: ignore[no-untyped-def]
     value = str(value)
     if not key or len(key) >= MAX_TAG_KEY_LEN:
         if should_log_errors:
@@ -111,16 +111,16 @@ def validate_tag(key, value, tags_len, should_log_errors):
     return True
 
 
-def manual_trace(func):
-    def wrapper(*args, **kwargs):
+def manual_trace(func):  # type: ignore[no-untyped-def]
+    def wrapper(*args, **kwargs):  # type: ignore[no-untyped-def]
         with manual_trace_sync(func.__name__):
-            func(*args, **kwargs)
+            return func(*args, **kwargs)
 
     return wrapper
 
 
 @contextmanager
-def manual_trace_sync(name):
+def manual_trace_sync(name):  # type: ignore[no-untyped-def]
     start_manual_trace(name)
     try:
         yield
@@ -139,12 +139,17 @@ def add_execution_tag(key: str, value: str, should_log_errors: bool = True) -> b
     :param should_log_errors: Should a log message be printed in case the tag can't be added.
     """
     try:
-        key = str(key)
-        value = str(value)
-        tags_len = SpansContainer.get_span().get_tags_len()
-        if validate_tag(key, value, tags_len, should_log_errors):
-            SpansContainer.get_span().add_tag(key, value)
+        if is_lambda_traced():
+            key = str(key)
+            value = str(value)
+            tags_len = SpansContainer.get_span().get_tags_len()
+            if validate_tag(key, value, tags_len, should_log_errors):
+                SpansContainer.get_span().add_tag(key, value)
+            else:
+                return False
         else:
+            if should_log_errors:
+                warn_client(f"{ADD_TAG_ERROR_MSG_PREFIX}: lambda is not traced")
             return False
     except Exception:
         if should_log_errors:
@@ -153,7 +158,7 @@ def add_execution_tag(key: str, value: str, should_log_errors: bool = True) -> b
     return True
 
 
-def start_manual_trace(name: str):
+def start_manual_trace(name: str):  # type: ignore[no-untyped-def]
     """
     Use this function to add an manual-trace to your function.
     This value can be viewed within the Lumigo platform - Transaction page.
@@ -162,7 +167,7 @@ def start_manual_trace(name: str):
     SpansContainer.get_span().start_manual_trace(str(name))
 
 
-def stop_manual_trace(name: str):
+def stop_manual_trace(name: str):  # type: ignore[no-untyped-def]
     """
     Use this function to add an manual-trace to your function.
     This value can be viewed within the Lumigo platform - Transaction page.

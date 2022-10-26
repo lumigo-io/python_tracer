@@ -37,7 +37,7 @@ echo ${KEY} | gpg --batch -d --passphrase-fd 0 ${enc_location} > ~/.aws/credenti
 echo "Getting latest changes from git"
 changes=$(git log $(git describe --tags --abbrev=0)..HEAD --oneline)
 
-sudo pip install --upgrade bumpversion
+pip install --upgrade bumpversion
 bumpversion patch --message "{current_version} → {new_version}. Changes: ${changes}"
 
 push_tags

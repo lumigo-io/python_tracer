@@ -2,6 +2,7 @@ import json
 
 import pytest
 from lumigo_tracer.lumigo_utils import Configuration
+from lumigo_tracer.w3c_context import TRACEPARENT_HEADER_NAME
 
 from lumigo_tracer.wrappers.http.http_data_classes import HttpRequest
 from lumigo_tracer.wrappers.http.http_parser import (
@@ -14,6 +15,7 @@ from lumigo_tracer.wrappers.http.http_parser import (
     LambdaParser,
     S3Parser,
     SqsParser,
+    SnsParser,
 )
 
 
@@ -42,6 +44,11 @@ def test_get_parser_s3():
 def test_get_parser_apigw():
     url = "https://ne3kjv28fh.execute-api.us-west-2.amazonaws.com/doriaviram"
     assert get_parser(url, {}) == ApiGatewayV2Parser
+
+
+def test_get_parser_non_aws():
+    url = "events.other.service"
+    assert get_parser(url, {}) == Parser
 
 
 def test_get_default_parser_when_using_extension(monkeypatch):
@@ -321,3 +328,66 @@ def test_event_bridge_parser_response_sad_flow():
     parser = EventBridgeParser()
     response = parser.parse_response("", 200, {}, body=b"not a json")
     assert not response["info"]["messageIds"]
+
+
+def test_sns_parser_resource_name_topic_arn():
+    parser = SnsParser()
+    params = HttpRequest(
+        host="host",
+        method="PUT",
+        uri="uri",
+        headers={},
+        body=b"TopicArn=arn:aws:sns:us-west-2:123456:sns-name",
+    )
+    response = parser.parse_request(params)
+    assert response["info"]["resourceName"] == "arn:aws:sns:us-west-2:123456:sns-name"
+
+
+def test_sns_parser_resource_name_target_arn():
+    parser = SnsParser()
+    params = HttpRequest(
+        host="host",
+        method="PUT",
+        uri="uri",
+        headers={},
+        body=b"TargetArn=arn:aws:sns:us-west-2:123456:sns-name",
+    )
+    response = parser.parse_request(params)
+    assert response["info"]["resourceName"] == "arn:aws:sns:us-west-2:123456:sns-name"
+
+
+def test_base_parser_with_w3c():
+    parser = Parser()
+    params = HttpRequest(
+        host="host",
+        method="PUT",
+        uri="uri",
+        headers={
+            TRACEPARENT_HEADER_NAME: "00-11111111111111111111111100000000-aaaaaaaaaaaaaaaa-01"
+        },
+        body=b"TargetArn=arn:aws:sns:us-west-2:123456:sns-name",
+    )
+    response = parser.parse_request(params)
+    assert response["info"]["messageId"] == "aaaaaaaaaaaaaaaa"
+
+
+def test_parser_w3c_weaker_then_other_message_id():
+    """
+    We want to make sure that if we have a collision - both a W3C messageId and a messageId from other parser,
+     then we should use the other parser's MessageId.
+    """
+    parser = DynamoParser()
+    params = HttpRequest(
+        host="",
+        method="POST",
+        uri="",
+        headers={
+            "x-amz-target": "DynamoDB_20120810.PutItem",
+            TRACEPARENT_HEADER_NAME: "00-11111111111111111111111100000000-aaaaaaaaaaaaaaaa-01",
+        },
+        body=json.dumps({"TableName": "resourceName", "Item": {"key": {"S": "value"}}}),
+    )
+    response = parser.parse_request(params)
+    assert response["info"]["resourceName"] == "resourceName"
+    assert response["info"]["dynamodbMethod"] == "PutItem"
+    assert response["info"]["messageId"] == "1ad3dccc8064a706957c2c06ce3796bb"
