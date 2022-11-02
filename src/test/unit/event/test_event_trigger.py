@@ -1,6 +1,8 @@
+import json
+
 import pytest
 
-from lumigo_tracer.event.event_trigger import parse_triggered_by
+from lumigo_tracer.event.event_trigger import parse_triggers
 from lumigo_tracer.lumigo_utils import Configuration
 
 
@@ -14,14 +16,18 @@ from lumigo_tracer.lumigo_utils import Configuration
                 "headers": {"Host": "www.google.com"},
                 "requestContext": {"stage": "1", "requestId": "123"},
             },
-            {
-                "triggeredBy": "apigw",
-                "httpMethod": "GET",
-                "api": "www.google.com",
-                "stage": "1",
-                "resource": "resource",
-                "messageId": "123",
-            },
+            [
+                {
+                    "extra": {
+                        "httpMethod": "GET",
+                        "api": "www.google.com",
+                        "stage": "1",
+                        "resource": "resource",
+                    },
+                    "triggeredBy": "apigw",
+                    "fromMessageIds": ["123"],
+                }
+            ],
         ),
         (  # should be unknown
             {
@@ -41,7 +47,7 @@ from lumigo_tracer.lumigo_utils import Configuration
                 "stageVariables": "null",
                 "isBase64Encoded": "false",
             },
-            {"triggeredBy": "unknown"},
+            [],
         ),
         (  # sns example trigger
             {
@@ -55,12 +61,16 @@ from lumigo_tracer.lumigo_utils import Configuration
                     }
                 ]
             },
-            {
-                "triggeredBy": "sns",
-                "arn": "arn:aws:sns:us-east-1:123456789:sns-topic-name",
-                "messageId": "9cecb7e5-b11e-59fa-95c8-e28d3f64d6a8",
-                "recordsNum": 1,
-            },
+            [
+                {
+                    "extra": {
+                        "arn": "arn:aws:sns:us-east-1:123456789:sns-topic-name",
+                        "recordsNum": 1,
+                    },
+                    "triggeredBy": "sns",
+                    "fromMessageIds": ["9cecb7e5-b11e-59fa-95c8-e28d3f64d6a8"],
+                }
+            ],
         ),
         (  # s3 example trigger
             {
@@ -70,16 +80,20 @@ from lumigo_tracer.lumigo_utils import Configuration
                         "awsRegion": "us-east-1",
                         "eventName": "ObjectCreated:Put",
                         "eventSource": "aws:s3",
-                        "responseElements": {"x-amz-request-id": "E6CFE6C141196902"},
+                        "responseElements": {"x-amz-request-id": "11111111111111"},
                     }
                 ]
             },
-            {
-                "triggeredBy": "s3",
-                "arn": "arn:aws:s3:::s3-bucket-name",
-                "messageId": "E6CFE6C141196902",
-                "recordsNum": 1,
-            },
+            [
+                {
+                    "extra": {
+                        "arn": "arn:aws:s3:::s3-bucket-name",
+                        "recordsNum": 1,
+                    },
+                    "triggeredBy": "s3",
+                    "fromMessageIds": ["11111111111111"],
+                }
+            ],
         ),
         (  # kinesis example trigger
             {
@@ -92,13 +106,17 @@ from lumigo_tracer.lumigo_utils import Configuration
                     }
                 ]
             },
-            {
-                "triggeredBy": "kinesis",
-                "arn": "arn:aws:kinesis:us-east-1:123456789:stream/kinesis-stream-name",
-                "messageId": "12",
-                "recordsNum": 1,
-                "shardId": "shardId-000000000006",
-            },
+            [
+                {
+                    "extra": {
+                        "arn": "arn:aws:kinesis:us-east-1:123456789:stream/kinesis-stream-name",
+                        "recordsNum": 1,
+                        "shardId": "shardId-000000000006",
+                    },
+                    "triggeredBy": "kinesis",
+                    "fromMessageIds": ["12"],
+                }
+            ],
         ),
         (  # kinesis example trigger - multiple records
             {
@@ -117,13 +135,17 @@ from lumigo_tracer.lumigo_utils import Configuration
                     },
                 ]
             },
-            {
-                "triggeredBy": "kinesis",
-                "arn": "arn:aws:kinesis:us-east-1:123456789:stream/kinesis-stream-name",
-                "messageIds": ["12", "34"],
-                "recordsNum": 2,
-                "shardId": "shardId-000000000006",
-            },
+            [
+                {
+                    "extra": {
+                        "arn": "arn:aws:kinesis:us-east-1:123456789:stream/kinesis-stream-name",
+                        "recordsNum": 2,
+                        "shardId": "shardId-000000000006",
+                    },
+                    "triggeredBy": "kinesis",
+                    "fromMessageIds": ["12", "34"],
+                }
+            ],
         ),
         (  # SQS example trigger
             {
@@ -135,12 +157,16 @@ from lumigo_tracer.lumigo_utils import Configuration
                     }
                 ]
             },
-            {
-                "triggeredBy": "sqs",
-                "arn": "arn:aws:sqs:us-east-1:123456789:sqs-queue-name",
-                "messageId": "e97ff404-96ca-460e-8ff0-a46012e61826",
-                "recordsNum": 1,
-            },
+            [
+                {
+                    "extra": {
+                        "arn": "arn:aws:sqs:us-east-1:123456789:sqs-queue-name",
+                        "recordsNum": 1,
+                    },
+                    "triggeredBy": "sqs",
+                    "fromMessageIds": ["e97ff404-96ca-460e-8ff0-a46012e61826"],
+                }
+            ],
         ),
         (  # SQS example batch trigger
             {
@@ -157,12 +183,16 @@ from lumigo_tracer.lumigo_utils import Configuration
                     },
                 ]
             },
-            {
-                "triggeredBy": "sqs",
-                "arn": "arn:aws:sqs:us-east-1:123456789:sqs-queue-name",
-                "messageIds": ["1", "2"],
-                "recordsNum": 2,
-            },
+            [
+                {
+                    "extra": {
+                        "arn": "arn:aws:sqs:us-east-1:123456789:sqs-queue-name",
+                        "recordsNum": 2,
+                    },
+                    "triggeredBy": "sqs",
+                    "fromMessageIds": ["1", "2"],
+                }
+            ],
         ),
         (  # SNS-SQS example trigger
             {
@@ -186,31 +216,34 @@ from lumigo_tracer.lumigo_utils import Configuration
                     }
                 ]
             },
-            {
-                "arn": "arn:aws:sqs:us-east-1:123456789:sqs-queue-name",
-                "messageIdToChainResource": [
-                    {
-                        "TopicArn": "arn:aws:sns:us-west-2:723663554526:tracer-test-saart-temp-Pttcj",
-                        "childMessageId": "f4ceb23d-2ae7-44d3-b171-df7ab2d10a81",
-                        "parentMessageId": "2c78f253-4cd9-57bb-8bc3-a965e40a293e",
-                        "resourceType": "sns",
-                    }
-                ],
-                "messageIds": [
-                    "f4ceb23d-2ae7-44d3-b171-df7ab2d10a81",
-                    "2c78f253-4cd9-57bb-8bc3-a965e40a293e",
-                ],
-                "recordsNum": 1,
-                "triggeredBy": "sqs",
-            },
+            [
+                {
+                    "extra": {
+                        "arn": "arn:aws:sqs:us-east-1:123456789:sqs-queue-name",
+                        "recordsNum": 1,
+                    },
+                    "fromMessageIds": [
+                        "f4ceb23d-2ae7-44d3-b171-df7ab2d10a81",
+                    ],
+                    "triggeredBy": "sqs",
+                },
+                {
+                    "extra": {
+                        "arn": "arn:aws:sns:us-west-2:723663554526:tracer-test-saart-temp-Pttcj",
+                        "recordsNum": 1,
+                    },
+                    "fromMessageIds": ["2c78f253-4cd9-57bb-8bc3-a965e40a293e"],
+                    "triggeredBy": "sns",
+                },
+            ],
         ),
-        (  # SQS that is *not* SNS-SQS (the messageId is malformed)
+        (  # SQS that is *not* SNS-SQS (not SimpleNotificationService)
             {
                 "Records": [
                     {
                         "messageId": "f4ceb23d-2ae7-44d3-b171-df7ab2d10a81",
                         "receiptHandle": "BLABLA",
-                        "body": '{\n  "Type" : "Notification",\n  "MessageId" : "something else",\n  "TopicArn" : "arn:aws:sns:us-west-2:723663554526:tracer-test-saart-temp-Pttcj",\n  "Message" : "{}",\n  "Timestamp" : "2022-06-29T19:22:59.929Z",\n  "SignatureVersion" : "1",\n  "Signature" : "BLABLA",\n  "SigningCertURL" : "https://sns.us-west-2.amazonaws.com/SimpleNotificationService-blablabla.pem",\n  "UnsubscribeURL" : "https://sns.us-west-2.amazonaws.com/?Action=Unsubscribe&SubscriptionArn=arn:aws:sns:us-west-2:723663554526:tracer-test-saart-temp-Pttcj:blablabla"\n}',
+                        "body": '{\n  "Type" : "Notification",\n  "MessageId" : "something else",\n  "TopicArn" : "arn:aws:sns:us-west-2:723663554526:tracer-test-saart-temp-Pttcj",\n  "Message" : "{}",\n  "Timestamp" : "2022-06-29T19:22:59.929Z",\n  "SignatureVersion" : "1",\n  "Signature" : "BLABLA",\n  "SigningCertURL" : "https://sns.us-west-2.amazonaws.com/OtherNotificationService-blablabla.pem",\n  "UnsubscribeURL" : "https://sns.us-west-2.amazonaws.com/?Action=Unsubscribe&SubscriptionArn=arn:aws:sns:us-west-2:723663554526:tracer-test-saart-temp-Pttcj:blablabla"\n}',
                         "attributes": {
                             "ApproximateReceiveCount": "1",
                             "AWSTraceHeader": "Root=1-62bca693-5fa5fe5643dd0b8814c6524c;Parent=50e9a851030eeaee;Sampled=0",
@@ -226,26 +259,40 @@ from lumigo_tracer.lumigo_utils import Configuration
                     }
                 ]
             },
-            {
-                "triggeredBy": "sqs",
-                "arn": "arn:aws:sqs:us-east-1:123456789:sqs-queue-name",
-                "messageId": "f4ceb23d-2ae7-44d3-b171-df7ab2d10a81",
-                "recordsNum": 1,
-            },
+            [
+                {
+                    "extra": {
+                        "arn": "arn:aws:sqs:us-east-1:123456789:sqs-queue-name",
+                        "recordsNum": 1,
+                    },
+                    "triggeredBy": "sqs",
+                    "fromMessageIds": ["f4ceb23d-2ae7-44d3-b171-df7ab2d10a81"],
+                }
+            ],
         ),
         (  # Step Function
             {
                 "bla": "saart",
                 "_lumigo": {"step_function_uid": "54589cfc-5ed8-4799-8fc0-5b45f6f225d1"},
             },
-            {"triggeredBy": "stepFunction", "messageId": "54589cfc-5ed8-4799-8fc0-5b45f6f225d1"},
+            [
+                {
+                    "triggeredBy": "stepFunction",
+                    "fromMessageIds": ["54589cfc-5ed8-4799-8fc0-5b45f6f225d1"],
+                }
+            ],
         ),
         (  # Inner Step Function
             {
                 "bla": "saart",
                 "inner": {"_lumigo": {"step_function_uid": "54589cfc-5ed8-4799-8fc0-5b45f6f225d1"}},
             },
-            {"triggeredBy": "stepFunction", "messageId": "54589cfc-5ed8-4799-8fc0-5b45f6f225d1"},
+            [
+                {
+                    "triggeredBy": "stepFunction",
+                    "fromMessageIds": ["54589cfc-5ed8-4799-8fc0-5b45f6f225d1"],
+                }
+            ],
         ),
         (  # Step Function from list
             [
@@ -257,7 +304,12 @@ from lumigo_tracer.lumigo_utils import Configuration
                 },
                 {"something": "else"},
             ],
-            {"triggeredBy": "stepFunction", "messageId": "54589cfc-5ed8-4799-8fc0-5b45f6f225d1"},
+            [
+                {
+                    "triggeredBy": "stepFunction",
+                    "fromMessageIds": ["54589cfc-5ed8-4799-8fc0-5b45f6f225d1"],
+                }
+            ],
         ),
         (  # Step Function from inner list
             {
@@ -267,7 +319,12 @@ from lumigo_tracer.lumigo_utils import Configuration
                     {"something": "else"},
                 ],
             },
-            {"triggeredBy": "stepFunction", "messageId": "54589cfc-5ed8-4799-8fc0-5b45f6f225d1"},
+            [
+                {
+                    "triggeredBy": "stepFunction",
+                    "fromMessageIds": ["54589cfc-5ed8-4799-8fc0-5b45f6f225d1"],
+                }
+            ],
         ),
         (  # Step Function - too deep
             {
@@ -284,7 +341,7 @@ from lumigo_tracer.lumigo_utils import Configuration
                     }
                 },
             },
-            {"triggeredBy": "unknown"},
+            [],
         ),
         (  # EventBridge - happy flow
             {
@@ -297,7 +354,12 @@ from lumigo_tracer.lumigo_utils import Configuration
                 "resources": [],
                 "detail": {"a": 0.024995371455989845},
             },
-            {"triggeredBy": "eventBridge", "messageId": "f0f73aaa-e64f-a550-5be2-850898090583"},
+            [
+                {
+                    "triggeredBy": "eventBridge",
+                    "fromMessageIds": ["f0f73aaa-e64f-a550-5be2-850898090583"],
+                }
+            ],
         ),
         (  # AppSync - happy flow
             {
@@ -310,11 +372,15 @@ from lumigo_tracer.lumigo_utils import Configuration
                     }
                 }
             },
-            {
-                "triggeredBy": "appsync",
-                "api": "oookuwqyrfhy7eexerofkmlbfm.appsync-api.eu-west-1.amazonaws.com",
-                "messageId": "1-5fa161de-275509e254bf71cc48fd66d0",
-            },
+            [
+                {
+                    "extra": {
+                        "api": "oookuwqyrfhy7eexerofkmlbfm.appsync-api.eu-west-1.amazonaws.com",
+                    },
+                    "triggeredBy": "appsync",
+                    "fromMessageIds": ["1-5fa161de-275509e254bf71cc48fd66d0"],
+                }
+            ],
         ),
         (  # AppSync - happy flow - different event struct
             {
@@ -325,11 +391,15 @@ from lumigo_tracer.lumigo_utils import Configuration
                     }
                 }
             },
-            {
-                "triggeredBy": "appsync",
-                "api": "oookuwqyrfhy7eexerofkmlbfm.appsync-api.eu-west-1.amazonaws.com",
-                "messageId": "1-5fa161de-275509e254bf71cc48fd66d0",
-            },
+            [
+                {
+                    "extra": {
+                        "api": "oookuwqyrfhy7eexerofkmlbfm.appsync-api.eu-west-1.amazonaws.com",
+                    },
+                    "triggeredBy": "appsync",
+                    "fromMessageIds": ["1-5fa161de-275509e254bf71cc48fd66d0"],
+                }
+            ],
         ),
         (  # cloudwatch
             {
@@ -341,12 +411,16 @@ from lumigo_tracer.lumigo_utils import Configuration
                 "resources": ["arn:aws:events:us-east-1:123456789012:rule/ExampleRule"],
                 "detail": {},
             },
-            {
-                "triggeredBy": "cloudwatch",
-                "resource": "ExampleRule",
-                "region": "us-east-1",
-                "detailType": "Scheduled Event",
-            },
+            [
+                {
+                    "extra": {
+                        "resource": "ExampleRule",
+                        "region": "us-east-1",
+                        "detailType": "Scheduled Event",
+                    },
+                    "triggeredBy": "cloudwatch",
+                }
+            ],
         ),
         (  # unknown
             {
@@ -358,7 +432,7 @@ from lumigo_tracer.lumigo_utils import Configuration
                 "resources": ["arn:aws:events:us-east-1:123456789012:rule/ExampleRule"],
                 "detail": {},
             },
-            {"triggeredBy": "unknown"},
+            [],
         ),
         (  # cloudwatch
             {
@@ -369,12 +443,16 @@ from lumigo_tracer.lumigo_utils import Configuration
                 "region": "us-east-1",
                 "detail": {},
             },
-            {
-                "triggeredBy": "cloudwatch",
-                "resource": "unknown",
-                "region": "us-east-1",
-                "detailType": "Scheduled Event",
-            },
+            [
+                {
+                    "extra": {
+                        "resource": "unknown",
+                        "region": "us-east-1",
+                        "detailType": "Scheduled Event",
+                    },
+                    "triggeredBy": "cloudwatch",
+                }
+            ],
         ),
         (  # old elb example trigger
             {
@@ -396,11 +474,15 @@ from lumigo_tracer.lumigo_utils import Configuration
                     "host": "lambd-loadb-bp68mp6nujg0-50156485.us-east-1.elb.amazonaws.com",
                 },
             },
-            {
-                "api": "lambd-loadb-bp68mp6nujg0-50156485.us-east-1.elb.amazonaws.com",
-                "httpMethod": "POST",
-                "triggeredBy": "load_balancer",
-            },
+            [
+                {
+                    "extra": {
+                        "api": "lambd-loadb-bp68mp6nujg0-50156485.us-east-1.elb.amazonaws.com",
+                        "httpMethod": "POST",
+                    },
+                    "triggeredBy": "load_balancer",
+                }
+            ],
         ),
         (  # new elb example trigger
             {
@@ -427,11 +509,15 @@ from lumigo_tracer.lumigo_utils import Configuration
                 "isBase64Encoded": False,
                 "body": "request_body",
             },
-            {
-                "api": "lambda-111-us-east-2.elb.amazonaws.com",
-                "httpMethod": "GET",
-                "triggeredBy": "load_balancer",
-            },
+            [
+                {
+                    "extra": {
+                        "api": "lambda-111-us-east-2.elb.amazonaws.com",
+                        "httpMethod": "GET",
+                    },
+                    "triggeredBy": "load_balancer",
+                }
+            ],
         ),
         (  # alb example trigger
             {
@@ -458,11 +544,15 @@ from lumigo_tracer.lumigo_utils import Configuration
                 "isBase64Encoded": False,
                 "body": "request_body",
             },
-            {
-                "api": "lambda-111-us-east-2.elb.amazonaws.com",
-                "httpMethod": "GET",
-                "triggeredBy": "load_balancer",
-            },
+            [
+                {
+                    "extra": {
+                        "api": "lambda-111-us-east-2.elb.amazonaws.com",
+                        "httpMethod": "GET",
+                    },
+                    "triggeredBy": "load_balancer",
+                }
+            ],
         ),
         (  # API GW V2
             {
@@ -479,17 +569,21 @@ from lumigo_tracer.lumigo_utils import Configuration
                     "stage": "default",
                 },
             },
-            {
-                "triggeredBy": "apigw",
-                "httpMethod": "GET",
-                "resource": "/default/nodejs-apig-function-1G3XMPLZXVXYI",
-                "messageId": "JKJaXmPLvHcESHA=",
-                "api": "r3pmxmplak.execute-api.us-east-2.amazonaws.com",
-                "stage": "default",
-            },
+            [
+                {
+                    "extra": {
+                        "httpMethod": "GET",
+                        "resource": "/default/nodejs-apig-function-1G3XMPLZXVXYI",
+                        "api": "r3pmxmplak.execute-api.us-east-2.amazonaws.com",
+                        "stage": "default",
+                    },
+                    "triggeredBy": "apigw",
+                    "fromMessageIds": ["JKJaXmPLvHcESHA="],
+                }
+            ],
         ),
-        ({"bla": "bla2"}, {"triggeredBy": "unknown"}),  # unknown trigger
-        (None, None),
+        ({"bla": "bla2"}, []),  # unknown trigger
+        (None, []),
         (  # ddb - modify with keys
             {
                 "Records": [
@@ -505,14 +599,18 @@ from lumigo_tracer.lumigo_utils import Configuration
                     }
                 ]
             },
-            {
-                "triggeredBy": "dynamodb",
-                "messageIds": ["bd722b96a0bfdc0ef6115a2ee60b63f0"],
-                "approxEventCreationTime": 1000,
-                "arn": "arn:aws:dynamodb:us-west-2:723663554526:table/abbbbb/stream/2020-05-25T12:04:49.788",
-                "recordsNum": 1,
-                "totalSizeBytes": 1,
-            },
+            [
+                {
+                    "extra": {
+                        "approxEventCreationTime": 1000,
+                        "arn": "arn:aws:dynamodb:us-west-2:723663554526:table/abbbbb/stream/2020-05-25T12:04:49.788",
+                        "recordsNum": 1,
+                        "totalSizeBytes": 1,
+                    },
+                    "triggeredBy": "dynamodb",
+                    "fromMessageIds": ["bd722b96a0bfdc0ef6115a2ee60b63f0"],
+                }
+            ],
         ),
         (  # ddb - insert with NewImage
             {
@@ -529,14 +627,18 @@ from lumigo_tracer.lumigo_utils import Configuration
                     }
                 ]
             },
-            {
-                "triggeredBy": "dynamodb",
-                "messageIds": ["bd722b96a0bfdc0ef6115a2ee60b63f0"],
-                "approxEventCreationTime": 1000,
-                "arn": "arn:aws:dynamodb:us-west-2:723663554526:table/abbbbb/stream/2020-05-25T12:04:49.788",
-                "recordsNum": 1,
-                "totalSizeBytes": 1,
-            },
+            [
+                {
+                    "extra": {
+                        "approxEventCreationTime": 1000,
+                        "arn": "arn:aws:dynamodb:us-west-2:723663554526:table/abbbbb/stream/2020-05-25T12:04:49.788",
+                        "recordsNum": 1,
+                        "totalSizeBytes": 1,
+                    },
+                    "triggeredBy": "dynamodb",
+                    "fromMessageIds": ["bd722b96a0bfdc0ef6115a2ee60b63f0"],
+                }
+            ],
         ),
         (  # ddb - insert with only keys
             {
@@ -553,17 +655,76 @@ from lumigo_tracer.lumigo_utils import Configuration
                     }
                 ]
             },
-            {
-                "triggeredBy": "dynamodb",
-                "messageIds": [],
-                "approxEventCreationTime": 1000,
-                "arn": "arn:aws:dynamodb:us-west-2:723663554526:table/abbbbb/stream/2020-05-25T12:04:49.788",
-                "recordsNum": 1,
-                "totalSizeBytes": 1,
-            },
+            [
+                {
+                    "extra": {
+                        "approxEventCreationTime": 1000,
+                        "arn": "arn:aws:dynamodb:us-west-2:723663554526:table/abbbbb/stream/2020-05-25T12:04:49.788",
+                        "recordsNum": 1,
+                        "totalSizeBytes": 1,
+                    },
+                    "triggeredBy": "dynamodb",
+                }
+            ],
         ),
     ],
 )
 def test_parse_triggered_by(event, output):
     Configuration.is_step_function = True
-    assert parse_triggered_by(event) == output
+    triggers = json.loads(json.dumps(parse_triggers(event)))
+    assert len({t.pop("id") for t in triggers}) == len(output)
+    [t.pop("targetId") for t in triggers]
+    assert triggers == output
+
+
+def test_recursive_trigger_by_linking():
+    sns_to_sqs_event = {
+        "Records": [
+            {
+                "messageId": "sqs-1",
+                "receiptHandle": "BLABLA",
+                "body": '{\n  "Type" : "Notification",\n  "MessageId" : "sns-1",\n  "TopicArn" : "arn:aws:sns:us-west-2:723663554526:tracer-test-saart-temp-Pttcj",\n  "Message" : "{}",\n  "Timestamp" : "2022-06-29T19:22:59.929Z",\n  "SignatureVersion" : "1",\n  "Signature" : "BLABLA",\n  "SigningCertURL" : "https://sns.us-west-2.amazonaws.com/SimpleNotificationService-blablabla.pem",\n  "UnsubscribeURL" : "https://sns.us-west-2.amazonaws.com/?Action=Unsubscribe&SubscriptionArn=arn:aws:sns:us-west-2:723663554526:tracer-test-saart-temp-Pttcj:blablabla"\n}',
+                "attributes": {
+                    "ApproximateReceiveCount": "1",
+                    "AWSTraceHeader": "Root=1-111111-111111111;Parent=222222;Sampled=0",
+                    "SentTimestamp": "1656530579970",
+                    "SenderId": "saart",
+                    "ApproximateFirstReceiveTimestamp": "1656530580976",
+                },
+                "messageAttributes": {},
+                "md5OfBody": "11111111111111",
+                "eventSource": "aws:sqs",
+                "eventSourceARN": "arn:aws:sqs:us-east-1:123456789:sqs-queue-name",
+                "awsRegion": "us-west-2",
+            },
+            {
+                "messageId": "sqs-2",
+                "receiptHandle": "BLABLA",
+                "body": '{\n  "Type" : "Notification",\n  "MessageId" : "sns-2",\n  "TopicArn" : "arn:aws:sns:us-west-2:723663554526:tracer-test-saart-temp-Pttcj",\n  "Message" : "{}",\n  "Timestamp" : "2022-06-29T19:22:59.929Z",\n  "SignatureVersion" : "1",\n  "Signature" : "BLABLA",\n  "SigningCertURL" : "https://sns.us-west-2.amazonaws.com/SimpleNotificationService-blablabla.pem",\n  "UnsubscribeURL" : "https://sns.us-west-2.amazonaws.com/?Action=Unsubscribe&SubscriptionArn=arn:aws:sns:us-west-2:723663554526:tracer-test-saart-temp-Pttcj:blablabla"\n}',
+                "attributes": {
+                    "ApproximateReceiveCount": "1",
+                    "AWSTraceHeader": "Root=1-111111-111111111;Parent=222222;Sampled=0",
+                    "SentTimestamp": "1656530579970",
+                    "SenderId": "saart",
+                    "ApproximateFirstReceiveTimestamp": "1656530580976",
+                },
+                "messageAttributes": {},
+                "md5OfBody": "11111111111111",
+                "eventSource": "aws:sqs",
+                "eventSourceARN": "arn:aws:sqs:us-east-1:123456789:sqs-queue-name",
+                "awsRegion": "us-west-2",
+            },
+        ]
+    }
+    triggers = parse_triggers(sns_to_sqs_event)
+    assert len(triggers) == 3
+    sqs_trigger = next(t for t in triggers if t["targetId"] is None)
+    sns_triggers = [t for t in triggers if t["targetId"] is not None]
+    assert len(sns_triggers) == 2
+    assert all(sqs_trigger["id"] == sns_trigger["targetId"] for sns_trigger in sns_triggers)
+
+    assert set(sqs_trigger["fromMessageIds"]) == {"sqs-1", "sqs-2"}
+    assert set(sns_trigger["fromMessageIds"][0] for sns_trigger in sns_triggers) == {
+        "sns-1",
+        "sns-2",
+    }

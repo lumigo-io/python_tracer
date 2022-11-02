@@ -86,6 +86,10 @@ STACKTRACE_LINE_TO_DROP = "lumigo_tracer/tracer.py"
 Container = TypeVar("Container", dict, list)  # type: ignore[type-arg,type-arg]
 DEFAULT_AUTO_TAG_KEY = "LUMIGO_AUTO_TAG"
 SKIP_COLLECTING_HTTP_BODY_KEY = "LUMIGO_SKIP_COLLECTING_HTTP_BODY"
+CHAINED_SERVICES_MAX_DEPTH = "LUMIGO_CHAINED_SERVICES_MAX_DEPTH"
+DEFAULT_CHAINED_SERVICES_MAX_DEPTH = 3
+CHAINED_SERVICES_MAX_WIDTH = "LUMIGO_CHAINED_SERVICES_MAX_WIDTH"
+DEFAULT_CHAINED_SERVICES_MAX_WIDTH = 5
 
 _logger: Dict[str, logging.Logger] = {}
 
@@ -146,6 +150,8 @@ class Configuration:
     auto_tag: List[str] = []
     skip_collecting_http_body: bool = False
     propagate_w3c: bool = False
+    chained_services_max_depth: int = DEFAULT_CHAINED_SERVICES_MAX_DEPTH
+    chained_services_max_width: int = DEFAULT_CHAINED_SERVICES_MAX_WIDTH
 
     @staticmethod
     def get_max_entry_size(has_error: bool = False) -> int:
@@ -265,6 +271,12 @@ def config(
         not Configuration.verbose
         or skip_collecting_http_body  # noqa: W503
         or os.environ.get(SKIP_COLLECTING_HTTP_BODY_KEY, "false").lower() == "true"  # noqa: W503
+    )
+    Configuration.chained_services_max_depth = int(
+        os.environ.get(CHAINED_SERVICES_MAX_DEPTH, DEFAULT_CHAINED_SERVICES_MAX_DEPTH)
+    )
+    Configuration.chained_services_max_width = int(
+        os.environ.get(CHAINED_SERVICES_MAX_WIDTH, DEFAULT_CHAINED_SERVICES_MAX_WIDTH)
     )
 
 

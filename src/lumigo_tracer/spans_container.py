@@ -31,7 +31,7 @@ from lumigo_tracer.lumigo_utils import (
 from lumigo_tracer import lumigo_utils
 from lumigo_tracer.event.event_dumper import EventDumper
 from lumigo_tracer.w3c_context import add_w3c_trace_propagator
-from lumigo_tracer.event.event_trigger import parse_triggered_by
+from lumigo_tracer.event.event_trigger import parse_triggers
 from lumigo_tracer.parsing_utils import parse_trace_id, safe_split_get, recursive_json_join
 
 _VERSION_PATH = os.path.join(os.path.dirname(__file__), "VERSION")
@@ -60,7 +60,7 @@ class SpansContainer:
         request_id: str = None,
         account: str = None,
         trace_id_suffix: str = None,
-        trigger_by: dict = None,  # type: ignore[type-arg]
+        trigger_by: Optional[List[dict]] = None,  # type: ignore[type-arg]
         max_finish_time: int = None,
         is_new_invocation: bool = False,
         event: str = None,
@@ -102,7 +102,7 @@ class SpansContainer:
                 "info": {
                     "logStreamName": log_stream_name,
                     "logGroupName": log_group_name,
-                    **(trigger_by or {}),
+                    **({"trigger": trigger_by} if trigger_by else {}),
                 },
                 "isMalformedTransactionId": malformed_txid,
                 MANUAL_TRACES_KEY: [],
@@ -390,7 +390,7 @@ class SpansContainer:
             trace_id_suffix=suffix,
             request_id=getattr(context, "aws_request_id", ""),
             account=safe_split_get(getattr(context, "invoked_function_arn", ""), ":", 4, ""),
-            trigger_by=parse_triggered_by(event),
+            trigger_by=parse_triggers(event),
             max_finish_time=get_current_ms_time() + remaining_time,
             is_new_invocation=is_new_invocation,
             **additional_info,

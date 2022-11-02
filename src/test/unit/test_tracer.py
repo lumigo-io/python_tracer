@@ -362,17 +362,16 @@ def test_lumigo_chalice_disabled_when_switch_off(monkeypatch):
 
 
 @pytest.mark.parametrize(
-    "event, expected_triggered_by, expected_message_id",
+    "event, expected_trigger",
     [
-        ({}, "unknown", None),
+        ({}, []),
         (
             {"result": 1, LUMIGO_EVENT_KEY: {STEP_FUNCTION_UID_KEY: "123"}},
-            "stepFunction",
-            "123",
+            [{"fromMessageIds": ["123"], "targetId": None, "triggeredBy": "stepFunction"}],
         ),
     ],
 )
-def test_wrapping_step_function(event, expected_triggered_by, expected_message_id, context):
+def test_wrapping_step_function(event, expected_trigger, context):
     @lumigo_tracer(step_function=True)
     def lambda_test_function(event, context):
         return {"result": 1}
@@ -380,8 +379,9 @@ def test_wrapping_step_function(event, expected_triggered_by, expected_message_i
     lambda_test_function(event, context)
     span = SpansContainer.get_span()
     assert len(span.spans) == 1
-    assert span.function_span["info"]["triggeredBy"] == expected_triggered_by
-    assert span.function_span["info"].get("messageId") == expected_message_id
+    trigger = span.function_span["info"].get("trigger", [])
+    [t.pop("id") for t in trigger]
+    assert trigger == expected_trigger
     return_value = json.loads(span.function_span["return_value"])
     assert return_value["result"] == 1
     assert return_value[LUMIGO_EVENT_KEY][STEP_FUNCTION_UID_KEY]

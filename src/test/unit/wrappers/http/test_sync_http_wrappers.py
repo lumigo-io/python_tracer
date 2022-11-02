@@ -151,6 +151,8 @@ def test_lambda_wrapper_http_same_connection_two_requests(context, token):
 
 def test_catch_file_like_object_sent_on_http(context, token):
     class A:
+        done = False
+
         def seek(self, where):
             pass
 
@@ -158,6 +160,9 @@ def test_catch_file_like_object_sent_on_http(context, token):
             return 1
 
         def read(self, amount=None):
+            if self.done:
+                return None
+            self.done = True
             return b"body"
 
     @lumigo_tracer.lumigo_tracer(token=token)
