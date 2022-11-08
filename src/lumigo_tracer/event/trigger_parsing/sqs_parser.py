@@ -1,4 +1,3 @@
-import json
 from typing import List, Optional, Dict, Any
 
 from lumigo_tracer.event.trigger_parsing.event_trigger_base import (
@@ -33,11 +32,10 @@ class SqsEventTriggerParser(EventTriggerParser):
         )
 
     @staticmethod
-    def extract_inner(event: Dict[Any, Any]) -> List[Dict[Any, Any]]:
+    def extract_inner(event: Dict[Any, Any]) -> List[str]:
         inner_messages = []
         for record in event.get("Records", []):
             body = record.get("body")
-            if isinstance(body, str) and "SimpleNotificationService" in body and "TopicArn" in body:
-                #  parse only if this is SNS-SQS chaining
-                inner_messages.append(json.loads(body))
+            if isinstance(body, str):
+                inner_messages.append(body)
         return inner_messages

@@ -1,9 +1,11 @@
-from typing import List, Optional, Dict, Any
+from typing import Optional, Dict, Any
 
 from lumigo_tracer.event.trigger_parsing.event_trigger_base import EventTriggerParser, TriggerType
 
 
 class EventbridgeEventTriggerParser(EventTriggerParser):
+    MAGIC_IDENTIFIER = r"detail\-type"
+
     @staticmethod
     def _should_handle(event: Dict[Any, Any]) -> bool:
         return (
@@ -24,8 +26,3 @@ class EventbridgeEventTriggerParser(EventTriggerParser):
             resource_type="eventBridge",
             from_message_ids=[event["id"]],
         )
-
-    @staticmethod
-    def extract_inner(event: Dict[Any, Any]) -> List[Dict[Any, Any]]:
-        # TODO
-        return []

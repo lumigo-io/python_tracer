@@ -3,6 +3,7 @@ import json
 import pytest
 
 from lumigo_tracer.event.event_trigger import parse_triggers
+from lumigo_tracer.event.trigger_parsing import INNER_MESSAGES_MAGIC_PATTERN
 from lumigo_tracer.lumigo_utils import Configuration
 
 
@@ -200,7 +201,7 @@ from lumigo_tracer.lumigo_utils import Configuration
                     {
                         "messageId": "f4ceb23d-2ae7-44d3-b171-df7ab2d10a81",
                         "receiptHandle": "BLABLA",
-                        "body": '{\n  "Type" : "Notification",\n  "MessageId" : "2c78f253-4cd9-57bb-8bc3-a965e40a293e",\n  "TopicArn" : "arn:aws:sns:us-west-2:723663554526:tracer-test-saart-temp-Pttcj",\n  "Message" : "{}",\n  "Timestamp" : "2022-06-29T19:22:59.929Z",\n  "SignatureVersion" : "1",\n  "Signature" : "BLABLA",\n  "SigningCertURL" : "https://sns.us-west-2.amazonaws.com/SimpleNotificationService-blablabla.pem",\n  "UnsubscribeURL" : "https://sns.us-west-2.amazonaws.com/?Action=Unsubscribe&SubscriptionArn=arn:aws:sns:us-west-2:723663554526:tracer-test-saart-temp-Pttcj:blablabla"\n}',
+                        "body": '{\n  "Type" : "Notification",\n  "MessageId" : "2c78f253-4cd9-57bb-8bc3-a965e40a293e",\n  "TopicArn" : "arn:aws:sns:us-west-2:1234567891011:tracer-test-saart-temp-Pttcj",\n  "Message" : "{}",\n  "Timestamp" : "2022-06-29T19:22:59.929Z",\n  "SignatureVersion" : "1",\n  "Signature" : "BLABLA",\n  "SigningCertURL" : "https://sns.us-west-2.amazonaws.com/SimpleNotificationService-blablabla.pem",\n  "UnsubscribeURL" : "https://sns.us-west-2.amazonaws.com/?Action=Unsubscribe&SubscriptionArn=arn:aws:sns:us-west-2:1234567891011:tracer-test-saart-temp-Pttcj:blablabla"\n}',
                         "attributes": {
                             "ApproximateReceiveCount": "1",
                             "AWSTraceHeader": "Root=1-62bca693-5fa5fe5643dd0b8814c6524c;Parent=50e9a851030eeaee;Sampled=0",
@@ -229,7 +230,7 @@ from lumigo_tracer.lumigo_utils import Configuration
                 },
                 {
                     "extra": {
-                        "arn": "arn:aws:sns:us-west-2:723663554526:tracer-test-saart-temp-Pttcj",
+                        "arn": "arn:aws:sns:us-west-2:1234567891011:tracer-test-saart-temp-Pttcj",
                         "recordsNum": 1,
                     },
                     "fromMessageIds": ["2c78f253-4cd9-57bb-8bc3-a965e40a293e"],
@@ -243,7 +244,7 @@ from lumigo_tracer.lumigo_utils import Configuration
                     {
                         "messageId": "f4ceb23d-2ae7-44d3-b171-df7ab2d10a81",
                         "receiptHandle": "BLABLA",
-                        "body": '{\n  "Type" : "Notification",\n  "MessageId" : "something else",\n  "TopicArn" : "arn:aws:sns:us-west-2:723663554526:tracer-test-saart-temp-Pttcj",\n  "Message" : "{}",\n  "Timestamp" : "2022-06-29T19:22:59.929Z",\n  "SignatureVersion" : "1",\n  "Signature" : "BLABLA",\n  "SigningCertURL" : "https://sns.us-west-2.amazonaws.com/OtherNotificationService-blablabla.pem",\n  "UnsubscribeURL" : "https://sns.us-west-2.amazonaws.com/?Action=Unsubscribe&SubscriptionArn=arn:aws:sns:us-west-2:723663554526:tracer-test-saart-temp-Pttcj:blablabla"\n}',
+                        "body": '{\n  "Type" : "Notification",\n  "MessageId" : "something else",\n  "TopicArn" : "arn:aws:sns:us-west-2:1234567891011:tracer-test-saart-temp-Pttcj",\n  "Message" : "{}",\n  "Timestamp" : "2022-06-29T19:22:59.929Z",\n  "SignatureVersion" : "1",\n  "Signature" : "BLABLA",\n  "SigningCertURL" : "https://sns.us-west-2.amazonaws.com/OtherNotificationService-blablabla.pem",\n  "UnsubscribeURL" : "https://sns.us-west-2.amazonaws.com/?Action=Unsubscribe&SubscriptionArn=arn:aws:sns:us-west-2:1234567891011:tracer-test-saart-temp-Pttcj:blablabla"\n}',
                         "attributes": {
                             "ApproximateReceiveCount": "1",
                             "AWSTraceHeader": "Root=1-62bca693-5fa5fe5643dd0b8814c6524c;Parent=50e9a851030eeaee;Sampled=0",
@@ -588,7 +589,7 @@ from lumigo_tracer.lumigo_utils import Configuration
             {
                 "Records": [
                     {
-                        "eventSourceARN": "arn:aws:dynamodb:us-west-2:723663554526:table/abbbbb/stream/2020-05-25T12:04:49.788",
+                        "eventSourceARN": "arn:aws:dynamodb:us-west-2:1234567891011:table/abbbbb/stream/2020-05-25T12:04:49.788",
                         "eventSource": "aws:dynamodb",
                         "eventName": "MODIFY",
                         "dynamodb": {
@@ -603,7 +604,7 @@ from lumigo_tracer.lumigo_utils import Configuration
                 {
                     "extra": {
                         "approxEventCreationTime": 1000,
-                        "arn": "arn:aws:dynamodb:us-west-2:723663554526:table/abbbbb/stream/2020-05-25T12:04:49.788",
+                        "arn": "arn:aws:dynamodb:us-west-2:1234567891011:table/abbbbb/stream/2020-05-25T12:04:49.788",
                         "recordsNum": 1,
                         "totalSizeBytes": 1,
                     },
@@ -616,7 +617,7 @@ from lumigo_tracer.lumigo_utils import Configuration
             {
                 "Records": [
                     {
-                        "eventSourceARN": "arn:aws:dynamodb:us-west-2:723663554526:table/abbbbb/stream/2020-05-25T12:04:49.788",
+                        "eventSourceARN": "arn:aws:dynamodb:us-west-2:1234567891011:table/abbbbb/stream/2020-05-25T12:04:49.788",
                         "eventSource": "aws:dynamodb",
                         "eventName": "INSERT",
                         "dynamodb": {
@@ -631,7 +632,7 @@ from lumigo_tracer.lumigo_utils import Configuration
                 {
                     "extra": {
                         "approxEventCreationTime": 1000,
-                        "arn": "arn:aws:dynamodb:us-west-2:723663554526:table/abbbbb/stream/2020-05-25T12:04:49.788",
+                        "arn": "arn:aws:dynamodb:us-west-2:1234567891011:table/abbbbb/stream/2020-05-25T12:04:49.788",
                         "recordsNum": 1,
                         "totalSizeBytes": 1,
                     },
@@ -644,7 +645,7 @@ from lumigo_tracer.lumigo_utils import Configuration
             {
                 "Records": [
                     {
-                        "eventSourceARN": "arn:aws:dynamodb:us-west-2:723663554526:table/abbbbb/stream/2020-05-25T12:04:49.788",
+                        "eventSourceARN": "arn:aws:dynamodb:us-west-2:1234567891011:table/abbbbb/stream/2020-05-25T12:04:49.788",
                         "eventSource": "aws:dynamodb",
                         "eventName": "INSERT",
                         "dynamodb": {
@@ -659,7 +660,7 @@ from lumigo_tracer.lumigo_utils import Configuration
                 {
                     "extra": {
                         "approxEventCreationTime": 1000,
-                        "arn": "arn:aws:dynamodb:us-west-2:723663554526:table/abbbbb/stream/2020-05-25T12:04:49.788",
+                        "arn": "arn:aws:dynamodb:us-west-2:1234567891011:table/abbbbb/stream/2020-05-25T12:04:49.788",
                         "recordsNum": 1,
                         "totalSizeBytes": 1,
                     },
@@ -683,7 +684,7 @@ def test_recursive_trigger_by_linking():
             {
                 "messageId": "sqs-1",
                 "receiptHandle": "BLABLA",
-                "body": '{\n  "Type" : "Notification",\n  "MessageId" : "sns-1",\n  "TopicArn" : "arn:aws:sns:us-west-2:723663554526:tracer-test-saart-temp-Pttcj",\n  "Message" : "{}",\n  "Timestamp" : "2022-06-29T19:22:59.929Z",\n  "SignatureVersion" : "1",\n  "Signature" : "BLABLA",\n  "SigningCertURL" : "https://sns.us-west-2.amazonaws.com/SimpleNotificationService-blablabla.pem",\n  "UnsubscribeURL" : "https://sns.us-west-2.amazonaws.com/?Action=Unsubscribe&SubscriptionArn=arn:aws:sns:us-west-2:723663554526:tracer-test-saart-temp-Pttcj:blablabla"\n}',
+                "body": '{\n  "Type" : "Notification",\n  "MessageId" : "sns-1",\n  "TopicArn" : "arn:aws:sns:us-west-2:1234567891011:tracer-test-saart-temp-Pttcj",\n  "Message" : "{}",\n  "Timestamp" : "2022-06-29T19:22:59.929Z",\n  "SignatureVersion" : "1",\n  "Signature" : "BLABLA",\n  "SigningCertURL" : "https://sns.us-west-2.amazonaws.com/SimpleNotificationService-blablabla.pem",\n  "UnsubscribeURL" : "https://sns.us-west-2.amazonaws.com/?Action=Unsubscribe&SubscriptionArn=arn:aws:sns:us-west-2:1234567891011:tracer-test-saart-temp-Pttcj:blablabla"\n}',
                 "attributes": {
                     "ApproximateReceiveCount": "1",
                     "AWSTraceHeader": "Root=1-111111-111111111;Parent=222222;Sampled=0",
@@ -700,7 +701,7 @@ def test_recursive_trigger_by_linking():
             {
                 "messageId": "sqs-2",
                 "receiptHandle": "BLABLA",
-                "body": '{\n  "Type" : "Notification",\n  "MessageId" : "sns-2",\n  "TopicArn" : "arn:aws:sns:us-west-2:723663554526:tracer-test-saart-temp-Pttcj",\n  "Message" : "{}",\n  "Timestamp" : "2022-06-29T19:22:59.929Z",\n  "SignatureVersion" : "1",\n  "Signature" : "BLABLA",\n  "SigningCertURL" : "https://sns.us-west-2.amazonaws.com/SimpleNotificationService-blablabla.pem",\n  "UnsubscribeURL" : "https://sns.us-west-2.amazonaws.com/?Action=Unsubscribe&SubscriptionArn=arn:aws:sns:us-west-2:723663554526:tracer-test-saart-temp-Pttcj:blablabla"\n}',
+                "body": '{\n  "Type" : "Notification",\n  "MessageId" : "sns-2",\n  "TopicArn" : "arn:aws:sns:us-west-2:1234567891011:tracer-test-saart-temp-Pttcj",\n  "Message" : "{}",\n  "Timestamp" : "2022-06-29T19:22:59.929Z",\n  "SignatureVersion" : "1",\n  "Signature" : "BLABLA",\n  "SigningCertURL" : "https://sns.us-west-2.amazonaws.com/SimpleNotificationService-blablabla.pem",\n  "UnsubscribeURL" : "https://sns.us-west-2.amazonaws.com/?Action=Unsubscribe&SubscriptionArn=arn:aws:sns:us-west-2:1234567891011:tracer-test-saart-temp-Pttcj:blablabla"\n}',
                 "attributes": {
                     "ApproximateReceiveCount": "1",
                     "AWSTraceHeader": "Root=1-111111-111111111;Parent=222222;Sampled=0",
@@ -728,3 +729,22 @@ def test_recursive_trigger_by_linking():
         "sns-1",
         "sns-2",
     }
+
+
+@pytest.mark.parametrize(
+    "message, expected",
+    [
+        (  # SNS
+            '{\n  "Type" : "Notification",\n  "MessageId" : "aaaaa-bbbbb-ccccc-ddddddddd",\n  "TopicArn" : "arn:aws:sns:us-west-2:1234567891011:test-queue",\n  "Message" : "{}",\n  "Timestamp" : "2022-06-29T19:22:59.929Z",\n  "SignatureVersion" : "1",\n  "Signature" : "BLABLA",\n  "SigningCertURL" : "https://sns.us-west-2.amazonaws.com/SimpleNotificationService-blablabla.pem",\n  "UnsubscribeURL" : "https://sns.us-west-2.amazonaws.com/?Action=Unsubscribe&SubscriptionArn=arn:aws:sns:us-west-2:123456789:test-queue:blablabla"\n}',
+            True,
+        ),
+        (  # eventbridge
+            '{"version":"0","id":"eventBusMessage-bbbbb-ccccc-ddddddddd","detail-type":"string","source":"IT","region":"us-west-2","resources":[],"detail":{}}',
+            True,
+        ),
+        # Other
+        ("other", False),
+    ],
+)
+def test_inner_messages_magic_pattern(message, expected):
+    assert bool(INNER_MESSAGES_MAGIC_PATTERN.search(message)) == expected

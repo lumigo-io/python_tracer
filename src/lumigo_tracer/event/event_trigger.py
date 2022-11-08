@@ -1,6 +1,7 @@
+import json
 from typing import List, Optional, Dict, Any
 
-from lumigo_tracer.event.trigger_parsing import EVENT_TRIGGER_PARSERS
+from lumigo_tracer.event.trigger_parsing import EVENT_TRIGGER_PARSERS, INNER_MESSAGES_MAGIC_PATTERN
 from lumigo_tracer.event.trigger_parsing.event_trigger_base import TriggerType
 from lumigo_tracer.lumigo_utils import Configuration, get_logger
 
@@ -23,11 +24,13 @@ def _recursive_parse_trigger_by(
                 get_logger().info("Chained services parsing has stopped due to width")
                 inner_messages = inner_messages[: Configuration.chained_services_max_width]
             for sub_message in inner_messages:
-                triggers.extend(
-                    _recursive_parse_trigger_by(
-                        sub_message, parent_id=current_trigger_id, level=level + 1
+                if INNER_MESSAGES_MAGIC_PATTERN.search(sub_message):
+                    # We want to load only relevant messages, so first run a quick scan
+                    triggers.extend(
+                        _recursive_parse_trigger_by(
+                            json.loads(sub_message), parent_id=current_trigger_id, level=level + 1
+                        )
                     )
-                )
     return triggers
 
 

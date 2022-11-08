@@ -9,6 +9,8 @@ from lumigo_tracer.parsing_utils import safe_get
 
 
 class SnsEventTriggerParser(EventTriggerParser):
+    MAGIC_IDENTIFIER = r"SimpleNotificationService"
+
     @staticmethod
     def _should_handle(event: Dict[Any, Any]) -> bool:
         return bool(

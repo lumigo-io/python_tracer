@@ -1,3 +1,4 @@
+import re
 from typing import List, Type
 
 from .event_trigger_base import EventTriggerParser
@@ -27,3 +28,10 @@ EVENT_TRIGGER_PARSERS: List[Type[EventTriggerParser]] = [
     EventbridgeEventTriggerParser,
     AppsyncEventTriggerParser,
 ]
+INNER_MESSAGES_MAGIC_PATTERN = re.compile(
+    r"("
+    + "|".join(
+        parser.MAGIC_IDENTIFIER for parser in EVENT_TRIGGER_PARSERS if parser.MAGIC_IDENTIFIER
+    )
+    + ")"
+)

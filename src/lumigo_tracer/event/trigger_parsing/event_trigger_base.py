@@ -23,6 +23,10 @@ TriggerType = Dict[str, Union[str, List[str], ExtraType, None]]
 
 
 class EventTriggerParser(ABC):
+    # We boost our performance using quick scan of magic-words on internal messages (chained triggers).
+    # If the service of this parser can be chained, this value should be overridden.
+    MAGIC_IDENTIFIER: Optional[str] = None
+
     @staticmethod
     def build_trigger(
         target_id: Optional[str],
@@ -59,5 +63,5 @@ class EventTriggerParser(ABC):
         raise NotImplementedError()
 
     @staticmethod
-    def extract_inner(event: Dict[Any, Any]) -> List[Dict[Any, Any]]:
+    def extract_inner(event: Dict[Any, Any]) -> List[str]:
         return []
