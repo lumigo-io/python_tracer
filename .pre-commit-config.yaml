@@ -14,8 +14,8 @@ repos:
         entry: venv/bin/mypy
         args: ['--show-error-codes', '--check-untyped-defs', '--warn-redundant-casts', '--strict-equality', '--warn-unused-ignores', '--warn-return-any', '--disallow-untyped-defs', '--disallow-incomplete-defs', '--disallow-any-generics', '--ignore-missing-imports']
 
--   repo: https://gitlab.com/pycqa/flake8
-    rev: 3.8.1
+-   repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v2.4.0
     hooks:
     -   id: flake8
         args: ["--ignore","E501,W503","--exclude","src/lumigo_tracer/libs/*"]
