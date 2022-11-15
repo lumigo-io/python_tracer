@@ -787,3 +787,55 @@ def test_recursive_trigger_by_linking():
 )
 def test_inner_messages_magic_pattern(message, expected):
     assert bool(INNER_MESSAGES_MAGIC_PATTERN.search(message)) == expected
+
+
+def test_recursive_triggers_too_deep(caplog):
+    basic_sqs = {
+        "Records": [
+            {
+                "body": "Message Body",
+                "eventSource": "aws:sqs",
+                "messageAttributes": "detail-type",
+                "eventSourceARN": "arn:aws:sqs:us-east-1:123456789:sqs-queue-name",
+            },
+        ],
+    }
+    current_sqs = basic_sqs
+    for _ in range(Configuration.chained_services_max_depth + 10):
+        previous = current_sqs
+        current_sqs = basic_sqs
+        current_sqs["Records"][0]["body"] = json.dumps(previous)
+
+    assert len(parse_triggers(current_sqs)) == Configuration.chained_services_max_depth
+    assert any(
+        "Chained services parsing has stopped due to depth" in log.message for log in caplog.records
+    )
+
+
+def test_recursive_triggers_too_wide(caplog):
+    wide_sqs = {
+        "Records": [
+            {
+                "body": json.dumps(
+                    {
+                        "Records": [
+                            {
+                                "body": "Message Body",
+                                "eventSource": "aws:sqs",
+                                "messageAttributes": "detail-type",
+                                "eventSourceARN": "arn:aws:sqs:us-east-1:123456789:sqs-queue-name",
+                            }
+                        ]
+                    }
+                ),
+                "eventSource": "aws:sqs",
+                "messageAttributes": "detail-type",
+                "eventSourceARN": "arn:aws:sqs:us-east-1:123456789:sqs-queue-name",
+            }
+            for _ in range(Configuration.chained_services_max_width + 10)
+        ],
+    }
+    assert len(parse_triggers(wide_sqs)) == Configuration.chained_services_max_width + 1
+    assert any(
+        "Chained services parsing has stopped due to width" in log.message for log in caplog.records
+    )
