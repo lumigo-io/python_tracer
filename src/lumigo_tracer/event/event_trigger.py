@@ -31,6 +31,7 @@ def _recursive_parse_trigger_by(
                             json.loads(sub_message), parent_id=current_trigger_id, level=level + 1
                         )
                     )
+            break
     return triggers
 
 
