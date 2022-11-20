@@ -553,8 +553,8 @@ def test_double_response_size_limit_on_error_status_code(context, monkeypatch, t
 
     @lumigo_tracer.lumigo_tracer(token=token)
     def lambda_test_function(event, context):
-        conn = http.client.HTTPConnection("www.google.com")
-        conn.request("GET", "/", json.dumps(d), headers=d)
+        conn = http.client.HTTPSConnection("httpbin.org")
+        conn.request("GET", "/get", json.dumps(d), headers=d)
         conn.getresponse()
 
     status_code = 200
