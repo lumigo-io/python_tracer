@@ -172,11 +172,11 @@ def test_sqs(sqs_resource, region, context):
     events = list(SpansContainer.get_span().spans.values())
     assert len(events) == 2
     # Single message.
-    assert events[0]["info"]["httpInfo"]["host"] == f"{region}.queue.amazonaws.com"
+    assert events[0]["info"]["httpInfo"]["host"] == f"sqs.{region}.amazonaws.com"
     assert events[0]["info"]["resourceName"] == sqs_resource
     assert events[0]["info"]["messageId"]
     # Batch messages.
-    assert events[1]["info"]["httpInfo"]["host"] == f"{region}.queue.amazonaws.com"
+    assert events[1]["info"]["httpInfo"]["host"] == f"sqs.{region}.amazonaws.com"
     assert events[1]["info"]["resourceName"] == sqs_resource
     assert events[1]["info"]["messageId"]
 

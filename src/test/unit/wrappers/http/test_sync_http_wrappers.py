@@ -151,6 +151,8 @@ def test_lambda_wrapper_http_same_connection_two_requests(context, token):
 
 def test_catch_file_like_object_sent_on_http(context, token):
     class A:
+        done = False
+
         def seek(self, where):
             pass
 
@@ -158,6 +160,9 @@ def test_catch_file_like_object_sent_on_http(context, token):
             return 1
 
         def read(self, amount=None):
+            if self.done:
+                return None
+            self.done = True
             return b"body"
 
     @lumigo_tracer.lumigo_tracer(token=token)
@@ -548,8 +553,8 @@ def test_double_response_size_limit_on_error_status_code(context, monkeypatch, t
 
     @lumigo_tracer.lumigo_tracer(token=token)
     def lambda_test_function(event, context):
-        conn = http.client.HTTPConnection("www.google.com")
-        conn.request("GET", "/", json.dumps(d), headers=d)
+        conn = http.client.HTTPSConnection("httpbin.org")
+        conn.request("GET", "/get", json.dumps(d), headers=d)
         conn.getresponse()
 
     status_code = 200
