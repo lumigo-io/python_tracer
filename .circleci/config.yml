@@ -20,48 +20,33 @@ workflows:
         filters:
           branches:
             ignore: master
-    - lumigo-orb/is_environment_available
-    - lumigo-orb/be-deploy:
+    - lumigo-orb/is_environment_available:
         filters:
           branches:
             ignore: master
+    - lumigo-orb/be-deploy:
         requires:
-          - test
           - lumigo-orb/is_environment_available
     - lumigo-orb/integration-test-prep:
         deploy_spec: python
-        filters:
-          branches:
-            ignore: master
         requires:
           - lumigo-orb/be-deploy
     - lumigo-orb/integration-test-limited-flows:
         deploy_spec: default
         tests_spec: testNormal
-        filters:
-          branches:
-            ignore: master
         requires:
           - lumigo-orb/integration-test-prep
     - lumigo-orb/integration-test-parallel:
         deploy_spec: default
         tests_spec: testNormal
-        filters:
-          branches:
-            ignore: master
         requires:
           - lumigo-orb/integration-test-limited-flows
     - lumigo-orb/e2e-test:
         requires:
           - lumigo-orb/integration-test-parallel
-        filters:
-          branches:
-            ignore: master
     - lumigo-orb/workflow-completed-successfully:
-        filters:
-          branches:
-            ignore: master
         requires:
+          - test
           - lumigo-orb/e2e-test
     - deploy:
         filters:
