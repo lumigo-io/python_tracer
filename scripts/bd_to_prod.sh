@@ -61,5 +61,8 @@ git add layers/LAYERS36.md
 git add layers/LAYERS37.md
 git commit -m "layers-table: layers md [skip ci]"
 git push origin master
-echo \{\"type\":\"Release\",\"repo\":\"${CIRCLE_PROJECT_REPONAME}\",\"buildUrl\":\"${CIRCLE_BUILD_URL}\"\} | curl -X POST "https://listener.logz.io:8071?token=${LOGZ}" -v --data-binary @-
+
+source ../utils/common_bash/functions.sh
+send_metric_to_logz_io type=\"Release\"
+
 echo "Done"
