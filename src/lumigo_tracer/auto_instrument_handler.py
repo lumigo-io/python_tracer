@@ -1,11 +1,21 @@
 import os
 
+from lumigo_tracer.lumigo_utils import get_logger
+
 try:
     # Try to import AWS's current _get_handler logic
     from bootstrap import _get_handler as aws_get_handler
 except Exception:
-    # Import a snapshot of _get_handler from python38 runtime
-    from lumigo_tracer.libs.bootstrap import _get_handler as aws_get_handler
+    try:
+        # Try to import using AWS's _get_handler for (apparently) python3.9
+        # https://github.com/aws/aws-lambda-python-runtime-interface-client/blob/main/awslambdaric/bootstrap.py
+        from awslambdaric.bootstrap import _get_handler as aws_get_handler
+    except Exception:
+        get_logger().warning(
+            "Auto-inject failed importing AWS `_get_handler` logic, using Lumigo's logic instead"
+        )
+        # Import a snapshot of _get_handler from python38 runtime
+        from lumigo_tracer.libs.bootstrap import _get_handler as aws_get_handler
 
 from lumigo_tracer import lumigo_tracer
 
