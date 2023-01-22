@@ -1,7 +1,7 @@
 from lumigo_tracer import auto_instrument_handler
 from lumigo_tracer.lambda_tracer import lambda_reporter
 from lumigo_tracer.lumigo_utils import is_aws_environment
-from lumigo_tracer.wrappers import wrap
+from lumigo_tracer import wrappers
 
 
 def global_scope_exec() -> None:
@@ -11,4 +11,4 @@ def global_scope_exec() -> None:
         # auto_instrument: import handler during runtime initialization, as usual.
         auto_instrument_handler.prefetch_handler_import()
         # follow requests to third party services
-        wrap()
+        wrappers.wrap()
