@@ -8,14 +8,15 @@ import mock
 import pytest
 
 from lumigo_tracer import lumigo_utils
+from lumigo_tracer.lambda_tracer import lambda_reporter
+from lumigo_tracer.lambda_tracer.lambda_reporter import get_edge_host
 from lumigo_tracer.lumigo_utils import (
     Configuration,
     get_omitting_regex,
     get_logger,
-    get_edge_host,
     InternalState,
 )
-from lumigo_tracer.spans_container import SpansContainer
+from lumigo_tracer.lambda_tracer.spans_container import SpansContainer
 from lumigo_tracer.wrappers.http.http_data_classes import HttpState
 
 USE_TRACER_EXTENSION = "LUMIGO_USE_TRACER_EXTENSION"
@@ -26,9 +27,9 @@ def reporter_mock(monkeypatch, request):
     if request.node.get_closest_marker("dont_mock_lumigo_utils_reporter"):
         return
     lumigo_utils.Configuration.should_report = False
-    reporter_mock = mock.Mock(lumigo_utils.report_json)
+    reporter_mock = mock.Mock(lambda_reporter.report_json)
     reporter_mock.return_value = 123
-    monkeypatch.setattr(lumigo_utils, "report_json", reporter_mock)
+    monkeypatch.setattr(lambda_reporter, "report_json", reporter_mock)
     return reporter_mock
 
 
@@ -46,7 +47,7 @@ def with_extension(monkeypatch):
 def remove_caches(monkeypatch):
     get_omitting_regex.cache_clear()
     get_edge_host.cache_clear()
-    monkeypatch.setattr(lumigo_utils, "edge_kinesis_boto_client", None)
+    monkeypatch.setattr(lambda_reporter, "edge_kinesis_boto_client", None)
 
 
 @pytest.yield_fixture(autouse=True)
@@ -101,6 +102,11 @@ def capture_all_logs(caplog):
 @pytest.fixture
 def context():
     return SimpleNamespace(aws_request_id="1234", get_remaining_time_in_millis=lambda: 1000 * 2)
+
+
+@pytest.fixture
+def aws_environment(monkeypatch):
+    monkeypatch.setenv("AWS_LAMBDA_FUNCTION_VERSION", "true")
 
 
 @pytest.fixture(autouse=True)

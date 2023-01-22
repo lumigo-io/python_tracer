@@ -5,7 +5,7 @@ import aiohttp
 import pytest
 
 import lumigo_tracer
-from lumigo_tracer.spans_container import SpansContainer
+from lumigo_tracer.lambda_tracer.spans_container import SpansContainer
 
 
 def test_aiohttp_happy_flow(context, token):

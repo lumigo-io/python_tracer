@@ -9,8 +9,7 @@ from lumigo_tracer.lumigo_utils import (
     is_aws_environment,
     is_kill_switch_on,
 )
-from lumigo_tracer.spans_container import SpansContainer, TimeoutMechanism
-from lumigo_tracer.wrappers import wrap
+from lumigo_tracer.lambda_tracer.spans_container import SpansContainer, TimeoutMechanism
 
 CONTEXT_WRAPPED_BY_LUMIGO_KEY = "_wrapped_by_lumigo"
 
@@ -37,7 +36,6 @@ def _add_wrap_flag_to_context(*args):  # type: ignore[no-untyped-def]
 def _lumigo_tracer(func):  # type: ignore[no-untyped-def]
     if is_kill_switch_on():
         return func
-    wrap()
 
     @wraps(func)
     def lambda_wrapper(*args, **kwargs):  # type: ignore[no-untyped-def]

@@ -8,7 +8,7 @@ from lumigo_tracer.auto_tag.auto_tag_event import (
     AutoTagEvent,
     ConfigurationHandler,
 )
-from lumigo_tracer.spans_container import SpansContainer
+from lumigo_tracer.lambda_tracer.spans_container import SpansContainer
 from lumigo_tracer.lumigo_utils import Configuration
 
 

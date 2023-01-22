@@ -238,6 +238,51 @@ from lumigo_tracer.lumigo_utils import Configuration
                 },
             ],
         ),
+        (  # SNS-SQS example trigger (ReceiveMessage)
+            {
+                "service_name": "sqs",
+                "operation_name": "ReceiveMessage",
+                "Messages": [
+                    {
+                        "MessageId": "aaaa-aaaa-aaaa-aaaa",
+                        "ReceiptHandle": "ReceiptHandle",
+                        "MD5OfBody": "123456789",
+                        "Body": '{\n  "Type" : "Notification",\n  "MessageId" : "bbbb-bbbb-bbbb-bbbb",\n  "TopicArn" : "arn:aws:sns:us-west-2:1234567891011:inner-sns",\n  "Message" : "{}",\n  "Timestamp" : "2023-01-22T09:43:08.651Z",\n  "SignatureVersion" : "1",\n  "Signature" : "Signature",\n  "SigningCertURL" : "https://sns.us-west-2.amazonaws.com/SimpleNotificationService-123456789.pem",\n  "UnsubscribeURL" : "https://sns.us-west-2.amazonaws.com/?Action=Unsubscribe&SubscriptionArn=arn:aws:sns:us-west-2:1234567891011:inner-sns-bbb-ccc"\n}',
+                    }
+                ],
+                "ResponseMetadata": {
+                    "RequestId": "RequestId",
+                    "HTTPStatusCode": 200,
+                    "HTTPHeaders": {
+                        "x-amzn-requestid": "x-amzn-requestid",
+                        "date": "Sun, 22 Jan 2023 09:44:25 GMT",
+                        "content-type": "text/xml",
+                        "content-length": "1998",
+                    },
+                    "RetryAttempts": 0,
+                },
+            },
+            [
+                {
+                    "extra": {
+                        "arn": "Unknown",
+                        "recordsNum": 1,
+                    },
+                    "fromMessageIds": [
+                        "aaaa-aaaa-aaaa-aaaa",
+                    ],
+                    "triggeredBy": "sqs",
+                },
+                {
+                    "extra": {
+                        "arn": "arn:aws:sns:us-west-2:1234567891011:inner-sns",
+                        "recordsNum": 1,
+                    },
+                    "fromMessageIds": ["bbbb-bbbb-bbbb-bbbb"],
+                    "triggeredBy": "sns",
+                },
+            ],
+        ),
         (  # SQS that is *not* SNS-SQS (not SimpleNotificationService)
             {
                 "Records": [

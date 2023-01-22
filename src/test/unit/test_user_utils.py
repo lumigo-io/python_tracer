@@ -1,7 +1,7 @@
 import time
 import pytest
 
-from lumigo_tracer.spans_container import SpansContainer
+from lumigo_tracer.lambda_tracer.spans_container import SpansContainer
 from lumigo_tracer.user_utils import (
     warn,
     info,

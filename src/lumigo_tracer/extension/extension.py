@@ -8,6 +8,7 @@ from lumigo_tracer.extension.extension_utils import get_current_bandwidth, get_e
 from lumigo_tracer import lumigo_utils
 from lumigo_tracer.extension.lambda_service import LambdaService
 from lumigo_tracer.extension.sampler import Sampler
+from lumigo_tracer.lambda_tracer import lambda_reporter
 from lumigo_tracer.lumigo_utils import lumigo_safe_execute
 
 SPAN_TYPE = "extensionExecutionEnd"
@@ -74,4 +75,4 @@ class LumigoExtension:
             cpuUsageTime=[s.dump() for s in self.sampler.get_cpu_samples()],
             memoryUsage=[s.dump() for s in self.sampler.get_memory_samples()],
         )
-        lumigo_utils.report_json(os.environ.get("AWS_REGION", "us-east-1"), msgs=[asdict(span)])
+        lambda_reporter.report_json(os.environ.get("AWS_REGION", "us-east-1"), msgs=[asdict(span)])

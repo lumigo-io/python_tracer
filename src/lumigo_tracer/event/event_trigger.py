@@ -6,8 +6,8 @@ from lumigo_tracer.event.trigger_parsing.event_trigger_base import TriggerType
 from lumigo_tracer.lumigo_utils import Configuration, get_logger
 
 
-def _recursive_parse_trigger_by(
-    message: Dict[Any, Any], parent_id: Optional[str], level: int
+def recursive_parse_trigger(
+    message: Dict[Any, Any], parent_id: Optional[str] = None, level: int = 0
 ) -> List[TriggerType]:
     triggers = []
     if level >= Configuration.chained_services_max_depth:
@@ -27,7 +27,7 @@ def _recursive_parse_trigger_by(
                 if INNER_MESSAGES_MAGIC_PATTERN.search(sub_message):
                     # We want to load only relevant messages, so first run a quick scan
                     triggers.extend(
-                        _recursive_parse_trigger_by(
+                        recursive_parse_trigger(
                             json.loads(sub_message), parent_id=current_trigger_id, level=level + 1
                         )
                     )
@@ -36,4 +36,4 @@ def _recursive_parse_trigger_by(
 
 
 def parse_triggers(event: Dict[Any, Any]) -> List[Dict[Any, Any]]:
-    return _recursive_parse_trigger_by(event, parent_id=None, level=0)
+    return recursive_parse_trigger(event, parent_id=None, level=0)

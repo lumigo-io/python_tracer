@@ -6,7 +6,7 @@ import concurrent.futures
 import json
 
 import lumigo_tracer
-from lumigo_tracer.spans_container import SpansContainer
+from lumigo_tracer.lambda_tracer.spans_container import SpansContainer
 
 COUNT = 5
 

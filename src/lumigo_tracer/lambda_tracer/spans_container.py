@@ -16,25 +16,24 @@ from lumigo_tracer.lumigo_utils import (
     EXECUTION_TAGS_KEY,
     get_timeout_buffer,
     get_logger,
-    _is_span_has_error,
+    is_span_has_error,
     create_step_function_span,
     get_current_ms_time,
     get_region,
     is_provision_concurrency_initialization,
     get_stacktrace,
-    write_extension_file,
     should_use_tracer_extension,
     MANUAL_TRACES_KEY,
     lumigo_safe_execute,
     is_python_37,
 )
-from lumigo_tracer import lumigo_utils
+from lumigo_tracer.lambda_tracer import lambda_reporter
 from lumigo_tracer.event.event_dumper import EventDumper
 from lumigo_tracer.w3c_context import add_w3c_trace_propagator
 from lumigo_tracer.event.event_trigger import parse_triggers
 from lumigo_tracer.parsing_utils import parse_trace_id, safe_split_get, recursive_json_join
 
-_VERSION_PATH = os.path.join(os.path.dirname(__file__), "VERSION")
+_VERSION_PATH = os.path.join(os.path.dirname(__file__), "../VERSION")
 MAX_LAMBDA_TIME = 15 * 60 * 1000
 FUNCTION_TYPE = "function"
 ENRICHMENT_TYPE = "enrichment"
@@ -140,7 +139,7 @@ class SpansContainer:
     def start(self, event=None, context=None):  # type: ignore[no-untyped-def]
         to_send = self._generate_start_span()
         if not Configuration.send_only_if_error:
-            report_duration = lumigo_utils.report_json(
+            report_duration = lambda_reporter.report_json(
                 region=self.region, msgs=[to_send], is_start_span=True
             )
             self.function_span["reporter_rtt"] = report_duration
@@ -159,7 +158,7 @@ class SpansContainer:
             self.span_ids_to_send.clear()
             if Configuration.send_only_if_error:
                 to_send.append(self._generate_start_span())
-            lumigo_utils.report_json(region=self.region, msgs=to_send)
+            lambda_reporter.report_json(region=self.region, msgs=to_send)
 
     def start_timeout_timer(self, context=None) -> None:  # type: ignore[no-untyped-def]
         if Configuration.timeout_timer:
@@ -306,11 +305,11 @@ class SpansContainer:
                         "Could not serialize the return value of the lambda", exc_info=True
                     )
         self.function_span.update({"return_value": parsed_ret_val})
-        if _is_span_has_error(self.function_span):
+        if is_span_has_error(self.function_span):
             self._set_error_extra_data(event)
         spans_contain_errors: bool = any(
-            _is_span_has_error(s) for s in self.spans.values()
-        ) or _is_span_has_error(self.function_span)
+            is_span_has_error(s) for s in self.spans.values()
+        ) or is_span_has_error(self.function_span)
 
         if (not Configuration.send_only_if_error) or spans_contain_errors:
             to_send = [self.function_span] + [
@@ -319,13 +318,13 @@ class SpansContainer:
             enrichment_span = self.generate_enrichment_span()
             if enrichment_span:
                 to_send.append(enrichment_span)
-            reported_rtt = lumigo_utils.report_json(region=self.region, msgs=to_send)
+            reported_rtt = lambda_reporter.report_json(region=self.region, msgs=to_send)
         else:
             get_logger().debug(
                 "No Spans were sent, `Configuration.send_only_if_error` is on and no span has error"
             )
             if should_use_tracer_extension():
-                write_extension_file([{}], "stop")
+                lambda_reporter.write_extension_file([{}], "stop")
         return reported_rtt
 
     def _set_error_extra_data(self, event):  # type: ignore[no-untyped-def]

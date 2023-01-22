@@ -23,7 +23,7 @@ from lumigo_tracer.lumigo_utils import (
     TRUNCATE_SUFFIX,
 )
 from lumigo_tracer.wrappers.http.http_parser import Parser
-from lumigo_tracer.spans_container import SpansContainer
+from lumigo_tracer.lambda_tracer.spans_container import SpansContainer
 from lumigo_tracer.wrappers.http.http_data_classes import HttpRequest
 from lumigo_tracer.wrappers.http.sync_http_wrappers import (
     add_request_event,

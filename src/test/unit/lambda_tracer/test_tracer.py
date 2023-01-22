@@ -15,20 +15,19 @@ import pytest
 from capturer import CaptureOutput
 
 from lumigo_tracer import lumigo_tracer, LumigoChalice, add_execution_tag
-from lumigo_tracer import lumigo_utils
+from lumigo_tracer.lambda_tracer import lambda_reporter
+from lumigo_tracer.lambda_tracer.lambda_reporter import _create_request_body, report_json
 from lumigo_tracer.lumigo_utils import (
     Configuration,
     STEP_FUNCTION_UID_KEY,
     LUMIGO_EVENT_KEY,
-    _create_request_body,
     EXECUTION_TAGS_KEY,
-    report_json,
     EDGE_KINESIS_STREAM_NAME,
     SKIP_COLLECTING_HTTP_BODY_KEY,
     LUMIGO_PROPAGATE_W3C,
 )
 
-from lumigo_tracer.spans_container import SpansContainer, ENRICHMENT_TYPE
+from lumigo_tracer.lambda_tracer.spans_container import SpansContainer, ENRICHMENT_TYPE
 from moto import mock_kinesis
 
 from lumigo_tracer.w3c_context import TRACEPARENT_HEADER_NAME
@@ -57,7 +56,7 @@ def test_lambda_wrapper_basic_events(reporter_mock, context):
     assert first_send[0]["maxFinishTime"]
 
 
-@pytest.mark.parametrize("token", ["t_", "", "10faa5e13e7844aaa1234"])
+@pytest.mark.parametrize("token", ["t_", "", "123456789101112"])
 def test_lambda_wrapper_validate_token_format_not_valid(context, capsys, token):
     """
     This test checks that the token has a valid format (sends warning since all inputs are invalid)
@@ -394,7 +393,7 @@ def test_omitting_keys(context):
         d = {"a": "b", "myPassword": "123"}
         conn = http.client.HTTPConnection("www.google.com")
         conn.request("POST", "/", json.dumps(d))
-        return {"secret_password": "lumigo rulz"}
+        return {"secret_password": "lumigo rulz"}  # pragma: allowlist secret
 
     lambda_test_function({"key": "24"}, context)
     span = SpansContainer.get_span()
@@ -495,11 +494,11 @@ def test_not_jsonable_return_value_non_python37(monkeypatch, context, caplog):
 @mock_kinesis
 def test_china(context, reporter_mock, monkeypatch):
     china_region_for_test = "ap-east-1"  # Moto doesn't work for China
-    monkeypatch.setattr(lumigo_utils, "CHINA_REGION", china_region_for_test)
+    monkeypatch.setattr(lambda_reporter, "CHINA_REGION", china_region_for_test)
     monkeypatch.setenv("AWS_REGION", china_region_for_test)
     reporter_mock.side_effect = report_json  # Override the conftest's monkeypatch
     access_key_id = "my_access_key_id"
-    secret_access_key = "my_secret_access_key"
+    secret_access_key = "my_secret_access_key"  # pragma: allowlist secret
     # Create edge Kinesis
     client = boto3.client(
         "kinesis",
@@ -563,7 +562,7 @@ def test_lumigo_tracer_doesnt_change_exception(context):
         wrapped({}, context)
 
     stacktrace = SpansContainer.get_span().function_span["error"]["stacktrace"]
-    assert "lumigo_tracer/tracer.py" not in stacktrace
+    assert "lumigo_tracer/lambda_tracer/tracer.py" not in stacktrace
     line_dropper = re.compile(r"\d{3}")
     from_lumigo = line_dropper.sub("-", stacktrace)
     original = line_dropper.sub("-", traceback.format_tb(e.value.__traceback__)[1])
