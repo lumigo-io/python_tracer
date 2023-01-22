@@ -1,5 +1,7 @@
 import os
 
+from lumigo_tracer.lumigo_utils import is_aws_environment
+
 try:
     # Try to import AWS's current _get_handler logic
     from bootstrap import _get_handler as aws_get_handler
@@ -27,8 +29,15 @@ def _handler(*args, **kwargs):  # type: ignore[no-untyped-def]
     return original_handler(*args, **kwargs)
 
 
-try:
-    # import handler during runtime initialization, as usual.
-    get_original_handler()
-except Exception:
-    pass
+def prefetch_handler_import() -> None:
+    """
+    This function imports the handler.
+    When we call it in the global scope, it will be executed during the lambda initialization,
+        thus will mimic the usual behavior.
+    """
+    if not is_aws_environment():
+        return
+    try:
+        get_original_handler()
+    except Exception:
+        pass

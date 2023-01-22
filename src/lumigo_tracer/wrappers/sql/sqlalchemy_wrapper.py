@@ -10,7 +10,7 @@ from lumigo_tracer.lumigo_utils import (
     lumigo_dumps,
     get_current_ms_time,
 )
-from lumigo_tracer.spans_container import SpansContainer
+from lumigo_tracer.lambda_tracer.spans_container import SpansContainer
 
 try:
     from sqlalchemy.event import listen

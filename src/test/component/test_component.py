@@ -5,9 +5,9 @@ import pytest
 import subprocess
 import http.client
 
-from lumigo_tracer.tracer import lumigo_tracer
+from lumigo_tracer.lambda_tracer.tracer import lumigo_tracer
 from lumigo_tracer.lumigo_utils import md5hash
-from lumigo_tracer.spans_container import SpansContainer
+from lumigo_tracer.lambda_tracer.spans_container import SpansContainer
 
 TOKEN = "t_10faa5e13e7844aaa1234"
 
@@ -22,7 +22,7 @@ def serverless_yaml():
 
 
 @pytest.fixture(autouse=True)
-def aws_env_variables(monkeypatch):
+def aws_env_variables(monkeypatch, aws_environment):
     """
     When running in AWS Lambda, there are some environment variables that AWS creates and the tracer uses.
     This fixture creates those environment variables.
