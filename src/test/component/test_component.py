@@ -5,6 +5,7 @@ import pytest
 import subprocess
 import http.client
 
+from lumigo_tracer import global_scope_exec
 from lumigo_tracer.lambda_tracer.tracer import lumigo_tracer
 from lumigo_tracer.lumigo_utils import md5hash
 from lumigo_tracer.lambda_tracer.spans_container import SpansContainer
@@ -31,6 +32,7 @@ def aws_env_variables(monkeypatch, aws_environment):
         "_X_AMZN_TRACE_ID",
         "RequestId: 4365921c-fc6d-4745-9f00-9fe9c516ede5 Root=1-000044d4-c3881e0c19c02c5e6ffa8f9e;Parent=37cf579525dfb3ba;Sampled=0",
     )
+    global_scope_exec()
 
 
 @pytest.fixture
