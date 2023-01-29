@@ -1,10 +1,11 @@
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 
 from lumigo_tracer.event.trigger_parsing.event_trigger_base import (
     EventTriggerParser,
     ExtraKeys,
     TriggerType,
 )
+from lumigo_tracer.lumigo_utils import get_current_ms_time
 
 
 class ApiGatewayEventTriggerParser(EventTriggerParser):
@@ -56,3 +57,27 @@ class ApiGatewayEventTriggerParser(EventTriggerParser):
             from_message_ids=[event.get("requestContext", {}).get("requestId", "")],
             extra=extra,
         )
+
+    @staticmethod
+    def extract_inner_triggers(event: Dict[Any, Any], target_id: str) -> List[TriggerType]:
+        """
+        In this function we extract the browser's session using the authorization ID:
+        https://openid.net/specs/openid-connect-core-1_0.html#CodeIDToken
+        """
+        user_agent = event.get("headers", {}).get("User-Agent")
+        auth_hash = (
+            event.get("requestContext", {}).get("authorizer", {}).get("claims", {}).get("at_hash")
+        )
+        if user_agent and auth_hash:
+            return [
+                EventTriggerParser.build_trigger(
+                    target_id=target_id,
+                    resource_type="browser",
+                    from_message_ids=[auth_hash],
+                    extra={
+                        ExtraKeys.USER_AGENT: user_agent,
+                        ExtraKeys.TRIGGER_CREATION_TIME: get_current_ms_time(),
+                    },
+                )
+            ]
+        return []
