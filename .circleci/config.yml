@@ -35,10 +35,11 @@ workflows:
         context: common
         deploy_spec: python
         requires:
-          - lumigo-orb/be-deploy
+          - lumigo-orb/is_environment_available
     - lumigo-orb/integration-test-limited-flows:
         context: common
         requires:
+          - lumigo-orb/be-deploy
           - lumigo-orb/integration-test-prep
     - lumigo-orb/integration-test-parallel:
         context: common
@@ -47,10 +48,11 @@ workflows:
     - lumigo-orb/e2e-test:
         context: common
         requires:
-          - lumigo-orb/integration-test-parallel
+          - lumigo-orb/integration-test-limited-flows
     - lumigo-orb/workflow-completed-successfully:
         requires:
           - test
+          - lumigo-orb/integration-test-parallel
           - lumigo-orb/e2e-test
 
     - deploy:
