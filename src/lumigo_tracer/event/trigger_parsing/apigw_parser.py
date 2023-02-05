@@ -65,9 +65,8 @@ class ApiGatewayEventTriggerParser(EventTriggerParser):
         https://openid.net/specs/openid-connect-core-1_0.html#CodeIDToken
         """
         user_agent = event.get("headers", {}).get("User-Agent")
-        auth_hash = (
-            event.get("requestContext", {}).get("authorizer", {}).get("claims", {}).get("at_hash")
-        )
+        claims = event.get("requestContext", {}).get("authorizer", {}).get("claims", {})
+        auth_hash = claims.get("at_hash") or claims.get("event_id")
         if user_agent and auth_hash:
             return [
                 EventTriggerParser.build_trigger(
