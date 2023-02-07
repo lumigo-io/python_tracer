@@ -40,7 +40,7 @@ class SqsEventTriggerParser(EventTriggerParser):
         )
 
     @staticmethod
-    def extract_inner(event: Dict[Any, Any]) -> List[str]:
+    def extract_inner_message(event: Dict[Any, Any]) -> List[str]:
         inner_messages = []
         for record in SqsEventTriggerParser._get_messages(event):
             body = record.get("body") or record.get("Body")

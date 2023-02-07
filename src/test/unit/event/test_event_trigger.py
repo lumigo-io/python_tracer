@@ -4,6 +4,7 @@ import pytest
 
 from lumigo_tracer.event.event_trigger import parse_triggers
 from lumigo_tracer.event.trigger_parsing import INNER_MESSAGES_MAGIC_PATTERN
+from lumigo_tracer.event.trigger_parsing.event_trigger_base import ExtraKeys
 from lumigo_tracer.lumigo_utils import Configuration
 
 
@@ -884,3 +885,33 @@ def test_recursive_triggers_too_wide(caplog):
     assert any(
         "Chained services parsing has stopped due to width" in log.message for log in caplog.records
     )
+
+
+def test_apigw_session():
+    user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36"
+    apigw_event = {
+        "resource": "/projects/resource",
+        "path": "/projects/path",
+        "httpMethod": "POST",
+        "pathParameters": {},
+        "body": "",
+        "requestContext": {
+            "stage": "dev",
+            "authorizer": {
+                "claims": {
+                    "at_hash": "at_hash",
+                }
+            },
+            "requestId": "aaaa-bbbb-cccc-ddddd",
+        },
+        "headers": {"User-Agent": user_agent},
+        "version": "2.0",
+    }
+    triggers = parse_triggers(apigw_event)
+    assert len(triggers) == 2
+    apigw = [t for t in triggers if t["triggeredBy"] == "apigw"][0]
+    browser = [t for t in triggers if t["triggeredBy"] == "browser"][0]
+    assert apigw["id"] == browser["targetId"]
+    assert browser["fromMessageIds"] == ["at_hash"]
+    assert browser["extra"][ExtraKeys.USER_AGENT] == user_agent
+    assert browser["extra"][ExtraKeys.TRIGGER_CREATION_TIME]

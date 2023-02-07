@@ -19,7 +19,7 @@ def recursive_parse_trigger(
             triggers.append(new_trigger)
             current_trigger_id: str = new_trigger["id"]  # type: ignore
 
-            inner_messages = parser.extract_inner(event=message)
+            inner_messages = parser.extract_inner_message(event=message)
             if len(inner_messages) >= Configuration.chained_services_max_width:
                 get_logger().info("Chained services parsing has stopped due to width")
                 inner_messages = inner_messages[: Configuration.chained_services_max_width]
@@ -31,6 +31,9 @@ def recursive_parse_trigger(
                             json.loads(sub_message), parent_id=current_trigger_id, level=level + 1
                         )
                     )
+            inner_triggers = parser.extract_inner_triggers(message, current_trigger_id)
+            for inner_trigger in inner_triggers:
+                triggers.append(inner_trigger)
             break
     return triggers
 

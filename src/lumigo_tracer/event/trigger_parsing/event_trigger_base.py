@@ -16,6 +16,7 @@ class ExtraKeys(str, Enum):
     TRIGGER_CREATION_TIME = "approxEventCreationTime"
     TOTAL_SIZE = "totalSizeBytes"
     SHARD_ID = "shardId"
+    USER_AGENT = "userAgent"
 
 
 ExtraType = Dict[ExtraKeys, Union[str, int, None]]
@@ -63,5 +64,9 @@ class EventTriggerParser(ABC):
         raise NotImplementedError()
 
     @staticmethod
-    def extract_inner(event: Dict[Any, Any]) -> List[str]:
+    def extract_inner_triggers(event: Dict[Any, Any], target_id: str) -> List[TriggerType]:
+        return []
+
+    @staticmethod
+    def extract_inner_message(event: Dict[Any, Any]) -> List[str]:
         return []
