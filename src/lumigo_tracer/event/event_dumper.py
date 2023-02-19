@@ -4,14 +4,15 @@ from abc import ABC, abstractmethod
 from collections import OrderedDict
 from typing import Dict, List, Optional
 
-from lumigo_core.parsing_utils import str_to_list, safe_get
 from lumigo_core.logger import get_logger
+from lumigo_core.parsing_utils import safe_get, str_to_list
+
 from lumigo_tracer.lumigo_utils import (
+    Configuration,
+    aws_dump,
     is_api_gw_event,
     lumigo_dumps,
-    Configuration,
     should_use_tracer_extension,
-    aws_dump,
 )
 
 EVENT_MAX_SIZE = 6 * 1024 * 1024

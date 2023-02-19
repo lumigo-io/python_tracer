@@ -1,12 +1,12 @@
-import re
 import json
 import os
+import re
 import urllib.request
-from typing import Optional, Dict
+from typing import Dict, Optional
 
-from lumigo_tracer.lumigo_utils import lumigo_safe_execute
 from lumigo_core.logger import get_logger
 
+from lumigo_tracer.lumigo_utils import lumigo_safe_execute
 
 MEM_AVAILABLE_PATTERN = re.compile(r"(MemAvailable)[:][ ]*([0-9]*)")
 MEM_TOTAL_PATTERN = re.compile(r"(MemTotal)[:][ ]*([0-9]*)")

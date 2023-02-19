@@ -1,5 +1,5 @@
 from copy import deepcopy
-from typing import Optional, List, Dict
+from typing import Dict, List, Optional
 
 
 class HttpRequest:

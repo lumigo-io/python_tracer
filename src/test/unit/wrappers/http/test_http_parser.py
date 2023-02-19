@@ -1,21 +1,21 @@
 import json
 
 import pytest
+
 from lumigo_tracer.lumigo_utils import Configuration
 from lumigo_tracer.w3c_context import TRACEPARENT_HEADER_NAME
-
 from lumigo_tracer.wrappers.http.http_data_classes import HttpRequest
 from lumigo_tracer.wrappers.http.http_parser import (
-    ServerlessAWSParser,
-    Parser,
-    get_parser,
     ApiGatewayV2Parser,
     DynamoParser,
     EventBridgeParser,
     LambdaParser,
+    Parser,
     S3Parser,
-    SqsParser,
+    ServerlessAWSParser,
     SnsParser,
+    SqsParser,
+    get_parser,
 )
 
 

@@ -1,8 +1,8 @@
 import json
 
 import pytest
-
 from lumigo_core.triggers.event_trigger import parse_triggers
+
 from lumigo_tracer.lumigo_utils import Configuration
 
 

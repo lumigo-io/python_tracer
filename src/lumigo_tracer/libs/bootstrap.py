@@ -6,7 +6,6 @@ import warnings
 
 from lumigo_tracer.libs.lambda_runtime_exception import FaultException
 
-
 with warnings.catch_warnings():
     warnings.filterwarnings("ignore", category=DeprecationWarning)
     import imp

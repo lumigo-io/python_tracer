@@ -1,11 +1,10 @@
 import imp
-
 import traceback
 
 import mock
-
 import pytest
-from lumigo_tracer.auto_instrument_handler import _handler, ORIGINAL_HANDLER_KEY
+
+from lumigo_tracer.auto_instrument_handler import ORIGINAL_HANDLER_KEY, _handler
 from lumigo_tracer.libs.lambda_runtime_exception import FaultException
 
 

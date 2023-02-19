@@ -1,4 +1,5 @@
 from chalice import Chalice
+
 from lumigo_tracer import LumigoChalice
 
 app = Chalice(app_name="chalice")

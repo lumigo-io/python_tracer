@@ -34,3 +34,9 @@ repos:
     hooks:
     -   id: detect-secrets
         args: ['--baseline', '.secrets.baseline']
+
+-   repo: https://github.com/pycqa/isort
+    rev: 5.11.5
+    hooks:
+        - id: isort
+          args: ["--profile", "black"]

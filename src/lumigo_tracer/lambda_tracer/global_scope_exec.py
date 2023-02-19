@@ -1,7 +1,6 @@
-from lumigo_tracer import auto_instrument_handler
+from lumigo_tracer import auto_instrument_handler, wrappers
 from lumigo_tracer.lambda_tracer import lambda_reporter
 from lumigo_tracer.lumigo_utils import is_aws_environment
-from lumigo_tracer import wrappers
 
 
 def global_scope_exec() -> None:

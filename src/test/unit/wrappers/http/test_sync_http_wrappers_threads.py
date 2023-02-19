@@ -1,9 +1,9 @@
 import asyncio
-
-import requests
-import urllib.request
 import concurrent.futures
 import json
+import urllib.request
+
+import requests
 
 import lumigo_tracer
 from lumigo_tracer.lambda_tracer.spans_container import SpansContainer

@@ -1,20 +1,20 @@
-import os
-import re
-import uuid
-import json
 import base64
-import logging
+import datetime
 import decimal
 import inspect
-import datetime
+import json
+import logging
+import os
+import re
 import traceback
+import uuid
 from collections import OrderedDict
 from contextlib import contextmanager
-from functools import reduce, lru_cache
-from lumigo_core.lumigo_utils import aws_dump, get_current_ms_time
-from typing import Union, List, Optional, Dict, Any, Tuple, Pattern, TypeVar
+from functools import lru_cache, reduce
+from typing import Any, Dict, List, Optional, Pattern, Tuple, TypeVar, Union
 
 from lumigo_core.logger import get_logger
+from lumigo_core.lumigo_utils import aws_dump, get_current_ms_time
 
 LUMIGO_DOMAINS_SCRUBBER_KEY = "LUMIGO_DOMAINS_SCRUBBER"
 EXECUTION_TAGS_KEY = "lumigo_execution_tags_no_scrub"

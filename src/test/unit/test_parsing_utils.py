@@ -2,8 +2,8 @@ import os
 
 import pytest
 
+from lumigo_tracer.lumigo_utils import Configuration, config
 from lumigo_tracer.parsing_utils import should_scrub_domain
-from lumigo_tracer.lumigo_utils import config, Configuration
 
 
 def test_config_with_verbose_param_with_no_env_verbose_verbose_is_false():

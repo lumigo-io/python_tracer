@@ -4,7 +4,10 @@ from types import SimpleNamespace
 import pytest
 
 from lumigo_tracer.lambda_tracer.spans_container import SpansContainer
-from lumigo_tracer.wrappers.redis.redis_wrapper import execute_command_wrapper, execute_wrapper
+from lumigo_tracer.wrappers.redis.redis_wrapper import (
+    execute_command_wrapper,
+    execute_wrapper,
+)
 
 FUNCTION_RESULT = "Result"
 

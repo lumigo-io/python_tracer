@@ -1,34 +1,34 @@
 import copy
-import json
-import time
 import http.client
+import json
+import socket
+import time
 import urllib
 from io import BytesIO
 from types import SimpleNamespace
 from typing import Dict
-import socket
 
 import boto3
 import pytest
-import urllib3
 import requests
+import urllib3
 from urllib3 import HTTPConnectionPool
 
 import lumigo_tracer
 from lumigo_tracer import lumigo_utils
 from lumigo_tracer.auto_tag import auto_tag_event
+from lumigo_tracer.lambda_tracer.spans_container import SpansContainer
 from lumigo_tracer.lumigo_utils import (
     DEFAULT_MAX_ENTRY_SIZE,
-    Configuration,
     TRUNCATE_SUFFIX,
+    Configuration,
 )
-from lumigo_tracer.wrappers.http.http_parser import Parser
-from lumigo_tracer.lambda_tracer.spans_container import SpansContainer
 from lumigo_tracer.wrappers.http.http_data_classes import HttpRequest
+from lumigo_tracer.wrappers.http.http_parser import Parser
 from lumigo_tracer.wrappers.http.sync_http_wrappers import (
     add_request_event,
-    update_event_response,
     is_lumigo_edge,
+    update_event_response,
 )
 
 

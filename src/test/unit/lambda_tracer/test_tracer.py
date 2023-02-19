@@ -1,34 +1,34 @@
-import logging
-
 import datetime
+import http.client
 import json
+import logging
+import os
 import re
 import traceback
 from decimal import Decimal
-import http.client
-import os
 from functools import wraps
-from unittest.mock import MagicMock, ANY
+from unittest.mock import ANY, MagicMock
 
 import boto3
 import pytest
-
-from lumigo_tracer import lumigo_tracer, LumigoChalice, add_execution_tag
-from lumigo_tracer.lambda_tracer import lambda_reporter
-from lumigo_tracer.lambda_tracer.lambda_reporter import _create_request_body, report_json
-from lumigo_tracer.lumigo_utils import (
-    Configuration,
-    STEP_FUNCTION_UID_KEY,
-    LUMIGO_EVENT_KEY,
-    EXECUTION_TAGS_KEY,
-    EDGE_KINESIS_STREAM_NAME,
-    SKIP_COLLECTING_HTTP_BODY_KEY,
-    LUMIGO_PROPAGATE_W3C,
-)
-
-from lumigo_tracer.lambda_tracer.spans_container import SpansContainer, ENRICHMENT_TYPE
 from moto import mock_kinesis
 
+from lumigo_tracer import LumigoChalice, add_execution_tag, lumigo_tracer
+from lumigo_tracer.lambda_tracer import lambda_reporter
+from lumigo_tracer.lambda_tracer.lambda_reporter import (
+    _create_request_body,
+    report_json,
+)
+from lumigo_tracer.lambda_tracer.spans_container import ENRICHMENT_TYPE, SpansContainer
+from lumigo_tracer.lumigo_utils import (
+    EDGE_KINESIS_STREAM_NAME,
+    EXECUTION_TAGS_KEY,
+    LUMIGO_EVENT_KEY,
+    LUMIGO_PROPAGATE_W3C,
+    SKIP_COLLECTING_HTTP_BODY_KEY,
+    STEP_FUNCTION_UID_KEY,
+    Configuration,
+)
 from lumigo_tracer.w3c_context import TRACEPARENT_HEADER_NAME
 
 TOKEN = "t_10faa5e13e7844aaa1234"

@@ -1,4 +1,4 @@
-from typing import Dict, Union, List
+from typing import Dict, List, Union
 
 from lumigo_tracer.lumigo_utils import Configuration
 

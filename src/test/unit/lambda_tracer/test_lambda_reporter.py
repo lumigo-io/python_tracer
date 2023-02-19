@@ -1,33 +1,30 @@
-import os
-import uuid
-import json
-import socket
-import logging
 import datetime
 import http.client
 import importlib.util
+import json
+import logging
+import os
+import socket
+import uuid
 from unittest.mock import Mock
 
 import boto3
-from mock import MagicMock
 import pytest
+from mock import MagicMock
 
 from lumigo_tracer import lumigo_utils
 from lumigo_tracer.lambda_tracer import lambda_reporter
 from lumigo_tracer.lambda_tracer.lambda_reporter import (
+    CHINA_REGION,
+    EDGE_PATH,
     _create_request_body,
     _get_event_base64_size,
-    EDGE_PATH,
-    get_edge_host,
-    report_json,
-    CHINA_REGION,
-    get_extension_dir,
     establish_connection,
+    get_edge_host,
+    get_extension_dir,
+    report_json,
 )
-from lumigo_tracer.lumigo_utils import (
-    Configuration,
-    InternalState,
-)
+from lumigo_tracer.lumigo_utils import Configuration, InternalState
 
 
 @pytest.fixture

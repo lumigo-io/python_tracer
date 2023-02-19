@@ -1,16 +1,15 @@
 import importlib
+import uuid
 from typing import Optional
 
-import uuid
-
+from lumigo_tracer.lambda_tracer.spans_container import SpansContainer
 from lumigo_tracer.libs.wrapt import wrap_function_wrapper
 from lumigo_tracer.lumigo_utils import (
-    lumigo_safe_execute,
+    get_current_ms_time,
     get_logger,
     lumigo_dumps,
-    get_current_ms_time,
+    lumigo_safe_execute,
 )
-from lumigo_tracer.lambda_tracer.spans_container import SpansContainer
 
 try:
     from sqlalchemy.event import listen

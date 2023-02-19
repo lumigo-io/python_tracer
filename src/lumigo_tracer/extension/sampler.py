@@ -1,13 +1,12 @@
-from datetime import datetime
-
-from typing import Optional, List, Union, Dict
-
-from dataclasses import dataclass
-
 import signal
+from dataclasses import dataclass
+from datetime import datetime
+from typing import Dict, List, Optional, Union
 
-from lumigo_tracer.extension.extension_utils import get_current_cpu_time
-from lumigo_tracer.extension.extension_utils import get_current_memory
+from lumigo_tracer.extension.extension_utils import (
+    get_current_cpu_time,
+    get_current_memory,
+)
 
 DEFAULT_SAMPLING_INTERVAL = 500
 
