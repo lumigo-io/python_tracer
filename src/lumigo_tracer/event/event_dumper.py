@@ -4,9 +4,9 @@ from abc import ABC, abstractmethod
 from collections import OrderedDict
 from typing import Dict, List, Optional
 
-from lumigo_tracer.parsing_utils import str_to_list, safe_get
+from lumigo_core.parsing_utils import str_to_list, safe_get
+from lumigo_core.logger import get_logger
 from lumigo_tracer.lumigo_utils import (
-    get_logger,
     is_api_gw_event,
     lumigo_dumps,
     Configuration,

@@ -2,18 +2,18 @@ import builtins
 import logging
 import os
 import shutil
+from lumigo_core.logger import get_logger
 from types import SimpleNamespace
 
 import mock
 import pytest
 
-from lumigo_tracer import lumigo_utils
+from lumigo_tracer import lumigo_utils, wrappers
 from lumigo_tracer.lambda_tracer import lambda_reporter
 from lumigo_tracer.lambda_tracer.lambda_reporter import get_edge_host
 from lumigo_tracer.lumigo_utils import (
     Configuration,
     get_omitting_regex,
-    get_logger,
     InternalState,
 )
 from lumigo_tracer.lambda_tracer.spans_container import SpansContainer
@@ -130,6 +130,10 @@ def aws_env(monkeypatch):
 
 
 @pytest.fixture
-def lambda_traced(monkeypatch):
-    monkeypatch.setenv("AWS_LAMBDA_FUNCTION_VERSION", "true")
+def lambda_traced(monkeypatch, aws_environment):
     monkeypatch.setenv("LUMIGO_SWITCH_OFF", "false")
+
+
+@pytest.fixture
+def wrap_all_libraries(lambda_traced):
+    wrappers.wrap()

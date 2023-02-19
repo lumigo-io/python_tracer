@@ -9,7 +9,7 @@ import random
 
 from lumigo_tracer.lambda_tracer.lambda_reporter import get_edge_host
 from lumigo_tracer.wrappers.http.http_data_classes import HttpRequest, HttpState
-from lumigo_tracer.parsing_utils import safe_get_list, recursive_json_join
+from lumigo_core.parsing_utils import safe_get_list, recursive_json_join
 from lumigo_tracer.wrappers.http.http_parser import get_parser, HTTP_TYPE
 from lumigo_tracer.libs.wrapt import wrap_function_wrapper
 from lumigo_tracer.lambda_tracer.spans_container import SpansContainer

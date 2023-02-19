@@ -3,7 +3,6 @@ pytest==5.2.0
 mock
 boto3
 pytest-cov==2.6.1
-capturer==2.4
 attrs==19.1.0
 requests==2.28.1
 pymongo==3.11.0

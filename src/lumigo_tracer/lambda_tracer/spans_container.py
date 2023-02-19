@@ -30,8 +30,8 @@ from lumigo_tracer.lumigo_utils import (
 from lumigo_tracer.lambda_tracer import lambda_reporter
 from lumigo_tracer.event.event_dumper import EventDumper
 from lumigo_tracer.w3c_context import add_w3c_trace_propagator
-from lumigo_tracer.event.event_trigger import parse_triggers
-from lumigo_tracer.parsing_utils import parse_trace_id, safe_split_get, recursive_json_join
+from lumigo_core.triggers.event_trigger import parse_triggers
+from lumigo_core.parsing_utils import parse_trace_id, safe_split_get, recursive_json_join
 
 _VERSION_PATH = os.path.join(os.path.dirname(__file__), "../VERSION")
 MAX_LAMBDA_TIME = 15 * 60 * 1000

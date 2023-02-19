@@ -2,9 +2,9 @@ import inspect
 from functools import wraps
 
 from lumigo_tracer.auto_tag.auto_tag_event import AutoTagEvent
+from lumigo_core.logger import get_logger
 from lumigo_tracer.lumigo_utils import (
     config,
-    get_logger,
     lumigo_safe_execute,
     is_aws_environment,
     is_kill_switch_on,

@@ -4,7 +4,8 @@ import os
 import urllib.request
 from typing import Optional, Dict
 
-from lumigo_tracer.lumigo_utils import get_logger, lumigo_safe_execute
+from lumigo_tracer.lumigo_utils import lumigo_safe_execute
+from lumigo_core.logger import get_logger
 
 
 MEM_AVAILABLE_PATTERN = re.compile(r"(MemAvailable)[:][ ]*([0-9]*)")
