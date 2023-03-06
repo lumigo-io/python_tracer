@@ -1,31 +1,30 @@
 import copy
-import os
-
-import mock
 import inspect
 import json
+import os
 import uuid
 from datetime import datetime
 
+import mock
 import pytest
 
 from lumigo_tracer import add_execution_tag
 from lumigo_tracer.lambda_tracer import lambda_reporter
 from lumigo_tracer.lambda_tracer.lambda_reporter import get_extension_dir
-from lumigo_tracer.wrappers.http.http_parser import HTTP_TYPE
 from lumigo_tracer.lambda_tracer.spans_container import (
-    SpansContainer,
-    TimeoutMechanism,
+    ENRICHMENT_TYPE,
     FUNCTION_TYPE,
     MALFORMED_TXID,
-    ENRICHMENT_TYPE,
+    SpansContainer,
+    TimeoutMechanism,
 )
 from lumigo_tracer.lumigo_utils import (
-    Configuration,
-    MANUAL_TRACES_KEY,
-    get_current_ms_time,
     EXECUTION_TAGS_KEY,
+    MANUAL_TRACES_KEY,
+    Configuration,
+    get_current_ms_time,
 )
+from lumigo_tracer.wrappers.http.http_parser import HTTP_TYPE
 
 
 @pytest.fixture

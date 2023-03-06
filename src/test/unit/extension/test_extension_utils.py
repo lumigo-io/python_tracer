@@ -1,8 +1,8 @@
 from mock import mock_open, patch
 
 from lumigo_tracer.extension.extension_utils import (
-    get_current_cpu_time,
     get_current_bandwidth,
+    get_current_cpu_time,
     get_current_memory,
 )
 

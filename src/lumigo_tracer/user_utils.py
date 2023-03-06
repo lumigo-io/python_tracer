@@ -4,7 +4,7 @@ from contextlib import contextmanager
 from typing import Dict, Optional
 
 from lumigo_tracer.lambda_tracer.spans_container import SpansContainer
-from lumigo_tracer.lumigo_utils import warn_client, is_lambda_traced
+from lumigo_tracer.lumigo_utils import is_lambda_traced, warn_client
 
 LUMIGO_REPORT_ERROR_STRING = "[LUMIGO_LOG]"
 MAX_TAGS = 50

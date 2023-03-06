@@ -1,7 +1,8 @@
 import json
+import urllib.request
 
 import boto3
-import urllib.request
+
 from lumigo_tracer import lumigo_tracer
 
 

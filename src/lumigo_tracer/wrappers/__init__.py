@@ -1,9 +1,9 @@
+from ..lumigo_utils import is_aws_environment
+from .aiohttp.aiohttp_wrapper import wrap_aiohttp
 from .http.sync_http_wrappers import wrap_http_calls
 from .pymongo.pymongo_wrapper import wrap_pymongo
 from .redis.redis_wrapper import wrap_redis
 from .sql.sqlalchemy_wrapper import wrap_sqlalchemy
-from .aiohttp.aiohttp_wrapper import wrap_aiohttp
-from ..lumigo_utils import is_aws_environment
 
 already_wrapped = False
 

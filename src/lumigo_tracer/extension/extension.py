@@ -1,11 +1,13 @@
 import os
-from dataclasses import dataclass, asdict
-
-from typing import Dict, Optional, List, Union
+from dataclasses import asdict, dataclass
 from datetime import datetime
+from typing import Dict, List, Optional, Union
 
-from lumigo_tracer.extension.extension_utils import get_current_bandwidth, get_extension_logger
 from lumigo_tracer import lumigo_utils
+from lumigo_tracer.extension.extension_utils import (
+    get_current_bandwidth,
+    get_extension_logger,
+)
 from lumigo_tracer.extension.lambda_service import LambdaService
 from lumigo_tracer.extension.sampler import Sampler
 from lumigo_tracer.lambda_tracer import lambda_reporter

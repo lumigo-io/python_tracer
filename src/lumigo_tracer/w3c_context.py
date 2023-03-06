@@ -1,5 +1,5 @@
-import re
 import random
+import re
 from typing import Dict, Optional
 
 TRACEPARENT_HEADER_NAME = "traceparent"

@@ -1,5 +1,5 @@
-from lumigo_tracer.lambda_tracer.global_scope_exec import global_scope_exec
 from lumigo_tracer.lambda_tracer import lambda_reporter
+from lumigo_tracer.lambda_tracer.global_scope_exec import global_scope_exec
 
 
 def test_global_scope_preparation_called_only_in_lambda(monkeypatch):

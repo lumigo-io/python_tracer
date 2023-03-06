@@ -1,23 +1,24 @@
 import time
+
 import pytest
 
 from lumigo_tracer.lambda_tracer.spans_container import SpansContainer
+from lumigo_tracer.lumigo_utils import MANUAL_TRACES_KEY
 from lumigo_tracer.user_utils import (
-    warn,
-    info,
-    error,
     LUMIGO_REPORT_ERROR_STRING,
-    add_execution_tag,
+    MAX_ELEMENTS_IN_EXTRA,
     MAX_TAG_KEY_LEN,
     MAX_TAG_VALUE_LEN,
     MAX_TAGS,
-    MAX_ELEMENTS_IN_EXTRA,
-    start_manual_trace,
-    stop_manual_trace,
+    add_execution_tag,
+    error,
+    info,
     manual_trace,
     manual_trace_sync,
+    start_manual_trace,
+    stop_manual_trace,
+    warn,
 )
-from lumigo_tracer.lumigo_utils import MANUAL_TRACES_KEY
 
 
 def test_manual_traces_context_manager():

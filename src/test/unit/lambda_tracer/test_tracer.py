@@ -1,35 +1,34 @@
-import logging
-
 import datetime
+import http.client
 import json
+import logging
+import os
 import re
 import traceback
 from decimal import Decimal
-import http.client
-import os
 from functools import wraps
-from unittest.mock import MagicMock, ANY
+from unittest.mock import ANY, MagicMock
 
 import boto3
 import pytest
-from capturer import CaptureOutput
-
-from lumigo_tracer import lumigo_tracer, LumigoChalice, add_execution_tag
-from lumigo_tracer.lambda_tracer import lambda_reporter
-from lumigo_tracer.lambda_tracer.lambda_reporter import _create_request_body, report_json
-from lumigo_tracer.lumigo_utils import (
-    Configuration,
-    STEP_FUNCTION_UID_KEY,
-    LUMIGO_EVENT_KEY,
-    EXECUTION_TAGS_KEY,
-    EDGE_KINESIS_STREAM_NAME,
-    SKIP_COLLECTING_HTTP_BODY_KEY,
-    LUMIGO_PROPAGATE_W3C,
-)
-
-from lumigo_tracer.lambda_tracer.spans_container import SpansContainer, ENRICHMENT_TYPE
 from moto import mock_kinesis
 
+from lumigo_tracer import LumigoChalice, add_execution_tag, lumigo_tracer
+from lumigo_tracer.lambda_tracer import lambda_reporter
+from lumigo_tracer.lambda_tracer.lambda_reporter import (
+    _create_request_body,
+    report_json,
+)
+from lumigo_tracer.lambda_tracer.spans_container import ENRICHMENT_TYPE, SpansContainer
+from lumigo_tracer.lumigo_utils import (
+    EDGE_KINESIS_STREAM_NAME,
+    EXECUTION_TAGS_KEY,
+    LUMIGO_EVENT_KEY,
+    LUMIGO_PROPAGATE_W3C,
+    SKIP_COLLECTING_HTTP_BODY_KEY,
+    STEP_FUNCTION_UID_KEY,
+    Configuration,
+)
 from lumigo_tracer.w3c_context import TRACEPARENT_HEADER_NAME
 
 TOKEN = "t_10faa5e13e7844aaa1234"
@@ -186,30 +185,28 @@ def test_wrapping_with_parameters(context):
     assert Configuration.should_report == "123"
 
 
-def test_wrapping_print_happy_flow(context):
+def test_wrapping_print_happy_flow(context, capsys):
     @lumigo_tracer()
     def lambda_test_function(event, context):
         print("hello")
         return 1
 
-    with CaptureOutput() as capturer:
-        assert lambda_test_function({}, context) == 1
-        assert any(line == "hello" for line in capturer.get_lines())
+    assert lambda_test_function({}, context) == 1
+    assert "hello" in capsys.readouterr().out
 
 
-def test_wrapping_enhanced_print_backward_compatible(context):
+def test_wrapping_enhanced_print_backward_compatible(context, capsys):
     @lumigo_tracer(enhance_print=True)
     def lambda_test_function(event, context):
         print("hello")
         return 1
 
-    with CaptureOutput() as capturer:
-        assert lambda_test_function({}, context) == 1
-        assert any(line == "hello" for line in capturer.get_lines())
+    assert lambda_test_function({}, context) == 1
+    assert "hello" in capsys.readouterr().out
 
 
 @pytest.mark.parametrize("is_verbose", [True, False])
-def test_skip_collecting_http_parts(monkeypatch, context, is_verbose):
+def test_skip_collecting_http_parts(wrap_all_libraries, monkeypatch, context, is_verbose):
     if is_verbose:
         monkeypatch.setenv("LUMIGO_VERBOSE", "false")
     else:
@@ -233,7 +230,9 @@ def test_skip_collecting_http_parts(monkeypatch, context, is_verbose):
 
 
 @pytest.mark.parametrize("propagate_w3c", [True, False])
-def test_add_w3c_headers_to_http_without_headers(monkeypatch, context, propagate_w3c, aws_env):
+def test_add_w3c_headers_to_http_without_headers(
+    wrap_all_libraries, monkeypatch, context, propagate_w3c, aws_env
+):
     @lumigo_tracer(propagate_w3c=propagate_w3c)
     def lambda_test_function(event, context):
         conn = http.client.HTTPConnection("www.google.com")
@@ -246,7 +245,9 @@ def test_add_w3c_headers_to_http_without_headers(monkeypatch, context, propagate
     assert (TRACEPARENT_HEADER_NAME in actual_headers) == propagate_w3c
 
 
-def test_add_w3c_headers_to_http_with_headers_as_args(monkeypatch, context, aws_env):
+def test_add_w3c_headers_to_http_with_headers_as_args(
+    wrap_all_libraries, monkeypatch, context, aws_env
+):
     monkeypatch.setenv(LUMIGO_PROPAGATE_W3C, "TRUE")
 
     @lumigo_tracer()
@@ -264,7 +265,9 @@ def test_add_w3c_headers_to_http_with_headers_as_args(monkeypatch, context, aws_
     assert actual_headers["another"] == "header"
 
 
-def test_add_w3c_headers_to_http_with_headers_as_kwargs(monkeypatch, context, aws_env):
+def test_add_w3c_headers_to_http_with_headers_as_kwargs(
+    wrap_all_libraries, monkeypatch, context, aws_env
+):
     monkeypatch.setenv(LUMIGO_PROPAGATE_W3C, "TRUE")
 
     @lumigo_tracer()
@@ -387,7 +390,7 @@ def test_wrapping_step_function(event, expected_trigger, context):
     assert list(span.spans.values())[0]["info"]["httpInfo"]["host"] == "StepFunction"
 
 
-def test_omitting_keys(context):
+def test_omitting_keys(wrap_all_libraries, context):
     @lumigo_tracer()
     def lambda_test_function(event, context):
         d = {"a": "b", "myPassword": "123"}

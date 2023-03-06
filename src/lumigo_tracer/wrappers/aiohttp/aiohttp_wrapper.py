@@ -1,8 +1,13 @@
-from lumigo_tracer.lumigo_utils import lumigo_safe_execute, get_logger, concat_old_body_to_new
-from lumigo_tracer.libs.wrapt import wrap_function_wrapper
+from lumigo_core.logger import get_logger
+
 from lumigo_tracer.lambda_tracer.spans_container import SpansContainer
+from lumigo_tracer.libs.wrapt import wrap_function_wrapper
+from lumigo_tracer.lumigo_utils import concat_old_body_to_new, lumigo_safe_execute
 from lumigo_tracer.wrappers.http.http_data_classes import HttpRequest
-from lumigo_tracer.wrappers.http.sync_http_wrappers import add_request_event, update_event_response
+from lumigo_tracer.wrappers.http.sync_http_wrappers import (
+    add_request_event,
+    update_event_response,
+)
 
 try:
     import aiohttp

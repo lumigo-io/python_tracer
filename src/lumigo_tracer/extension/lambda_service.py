@@ -3,7 +3,6 @@ from typing import Dict, Generator, Optional
 
 from lumigo_tracer.extension.extension_utils import get_extension_logger, request_event
 
-
 _lambda_service: Optional["LambdaService"] = None
 
 

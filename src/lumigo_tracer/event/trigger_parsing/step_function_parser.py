@@ -1,7 +1,15 @@
-from typing import Optional, Dict, Any
+from typing import Any, Dict, Optional
 
-from lumigo_tracer.event.trigger_parsing.event_trigger_base import EventTriggerParser, TriggerType
-from lumigo_tracer.lumigo_utils import Configuration, LUMIGO_EVENT_KEY, STEP_FUNCTION_UID_KEY
+from lumigo_core.triggers.trigger_parsing.event_trigger_base import (
+    EventTriggerParser,
+    TriggerType,
+)
+
+from lumigo_tracer.lumigo_utils import (
+    LUMIGO_EVENT_KEY,
+    STEP_FUNCTION_UID_KEY,
+    Configuration,
+)
 from lumigo_tracer.parsing_utils import recursive_get_key
 
 

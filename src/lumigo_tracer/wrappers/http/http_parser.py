@@ -1,29 +1,30 @@
 import json
 import uuid
-from typing import Type, Optional, List
+from typing import List, Optional, Type
 from urllib.parse import unquote
 
-from lumigo_tracer.parsing_utils import (
-    safe_split_get,
-    safe_key_from_json,
-    safe_key_from_xml,
-    safe_key_from_query,
+from lumigo_core.lumigo_utils import md5hash
+from lumigo_core.parsing_utils import (
+    extract_function_name_from_arn,
     recursive_json_join,
     safe_get,
-    should_scrub_domain,
-    extract_function_name_from_arn,
+    safe_key_from_json,
+    safe_key_from_query,
+    safe_key_from_xml,
+    safe_split_get,
 )
+
 from lumigo_tracer.lumigo_utils import (
     Configuration,
-    lumigo_dumps,
-    md5hash,
-    get_logger,
     get_current_ms_time,
-    is_error_code,
+    get_logger,
     is_aws_arn,
+    is_error_code,
+    lumigo_dumps,
     should_use_tracer_extension,
 )
-from lumigo_tracer.w3c_context import is_w3c_headers, get_w3c_message_id
+from lumigo_tracer.parsing_utils import should_scrub_domain
+from lumigo_tracer.w3c_context import get_w3c_message_id, is_w3c_headers
 from lumigo_tracer.wrappers.http.http_data_classes import HttpRequest, HttpState
 
 HTTP_TYPE = "http"

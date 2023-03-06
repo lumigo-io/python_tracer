@@ -1,26 +1,26 @@
+import base64
+import datetime
+import decimal
+import inspect
+import json
+import logging
 import os
 import re
-import uuid
-import time
-import json
-import base64
-import logging
-import decimal
-import hashlib
-import inspect
-import datetime
 import traceback
+import uuid
 from collections import OrderedDict
 from contextlib import contextmanager
-from functools import reduce, lru_cache
-from typing import Union, List, Optional, Dict, Any, Tuple, Pattern, TypeVar
+from functools import lru_cache, reduce
+from typing import Any, Dict, List, Optional, Pattern, Tuple, TypeVar, Union
+
+from lumigo_core.logger import get_logger
+from lumigo_core.lumigo_utils import aws_dump, get_current_ms_time
 
 LUMIGO_DOMAINS_SCRUBBER_KEY = "LUMIGO_DOMAINS_SCRUBBER"
 EXECUTION_TAGS_KEY = "lumigo_execution_tags_no_scrub"
 MANUAL_TRACES_KEY = "manualTraces"
 EDGE_SUFFIX = "golumigo.com"
 EDGE_HOST = "{region}.lumigo-tracer-edge." + EDGE_SUFFIX
-LOG_FORMAT = "#LUMIGO# - %(levelname)s - %(asctime)s - %(message)s"
 LUMIGO_EVENT_KEY = "_lumigo"
 STEP_FUNCTION_UID_KEY = "step_function_uid"
 # number of spans that are too big to enter the reported message before break
@@ -62,12 +62,6 @@ STACKTRACE_LINE_TO_DROP = "lumigo_tracer/lambda_tracer/tracer.py"
 Container = TypeVar("Container", dict, list)  # type: ignore[type-arg,type-arg]
 DEFAULT_AUTO_TAG_KEY = "LUMIGO_AUTO_TAG"
 SKIP_COLLECTING_HTTP_BODY_KEY = "LUMIGO_SKIP_COLLECTING_HTTP_BODY"
-CHAINED_SERVICES_MAX_DEPTH = "LUMIGO_CHAINED_SERVICES_MAX_DEPTH"
-DEFAULT_CHAINED_SERVICES_MAX_DEPTH = 3
-CHAINED_SERVICES_MAX_WIDTH = "LUMIGO_CHAINED_SERVICES_MAX_WIDTH"
-DEFAULT_CHAINED_SERVICES_MAX_WIDTH = 5
-
-_logger: Dict[str, logging.Logger] = {}
 
 
 def should_use_tracer_extension() -> bool:
@@ -112,8 +106,6 @@ class Configuration:
     auto_tag: List[str] = []
     skip_collecting_http_body: bool = False
     propagate_w3c: bool = False
-    chained_services_max_depth: int = DEFAULT_CHAINED_SERVICES_MAX_DEPTH
-    chained_services_max_width: int = DEFAULT_CHAINED_SERVICES_MAX_WIDTH
 
     @staticmethod
     def get_max_entry_size(has_error: bool = False) -> int:
@@ -234,12 +226,6 @@ def config(
         or skip_collecting_http_body  # noqa: W503
         or os.environ.get(SKIP_COLLECTING_HTTP_BODY_KEY, "false").lower() == "true"  # noqa: W503
     )
-    Configuration.chained_services_max_depth = int(
-        os.environ.get(CHAINED_SERVICES_MAX_DEPTH, DEFAULT_CHAINED_SERVICES_MAX_DEPTH)
-    )
-    Configuration.chained_services_max_width = int(
-        os.environ.get(CHAINED_SERVICES_MAX_WIDTH, DEFAULT_CHAINED_SERVICES_MAX_WIDTH)
-    )
 
 
 def is_span_has_error(span: dict) -> bool:  # type: ignore[type-arg]
@@ -249,28 +235,6 @@ def is_span_has_error(span: dict) -> bool:  # type: ignore[type-arg]
         > 400  # noqa
         or span.get("returnValue", {}).get("statusCode", 0) > 400  # noqa
     )
-
-
-def get_logger(logger_name="lumigo"):  # type: ignore[no-untyped-def]
-    """
-    This function returns lumigo's logger.
-    The logger streams the logs to the stderr in format the explicitly say that those are lumigo's logs.
-
-    This logger is off by default.
-    Add the environment variable `LUMIGO_DEBUG=true` to activate it.
-    """
-    global _logger
-    if logger_name not in _logger:
-        _logger[logger_name] = logging.getLogger(logger_name)
-        _logger[logger_name].propagate = False
-        handler = logging.StreamHandler()
-        handler.setFormatter(logging.Formatter(LOG_FORMAT))
-        if os.environ.get("LUMIGO_DEBUG", "").lower() == "true":
-            _logger[logger_name].setLevel(logging.DEBUG)
-        else:
-            _logger[logger_name].setLevel(logging.CRITICAL)
-        _logger[logger_name].addHandler(handler)
-    return _logger[logger_name]
 
 
 @contextmanager
@@ -288,13 +252,6 @@ def is_aws_environment() -> bool:
     :return: heuristically determine rather we're running on an aws environment.
     """
     return bool(os.environ.get("AWS_LAMBDA_FUNCTION_VERSION"))
-
-
-def get_current_ms_time() -> int:
-    """
-    :return: the current time in milliseconds
-    """
-    return int(time.time() * 1000)
 
 
 def ensure_str(s: Union[str, bytes]) -> str:
@@ -334,14 +291,6 @@ def _truncate_locals(f_locals: Dict[str, Any], free_space: int) -> FrameVariable
             return locals_truncated
         locals_truncated.update(var)
     return locals_truncated
-
-
-class DecimalEncoder(json.JSONEncoder):
-    # copied from python's runtime: runtime/lambda_runtime_marshaller.py:7-11
-    def default(self, o):  # type: ignore[no-untyped-def]
-        if isinstance(o, decimal.Decimal):
-            return float(o)
-        raise TypeError(f"Object of type {o.__class__.__name__} is not JSON serializable")
 
 
 @lru_cache(maxsize=1)
@@ -397,12 +346,6 @@ def get_timeout_buffer(remaining_time: float):  # type: ignore[no-untyped-def]
     if not buffer:
         buffer = max(0.5, min(0.1 * remaining_time, 3))
     return buffer
-
-
-def md5hash(d: dict) -> str:  # type: ignore[type-arg]
-    h = hashlib.md5()
-    h.update(aws_dump(d, sort_keys=True).encode())
-    return h.hexdigest()
 
 
 def _recursive_omitting(
@@ -501,12 +444,6 @@ def omit_keys(
         ({}, max_size),
     )
     return omitted, size < 0
-
-
-def aws_dump(d: Any, decimal_safe=False, **kwargs) -> str:  # type: ignore[no-untyped-def]
-    if decimal_safe:
-        return json.dumps(d, cls=DecimalEncoder, **kwargs)
-    return json.dumps(d, **kwargs)
 
 
 def lumigo_dumps(  # type: ignore[no-untyped-def]

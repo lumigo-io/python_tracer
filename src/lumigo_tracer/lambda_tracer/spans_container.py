@@ -1,37 +1,42 @@
-import os
 import copy
+import inspect
+import os
+import signal
 import time
 import uuid
-import signal
-import inspect
 from datetime import datetime
-from typing import List, Dict, Optional, Callable, Set, Union
+from typing import Callable, Dict, List, Optional, Set, Union
 
-from lumigo_tracer.lumigo_utils import (
-    Configuration,
-    LUMIGO_EVENT_KEY,
-    STEP_FUNCTION_UID_KEY,
-    format_frames,
-    lumigo_dumps,
-    EXECUTION_TAGS_KEY,
-    get_timeout_buffer,
-    get_logger,
-    is_span_has_error,
-    create_step_function_span,
-    get_current_ms_time,
-    get_region,
-    is_provision_concurrency_initialization,
-    get_stacktrace,
-    should_use_tracer_extension,
-    MANUAL_TRACES_KEY,
-    lumigo_safe_execute,
-    is_python_37,
+from lumigo_core.parsing_utils import (
+    parse_trace_id,
+    recursive_json_join,
+    safe_split_get,
 )
-from lumigo_tracer.lambda_tracer import lambda_reporter
+from lumigo_core.triggers.event_trigger import parse_triggers
+
 from lumigo_tracer.event.event_dumper import EventDumper
+from lumigo_tracer.lambda_tracer import lambda_reporter
+from lumigo_tracer.lumigo_utils import (
+    EXECUTION_TAGS_KEY,
+    LUMIGO_EVENT_KEY,
+    MANUAL_TRACES_KEY,
+    STEP_FUNCTION_UID_KEY,
+    Configuration,
+    create_step_function_span,
+    format_frames,
+    get_current_ms_time,
+    get_logger,
+    get_region,
+    get_stacktrace,
+    get_timeout_buffer,
+    is_provision_concurrency_initialization,
+    is_python_37,
+    is_span_has_error,
+    lumigo_dumps,
+    lumigo_safe_execute,
+    should_use_tracer_extension,
+)
 from lumigo_tracer.w3c_context import add_w3c_trace_propagator
-from lumigo_tracer.event.event_trigger import parse_triggers
-from lumigo_tracer.parsing_utils import parse_trace_id, safe_split_get, recursive_json_join
 
 _VERSION_PATH = os.path.join(os.path.dirname(__file__), "../VERSION")
 MAX_LAMBDA_TIME = 15 * 60 * 1000

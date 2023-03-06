@@ -1,32 +1,32 @@
-import os
-import uuid
-import time
-import random
-import socket
 import datetime
 import http.client
-from pathlib import Path
-from typing import Optional, List, Dict, Any, Union
+import os
+import random
+import socket
+import time
+import uuid
 from base64 import b64encode
 from functools import lru_cache
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Union
 
 from lumigo_tracer.lumigo_utils import (
-    InternalState,
-    get_logger,
-    Configuration,
     EDGE_HOST,
+    Configuration,
+    InternalState,
     aws_dump,
-    internal_analytics_message,
-    lumigo_safe_execute,
-    warn_client,
-    should_use_tracer_extension,
-    is_span_has_error,
+    get_logger,
     get_region,
+    internal_analytics_message,
+    is_span_has_error,
+    lumigo_safe_execute,
+    should_use_tracer_extension,
+    warn_client,
 )
 
 try:
-    import botocore
     import boto3
+    import botocore
 except Exception:
     botocore = None
     boto3 = None

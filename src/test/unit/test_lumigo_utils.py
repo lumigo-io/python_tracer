@@ -1,42 +1,42 @@
+import datetime
 import inspect
 import logging
 from collections import OrderedDict
 from decimal import Decimal
-import datetime
 
 import pytest
 
 from lumigo_tracer import lumigo_utils
 from lumigo_tracer.lumigo_utils import (
-    MAX_VARS_SIZE,
-    format_frames,
-    _truncate_locals,
-    MAX_VAR_LEN,
-    format_frame,
-    omit_keys,
-    config,
-    Configuration,
+    DEFAULT_AUTO_TAG_KEY,
+    INTERNAL_ANALYTICS_PREFIX,
+    KILL_SWITCH,
     LUMIGO_SECRET_MASKING_REGEX,
     LUMIGO_SECRET_MASKING_REGEX_BACKWARD_COMP,
-    get_omitting_regex,
-    warn_client,
-    WARN_CLIENT_PREFIX,
+    MAX_VAR_LEN,
+    MAX_VARS_SIZE,
     SKIP_SCRUBBING_KEYS,
-    get_timeout_buffer,
-    lumigo_dumps,
-    is_kill_switch_on,
-    KILL_SWITCH,
-    is_error_code,
-    get_size_upper_bound,
-    is_aws_arn,
-    internal_analytics_message,
-    INTERNAL_ANALYTICS_PREFIX,
-    concat_old_body_to_new,
     TRUNCATE_SUFFIX,
-    DEFAULT_AUTO_TAG_KEY,
-    lumigo_safe_execute,
+    WARN_CLIENT_PREFIX,
+    Configuration,
+    _truncate_locals,
+    concat_old_body_to_new,
+    config,
+    format_frame,
+    format_frames,
+    get_omitting_regex,
+    get_size_upper_bound,
+    get_timeout_buffer,
+    internal_analytics_message,
+    is_aws_arn,
+    is_error_code,
+    is_kill_switch_on,
     is_python_37,
     is_span_has_error,
+    lumigo_dumps,
+    lumigo_safe_execute,
+    omit_keys,
+    warn_client,
 )
 
 

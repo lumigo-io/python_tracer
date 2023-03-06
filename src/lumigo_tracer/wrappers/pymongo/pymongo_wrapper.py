@@ -1,13 +1,13 @@
-from typing import Dict
 import uuid
+from typing import Dict
 
+from lumigo_tracer.lambda_tracer.spans_container import SpansContainer
 from lumigo_tracer.lumigo_utils import (
-    lumigo_safe_execute,
+    get_current_ms_time,
     get_logger,
     lumigo_dumps,
-    get_current_ms_time,
+    lumigo_safe_execute,
 )
-from lumigo_tracer.lambda_tracer.spans_container import SpansContainer
 
 try:
     from pymongo import monitoring

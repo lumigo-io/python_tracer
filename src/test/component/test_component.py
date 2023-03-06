@@ -1,14 +1,15 @@
-import os
+import http.client
 import json
+import os
+import subprocess
+
 import boto3
 import pytest
-import subprocess
-import http.client
+from lumigo_core.lumigo_utils import md5hash
 
 from lumigo_tracer import global_scope_exec
-from lumigo_tracer.lambda_tracer.tracer import lumigo_tracer
-from lumigo_tracer.lumigo_utils import md5hash
 from lumigo_tracer.lambda_tracer.spans_container import SpansContainer
+from lumigo_tracer.lambda_tracer.tracer import lumigo_tracer
 
 TOKEN = "t_10faa5e13e7844aaa1234"
 

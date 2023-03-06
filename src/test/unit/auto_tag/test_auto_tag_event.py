@@ -4,9 +4,9 @@ import pytest
 
 from lumigo_tracer.auto_tag import auto_tag_event
 from lumigo_tracer.auto_tag.auto_tag_event import (
-    EventAutoTagHandler,
     AutoTagEvent,
     ConfigurationHandler,
+    EventAutoTagHandler,
 )
 from lumigo_tracer.lambda_tracer.spans_container import SpansContainer
 from lumigo_tracer.lumigo_utils import Configuration

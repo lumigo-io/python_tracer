@@ -1,15 +1,16 @@
 import json
 from collections import OrderedDict
+
 import pytest
 
 from lumigo_tracer.event.event_dumper import (
+    CloudfrontHandler,
+    Event,
     EventDumper,
     EventParseHandler,
-    CloudfrontHandler,
     S3Handler,
-    Event,
 )
-from lumigo_tracer.lumigo_utils import lumigo_dumps, Configuration
+from lumigo_tracer.lumigo_utils import Configuration, lumigo_dumps
 
 
 class ExceptionHandler(EventParseHandler):

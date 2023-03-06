@@ -1,30 +1,31 @@
-from collections import namedtuple
-from typing import Optional, Dict
-from datetime import datetime
-from io import BytesIO
-import importlib.util
 import http.client
+import importlib.util
 import logging
 import random
+from collections import namedtuple
+from datetime import datetime
+from io import BytesIO
+from typing import Dict, Optional
+
+from lumigo_core.parsing_utils import recursive_json_join, safe_get_list
 
 from lumigo_tracer.lambda_tracer.lambda_reporter import get_edge_host
-from lumigo_tracer.wrappers.http.http_data_classes import HttpRequest, HttpState
-from lumigo_tracer.parsing_utils import safe_get_list, recursive_json_join
-from lumigo_tracer.wrappers.http.http_parser import get_parser, HTTP_TYPE
-from lumigo_tracer.libs.wrapt import wrap_function_wrapper
 from lumigo_tracer.lambda_tracer.spans_container import SpansContainer
+from lumigo_tracer.libs.wrapt import wrap_function_wrapper
 from lumigo_tracer.lumigo_utils import (
-    get_logger,
-    lumigo_safe_execute,
-    ensure_str,
+    EDGE_SUFFIX,
+    TRUNCATE_SUFFIX,
     Configuration,
-    lumigo_dumps,
+    concat_old_body_to_new,
+    ensure_str,
+    get_logger,
     get_size_upper_bound,
     is_error_code,
-    TRUNCATE_SUFFIX,
-    concat_old_body_to_new,
-    EDGE_SUFFIX,
+    lumigo_dumps,
+    lumigo_safe_execute,
 )
+from lumigo_tracer.wrappers.http.http_data_classes import HttpRequest, HttpState
+from lumigo_tracer.wrappers.http.http_parser import HTTP_TYPE, get_parser
 
 _BODY_HEADER_SPLITTER = b"\r\n\r\n"
 _FLAGS_HEADER_SPLITTER = b"\r\n"

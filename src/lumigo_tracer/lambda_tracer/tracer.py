@@ -1,15 +1,16 @@
 import inspect
 from functools import wraps
 
+from lumigo_core.logger import get_logger
+
 from lumigo_tracer.auto_tag.auto_tag_event import AutoTagEvent
+from lumigo_tracer.lambda_tracer.spans_container import SpansContainer, TimeoutMechanism
 from lumigo_tracer.lumigo_utils import (
     config,
-    get_logger,
-    lumigo_safe_execute,
     is_aws_environment,
     is_kill_switch_on,
+    lumigo_safe_execute,
 )
-from lumigo_tracer.lambda_tracer.spans_container import SpansContainer, TimeoutMechanism
 
 CONTEXT_WRAPPED_BY_LUMIGO_KEY = "_wrapped_by_lumigo"
 
