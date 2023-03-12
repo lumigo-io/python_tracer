@@ -2,6 +2,8 @@ import random
 import re
 from typing import Dict, Optional
 
+from lumigo_core.logger import get_logger
+
 TRACEPARENT_HEADER_NAME = "traceparent"
 TRACESTATE_HEADER_NAME = "tracestate"
 # The regex was copied from:
@@ -10,13 +12,21 @@ TRACEPARENT_HEADER_FORMAT = (
     "^[ \t]*([0-9a-f]{2})-([0-9a-f]{32})-([0-9a-f]{16})-([0-9a-f]{2})" + "(-.*)?[ \t]*$"
 )
 TRACEPARENT_HEADER_FORMAT_RE = re.compile(TRACEPARENT_HEADER_FORMAT)
+SKIP_INJECT_HEADERS = ["x-amz-content-sha256"]
 
 
 def generate_message_id() -> str:
     return "%016x" % random.getrandbits(64)
 
 
+def should_skip_trace_propagation(headers: Dict[str, str]) -> bool:
+    return any(key.lower() in SKIP_INJECT_HEADERS for key in headers)
+
+
 def add_w3c_trace_propagator(headers: Dict[str, str], transaction_id: str) -> None:
+    if should_skip_trace_propagation(headers):
+        get_logger().debug("Skipping trace propagation")
+        return
     message_id = generate_message_id()
     headers[TRACEPARENT_HEADER_NAME] = get_trace_id(headers, transaction_id, message_id)
     headers[TRACESTATE_HEADER_NAME] = get_trace_state(headers, message_id)
