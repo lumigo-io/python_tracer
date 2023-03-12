@@ -6,6 +6,7 @@ from lumigo_tracer.w3c_context import (
     add_w3c_trace_propagator,
     get_w3c_message_id,
     is_w3c_headers,
+    should_skip_trace_propagation,
 )
 
 
@@ -78,3 +79,23 @@ def test_get_w3c_message_id(headers, expected):
 )
 def test_is_w3c_headers(headers, expected):
     assert is_w3c_headers(headers) == expected
+
+
+@pytest.mark.parametrize(
+    "headers, expected",
+    [
+        ({}, False),
+        ({"another": "header"}, False),
+        ({"x-amz-content-sha256": "123"}, True),
+        ({"X-amz-content-SHA256": "123"}, True),
+    ],
+)
+def test_should_skip_trace_propagation(headers, expected):
+    assert should_skip_trace_propagation(headers) == expected
+
+
+def test_dont_add_header_for_skipped_context():
+    headers = {"x-amz-content-sha256": "123"}
+    add_w3c_trace_propagator(headers, "111111111111112222222222")
+
+    assert headers == {"x-amz-content-sha256": "123"}
