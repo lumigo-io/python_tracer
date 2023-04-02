@@ -460,7 +460,7 @@ def test_internal_analytics_message(capsys):
 )
 def test_concat_old_body_to_new(old, new, expected, monkeypatch):
     monkeypatch.setattr(Configuration, "max_entry_size", 5)
-    assert concat_old_body_to_new(lumigo_dumps(old), new) == lumigo_dumps(expected)
+    assert concat_old_body_to_new("requestBody", lumigo_dumps(old), new) == lumigo_dumps(expected)
 
 
 @pytest.mark.parametrize("severity", [logging.DEBUG, logging.ERROR])

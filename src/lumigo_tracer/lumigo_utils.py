@@ -587,7 +587,7 @@ def lumigo_dumps(
     )
 
 
-def concat_old_body_to_new(old_body: Optional[str], new_body: bytes) -> str:
+def concat_old_body_to_new(context: str, old_body: Optional[str], new_body: bytes) -> str:
     """
     We have only a dumped body from the previous request,
     so to concatenate the new body we should undo the lumigo_dumps.
@@ -596,11 +596,11 @@ def concat_old_body_to_new(old_body: Optional[str], new_body: bytes) -> str:
     if not new_body:
         return old_body or ""
     if not old_body:
-        return lumigo_dumps(new_body)
+        return lumigo_dumps_with_context(context, new_body)
     if old_body.endswith(TRUNCATE_SUFFIX):
         return old_body
     undumped_body = (old_body or "").encode().strip(b'"')
-    return lumigo_dumps(undumped_body + new_body)
+    return lumigo_dumps_with_context(context, undumped_body + new_body)
 
 
 def is_kill_switch_on():  # type: ignore[no-untyped-def]

@@ -78,7 +78,9 @@ def add_unparsed_request(span_id: Optional[str], parse_params: HttpRequest) -> O
                     SpansContainer.get_span().get_span_by_id(span_id)
                     http_info["request"]["body"] = (
                         concat_old_body_to_new(
-                            http_info.get("request", {}).get("body"), parse_params.body
+                            "requestBody",
+                            http_info.get("request", {}).get("body"),
+                            parse_params.body,
                         )
                         if not Configuration.skip_collecting_http_body
                         else ""
@@ -106,7 +108,7 @@ def update_event_response(
             host = http_info.get("host", "unknown")
         old_body = http_info.get("response", {}).get("body")
         if old_body:
-            body = concat_old_body_to_new(old_body, body).encode()
+            body = concat_old_body_to_new("responseBody", old_body, body).encode()
 
         has_error = is_error_code(status_code)
         max_size = Configuration.get_max_entry_size(has_error)
