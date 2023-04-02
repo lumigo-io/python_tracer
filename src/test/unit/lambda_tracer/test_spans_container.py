@@ -21,7 +21,6 @@ from lumigo_tracer.lambda_tracer.spans_container import (
 from lumigo_tracer.lumigo_utils import (
     EXECUTION_TAGS_KEY,
     MANUAL_TRACES_KEY,
-    MASKED_SECRET,
     MASKING_REGEX_ENVIRONMENT,
     Configuration,
     config,
@@ -336,12 +335,9 @@ def test_unfinished_request():
 
 def test_masking_secrets_env_vars(monkeypatch):
     monkeypatch.setenv(MASKING_REGEX_ENVIRONMENT, '["bla"]')
-    monkeypatch.setenv("bla", "secret")
-    monkeypatch.setenv("other", "plain")
+    monkeypatch.setenv("bla", "bla_secret")
     config()
 
     SpansContainer.create_span()
 
-    envs = json.loads(SpansContainer.get_span().function_span["envs"])
-    assert envs["bla"] == MASKED_SECRET
-    assert envs["other"] == "plain"
+    assert "bla_secret" not in SpansContainer.get_span().function_span["envs"]

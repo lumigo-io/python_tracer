@@ -473,8 +473,8 @@ def test_scrub_response(monkeypatch):
         headers={"bla": "1234", "other": "5678"},
         body=b'{"bla": "1234", "other": "5678"}',
     )
-    assert response["info"]["httpInfo"]["request"]["body"] == MASKED_SECRET
+    assert response["info"]["httpInfo"]["response"]["body"] == MASKED_SECRET
     assert (
-        response["info"]["httpInfo"]["request"]["headers"]
+        response["info"]["httpInfo"]["response"]["headers"]
         == f'{{"bla": "{MASKED_SECRET}", "other": "5678"}}'
     )
