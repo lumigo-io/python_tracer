@@ -1,7 +1,7 @@
 import json
 import uuid
 from typing import List, Optional, Type
-from urllib.parse import unquote
+from urllib.parse import parse_qsl, unquote, urlencode, urlparse, urlunparse
 
 from lumigo_core.lumigo_utils import md5hash
 from lumigo_core.parsing_utils import (
@@ -18,9 +18,11 @@ from lumigo_tracer.lumigo_utils import (
     Configuration,
     get_current_ms_time,
     get_logger,
+    get_omitting_regex,
     is_aws_arn,
     is_error_code,
-    lumigo_dumps,
+    lumigo_dumps_with_context,
+    lumigo_safe_execute,
     should_use_tracer_extension,
 )
 from lumigo_tracer.parsing_utils import should_scrub_domain
@@ -48,12 +50,14 @@ class Parser:
         if Configuration.verbose and parse_params and not should_scrub_domain(parse_params.host):
             HttpState.omit_skip_path = self.get_omit_skip_path()
             additional_info = {
-                "headers": lumigo_dumps(parse_params.headers),
-                "body": lumigo_dumps(parse_params.body, omit_skip_path=HttpState.omit_skip_path)
+                "headers": lumigo_dumps_with_context("requestHeaders", parse_params.headers),
+                "body": lumigo_dumps_with_context(
+                    "requestBody", parse_params.body, omit_skip_path=HttpState.omit_skip_path
+                )
                 if parse_params.body and not Configuration.skip_collecting_http_body
                 else "",
                 "method": parse_params.method,
-                "uri": parse_params.uri,
+                "uri": self.scrub_query_params(parse_params.uri) or "",
                 "instance_id": parse_params.instance_id,
             }
         else:
@@ -83,8 +87,8 @@ class Parser:
         max_size = Configuration.get_max_entry_size(has_error=is_error_code(status_code))
         if Configuration.verbose and not should_scrub_domain(url):
             additional_info = {
-                "headers": lumigo_dumps(headers, max_size),
-                "body": lumigo_dumps(body, max_size)
+                "headers": lumigo_dumps_with_context("responseHeaders", headers, max_size),
+                "body": lumigo_dumps_with_context("responseBody", body, max_size)
                 if body and not Configuration.skip_collecting_http_body
                 else "",
                 "statusCode": status_code,
@@ -101,6 +105,23 @@ class Parser:
     @staticmethod
     def get_omit_skip_path() -> Optional[List[str]]:
         return None
+
+    @staticmethod
+    def scrub_query_params(uri: str) -> str:
+        with lumigo_safe_execute("scrub_query_params"):
+            regexes = Configuration.secret_masking_regex_http_query_params or get_omitting_regex()
+            if not uri or "?" not in uri or not regexes:
+                return uri
+            parsed_url = urlparse(uri)
+            parsed_url = parsed_url._replace(
+                query=urlencode(
+                    [
+                        (key, "----" if regexes.match(key) else value)
+                        for key, value in parse_qsl(parsed_url.query)
+                    ]
+                )
+            )
+            return urlunparse(parsed_url)
 
 
 class ServerlessAWSParser(Parser):

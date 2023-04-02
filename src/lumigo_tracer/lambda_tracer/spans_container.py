@@ -33,6 +33,7 @@ from lumigo_tracer.lumigo_utils import (
     is_python_37,
     is_span_has_error,
     lumigo_dumps,
+    lumigo_dumps_with_context,
     lumigo_safe_execute,
     should_use_tracer_extension,
 )
@@ -421,4 +422,6 @@ class TimeoutMechanism:
 
 
 def _get_envs_for_span(has_error: bool = False) -> str:
-    return lumigo_dumps(dict(os.environ), Configuration.get_max_entry_size(has_error))
+    return lumigo_dumps_with_context(
+        "environment", dict(os.environ), Configuration.get_max_entry_size(has_error)
+    )
