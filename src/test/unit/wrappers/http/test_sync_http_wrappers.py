@@ -12,17 +12,13 @@ import boto3
 import pytest
 import requests
 import urllib3
+from lumigo_core.configuration import DEFAULT_MAX_ENTRY_SIZE, CoreConfiguration
 from urllib3 import HTTPConnectionPool
 
 import lumigo_tracer
-from lumigo_tracer import lumigo_utils
 from lumigo_tracer.auto_tag import auto_tag_event
 from lumigo_tracer.lambda_tracer.spans_container import SpansContainer
-from lumigo_tracer.lumigo_utils import (
-    DEFAULT_MAX_ENTRY_SIZE,
-    TRUNCATE_SUFFIX,
-    Configuration,
-)
+from lumigo_tracer.lumigo_utils import TRUNCATE_SUFFIX, Configuration
 from lumigo_tracer.wrappers.http.http_data_classes import HttpRequest
 from lumigo_tracer.wrappers.http.http_parser import Parser
 from lumigo_tracer.wrappers.http.sync_http_wrappers import (
@@ -189,7 +185,7 @@ def test_bad_domains_scrubber(monkeypatch, context, token):
         pass
 
     lambda_test_function({}, context)
-    assert lumigo_utils.Configuration.should_report is False
+    assert CoreConfiguration.should_report is False
 
 
 def test_domains_scrubber_happy_flow(monkeypatch, context, token):
@@ -536,7 +532,7 @@ def test_aggregating_response_body():
 
 
 def test_double_response_size_limit_on_error_status_code(context, monkeypatch, token):
-    d = {"a": "v" * int(Configuration.get_max_entry_size() * 1.5)}
+    d = {"a": "v" * int(CoreConfiguration.get_max_entry_size() * 1.5)}
     original_begin = http.client.HTTPResponse.begin
 
     def mocked_begin(*args, **kwargs):
@@ -546,7 +542,7 @@ def test_double_response_size_limit_on_error_status_code(context, monkeypatch, t
         return_value = original_begin(*args, **kwargs)
         response_self = args[0]
         response_self.code = status_code
-        response_self.headers = {"a": "v" * int(Configuration.get_max_entry_size() * 1.5)}
+        response_self.headers = {"a": "v" * int(CoreConfiguration.get_max_entry_size() * 1.5)}
         return return_value
 
     monkeypatch.setattr(http.client.HTTPResponse, "begin", mocked_begin)

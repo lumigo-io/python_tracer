@@ -1,18 +1,10 @@
 import json
+import re
 
 import pytest
+from lumigo_core.configuration import MASK_ALL_REGEX, CoreConfiguration
+from lumigo_core.scrubbing import MASKED_SECRET
 
-from lumigo_tracer.lumigo_utils import (
-    MASKED_SECRET,
-    MASKING_ALL_MAGIC_STRING,
-    MASKING_REGEX_HTTP_QUERY_PARAMS,
-    MASKING_REGEX_HTTP_REQUEST_BODIES,
-    MASKING_REGEX_HTTP_REQUEST_HEADERS,
-    MASKING_REGEX_HTTP_RESPONSE_BODIES,
-    MASKING_REGEX_HTTP_RESPONSE_HEADERS,
-    Configuration,
-    config,
-)
 from lumigo_tracer.w3c_context import TRACEPARENT_HEADER_NAME
 from lumigo_tracer.wrappers.http.http_data_classes import HttpRequest
 from lumigo_tracer.wrappers.http.http_parser import (
@@ -235,7 +227,7 @@ def test_dynamodb_parser_sad_flow_unsupported_query():
 
 
 def test_double_response_size_limit_on_error_status_code():
-    d = {"a": "v" * int(Configuration.get_max_entry_size() * 1.5)}
+    d = {"a": "v" * int(CoreConfiguration.get_max_entry_size() * 1.5)}
     info_no_error = Parser().parse_response("www.google.com", 200, d, json.dumps(d))
     response_no_error = info_no_error["info"]["httpInfo"]["response"]
     info_with_error = Parser().parse_response("www.google.com", 500, d, json.dumps(d))
@@ -404,27 +396,26 @@ def test_parser_w3c_weaker_then_other_message_id():
 
 
 @pytest.mark.parametrize(
-    "input_uri, envs, expected_uri",
+    "input_uri, configs, expected_uri",
     [
         ("http://google.com", {}, "http://google.com"),
         ("http://google.com?query=param", {}, "http://google.com?query=param"),
         ("http://google.com?pass=1234&a=b", {}, "http://google.com?pass=----&a=b"),
         (
             "http://google.com?pass=1234&a=b",
-            {MASKING_REGEX_HTTP_QUERY_PARAMS: '["a"]'},
+            {"secret_masking_regex_http_query_params": re.compile("a")},
             "http://google.com?pass=1234&a=----",
         ),
         (
             "http://google.com?pass=1234&a=b",
-            {MASKING_REGEX_HTTP_QUERY_PARAMS: MASKING_ALL_MAGIC_STRING},
+            {"secret_masking_regex_http_query_params": MASK_ALL_REGEX},
             "http://google.com?pass=----&a=----",
         ),
     ],
 )
-def test_scrub_query_params(monkeypatch, input_uri, envs, expected_uri):
-    for env, value in envs.items():
-        monkeypatch.setenv(env, value)
-    config()
+def test_scrub_query_params(monkeypatch, input_uri, configs, expected_uri):
+    for attr, value in configs.items():
+        monkeypatch.setattr(CoreConfiguration, attr, value)
 
     response = Parser().parse_request(
         HttpRequest(
@@ -439,9 +430,12 @@ def test_scrub_query_params(monkeypatch, input_uri, envs, expected_uri):
 
 
 def test_scrub_request(monkeypatch):
-    monkeypatch.setenv(MASKING_REGEX_HTTP_REQUEST_BODIES, '["other"]')
-    monkeypatch.setenv(MASKING_REGEX_HTTP_REQUEST_HEADERS, '["bla"]')
-    config()
+    monkeypatch.setattr(
+        CoreConfiguration, "secret_masking_regex_http_request_bodies", re.compile("other")
+    )
+    monkeypatch.setattr(
+        CoreConfiguration, "secret_masking_regex_http_request_headers", re.compile("bla")
+    )
 
     response = Parser().parse_request(
         HttpRequest(
@@ -463,9 +457,12 @@ def test_scrub_request(monkeypatch):
 
 
 def test_scrub_response(monkeypatch):
-    monkeypatch.setenv(MASKING_REGEX_HTTP_RESPONSE_BODIES, MASKING_ALL_MAGIC_STRING)
-    monkeypatch.setenv(MASKING_REGEX_HTTP_RESPONSE_HEADERS, '["bla"]')
-    config()
+    monkeypatch.setattr(
+        CoreConfiguration, "secret_masking_regex_http_response_bodies", MASK_ALL_REGEX
+    )
+    monkeypatch.setattr(
+        CoreConfiguration, "secret_masking_regex_http_response_headers", re.compile("bla")
+    )
 
     response = Parser().parse_response(
         url="uri",

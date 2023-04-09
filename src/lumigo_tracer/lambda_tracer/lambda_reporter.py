@@ -10,6 +10,8 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
+from lumigo_core.configuration import CoreConfiguration
+
 from lumigo_tracer.lumigo_utils import (
     EDGE_HOST,
     Configuration,
@@ -111,7 +113,7 @@ def report_json(
     if not should_report_to_edge():
         get_logger().info("Skip sending messages due to previous timeout")
         return 0
-    if not Configuration.should_report:
+    if not CoreConfiguration.should_report:
         return 0
     get_logger().info(f"reporting the messages: {msgs[:10]}")
     try:

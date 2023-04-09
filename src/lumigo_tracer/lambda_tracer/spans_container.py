@@ -7,19 +7,19 @@ import uuid
 from datetime import datetime
 from typing import Callable, Dict, List, Optional, Set, Union
 
+from lumigo_core.configuration import CoreConfiguration
 from lumigo_core.parsing_utils import (
     parse_trace_id,
     recursive_json_join,
     safe_split_get,
 )
+from lumigo_core.scrubbing import EXECUTION_TAGS_KEY, MANUAL_TRACES_KEY
 from lumigo_core.triggers.event_trigger import parse_triggers
 
 from lumigo_tracer.event.event_dumper import EventDumper
 from lumigo_tracer.lambda_tracer import lambda_reporter
 from lumigo_tracer.lumigo_utils import (
-    EXECUTION_TAGS_KEY,
     LUMIGO_EVENT_KEY,
-    MANUAL_TRACES_KEY,
     STEP_FUNCTION_UID_KEY,
     Configuration,
     create_step_function_span,
@@ -423,5 +423,5 @@ class TimeoutMechanism:
 
 def _get_envs_for_span(has_error: bool = False) -> str:
     return lumigo_dumps_with_context(
-        "environment", dict(os.environ), Configuration.get_max_entry_size(has_error)
+        "environment", dict(os.environ), CoreConfiguration.get_max_entry_size(has_error)
     )

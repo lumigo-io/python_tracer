@@ -3,6 +3,7 @@ import uuid
 from typing import List, Optional, Type
 from urllib.parse import parse_qsl, unquote, urlencode, urlparse, urlunparse
 
+from lumigo_core.configuration import CoreConfiguration
 from lumigo_core.lumigo_utils import md5hash
 from lumigo_core.parsing_utils import (
     extract_function_name_from_arn,
@@ -13,12 +14,12 @@ from lumigo_core.parsing_utils import (
     safe_key_from_xml,
     safe_split_get,
 )
+from lumigo_core.scrubbing import get_omitting_regex
 
 from lumigo_tracer.lumigo_utils import (
     Configuration,
     get_current_ms_time,
     get_logger,
-    get_omitting_regex,
     is_aws_arn,
     is_error_code,
     lumigo_dumps_with_context,
@@ -84,7 +85,7 @@ class Parser:
         }
 
     def parse_response(self, url: str, status_code: int, headers: dict, body: bytes) -> dict:  # type: ignore[type-arg]
-        max_size = Configuration.get_max_entry_size(has_error=is_error_code(status_code))
+        max_size = CoreConfiguration.get_max_entry_size(has_error=is_error_code(status_code))
         if Configuration.verbose and not should_scrub_domain(url):
             additional_info = {
                 "headers": lumigo_dumps_with_context("responseHeaders", headers, max_size),
@@ -109,7 +110,9 @@ class Parser:
     @staticmethod
     def scrub_query_params(uri: str) -> str:
         with lumigo_safe_execute("scrub_query_params"):
-            regexes = Configuration.secret_masking_regex_http_query_params or get_omitting_regex()
+            regexes = (
+                CoreConfiguration.secret_masking_regex_http_query_params or get_omitting_regex()
+            )
             if not uri or "?" not in uri or not regexes:
                 return uri
             parsed_url = urlparse(uri)

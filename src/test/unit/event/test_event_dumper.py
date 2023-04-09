@@ -2,6 +2,7 @@ import json
 from collections import OrderedDict
 
 import pytest
+from lumigo_core.configuration import CoreConfiguration
 
 from lumigo_tracer.event.event_dumper import (
     CloudfrontHandler,
@@ -10,7 +11,7 @@ from lumigo_tracer.event.event_dumper import (
     EventParseHandler,
     S3Handler,
 )
-from lumigo_tracer.lumigo_utils import Configuration, lumigo_dumps
+from lumigo_tracer.lumigo_utils import lumigo_dumps
 
 
 class ExceptionHandler(EventParseHandler):
@@ -513,13 +514,13 @@ def test_parse_cloudfront_event(cloudfront_event):
 
 
 def test_event_size_insnt_trancated_when_using_extension(monkeypatch, with_extension):
-    event = {"a": "a" * Configuration.get_max_entry_size(True) * 2}
+    event = {"a": "a" * CoreConfiguration.get_max_entry_size(True) * 2}
     untruncated = EventDumper.dump_event(event)
     assert untruncated == json.dumps(event)
 
 
 def test_dump_event_has_error_should_double_limit_size():
-    long_string = "v" * int(Configuration.get_max_entry_size() * 1.5)
+    long_string = "v" * int(CoreConfiguration.get_max_entry_size() * 1.5)
     event = {"k": long_string}
     result_no_error = EventDumper.dump_event(event)
     result_has_error = EventDumper.dump_event(event, has_error=True)
