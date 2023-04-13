@@ -10,6 +10,12 @@ from contextlib import contextmanager
 from typing import Any, Dict, List, Optional, Pattern, TypeVar, Union
 
 from lumigo_core.configuration import (
+    MASKING_REGEX_ENVIRONMENT,
+    MASKING_REGEX_HTTP_QUERY_PARAMS,
+    MASKING_REGEX_HTTP_REQUEST_BODIES,
+    MASKING_REGEX_HTTP_REQUEST_HEADERS,
+    MASKING_REGEX_HTTP_RESPONSE_BODIES,
+    MASKING_REGEX_HTTP_RESPONSE_HEADERS,
     CoreConfiguration,
     create_regex_from_list,
     parse_regex_from_env,
@@ -93,6 +99,12 @@ class Configuration:
     auto_tag: List[str] = []
     skip_collecting_http_body: bool = False
     propagate_w3c: bool = False
+    secret_masking_regex_http_request_bodies: Optional[Pattern[str]] = None
+    secret_masking_regex_http_request_headers: Optional[Pattern[str]] = None
+    secret_masking_regex_http_response_bodies: Optional[Pattern[str]] = None
+    secret_masking_regex_http_response_headers: Optional[Pattern[str]] = None
+    secret_masking_regex_http_query_params: Optional[Pattern[str]] = None
+    secret_masking_regex_environment: Optional[Pattern[str]] = None
 
 
 def config(
@@ -196,6 +208,22 @@ def config(
         or skip_collecting_http_body  # noqa: W503
         or os.environ.get(SKIP_COLLECTING_HTTP_BODY_KEY, "false").lower() == "true"  # noqa: W503
     )
+    Configuration.secret_masking_regex_http_request_bodies = parse_regex_from_env(
+        MASKING_REGEX_HTTP_REQUEST_BODIES
+    )
+    Configuration.secret_masking_regex_http_request_headers = parse_regex_from_env(
+        MASKING_REGEX_HTTP_REQUEST_HEADERS
+    )
+    Configuration.secret_masking_regex_http_response_bodies = parse_regex_from_env(
+        MASKING_REGEX_HTTP_RESPONSE_BODIES
+    )
+    Configuration.secret_masking_regex_http_response_headers = parse_regex_from_env(
+        MASKING_REGEX_HTTP_RESPONSE_HEADERS
+    )
+    Configuration.secret_masking_regex_http_query_params = parse_regex_from_env(
+        MASKING_REGEX_HTTP_QUERY_PARAMS
+    )
+    Configuration.secret_masking_regex_environment = parse_regex_from_env(MASKING_REGEX_ENVIRONMENT)
 
 
 def is_span_has_error(span: dict) -> bool:  # type: ignore[type-arg]
