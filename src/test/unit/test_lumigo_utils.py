@@ -371,7 +371,7 @@ def test_config_lumigo_auto_tag_kwarg(monkeypatch):
 def test_config_lumigo_domains_scrubber_with_envs(monkeypatch):
     monkeypatch.setenv("LUMIGO_DOMAINS_SCRUBBER", '["lambda.us-west-2.amazonaws.com"]')
     config()
-    assert len(Configuration.domains_scrubber) == 1
+    assert Configuration.domains_scrubber.pattern == "(lambda.us-west-2.amazonaws.com)"
 
 
 def test_config_timeout_timer_buffer_with_exception(monkeypatch):
@@ -460,7 +460,7 @@ def test_internal_analytics_message(capsys):
 )
 def test_concat_old_body_to_new(old, new, expected, monkeypatch):
     monkeypatch.setattr(Configuration, "max_entry_size", 5)
-    assert concat_old_body_to_new(lumigo_dumps(old), new) == lumigo_dumps(expected)
+    assert concat_old_body_to_new("requestBody", lumigo_dumps(old), new) == lumigo_dumps(expected)
 
 
 @pytest.mark.parametrize("severity", [logging.DEBUG, logging.ERROR])

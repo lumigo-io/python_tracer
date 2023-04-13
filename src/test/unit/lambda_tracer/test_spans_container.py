@@ -21,7 +21,9 @@ from lumigo_tracer.lambda_tracer.spans_container import (
 from lumigo_tracer.lumigo_utils import (
     EXECUTION_TAGS_KEY,
     MANUAL_TRACES_KEY,
+    MASKING_REGEX_ENVIRONMENT,
     Configuration,
+    config,
     get_current_ms_time,
 )
 from lumigo_tracer.wrappers.http.http_parser import HTTP_TYPE
@@ -329,3 +331,13 @@ def test_unfinished_request():
     container.update_event_times(span_id="1", start_time=start)
     assert container.get_span_by_id("1")["started"]
     assert "ended" not in container.get_span_by_id("1")
+
+
+def test_masking_secrets_env_vars(monkeypatch):
+    monkeypatch.setenv(MASKING_REGEX_ENVIRONMENT, '["bla"]')
+    monkeypatch.setenv("bla", "bla_secret")
+    config()
+
+    SpansContainer.create_span()
+
+    assert "bla_secret" not in SpansContainer.get_span().function_span["envs"]

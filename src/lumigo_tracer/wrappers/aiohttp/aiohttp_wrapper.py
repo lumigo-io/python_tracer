@@ -50,7 +50,7 @@ async def on_request_chunk_sent(session, trace_config_ctx, params):  # type: ign
         span = SpansContainer.get_span().get_span_by_id(span_id)
         http_info = span.get("info", {}).get("httpInfo", {})  # type: ignore[union-attr]
         http_info["request"]["body"] = concat_old_body_to_new(
-            http_info.get("request", {}).get("body"), params.chunk
+            "requestBody", http_info.get("request", {}).get("body"), params.chunk
         )
 
 
@@ -68,7 +68,7 @@ async def on_response_chunk_received(session, trace_config_ctx, params):  # type
         span = SpansContainer.get_span().get_span_by_id(span_id)
         http_info = span.get("info", {}).get("httpInfo", {})  # type: ignore[union-attr]
         http_info["response"]["body"] = concat_old_body_to_new(
-            http_info.get("response", {}).get("body"), params.chunk
+            "responseBody", http_info.get("response", {}).get("body"), params.chunk
         )
 
 

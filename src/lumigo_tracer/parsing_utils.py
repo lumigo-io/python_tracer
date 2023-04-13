@@ -5,9 +5,8 @@ from lumigo_tracer.lumigo_utils import Configuration
 
 def should_scrub_domain(url: str) -> bool:
     if url and Configuration.domains_scrubber:
-        for regex in Configuration.domains_scrubber:
-            if regex.match(url):
-                return True
+        if Configuration.domains_scrubber.match(url):
+            return True
     return False
 
 

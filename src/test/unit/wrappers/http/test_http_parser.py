@@ -2,7 +2,17 @@ import json
 
 import pytest
 
-from lumigo_tracer.lumigo_utils import Configuration
+from lumigo_tracer.lumigo_utils import (
+    MASKED_SECRET,
+    MASKING_ALL_MAGIC_STRING,
+    MASKING_REGEX_HTTP_QUERY_PARAMS,
+    MASKING_REGEX_HTTP_REQUEST_BODIES,
+    MASKING_REGEX_HTTP_REQUEST_HEADERS,
+    MASKING_REGEX_HTTP_RESPONSE_BODIES,
+    MASKING_REGEX_HTTP_RESPONSE_HEADERS,
+    Configuration,
+    config,
+)
 from lumigo_tracer.w3c_context import TRACEPARENT_HEADER_NAME
 from lumigo_tracer.wrappers.http.http_data_classes import HttpRequest
 from lumigo_tracer.wrappers.http.http_parser import (
@@ -391,3 +401,80 @@ def test_parser_w3c_weaker_then_other_message_id():
     assert response["info"]["resourceName"] == "resourceName"
     assert response["info"]["dynamodbMethod"] == "PutItem"
     assert response["info"]["messageId"] == "1ad3dccc8064a706957c2c06ce3796bb"
+
+
+@pytest.mark.parametrize(
+    "input_uri, envs, expected_uri",
+    [
+        ("http://google.com", {}, "http://google.com"),
+        ("http://google.com?query=param", {}, "http://google.com?query=param"),
+        ("http://google.com?pass=1234&a=b", {}, "http://google.com?pass=----&a=b"),
+        (
+            "http://google.com?pass=1234&a=b",
+            {MASKING_REGEX_HTTP_QUERY_PARAMS: '["a"]'},
+            "http://google.com?pass=1234&a=----",
+        ),
+        (
+            "http://google.com?pass=1234&a=b",
+            {MASKING_REGEX_HTTP_QUERY_PARAMS: MASKING_ALL_MAGIC_STRING},
+            "http://google.com?pass=----&a=----",
+        ),
+    ],
+)
+def test_scrub_query_params(monkeypatch, input_uri, envs, expected_uri):
+    for env, value in envs.items():
+        monkeypatch.setenv(env, value)
+    config()
+
+    response = Parser().parse_request(
+        HttpRequest(
+            host="host",
+            method="PUT",
+            uri=input_uri,
+            headers={},
+            body=b"body",
+        )
+    )
+    assert response["info"]["httpInfo"]["request"]["uri"] == expected_uri
+
+
+def test_scrub_request(monkeypatch):
+    monkeypatch.setenv(MASKING_REGEX_HTTP_REQUEST_BODIES, '["other"]')
+    monkeypatch.setenv(MASKING_REGEX_HTTP_REQUEST_HEADERS, '["bla"]')
+    config()
+
+    response = Parser().parse_request(
+        HttpRequest(
+            host="host",
+            method="PUT",
+            uri="uri",
+            headers={"bla": "1234", "other": "5678"},
+            body=b'{"bla": "1234", "other": "5678"}',
+        )
+    )
+    assert (
+        response["info"]["httpInfo"]["request"]["body"]
+        == f'{{"bla": "1234", "other": "{MASKED_SECRET}"}}'
+    )
+    assert (
+        response["info"]["httpInfo"]["request"]["headers"]
+        == f'{{"bla": "{MASKED_SECRET}", "other": "5678"}}'
+    )
+
+
+def test_scrub_response(monkeypatch):
+    monkeypatch.setenv(MASKING_REGEX_HTTP_RESPONSE_BODIES, MASKING_ALL_MAGIC_STRING)
+    monkeypatch.setenv(MASKING_REGEX_HTTP_RESPONSE_HEADERS, '["bla"]')
+    config()
+
+    response = Parser().parse_response(
+        url="uri",
+        status_code=200,
+        headers={"bla": "1234", "other": "5678"},
+        body=b'{"bla": "1234", "other": "5678"}',
+    )
+    assert response["info"]["httpInfo"]["response"]["body"] == MASKED_SECRET
+    assert (
+        response["info"]["httpInfo"]["response"]["headers"]
+        == f'{{"bla": "{MASKED_SECRET}", "other": "5678"}}'
+    )

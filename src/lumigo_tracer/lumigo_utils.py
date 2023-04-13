@@ -47,6 +47,15 @@ DOMAIN_SCRUBBER_REGEXES = [
 SKIP_SCRUBBING_KEYS = [EXECUTION_TAGS_KEY, MANUAL_TRACES_KEY]
 LUMIGO_SECRET_MASKING_REGEX_BACKWARD_COMP = "LUMIGO_BLACKLIST_REGEX"
 LUMIGO_SECRET_MASKING_REGEX = "LUMIGO_SECRET_MASKING_REGEX"
+MASKING_REGEX_HTTP_REQUEST_BODIES = "LUMIGO_SECRET_MASKING_REGEX_HTTP_REQUEST_BODIES"
+MASKING_REGEX_HTTP_REQUEST_HEADERS = "LUMIGO_SECRET_MASKING_REGEX_HTTP_REQUEST_HEADERS"
+MASKING_REGEX_HTTP_RESPONSE_BODIES = "LUMIGO_SECRET_MASKING_REGEX_HTTP_RESPONSE_BODIES"
+MASKING_REGEX_HTTP_RESPONSE_HEADERS = "LUMIGO_SECRET_MASKING_REGEX_HTTP_RESPONSE_HEADERS"
+MASKING_REGEX_HTTP_QUERY_PARAMS = "LUMIGO_SECRET_MASKING_REGEX_HTTP_QUERY_PARAMS"
+MASKING_REGEX_ENVIRONMENT = "LUMIGO_SECRET_MASKING_REGEX_ENVIRONMENT"
+MASKING_ALL_MAGIC_STRING = "all"
+MASK_ALL_REGEX = re.compile(r".*", re.IGNORECASE)
+MASKED_SECRET = "****"
 LUMIGO_SYNC_TRACING = "LUMIGO_SYNC_TRACING"
 LUMIGO_PROPAGATE_W3C = "LUMIGO_PROPAGATE_W3C"
 WARN_CLIENT_PREFIX = "Lumigo Warning"
@@ -95,7 +104,7 @@ class Configuration:
     timeout_timer: bool = True
     timeout_timer_buffer: Optional[float] = None
     send_only_if_error: bool = False
-    domains_scrubber: Optional[List] = None  # type: ignore[type-arg]
+    domains_scrubber: Optional[Pattern[str]] = None
     max_entry_size: int = DEFAULT_MAX_ENTRY_SIZE
     get_key_depth: int = DEFAULT_KEY_DEPTH
     edge_kinesis_stream_name: str = EDGE_KINESIS_STREAM_NAME
@@ -106,6 +115,12 @@ class Configuration:
     auto_tag: List[str] = []
     skip_collecting_http_body: bool = False
     propagate_w3c: bool = False
+    secret_masking_regex_http_request_bodies: Optional[Pattern[str]] = None
+    secret_masking_regex_http_request_headers: Optional[Pattern[str]] = None
+    secret_masking_regex_http_response_bodies: Optional[Pattern[str]] = None
+    secret_masking_regex_http_response_headers: Optional[Pattern[str]] = None
+    secret_masking_regex_http_query_params: Optional[Pattern[str]] = None
+    secret_masking_regex_environment: Optional[Pattern[str]] = None
 
     @staticmethod
     def get_max_entry_size(has_error: bool = False) -> int:
@@ -184,20 +199,11 @@ def config(
         warn_client("Could not configure LUMIGO_TIMEOUT_BUFFER. Using default value.")
         Configuration.timeout_timer_buffer = None
     Configuration.send_only_if_error = os.environ.get("SEND_ONLY_IF_ERROR", "").lower() == "true"
-    if domains_scrubber:
-        domains_scrubber_regex = domains_scrubber
-    elif LUMIGO_DOMAINS_SCRUBBER_KEY in os.environ:
-        try:
-            domains_scrubber_regex = json.loads(os.environ[LUMIGO_DOMAINS_SCRUBBER_KEY])
-        except Exception:
-            get_logger().critical(
-                "Could not parse the specified domains scrubber, shutting down the reporter."
-            )
-            Configuration.should_report = False
-            domains_scrubber_regex = []
-    else:
-        domains_scrubber_regex = DOMAIN_SCRUBBER_REGEXES
-    Configuration.domains_scrubber = [re.compile(r, re.IGNORECASE) for r in domains_scrubber_regex]
+    Configuration.domains_scrubber = (
+        create_regex_from_list(domains_scrubber)
+        or parse_regex_from_env(LUMIGO_DOMAINS_SCRUBBER_KEY)
+        or create_regex_from_list(DOMAIN_SCRUBBER_REGEXES)
+    )
     Configuration.max_entry_size = int(os.environ.get("LUMIGO_MAX_ENTRY_SIZE", max_entry_size))
     Configuration.edge_kinesis_stream_name = (
         edge_kinesis_stream_name
@@ -226,6 +232,46 @@ def config(
         or skip_collecting_http_body  # noqa: W503
         or os.environ.get(SKIP_COLLECTING_HTTP_BODY_KEY, "false").lower() == "true"  # noqa: W503
     )
+    Configuration.secret_masking_regex_http_request_bodies = parse_regex_from_env(
+        MASKING_REGEX_HTTP_REQUEST_BODIES
+    )
+    Configuration.secret_masking_regex_http_request_headers = parse_regex_from_env(
+        MASKING_REGEX_HTTP_REQUEST_HEADERS
+    )
+    Configuration.secret_masking_regex_http_response_bodies = parse_regex_from_env(
+        MASKING_REGEX_HTTP_RESPONSE_BODIES
+    )
+    Configuration.secret_masking_regex_http_response_headers = parse_regex_from_env(
+        MASKING_REGEX_HTTP_RESPONSE_HEADERS
+    )
+    Configuration.secret_masking_regex_http_query_params = parse_regex_from_env(
+        MASKING_REGEX_HTTP_QUERY_PARAMS
+    )
+    Configuration.secret_masking_regex_environment = parse_regex_from_env(MASKING_REGEX_ENVIRONMENT)
+
+
+def create_regex_from_list(regexes: Optional[List[str]]) -> Optional[Pattern[str]]:
+    """
+    For performance - we create a single regex from all the regexes.
+    """
+    if not regexes:
+        return None
+    return re.compile(fr"({'|'.join(regexes)})", re.IGNORECASE)
+
+
+def parse_regex_from_env(env_key: str) -> Optional[Pattern[str]]:
+    if env_key in os.environ:
+        if os.environ[env_key].lower() == MASKING_ALL_MAGIC_STRING:
+            return MASK_ALL_REGEX
+        try:
+            regexes = json.loads(os.environ[env_key])
+            return create_regex_from_list(regexes)
+        except Exception:
+            get_logger().critical(
+                f"Could not parse the specified scrubber in {env_key}, shutting down the tracer."
+            )
+            Configuration.should_report = False
+    return None
 
 
 def is_span_has_error(span: dict) -> bool:  # type: ignore[type-arg]
@@ -303,7 +349,7 @@ def get_omitting_regex() -> Optional[Pattern[str]]:
         given_regexes = OMITTING_KEYS_REGEXES
     if not given_regexes:
         return None
-    return re.compile(fr"({'|'.join(given_regexes)})", re.IGNORECASE)
+    return create_regex_from_list(given_regexes)
 
 
 def warn_client(msg: str) -> None:
@@ -379,7 +425,7 @@ def _recursive_omitting(
         new_value = value
         free_space -= len(value) if isinstance(value, str) else len(aws_dump({key: value}))
     elif isinstance(key, str) and regex and regex.match(key) and not should_skip_key:
-        new_value = "****"
+        new_value = MASKED_SECRET
         free_space -= 4
     elif isinstance(value, (dict, OrderedDict)):
         new_value, free_space = reduce(
@@ -446,12 +492,51 @@ def omit_keys(
     return omitted, size < 0
 
 
-def lumigo_dumps(  # type: ignore[no-untyped-def]
-    d: Union[bytes, str, dict, OrderedDict, list, None],  # type: ignore[type-arg,type-arg,type-arg]
+def lumigo_dumps_with_context(
+    context: str,
+    d: Union[bytes, str, dict, OrderedDict, list, None],  # type: ignore[type-arg]
+    max_size: Optional[int] = None,
+    enforce_jsonify: bool = False,
+    decimal_safe: bool = False,
+    omit_skip_path: Optional[List[str]] = None,
+) -> str:
+    """
+    This function is a wrapper for lumigo_dumps.
+    It adds the context to the dumped value.
+    """
+    regexes: Optional[Pattern[str]] = None
+    if context == "environment":
+        regexes = Configuration.secret_masking_regex_environment
+    elif context == "requestBody":
+        regexes = Configuration.secret_masking_regex_http_request_bodies
+    elif context == "requestHeaders":
+        regexes = Configuration.secret_masking_regex_http_request_headers
+    elif context == "responseBody":
+        regexes = Configuration.secret_masking_regex_http_response_bodies
+    elif context == "responseHeaders":
+        regexes = Configuration.secret_masking_regex_http_response_headers
+    else:
+        get_logger().warning("Unknown context for shallowMask", context)
+
+    if regexes == MASK_ALL_REGEX:
+        return MASKED_SECRET
+
+    return lumigo_dumps(
+        d,
+        max_size=max_size,
+        regexes=regexes,
+        enforce_jsonify=enforce_jsonify,
+        decimal_safe=decimal_safe,
+        omit_skip_path=omit_skip_path,
+    )
+
+
+def lumigo_dumps(
+    d: Union[bytes, str, dict, OrderedDict, list, None],  # type: ignore[type-arg]
     max_size: Optional[int] = None,
     regexes: Optional[Pattern[str]] = None,
     enforce_jsonify: bool = False,
-    decimal_safe=False,
+    decimal_safe: bool = False,
     omit_skip_path: Optional[List[str]] = None,
 ) -> str:
     regexes = regexes or get_omitting_regex()
@@ -502,7 +587,7 @@ def lumigo_dumps(  # type: ignore[no-untyped-def]
     )
 
 
-def concat_old_body_to_new(old_body: Optional[str], new_body: bytes) -> str:
+def concat_old_body_to_new(context: str, old_body: Optional[str], new_body: bytes) -> str:
     """
     We have only a dumped body from the previous request,
     so to concatenate the new body we should undo the lumigo_dumps.
@@ -511,11 +596,11 @@ def concat_old_body_to_new(old_body: Optional[str], new_body: bytes) -> str:
     if not new_body:
         return old_body or ""
     if not old_body:
-        return lumigo_dumps(new_body)
+        return lumigo_dumps_with_context(context, new_body)
     if old_body.endswith(TRUNCATE_SUFFIX):
         return old_body
     undumped_body = (old_body or "").encode().strip(b'"')
-    return lumigo_dumps(undumped_body + new_body)
+    return lumigo_dumps_with_context(context, undumped_body + new_body)
 
 
 def is_kill_switch_on():  # type: ignore[no-untyped-def]
