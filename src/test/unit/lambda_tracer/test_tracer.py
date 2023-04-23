@@ -11,6 +11,8 @@ from unittest.mock import ANY, MagicMock
 
 import boto3
 import pytest
+from lumigo_core.configuration import CoreConfiguration
+from lumigo_core.scrubbing import EXECUTION_TAGS_KEY
 from moto import mock_kinesis
 
 from lumigo_tracer import LumigoChalice, add_execution_tag, lumigo_tracer
@@ -22,12 +24,10 @@ from lumigo_tracer.lambda_tracer.lambda_reporter import (
 from lumigo_tracer.lambda_tracer.spans_container import ENRICHMENT_TYPE, SpansContainer
 from lumigo_tracer.lumigo_utils import (
     EDGE_KINESIS_STREAM_NAME,
-    EXECUTION_TAGS_KEY,
     LUMIGO_EVENT_KEY,
     LUMIGO_PROPAGATE_W3C,
     SKIP_COLLECTING_HTTP_BODY_KEY,
     STEP_FUNCTION_UID_KEY,
-    Configuration,
 )
 from lumigo_tracer.w3c_context import TRACEPARENT_HEADER_NAME
 
@@ -182,7 +182,7 @@ def test_wrapping_with_parameters(context):
         return 1
 
     assert lambda_test_function({}, context) == 1
-    assert Configuration.should_report == "123"
+    assert CoreConfiguration.should_report == "123"
 
 
 def test_wrapping_print_happy_flow(context, capsys):

@@ -2,11 +2,14 @@ import copy
 import inspect
 import json
 import os
+import re
 import uuid
 from datetime import datetime
 
 import mock
 import pytest
+from lumigo_core.configuration import CoreConfiguration
+from lumigo_core.scrubbing import EXECUTION_TAGS_KEY, MANUAL_TRACES_KEY
 
 from lumigo_tracer import add_execution_tag
 from lumigo_tracer.lambda_tracer import lambda_reporter
@@ -18,14 +21,7 @@ from lumigo_tracer.lambda_tracer.spans_container import (
     SpansContainer,
     TimeoutMechanism,
 )
-from lumigo_tracer.lumigo_utils import (
-    EXECUTION_TAGS_KEY,
-    MANUAL_TRACES_KEY,
-    MASKING_REGEX_ENVIRONMENT,
-    Configuration,
-    config,
-    get_current_ms_time,
-)
+from lumigo_tracer.lumigo_utils import Configuration, get_current_ms_time
 from lumigo_tracer.wrappers.http.http_parser import HTTP_TYPE
 
 
@@ -58,7 +54,7 @@ def test_start(monkeypatch):
     monkeypatch.setenv("LUMIGO_USE_TRACER_EXTENSION", "true")
     monkeypatch.setattr(lambda_reporter, "write_extension_file", lumigo_utils_mock)
     monkeypatch.setattr(SpansContainer, "_generate_start_span", lambda *args, **kwargs: {"a": "a"})
-    monkeypatch.setattr(Configuration, "should_report", True)
+    monkeypatch.setattr(CoreConfiguration, "should_report", True)
     SpansContainer().start()
     lumigo_utils_mock.assert_called_once_with([{"a": "a"}], "span")
 
@@ -133,7 +129,7 @@ def test_spans_container_end_function_send_only_on_errors_mode_false_not_effecti
 
 
 def test_spans_container_end_function_with_error_double_size_limit(monkeypatch, dummy_span):
-    long_string = "v" * int(Configuration.get_max_entry_size() * 1.5)
+    long_string = "v" * int(CoreConfiguration.get_max_entry_size() * 1.5)
     monkeypatch.setenv("LONG_STRING", long_string)
     event = {"k": long_string}
     SpansContainer.create_span(event)
@@ -334,9 +330,8 @@ def test_unfinished_request():
 
 
 def test_masking_secrets_env_vars(monkeypatch):
-    monkeypatch.setenv(MASKING_REGEX_ENVIRONMENT, '["bla"]')
+    monkeypatch.setattr(CoreConfiguration, "secret_masking_regex_environment", re.compile("bla"))
     monkeypatch.setenv("bla", "bla_secret")
-    config()
 
     SpansContainer.create_span()
 

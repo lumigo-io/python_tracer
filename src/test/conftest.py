@@ -7,12 +7,13 @@ from types import SimpleNamespace
 import mock
 import pytest
 from lumigo_core.logger import get_logger
+from lumigo_core.scrubbing import get_omitting_regex
 
 from lumigo_tracer import lumigo_utils, wrappers
 from lumigo_tracer.lambda_tracer import lambda_reporter
 from lumigo_tracer.lambda_tracer.lambda_reporter import get_edge_host
 from lumigo_tracer.lambda_tracer.spans_container import SpansContainer
-from lumigo_tracer.lumigo_utils import Configuration, InternalState, get_omitting_regex
+from lumigo_tracer.lumigo_utils import Configuration, InternalState
 from lumigo_tracer.wrappers.http.http_data_classes import HttpState
 
 USE_TRACER_EXTENSION = "LUMIGO_USE_TRACER_EXTENSION"

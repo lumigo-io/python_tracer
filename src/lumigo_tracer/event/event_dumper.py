@@ -4,11 +4,11 @@ from abc import ABC, abstractmethod
 from collections import OrderedDict
 from typing import Dict, List, Optional
 
+from lumigo_core.configuration import CoreConfiguration
 from lumigo_core.logger import get_logger
 from lumigo_core.parsing_utils import safe_get, str_to_list
 
 from lumigo_tracer.lumigo_utils import (
-    Configuration,
     aws_dump,
     is_api_gw_event,
     lumigo_dumps,
@@ -251,7 +251,7 @@ class EventDumper:
     def dump_event(
         event: Dict, handlers: List[EventParseHandler] = None, has_error: bool = False  # type: ignore[type-arg]
     ) -> str:
-        max_size = Configuration.get_max_entry_size(has_error)
+        max_size = CoreConfiguration.get_max_entry_size(has_error)
         if should_use_tracer_extension():
             return aws_dump(event)
         handlers = handlers or [

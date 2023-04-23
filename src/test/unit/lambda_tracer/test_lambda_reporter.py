@@ -10,6 +10,7 @@ from unittest.mock import Mock
 
 import boto3
 import pytest
+from lumigo_core.configuration import CoreConfiguration
 from mock import MagicMock
 
 from lumigo_tracer import lumigo_utils
@@ -87,7 +88,7 @@ def test_get_edge_host(arg, host, monkeypatch):
 def test_report_json_extension_spans_mode(monkeypatch, reporter_mock, tmpdir):
     extension_dir = tmpdir.mkdir("tmp")
     monkeypatch.setattr(uuid, "uuid4", lambda *args, **kwargs: "span_name")
-    monkeypatch.setattr(Configuration, "should_report", True)
+    monkeypatch.setattr(CoreConfiguration, "should_report", True)
     monkeypatch.setenv("LUMIGO_USE_TRACER_EXTENSION", "TRUE")
     monkeypatch.setenv("LUMIGO_EXTENSION_SPANS_DIR_KEY", extension_dir)
     mocked_urandom = MagicMock(hex=MagicMock(return_value="my_mocked_data"))
@@ -119,7 +120,7 @@ def test_report_json_extension_spans_mode(monkeypatch, reporter_mock, tmpdir):
 def test_report_json_retry(monkeypatch, reporter_mock, caplog, errors, final_log):
     reporter_mock.side_effect = report_json
     monkeypatch.setattr(Configuration, "host", "force_reconnect")
-    monkeypatch.setattr(Configuration, "should_report", True)
+    monkeypatch.setattr(CoreConfiguration, "should_report", True)
     monkeypatch.setattr(http.client, "HTTPSConnection", Mock())
     http.client.HTTPSConnection("force_reconnect").getresponse.side_effect = errors
 
@@ -131,7 +132,7 @@ def test_report_json_retry(monkeypatch, reporter_mock, caplog, errors, final_log
 def test_report_json_fast_failure_after_timeout(monkeypatch, reporter_mock, caplog):
     reporter_mock.side_effect = report_json
     monkeypatch.setattr(Configuration, "host", "host")
-    monkeypatch.setattr(Configuration, "should_report", True)
+    monkeypatch.setattr(CoreConfiguration, "should_report", True)
     monkeypatch.setattr(http.client, "HTTPSConnection", Mock())
     http.client.HTTPSConnection("force_reconnect").getresponse.side_effect = socket.timeout
 
@@ -147,7 +148,7 @@ def test_report_json_fast_failure_after_timeout(monkeypatch, reporter_mock, capl
 
 
 def test_report_json_china_missing_access_key_id(monkeypatch, reporter_mock, caplog):
-    monkeypatch.setattr(Configuration, "should_report", True)
+    monkeypatch.setattr(CoreConfiguration, "should_report", True)
     reporter_mock.side_effect = report_json
     assert report_json(CHINA_REGION, [{"a": "b"}]) == 0
     assert any(
@@ -157,7 +158,7 @@ def test_report_json_china_missing_access_key_id(monkeypatch, reporter_mock, cap
 
 
 def test_report_json_china_missing_secret_access_key(monkeypatch, reporter_mock, caplog):
-    monkeypatch.setattr(Configuration, "should_report", True)
+    monkeypatch.setattr(CoreConfiguration, "should_report", True)
     monkeypatch.setattr(Configuration, "edge_kinesis_aws_access_key_id", "my_value")
     reporter_mock.side_effect = report_json
     assert report_json(CHINA_REGION, [{"a": "b"}]) == 0
@@ -169,7 +170,7 @@ def test_report_json_china_missing_secret_access_key(monkeypatch, reporter_mock,
 
 def test_report_json_china_no_boto(monkeypatch, reporter_mock, caplog):
     reporter_mock.side_effect = report_json
-    monkeypatch.setattr(Configuration, "should_report", True)
+    monkeypatch.setattr(CoreConfiguration, "should_report", True)
     monkeypatch.setattr(Configuration, "edge_kinesis_aws_access_key_id", "my_value")
     monkeypatch.setattr(Configuration, "edge_kinesis_aws_secret_access_key", "my_value")
     monkeypatch.setattr(lambda_reporter, "boto3", None)
@@ -184,7 +185,7 @@ def test_report_json_china_no_boto(monkeypatch, reporter_mock, caplog):
 
 
 def test_report_json_china_on_error_no_exception_and_notify_user(capsys, monkeypatch):
-    monkeypatch.setattr(Configuration, "should_report", True)
+    monkeypatch.setattr(CoreConfiguration, "should_report", True)
     monkeypatch.setattr(Configuration, "edge_kinesis_aws_access_key_id", "my_value")
     monkeypatch.setattr(Configuration, "edge_kinesis_aws_secret_access_key", "my_value")
     monkeypatch.setattr(boto3, "client", MagicMock(side_effect=Exception))
@@ -208,7 +209,7 @@ def test_china_shouldnt_establish_http_connection(monkeypatch):
 
 def test_china_with_env_variable_shouldnt_reuse_boto3_connection(monkeypatch):
     monkeypatch.setenv("LUMIGO_KINESIS_SHOULD_REUSE_CONNECTION", "false")
-    monkeypatch.setattr(Configuration, "should_report", True)
+    monkeypatch.setattr(CoreConfiguration, "should_report", True)
     monkeypatch.setattr(Configuration, "edge_kinesis_aws_access_key_id", "my_value")
     monkeypatch.setattr(Configuration, "edge_kinesis_aws_secret_access_key", "my_value")
     monkeypatch.setattr(boto3, "client", MagicMock())
@@ -220,7 +221,7 @@ def test_china_with_env_variable_shouldnt_reuse_boto3_connection(monkeypatch):
 
 
 def test_china_reuse_boto3_connection(monkeypatch):
-    monkeypatch.setattr(Configuration, "should_report", True)
+    monkeypatch.setattr(CoreConfiguration, "should_report", True)
     monkeypatch.setattr(Configuration, "edge_kinesis_aws_access_key_id", "my_value")
     monkeypatch.setattr(Configuration, "edge_kinesis_aws_secret_access_key", "my_value")
     monkeypatch.setattr(boto3, "client", MagicMock())

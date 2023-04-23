@@ -1,22 +1,16 @@
-import datetime
 import inspect
 import logging
-from collections import OrderedDict
-from decimal import Decimal
 
 import pytest
+from lumigo_core.configuration import CoreConfiguration
+from lumigo_core.scrubbing import lumigo_dumps
 
-from lumigo_tracer import lumigo_utils
 from lumigo_tracer.lumigo_utils import (
     DEFAULT_AUTO_TAG_KEY,
     INTERNAL_ANALYTICS_PREFIX,
     KILL_SWITCH,
-    LUMIGO_SECRET_MASKING_REGEX,
-    LUMIGO_SECRET_MASKING_REGEX_BACKWARD_COMP,
     MAX_VAR_LEN,
     MAX_VARS_SIZE,
-    SKIP_SCRUBBING_KEYS,
-    TRUNCATE_SUFFIX,
     WARN_CLIENT_PREFIX,
     Configuration,
     _truncate_locals,
@@ -24,7 +18,6 @@ from lumigo_tracer.lumigo_utils import (
     config,
     format_frame,
     format_frames,
-    get_omitting_regex,
     get_size_upper_bound,
     get_timeout_buffer,
     internal_analytics_message,
@@ -33,9 +26,7 @@ from lumigo_tracer.lumigo_utils import (
     is_kill_switch_on,
     is_python_37,
     is_span_has_error,
-    lumigo_dumps,
     lumigo_safe_execute,
-    omit_keys,
     warn_client,
 )
 
@@ -167,116 +158,6 @@ def test_format_frames__check_all_keys_and_values():
     }
 
 
-@pytest.mark.parametrize(
-    ("value", "output"),
-    [
-        ("aa", '"aa"'),  # happy flow - string
-        (None, "null"),  # happy flow - None
-        ("a" * 101, '"' + "a" * 99 + "...[too long]"),  # simple long string
-        ({"a": "a"}, '{"a": "a"}'),  # happy flow - dict
-        ({"a": set([1])}, '{"a": "{1}"}'),  # dict that can't be converted to json
-        (b"a", '"a"'),  # bytes that can be decoded
-        (b"\xff\xfea\x00", "\"b'\\\\xff\\\\xfea\\\\x00'\""),  # bytes that can't be decoded
-        ({1: Decimal(1)}, '{"1": 1.0}'),  # decimal should be serializeable  (like in AWS!)
-        ({"key": "b"}, '{"key": "****"}'),  # simple omitting
-        ({"a": {"key": "b"}}, '{"a": {"key": "****"}}'),  # inner omitting
-        ({"a": {"key": "b" * 100}}, '{"a": {"key": "****"}}'),  # long omitting
-        ({"a": "b" * 300}, f'{{"a": "{"b" * 93}...[too long]'),  # long key
-        ('{"a": "b"}', '{"a": "b"}'),  # string which is a simple json
-        ('{"a": {"key": "b"}}', '{"a": {"key": "****"}}'),  # string with inner omitting
-        ("{1: ", '"{1: "'),  # string which is not json but look like one
-        (b'{"password": "abc"}', '{"password": "****"}'),  # omit of bytes
-        ({"a": '{"password": 123}'}, '{"a": "{\\"password\\": 123}"}'),  # ignore inner json-string
-        ({None: 1}, '{"null": 1}'),
-        ({"1": datetime.datetime(1994, 4, 22)}, '{"1": "1994-04-22 00:00:00"}'),
-        (OrderedDict({"a": "b", "key": "123"}), '{"a": "b", "key": "****"}'),  # OrderedDict
-        (  # Skip scrubbing
-            {SKIP_SCRUBBING_KEYS[0]: {"password": 1}},
-            f'{{"{SKIP_SCRUBBING_KEYS[0]}": {{"password": 1}}}}',
-        ),
-        ([{"password": 1}, {"a": "b"}], '[{"password": "****"}, {"a": "b"}]'),  # list of dicts
-        (  # Dict of long list
-            {"a": [{"key": "value", "password": "value", "b": "c"}]},
-            '{"a": [{"key": "****", "password": "****", "b": "c"}]}',
-        ),
-        (  # Multiple nested lists
-            {"a": [[[{"c": [{"key": "v"}]}], [{"c": [{"key": "v"}]}]]]},
-            '{"a": [[[{"c": [{"key": "****"}]}], [{"c": [{"key": "****"}]}]]]}',
-        ),
-        (  # non jsonable
-            {"set"},
-            "{'set'}",
-        ),
-        (  # redump already dumped and truncated json (avoid re-escaping)
-            f'{{"a": "b{TRUNCATE_SUFFIX}',
-            f'{{"a": "b{TRUNCATE_SUFFIX}',
-        ),
-    ],
-)
-def test_lumigo_dumps(value, output):
-    assert lumigo_dumps(value, max_size=100) == output
-
-
-def test_lumigo_dumps_fails_on_non_jsonable():
-    with pytest.raises(TypeError):
-        lumigo_utils({"set"})
-
-
-@pytest.mark.parametrize(
-    ("value", "omit_skip_path", "output"),
-    [
-        ({"a": "b", "Key": "v"}, ["Key"], '{"a": "b", "Key": "v"}'),  # Not nested
-        (  # Nested with list
-            {"R": [{"o": {"key": "value"}}]},
-            ["R", "o", "key"],
-            '{"R": [{"o": {"key": "value"}}]}',
-        ),
-        (  # Doesnt affect other paths
-            {"a": {"key": "v"}, "b": {"key": "v"}},
-            ["a", "key"],
-            '{"a": {"key": "v"}, "b": {"key": "****"}}',
-        ),
-        (  # Nested items not affected
-            {"key": {"password": "v"}},
-            ["key"],
-            '{"key": {"password": "****"}}',
-        ),
-        (  # Happy flow - nested case
-            {"key": {"password": "v"}},
-            ["key", "password"],
-            '{"key": {"password": "v"}}',
-        ),
-        ({"a": {"key": "c"}}, ["key"], '{"a": {"key": "****"}}'),  # Affect only the full path
-    ],
-)
-def test_lumigo_dumps_with_omit_skip(value, omit_skip_path, output):
-    assert lumigo_dumps(value, omit_skip_path=omit_skip_path) == output
-
-
-def test_lumigo_dumps_with_omit_skip_and_should_scrub_known_services(monkeypatch):
-    monkeypatch.setenv("LUMIGO_SCRUB_KNOWN_SERVICES", "true")
-    config()
-
-    assert lumigo_dumps({"key": "v"}, omit_skip_path=["key"]) == '{"key": "****"}'
-
-
-def test_lumigo_dumps_enforce_jsonify_raise_error():
-    with pytest.raises(TypeError):
-        assert lumigo_dumps({"a": set()}, max_size=100, enforce_jsonify=True)
-
-
-def test_lumigo_dumps_no_regexes(monkeypatch):
-    monkeypatch.setenv(LUMIGO_SECRET_MASKING_REGEX, "[]")
-    result = lumigo_dumps({"key": "123"}, max_size=100, enforce_jsonify=True)
-    assert result == '{"key": "123"}'
-
-
-def test_lumigo_dumps_omit_keys_environment(monkeypatch):
-    monkeypatch.setenv(LUMIGO_SECRET_MASKING_REGEX, '[".*evilPlan.*"]')
-    value = {"password": "abc", "evilPlan": {"take": "over", "the": "world"}}
-    assert lumigo_dumps(value, max_size=100) == '{"password": "abc", "evilPlan": "****"}'
-
-
 def test_format_frame():
     try:
         a = "A"  # noqa F841
@@ -294,33 +175,6 @@ def test_format_frame():
     }
     assert variables["a"] == '"A"'
     assert variables["password"] == '"****"'
-
-
-def test_get_omitting_regexes(monkeypatch):
-    monkeypatch.setenv(LUMIGO_SECRET_MASKING_REGEX, '[".*evilPlan.*"]')
-    assert get_omitting_regex().pattern == "(.*evilPlan.*)"
-
-
-def test_get_omitting_regexes_backward_compatibility(monkeypatch):
-    monkeypatch.setenv(LUMIGO_SECRET_MASKING_REGEX_BACKWARD_COMP, '[".*evilPlan.*"]')
-    assert get_omitting_regex().pattern == "(.*evilPlan.*)"
-
-
-def test_get_omitting_regexes_prefer_new_environment_name(monkeypatch):
-    monkeypatch.setenv(LUMIGO_SECRET_MASKING_REGEX, '[".*evilPlan.*"]')
-    monkeypatch.setenv(LUMIGO_SECRET_MASKING_REGEX_BACKWARD_COMP, '[".*evilPlan2.*"]')
-    assert get_omitting_regex().pattern == "(.*evilPlan.*)"
-
-
-def test_get_omitting_regexes_fallback(monkeypatch):
-    expected = "(.*pass.*|.*key.*|.*secret.*|.*credential.*|SessionToken|x-amz-security-token|Signature|Authorization)"
-    assert get_omitting_regex().pattern == expected
-
-
-def test_omit_keys_environment(monkeypatch):
-    monkeypatch.setenv(LUMIGO_SECRET_MASKING_REGEX, '[".*evilPlan.*"]')
-    value = {"password": "abc", "evilPlan": {"take": "over", "the": "world"}}
-    assert omit_keys(value)[0] == {"password": "abc", "evilPlan": "****"}
 
 
 @pytest.mark.parametrize("configuration_value", (True, False))
@@ -406,14 +260,6 @@ def test_is_kill_switch_on(monkeypatch, env, expected):
     assert is_kill_switch_on() == expected
 
 
-def test_get_max_entry_size_default(monkeypatch):
-    assert Configuration.get_max_entry_size() == 2048
-
-
-def test_get_max_entry_size_has_error():
-    assert Configuration.get_max_entry_size(has_error=True) == 4096
-
-
 def test_get_size_upper_bound():
     assert get_size_upper_bound() == 4096
 
@@ -459,7 +305,7 @@ def test_internal_analytics_message(capsys):
     ],
 )
 def test_concat_old_body_to_new(old, new, expected, monkeypatch):
-    monkeypatch.setattr(Configuration, "max_entry_size", 5)
+    monkeypatch.setattr(CoreConfiguration, "max_entry_size", 5)
     assert concat_old_body_to_new("requestBody", lumigo_dumps(old), new) == lumigo_dumps(expected)
 
 

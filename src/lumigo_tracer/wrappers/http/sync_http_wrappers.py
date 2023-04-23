@@ -7,6 +7,7 @@ from datetime import datetime
 from io import BytesIO
 from typing import Dict, Optional
 
+from lumigo_core.configuration import CoreConfiguration
 from lumigo_core.parsing_utils import recursive_json_join, safe_get_list
 
 from lumigo_tracer.lambda_tracer.lambda_reporter import get_edge_host
@@ -111,7 +112,7 @@ def update_event_response(
             body = concat_old_body_to_new("responseBody", old_body, body).encode()
 
         has_error = is_error_code(status_code)
-        max_size = Configuration.get_max_entry_size(has_error)
+        max_size = CoreConfiguration.get_max_entry_size(has_error)
         headers = {k.lower(): v for k, v in headers.items()} if headers else {}
         parser = get_parser(host, headers)()  # type: ignore[arg-type]
         if has_error:

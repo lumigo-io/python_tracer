@@ -1,24 +1,35 @@
 import base64
 import datetime
-import decimal
 import inspect
-import json
 import logging
 import os
 import re
 import traceback
 import uuid
-from collections import OrderedDict
 from contextlib import contextmanager
-from functools import lru_cache, reduce
-from typing import Any, Dict, List, Optional, Pattern, Tuple, TypeVar, Union
+from typing import Any, Dict, List, Optional, Pattern, TypeVar, Union
 
+from lumigo_core.configuration import (
+    MASKING_REGEX_ENVIRONMENT,
+    MASKING_REGEX_HTTP_QUERY_PARAMS,
+    MASKING_REGEX_HTTP_REQUEST_BODIES,
+    MASKING_REGEX_HTTP_REQUEST_HEADERS,
+    MASKING_REGEX_HTTP_RESPONSE_BODIES,
+    MASKING_REGEX_HTTP_RESPONSE_HEADERS,
+    CoreConfiguration,
+    create_regex_from_list,
+    parse_regex_from_env,
+)
 from lumigo_core.logger import get_logger
 from lumigo_core.lumigo_utils import aws_dump, get_current_ms_time
+from lumigo_core.scrubbing import (
+    TRUNCATE_SUFFIX,
+    lumigo_dumps,
+    lumigo_dumps_with_context,
+    omit_keys,
+)
 
 LUMIGO_DOMAINS_SCRUBBER_KEY = "LUMIGO_DOMAINS_SCRUBBER"
-EXECUTION_TAGS_KEY = "lumigo_execution_tags_no_scrub"
-MANUAL_TRACES_KEY = "manualTraces"
 EDGE_SUFFIX = "golumigo.com"
 EDGE_HOST = "{region}.lumigo-tracer-edge." + EDGE_SUFFIX
 LUMIGO_EVENT_KEY = "_lumigo"
@@ -26,46 +37,22 @@ STEP_FUNCTION_UID_KEY = "step_function_uid"
 # number of spans that are too big to enter the reported message before break
 MAX_VARS_SIZE = 100_000
 MAX_VAR_LEN = 1024
-DEFAULT_MAX_ENTRY_SIZE = 2048
 FrameVariables = Dict[str, str]
-OMITTING_KEYS_REGEXES = [
-    ".*pass.*",
-    ".*key.*",
-    ".*secret.*",
-    ".*credential.*",
-    "SessionToken",
-    "x-amz-security-token",
-    "Signature",
-    "Authorization",
-]
+
 DOMAIN_SCRUBBER_REGEXES = [
     r"secretsmanager\..*\.amazonaws\.com",
     r"ssm\..*\.amazonaws\.com",
     r"kms\..*\.amazonaws\.com",
     r"sts\..*amazonaws\.com",
 ]
-SKIP_SCRUBBING_KEYS = [EXECUTION_TAGS_KEY, MANUAL_TRACES_KEY]
-LUMIGO_SECRET_MASKING_REGEX_BACKWARD_COMP = "LUMIGO_BLACKLIST_REGEX"
-LUMIGO_SECRET_MASKING_REGEX = "LUMIGO_SECRET_MASKING_REGEX"
-MASKING_REGEX_HTTP_REQUEST_BODIES = "LUMIGO_SECRET_MASKING_REGEX_HTTP_REQUEST_BODIES"
-MASKING_REGEX_HTTP_REQUEST_HEADERS = "LUMIGO_SECRET_MASKING_REGEX_HTTP_REQUEST_HEADERS"
-MASKING_REGEX_HTTP_RESPONSE_BODIES = "LUMIGO_SECRET_MASKING_REGEX_HTTP_RESPONSE_BODIES"
-MASKING_REGEX_HTTP_RESPONSE_HEADERS = "LUMIGO_SECRET_MASKING_REGEX_HTTP_RESPONSE_HEADERS"
-MASKING_REGEX_HTTP_QUERY_PARAMS = "LUMIGO_SECRET_MASKING_REGEX_HTTP_QUERY_PARAMS"
-MASKING_REGEX_ENVIRONMENT = "LUMIGO_SECRET_MASKING_REGEX_ENVIRONMENT"
-MASKING_ALL_MAGIC_STRING = "all"
-MASK_ALL_REGEX = re.compile(r".*", re.IGNORECASE)
-MASKED_SECRET = "****"
 LUMIGO_SYNC_TRACING = "LUMIGO_SYNC_TRACING"
 LUMIGO_PROPAGATE_W3C = "LUMIGO_PROPAGATE_W3C"
 WARN_CLIENT_PREFIX = "Lumigo Warning"
 INTERNAL_ANALYTICS_PREFIX = "Lumigo Analytic Log"
-TRUNCATE_SUFFIX = "...[too long]"
 DEFAULT_KEY_DEPTH = 4
 LUMIGO_TOKEN_KEY = "LUMIGO_TRACER_TOKEN"
 LUMIGO_USE_TRACER_EXTENSION = "LUMIGO_USE_TRACER_EXTENSION"
 KILL_SWITCH = "LUMIGO_SWITCH_OFF"
-ERROR_SIZE_LIMIT_MULTIPLIER = 2
 EDGE_KINESIS_STREAM_NAME = "prod_trc-inges-edge_edge-kinesis-stream"
 STACKTRACE_LINE_TO_DROP = "lumigo_tracer/lambda_tracer/tracer.py"
 Container = TypeVar("Container", dict, list)  # type: ignore[type-arg,type-arg]
@@ -96,7 +83,6 @@ class InternalState:
 
 
 class Configuration:
-    should_report: bool = True
     host: str = ""
     token: Optional[str] = ""
     verbose: bool = True
@@ -105,12 +91,10 @@ class Configuration:
     timeout_timer_buffer: Optional[float] = None
     send_only_if_error: bool = False
     domains_scrubber: Optional[Pattern[str]] = None
-    max_entry_size: int = DEFAULT_MAX_ENTRY_SIZE
     get_key_depth: int = DEFAULT_KEY_DEPTH
     edge_kinesis_stream_name: str = EDGE_KINESIS_STREAM_NAME
     edge_kinesis_aws_access_key_id: Optional[str] = None
     edge_kinesis_aws_secret_access_key: Optional[str] = None
-    should_scrub_known_services: bool = False
     is_sync_tracer: bool = False
     auto_tag: List[str] = []
     skip_collecting_http_body: bool = False
@@ -122,16 +106,10 @@ class Configuration:
     secret_masking_regex_http_query_params: Optional[Pattern[str]] = None
     secret_masking_regex_environment: Optional[Pattern[str]] = None
 
-    @staticmethod
-    def get_max_entry_size(has_error: bool = False) -> int:
-        if has_error:
-            return Configuration.max_entry_size * ERROR_SIZE_LIMIT_MULTIPLIER
-        return Configuration.max_entry_size
-
 
 def config(
     edge_host: str = "",
-    should_report: Union[bool, None] = None,
+    should_report: Optional[bool] = None,
     token: Optional[str] = None,
     verbose: bool = True,
     enhance_print: bool = False,
@@ -139,7 +117,7 @@ def config(
     timeout_timer: bool = True,
     timeout_timer_buffer: Optional[float] = None,
     domains_scrubber: Optional[List[str]] = None,
-    max_entry_size: int = DEFAULT_MAX_ENTRY_SIZE,
+    max_entry_size: Optional[int] = None,
     get_key_depth: int = None,
     edge_kinesis_stream_name: Optional[str] = None,
     edge_kinesis_aws_access_key_id: Optional[str] = None,
@@ -178,9 +156,9 @@ def config(
             should_report = False
 
     if should_report is not None:
-        Configuration.should_report = should_report
+        CoreConfiguration.should_report = should_report
     elif not is_aws_environment():
-        Configuration.should_report = False
+        CoreConfiguration.should_report = False
     Configuration.host = edge_host or os.environ.get("LUMIGO_TRACER_HOST", "")
     Configuration.verbose = verbose and os.environ.get("LUMIGO_VERBOSE", "").lower() != "false"
     Configuration.get_key_depth = get_key_depth or int(
@@ -204,7 +182,8 @@ def config(
         or parse_regex_from_env(LUMIGO_DOMAINS_SCRUBBER_KEY)
         or create_regex_from_list(DOMAIN_SCRUBBER_REGEXES)
     )
-    Configuration.max_entry_size = int(os.environ.get("LUMIGO_MAX_ENTRY_SIZE", max_entry_size))
+    if max_entry_size:
+        CoreConfiguration.max_entry_size = max_entry_size
     Configuration.edge_kinesis_stream_name = (
         edge_kinesis_stream_name
         or os.environ.get("LUMIGO_EDGE_KINESIS_STREAM_NAME")  # noqa
@@ -216,9 +195,6 @@ def config(
     Configuration.edge_kinesis_aws_secret_access_key = (
         edge_kinesis_aws_secret_access_key
         or os.environ.get("LUMIGO_EDGE_KINESIS_AWS_SECRET_ACCESS_KEY")  # noqa
-    )
-    Configuration.should_scrub_known_services = (
-        os.environ.get("LUMIGO_SCRUB_KNOWN_SERVICES") == "true"
     )
     Configuration.is_sync_tracer = os.environ.get(LUMIGO_SYNC_TRACING, "FALSE").lower() == "true"
     Configuration.propagate_w3c = (
@@ -248,30 +224,6 @@ def config(
         MASKING_REGEX_HTTP_QUERY_PARAMS
     )
     Configuration.secret_masking_regex_environment = parse_regex_from_env(MASKING_REGEX_ENVIRONMENT)
-
-
-def create_regex_from_list(regexes: Optional[List[str]]) -> Optional[Pattern[str]]:
-    """
-    For performance - we create a single regex from all the regexes.
-    """
-    if not regexes:
-        return None
-    return re.compile(fr"({'|'.join(regexes)})", re.IGNORECASE)
-
-
-def parse_regex_from_env(env_key: str) -> Optional[Pattern[str]]:
-    if env_key in os.environ:
-        if os.environ[env_key].lower() == MASKING_ALL_MAGIC_STRING:
-            return MASK_ALL_REGEX
-        try:
-            regexes = json.loads(os.environ[env_key])
-            return create_regex_from_list(regexes)
-        except Exception:
-            get_logger().critical(
-                f"Could not parse the specified scrubber in {env_key}, shutting down the tracer."
-            )
-            Configuration.should_report = False
-    return None
 
 
 def is_span_has_error(span: dict) -> bool:  # type: ignore[type-arg]
@@ -339,19 +291,6 @@ def _truncate_locals(f_locals: Dict[str, Any], free_space: int) -> FrameVariable
     return locals_truncated
 
 
-@lru_cache(maxsize=1)
-def get_omitting_regex() -> Optional[Pattern[str]]:
-    if LUMIGO_SECRET_MASKING_REGEX in os.environ:
-        given_regexes = json.loads(os.environ[LUMIGO_SECRET_MASKING_REGEX])
-    elif LUMIGO_SECRET_MASKING_REGEX_BACKWARD_COMP in os.environ:
-        given_regexes = json.loads(os.environ[LUMIGO_SECRET_MASKING_REGEX_BACKWARD_COMP])
-    else:
-        given_regexes = OMITTING_KEYS_REGEXES
-    if not given_regexes:
-        return None
-    return create_regex_from_list(given_regexes)
-
-
 def warn_client(msg: str) -> None:
     if os.environ.get("LUMIGO_WARNINGS") != "off":
         print(f"{WARN_CLIENT_PREFIX}: {msg}")
@@ -394,199 +333,6 @@ def get_timeout_buffer(remaining_time: float):  # type: ignore[no-untyped-def]
     return buffer
 
 
-def _recursive_omitting(
-    prev_result: Tuple[Container, int],
-    item: Tuple[Optional[str], Any],
-    regex: Optional[Pattern[str]],
-    enforce_jsonify: bool,
-    decimal_safe: bool = False,
-    omit_skip_path: Optional[List[str]] = None,
-) -> Tuple[Container, int]:
-    """
-    This function omitting keys until the given max_size.
-    This function should be used in a reduce iteration over dict.items().
-
-    :param prev_result: the reduce result until now: the current dict and the remaining space
-    :param item: the next yield from the iterator dict.items()
-    :param regex: the regex of the keys that we should omit
-    :param enforce_jsonify: should we abort if the object can not be jsonify.
-    :param decimal_safe: should we accept decimal values
-    :return: the intermediate result, after adding the current item (recursively).
-    """
-    key, value = item
-    d, free_space = prev_result
-    if free_space < 0:
-        return d, free_space
-    should_skip_key = False
-    if isinstance(d, dict) and omit_skip_path:
-        should_skip_key = omit_skip_path[0] == key
-        omit_skip_path = omit_skip_path[1:] if should_skip_key else None
-    if key in SKIP_SCRUBBING_KEYS:
-        new_value = value
-        free_space -= len(value) if isinstance(value, str) else len(aws_dump({key: value}))
-    elif isinstance(key, str) and regex and regex.match(key) and not should_skip_key:
-        new_value = MASKED_SECRET
-        free_space -= 4
-    elif isinstance(value, (dict, OrderedDict)):
-        new_value, free_space = reduce(
-            lambda p, i: _recursive_omitting(
-                p, i, regex, enforce_jsonify, omit_skip_path=omit_skip_path
-            ),
-            value.items(),
-            ({}, free_space),
-        )
-    elif isinstance(value, decimal.Decimal):
-        new_value = float(value)
-        free_space -= 5
-    elif isinstance(value, list):
-        new_value, free_space = reduce(
-            lambda p, i: _recursive_omitting(
-                p, (None, i), regex, enforce_jsonify, omit_skip_path=omit_skip_path
-            ),
-            value,
-            ([], free_space),
-        )
-    elif isinstance(value, str):
-        new_value = value
-        free_space -= len(new_value)
-    else:
-        try:
-            free_space -= len(aws_dump({key: value}, decimal_safe=decimal_safe))
-            new_value = value
-        except TypeError:
-            if enforce_jsonify:
-                raise
-            new_value = str(value)
-            free_space -= len(new_value)
-    if isinstance(d, list):
-        d.append(new_value)
-    else:
-        d[key] = new_value
-    return d, free_space
-
-
-def omit_keys(
-    value: Dict,  # type: ignore[type-arg]
-    in_max_size: Optional[int] = None,
-    regexes: Optional[Pattern[str]] = None,
-    enforce_jsonify: bool = False,
-    decimal_safe: bool = False,
-    omit_skip_path: Optional[List[str]] = None,
-) -> Tuple[Dict, bool]:  # type: ignore[type-arg]
-    """
-    This function omit problematic keys from the given value.
-    We do so in the following cases:
-    * if the value is dictionary, then we omit values by keys (recursively)
-    """
-    if Configuration.should_scrub_known_services:
-        omit_skip_path = None
-    regexes = regexes or get_omitting_regex()
-    max_size = in_max_size or Configuration.max_entry_size
-    omitted, size = reduce(  # type: ignore
-        lambda p, i: _recursive_omitting(
-            p, i, regexes, enforce_jsonify, decimal_safe, omit_skip_path
-        ),
-        value.items(),
-        ({}, max_size),
-    )
-    return omitted, size < 0
-
-
-def lumigo_dumps_with_context(
-    context: str,
-    d: Union[bytes, str, dict, OrderedDict, list, None],  # type: ignore[type-arg]
-    max_size: Optional[int] = None,
-    enforce_jsonify: bool = False,
-    decimal_safe: bool = False,
-    omit_skip_path: Optional[List[str]] = None,
-) -> str:
-    """
-    This function is a wrapper for lumigo_dumps.
-    It adds the context to the dumped value.
-    """
-    regexes: Optional[Pattern[str]] = None
-    if context == "environment":
-        regexes = Configuration.secret_masking_regex_environment
-    elif context == "requestBody":
-        regexes = Configuration.secret_masking_regex_http_request_bodies
-    elif context == "requestHeaders":
-        regexes = Configuration.secret_masking_regex_http_request_headers
-    elif context == "responseBody":
-        regexes = Configuration.secret_masking_regex_http_response_bodies
-    elif context == "responseHeaders":
-        regexes = Configuration.secret_masking_regex_http_response_headers
-    else:
-        get_logger().warning("Unknown context for shallowMask", context)
-
-    if regexes == MASK_ALL_REGEX:
-        return MASKED_SECRET
-
-    return lumigo_dumps(
-        d,
-        max_size=max_size,
-        regexes=regexes,
-        enforce_jsonify=enforce_jsonify,
-        decimal_safe=decimal_safe,
-        omit_skip_path=omit_skip_path,
-    )
-
-
-def lumigo_dumps(
-    d: Union[bytes, str, dict, OrderedDict, list, None],  # type: ignore[type-arg]
-    max_size: Optional[int] = None,
-    regexes: Optional[Pattern[str]] = None,
-    enforce_jsonify: bool = False,
-    decimal_safe: bool = False,
-    omit_skip_path: Optional[List[str]] = None,
-) -> str:
-    regexes = regexes or get_omitting_regex()
-    max_size = max_size if max_size is not None else Configuration.max_entry_size
-    is_truncated = False
-
-    if isinstance(d, bytes):
-        try:
-            d = d.decode()
-        except Exception:
-            d = str(d)
-    if isinstance(d, str) and d.startswith("{"):
-        try:
-            d = json.loads(d)
-        except Exception:
-            pass
-    if isinstance(d, dict) and regexes:
-        d, is_truncated = omit_keys(
-            d,
-            max_size,
-            regexes,
-            enforce_jsonify,
-            decimal_safe=decimal_safe,
-            omit_skip_path=omit_skip_path,
-        )
-    elif isinstance(d, list):
-        size = 0
-        organs = []
-        for a in d:
-            organs.append(
-                lumigo_dumps(a, max_size, regexes, enforce_jsonify, omit_skip_path=omit_skip_path)
-            )
-            size += len(organs[-1])
-            if size > max_size:
-                break
-        return "[" + ", ".join(organs) + "]"
-
-    try:
-        if isinstance(d, str) and d.endswith(TRUNCATE_SUFFIX):
-            return d
-        retval = aws_dump(d, decimal_safe=decimal_safe)
-    except TypeError:
-        if enforce_jsonify:
-            raise
-        retval = str(d)
-    return (
-        (retval[:max_size] + TRUNCATE_SUFFIX) if len(retval) >= max_size or is_truncated else retval
-    )
-
-
 def concat_old_body_to_new(context: str, old_body: Optional[str], new_body: bytes) -> str:
     """
     We have only a dumped body from the previous request,
@@ -608,7 +354,7 @@ def is_kill_switch_on():  # type: ignore[no-untyped-def]
 
 
 def get_size_upper_bound() -> int:
-    return Configuration.get_max_entry_size(True)
+    return CoreConfiguration.get_max_entry_size(True)
 
 
 def is_error_code(status_code: int) -> bool:

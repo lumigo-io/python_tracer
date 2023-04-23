@@ -1,9 +1,9 @@
 import time
 
 import pytest
+from lumigo_core.scrubbing import MANUAL_TRACES_KEY
 
 from lumigo_tracer.lambda_tracer.spans_container import SpansContainer
-from lumigo_tracer.lumigo_utils import MANUAL_TRACES_KEY
 from lumigo_tracer.user_utils import (
     LUMIGO_REPORT_ERROR_STRING,
     MAX_ELEMENTS_IN_EXTRA,
