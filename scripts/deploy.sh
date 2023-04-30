@@ -9,10 +9,16 @@ fi
 echo "Creating new credential files"
 
 pushd src
-mkdir python
-cp -R lumigo_tracer.egg-info python/
-cp -R lumigo_tracer python/
+    mkdir python
+    cp -R lumigo_tracer.egg-info python/
+    cp -R lumigo_tracer python/
 popd
 cp -R src/python/ python/
 
-../utils/common_bash/create_layer.sh --layer-name lumigo-python-tracer --region us-west-2 --package-folder python --version $(git describe --abbrev=0 --tags) --runtimes "python3.6 python3.7 python3.8 python3.9"
+commit_version="$(git describe --abbrev=0 --tags)"
+../utils/common_bash/create_layer.sh \
+    --layer-name lumigo-python-tracer \
+    --region us-west-2 \
+    --package-folder python \
+    --version "$commit_version" \
+    --runtimes "python3.6 python3.7 python3.8 python3.9 python3.10"
