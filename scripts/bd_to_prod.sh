@@ -71,4 +71,4 @@ git push origin master
 source ../utils/common_bash/functions.sh
 send_metric_to_logz_io type=\"Release\"
 
-echo "Done"
+echo "Done."
