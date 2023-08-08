@@ -123,6 +123,34 @@ def test_lambda_parser_resource_name(uri, resource_name):
 
 
 @pytest.mark.parametrize(
+    "request_body",
+    [
+        b'QueueUrl=https%3A%2F%2Fsqs.us-west-2.amazonaws.com%2F449953265267%2Fsagivdeleteme-node-sqs'
+        b'&MessageBody=%7B%0A%20%20%20%20%22body%22%3A%20%22test1%22%0A%7D'
+        b'&MessageAttribute.1.Name=AttributeName'
+        b'&MessageAttribute.1.Value.StringValue=Attribute%20Value'
+        b'&MessageAttribute.1.Value.DataType=String'
+        b'&Action=SendMessage'
+        b'&Version=2012-11-05',
+
+        b'QueueUrl=https%3A%2F%2Fsqs.us-west-2.amazonaws.com%2F449953265267%2Fsagivdeleteme-node-sqs'
+        b'&SendMessageBatchRequestEntry.1.Id=1'
+        b'&SendMessageBatchRequestEntry.1.MessageBody=Message%201'
+        b'&SendMessageBatchRequestEntry.2.Id=2'
+        b'&SendMessageBatchRequestEntry.2.MessageBody=Message%202'
+        b'&Action=SendMessageBatch'
+        b'&Version=2012-11-05'
+    ]
+)
+def test_sqs_parse_resource_arn(request_body):
+    expected_resource_name = expected_target_arn = ''
+    http_request = HttpRequest(host='dummy', method='POST', uri='', headers={}, body=request_body)
+    parsed_request = SqsParser().parse_request(http_request)
+    assert parsed_request['info']['resourceName'] == expected_resource_name
+    assert parsed_request['info']['targetArn'] == expected_target_arn
+
+
+@pytest.mark.parametrize(
     "body",
     [
         b'<?xml version="1.0"?><SendMessageBatchResponse xmlns="http://queue.amazonaws.com/doc/2012-11-05/"><SendMessageBatchResult><SendMessageBatchResultEntry><Id>123</Id><MessageId>85dc3997-b060-47bc-9d89-c754d7260dbd</MessageId><MD5OfMessageBody>485b9ada0d1f06d60d71145304704c27</MD5OfMessageBody></SendMessageBatchResultEntry></SendMessageBatchResult><ResponseMetadata><RequestId>41295a06-b432-55b5-a8aa-00e764c8b9cf</RequestId></ResponseMetadata></SendMessageBatchResponse>',
