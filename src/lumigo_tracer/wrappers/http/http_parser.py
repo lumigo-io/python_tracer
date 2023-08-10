@@ -1,3 +1,4 @@
+from abc import ABC, abstractmethod
 import json
 import uuid
 from typing import List, Optional, Type
@@ -260,34 +261,84 @@ class KinesisParser(ServerlessAWSParser):
         return ["PartitionKey"]
 
 
-class SqsParser(ServerlessAWSParser):
+class BaseSqsParser(ServerlessAWSParser):
+
     def parse_request(self, parse_params: HttpRequest) -> dict:  # type: ignore[type-arg]
         return recursive_json_join(  # type: ignore[no-any-return]
-            {"info": {"resourceName": safe_key_from_query(parse_params.body, "QueueUrl")}},
+            {"info": {"resourceName": self._extract_queue_url(parse_params.body)}},
             super().parse_request(parse_params),
         )
 
     def parse_response(self, url: str, status_code: int, headers, body: bytes) -> dict:  # type: ignore[no-untyped-def,type-arg]
         return recursive_json_join(  # type: ignore[no-any-return]
-            {"info": {"messageId": SqsParser._extract_message_id(body)}},
+            {"info": {"messageId": self._extract_message_id(body)}},
             super().parse_response(url, status_code, headers, body),
         )
 
     @staticmethod
+    @abstractmethod
+    def _extract_message_id(response_body: bytes) -> Optional[str]:
+        raise NotImplementedError()  # pragma: no cover
+
+    @staticmethod
+    @abstractmethod
+    def _extract_queue_url(request_body: bytes) -> Optional[str]:
+        raise NotImplementedError()  # pragma: no cover
+
+
+class SqsXmlParser(BaseSqsParser):
+
+    @staticmethod
     def _extract_message_id(response_body: bytes) -> Optional[str]:
         return (  # type: ignore[no-any-return]
-            safe_key_from_xml(
-                response_body, "SendMessageResponse/SendMessageResult/MessageId"  # Single.
-            )
-            or safe_key_from_xml(  # noqa: W503
-                response_body,
-                "SendMessageBatchResponse/SendMessageBatchResult/SendMessageBatchResultEntry/0/MessageId",  # Batch.
-            )
-            or safe_key_from_xml(  # noqa: W503
-                response_body,
-                "SendMessageBatchResponse/SendMessageBatchResult/SendMessageBatchResultEntry/MessageId",  # Batch.
-            )
+                safe_key_from_xml(
+                    response_body, "SendMessageResponse/SendMessageResult/MessageId"  # Single.
+                )
+                or safe_key_from_xml(  # noqa: W503
+            response_body,
+            "SendMessageBatchResponse/SendMessageBatchResult/SendMessageBatchResultEntry/0/MessageId",  # Batch.
         )
+                or safe_key_from_xml(  # noqa: W503
+            response_body,
+            "SendMessageBatchResponse/SendMessageBatchResult/SendMessageBatchResultEntry/MessageId",  # Batch.
+        )
+        )
+
+    @staticmethod
+    def _extract_queue_url(request_body: bytes) -> Optional[str]:
+        return safe_key_from_query(request_body, "QueueUrl")
+
+
+class SqsJsonParser(BaseSqsParser):
+
+    @staticmethod
+    def _extract_message_id(response_body: bytes) -> Optional[str]:
+        parsed_body = {}
+        try:
+            parsed_body = json.loads(response_body)
+        except json.JSONDecodeError as e:
+            get_logger().warning(
+                "Error while trying to parse sqs json request body", exc_info=e
+            )
+
+        # If the request was to send a single message this should work
+        message_id = parsed_body.get('MessageId')
+        if message_id:
+            return message_id
+
+        # This should work if the request was to send a batch of messages.
+        # Find the message id of the first successful message, and if there are none the first failed message
+        messages = parsed_body.get('Successful', []) + parsed_body.get('Failed', [])
+        if messages and isinstance(messages[0], dict) and messages[0].get('MessageId'):
+            return messages[0].get('MessageId')
+
+        get_logger().warning("No MessageId was found in the SQS response body")
+
+        return None
+
+    @staticmethod
+    def _extract_queue_url(request_body: bytes) -> Optional[str]:
+        return safe_key_from_json(json_str=request_body, key='QueueUrl', default=None)
 
 
 class S3Parser(Parser):
@@ -354,12 +405,17 @@ class ApiGatewayV2Parser(ServerlessAWSParser):
         )
 
 
-def get_parser(url: str, headers: Optional[dict] = None) -> Type[Parser]:  # type: ignore[type-arg]
+def get_parser(host: str, headers: Optional[dict] = None) -> Type[Parser]:  # type: ignore[type-arg]
+    # Headers are case-insensitive, so lets lowercase them and always search them in lowercase
+    lowercase_headers = {}
+    for key, value in headers.items():
+        lowercase_headers[key.lower()] = value
+
     if should_use_tracer_extension():
         return Parser
-    if "amazonaws.com" not in url and not (headers or {}).get("x-amzn-requestid"):
+    if "amazonaws.com" not in host and not lowercase_headers.get("x-amzn-requestid"):
         return Parser
-    service = safe_split_get(url, ".", 0)
+    service = safe_split_get(host, ".", 0)
     if service == "dynamodb":
         return DynamoParser
     elif service == "sns":
@@ -370,11 +426,12 @@ def get_parser(url: str, headers: Optional[dict] = None) -> Type[Parser]:  # typ
         return KinesisParser
     elif service == "events":
         return EventBridgeParser
-    elif safe_split_get(url, ".", 1) == "s3" or safe_split_get(url, ".", 0) == "s3":
+    elif safe_split_get(host, ".", 1) == "s3" or safe_split_get(host, ".", 0) == "s3":
         return S3Parser
     # SQS Legacy Endpoints: https://docs.aws.amazon.com/general/latest/gr/rande.html
-    elif service in ("sqs", "sqs-fips") or "queue.amazonaws.com" in url:
-        return SqsParser
-    elif "execute-api" in url:
+    elif service in ("sqs", "sqs-fips") or "queue.amazonaws.com" in host:
+        using_json_protocol = lowercase_headers.get('content-type', '').lower() == 'application/x-amz-json-1.0'
+        return SqsJsonParser if using_json_protocol else SqsXmlParser
+    elif "execute-api" in host:
         return ApiGatewayV2Parser
     return ServerlessAWSParser
