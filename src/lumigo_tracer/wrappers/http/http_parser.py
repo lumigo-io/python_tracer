@@ -261,7 +261,7 @@ class KinesisParser(ServerlessAWSParser):
         return ["PartitionKey"]
 
 
-class BaseSqsParser(ServerlessAWSParser):
+class BaseSqsParser(ServerlessAWSParser, ABC):
 
     def parse_request(self, parse_params: HttpRequest) -> dict:  # type: ignore[type-arg]
         return recursive_json_join(  # type: ignore[no-any-return]
