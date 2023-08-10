@@ -1,6 +1,6 @@
-from abc import ABC, abstractmethod
 import json
 import uuid
+from abc import ABC, abstractmethod
 from typing import List, Optional, Type
 from urllib.parse import parse_qsl, unquote, urlencode, urlparse, urlunparse
 
@@ -112,7 +112,7 @@ class Parser:
     def scrub_query_params(uri: str) -> str:
         with lumigo_safe_execute("scrub_query_params"):
             regexes = (
-                CoreConfiguration.secret_masking_regex_http_query_params or get_omitting_regex()
+                    CoreConfiguration.secret_masking_regex_http_query_params or get_omitting_regex()
             )
             if not uri or "?" not in uri or not regexes:
                 return uri
@@ -132,7 +132,8 @@ class ServerlessAWSParser(Parser):
     # Override this field to add message id using the amz headers
     should_add_message_id = True
 
-    def parse_response(self, url: str, status_code: int, headers, body: bytes) -> dict:  # type: ignore[no-untyped-def,type-arg]
+    def parse_response(self, url: str, status_code: int, headers,
+                       body: bytes) -> dict:  # type: ignore[no-untyped-def,type-arg]
         additional_info = {}
         message_id = headers.get("x-amzn-requestid")
         if message_id and self.should_add_message_id:
@@ -210,7 +211,8 @@ class SnsParser(ServerlessAWSParser):
             super().parse_request(parse_params),
         )
 
-    def parse_response(self, url: str, status_code: int, headers, body: bytes) -> dict:  # type: ignore[no-untyped-def,type-arg]
+    def parse_response(self, url: str, status_code: int, headers,
+                       body: bytes) -> dict:  # type: ignore[no-untyped-def,type-arg]
         return recursive_json_join(  # type: ignore[no-any-return]
             {
                 "info": {
@@ -244,7 +246,8 @@ class KinesisParser(ServerlessAWSParser):
             super().parse_request(parse_params),
         )
 
-    def parse_response(self, url: str, status_code: int, headers, body: bytes) -> dict:  # type: ignore[no-untyped-def,type-arg]
+    def parse_response(self, url: str, status_code: int, headers,
+                       body: bytes) -> dict:  # type: ignore[no-untyped-def,type-arg]
         return recursive_json_join(  # type: ignore[no-any-return]
             {"info": {"messageId": KinesisParser._extract_message_id(body)}},
             super().parse_response(url, status_code, headers, body),
@@ -269,7 +272,8 @@ class BaseSqsParser(ServerlessAWSParser, ABC):
             super().parse_request(parse_params),
         )
 
-    def parse_response(self, url: str, status_code: int, headers, body: bytes) -> dict:  # type: ignore[no-untyped-def,type-arg]
+    def parse_response(self, url: str, status_code: int, headers,
+                       body: bytes) -> dict:  # type: ignore[no-untyped-def,type-arg]
         return recursive_json_join(  # type: ignore[no-any-return]
             {"info": {"messageId": self._extract_message_id(body)}},
             super().parse_response(url, status_code, headers, body),
@@ -351,7 +355,8 @@ class S3Parser(Parser):
             super().parse_request(parse_params),
         )
 
-    def parse_response(self, url: str, status_code: int, headers, body: bytes) -> dict:  # type: ignore[no-untyped-def,type-arg]
+    def parse_response(self, url: str, status_code: int, headers,
+                       body: bytes) -> dict:  # type: ignore[no-untyped-def,type-arg]
         return recursive_json_join(  # type: ignore[no-any-return]
             {"info": {"messageId": headers.get("x-amz-request-id")}},
             super().parse_response(url, status_code, headers, body),
@@ -377,7 +382,8 @@ class EventBridgeParser(Parser):
             super().parse_request(parse_params),
         )
 
-    def parse_response(self, url: str, status_code: int, headers, body: bytes) -> dict:  # type: ignore[no-untyped-def,type-arg]
+    def parse_response(self, url: str, status_code: int, headers,
+                       body: bytes) -> dict:  # type: ignore[no-untyped-def,type-arg]
         try:
             parsed_body = json.loads(body)
         except json.JSONDecodeError as e:
@@ -395,7 +401,8 @@ class EventBridgeParser(Parser):
 class ApiGatewayV2Parser(ServerlessAWSParser):
     # API-GW V1 covered by ServerlessAWSParser
 
-    def parse_response(self, url: str, status_code: int, headers, body: bytes) -> dict:  # type: ignore[no-untyped-def,type-arg]
+    def parse_response(self, url: str, status_code: int, headers,
+                       body: bytes) -> dict:  # type: ignore[no-untyped-def,type-arg]
         aws_request_id = headers.get("x-amzn-requestid")
         apigw_request_id = headers.get("apigw-requestid")
         message_id = aws_request_id or apigw_request_id
