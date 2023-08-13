@@ -1,7 +1,7 @@
 import json
 import uuid
 from abc import ABC, abstractmethod
-from typing import List, Optional, Type
+from typing import Any, Dict, List, Optional, Type
 from urllib.parse import parse_qsl, unquote, urlencode, urlparse, urlunparse
 
 from lumigo_core.configuration import CoreConfiguration
@@ -211,8 +211,8 @@ class SnsParser(ServerlessAWSParser):
         )
 
     def parse_response(
-        self, url: str, status_code: int, headers: dict, body: bytes
-    ) -> dict:  # type: ignore[no-untyped-def,type-arg]
+        self, url: str, status_code: int, headers: Dict[str, Any], body: bytes
+    ) -> dict:  # type: ignore[type-arg]
         return recursive_json_join(  # type: ignore[no-any-return]
             {
                 "info": {
@@ -247,8 +247,8 @@ class KinesisParser(ServerlessAWSParser):
         )
 
     def parse_response(
-        self, url: str, status_code: int, headers: dict, body: bytes
-    ) -> dict:  # type: ignore[no-untyped-def,type-arg]
+        self, url: str, status_code: int, headers: Dict[str, Any], body: bytes
+    ) -> dict:  # type: ignore[type-arg]
         return recursive_json_join(  # type: ignore[no-any-return]
             {"info": {"messageId": KinesisParser._extract_message_id(body)}},
             super().parse_response(url, status_code, headers, body),
@@ -273,8 +273,8 @@ class BaseSqsParser(ServerlessAWSParser, ABC):
         )
 
     def parse_response(
-        self, url: str, status_code: int, headers: dict, body: bytes
-    ) -> dict:  # type: ignore[no-untyped-def,type-arg]
+        self, url: str, status_code: int, headers: Dict[str, Any], body: bytes
+    ) -> dict:  # type: ignore[type-arg]
         return recursive_json_join(  # type: ignore[no-any-return]
             {"info": {"messageId": self._extract_message_id(body)}},
             super().parse_response(url, status_code, headers, body),
@@ -359,8 +359,8 @@ class S3Parser(Parser):
         )
 
     def parse_response(
-        self, url: str, status_code: int, headers: dict, body: bytes
-    ) -> dict:  # type: ignore[no-untyped-def,type-arg]
+        self, url: str, status_code: int, headers: Dict[str, Any], body: bytes
+    ) -> dict:  # type: ignore[type-arg]
         return recursive_json_join(  # type: ignore[no-any-return]
             {"info": {"messageId": headers.get("x-amz-request-id")}},
             super().parse_response(url, status_code, headers, body),
@@ -387,8 +387,8 @@ class EventBridgeParser(Parser):
         )
 
     def parse_response(
-        self, url: str, status_code: int, headers: dict, body: bytes
-    ) -> dict:  # type: ignore[no-untyped-def,type-arg]
+        self, url: str, status_code: int, headers: Dict[str, Any], body: bytes
+    ) -> dict:  # type: ignore[type-arg]
         try:
             parsed_body = json.loads(body)
         except json.JSONDecodeError as e:
@@ -407,8 +407,8 @@ class ApiGatewayV2Parser(ServerlessAWSParser):
     # API-GW V1 covered by ServerlessAWSParser
 
     def parse_response(
-        self, url: str, status_code: int, headers: dict, body: bytes
-    ) -> dict:  # type: ignore[no-untyped-def,type-arg]
+        self, url: str, status_code: int, headers: Dict[str, Any], body: bytes
+    ) -> dict:  # type: ignore[type-arg]
         aws_request_id = headers.get("x-amzn-requestid")
         apigw_request_id = headers.get("apigw-requestid")
         message_id = aws_request_id or apigw_request_id
