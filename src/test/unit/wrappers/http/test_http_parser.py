@@ -173,9 +173,9 @@ def test_sqs_xml_parser_message_id(body):
         (
             # Send single message to SQS response
             b"{"
-            b'   "MD5OfMessageAttributes":"6e6aba56e93b3ddfdfe3fa28895feece",'
-            b'   "MD5OfMessageBody":"0d40eb1479f7e61b1a1c7a425c3949e4",'
-            b'   "MessageId":"c5aca29a-ff2f-4db5-94c3-90523d1ed4ca"'
+            b'   "MD5OfMessageAttributes":"6e6aba56e93b3ddfdfe3fa28895feece",'  # pragma: allowlist secret
+            b'   "MD5OfMessageBody":"0d40eb1479f7e61b1a1c7a425c3949e4",'  # pragma: allowlist secret
+            b'   "MessageId":"c5aca29a-ff2f-4db5-94c3-90523d1ed4ca"'  # pragma: allowlist secret
             b"}",
             "c5aca29a-ff2f-4db5-94c3-90523d1ed4ca",
         ),
@@ -186,7 +186,7 @@ def test_sqs_xml_parser_message_id(body):
             b'   "Successful":['
             b"     {"
             b'        "Id":"1",'
-            b'        "MD5OfMessageBody":"68390233272823b7adf13a1db79b2cd7",'
+            b'        "MD5OfMessageBody":"68390233272823b7adf13a1db79b2cd7",'  # pragma: allowlist secret
             b'        "MessageId":"c5aca29a-ff2f-4db5-94c3-90523d1ed4ca"'
             b"     }"
             b"]}",
@@ -199,7 +199,7 @@ def test_sqs_xml_parser_message_id(body):
             b'   "Failed":['
             b"     {"
             b'        "Id":"1",'
-            b'        "MD5OfMessageBody":"68390233272823b7adf13a1db79b2cd7",'
+            b'        "MD5OfMessageBody":"68390233272823b7adf13a1db79b2cd7",'  # pragma: allowlist secret
             b'        "MessageId":"c5aca29a-ff2f-4db5-94c3-90523d1ed4ca"'
             b"     }"
             b"]}",
