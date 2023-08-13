@@ -132,9 +132,7 @@ class ServerlessAWSParser(Parser):
     # Override this field to add message id using the amz headers
     should_add_message_id = True
 
-    def parse_response(
-        self, url: str, status_code: int, headers, body: bytes
-    ) -> dict:  # type: ignore[no-untyped-def,type-arg]
+    def parse_response(self, url: str, status_code: int, headers: dict, body: bytes) -> dict:  # type: ignore[type-arg]
         additional_info = {}
         message_id = headers.get("x-amzn-requestid")
         if message_id and self.should_add_message_id:
@@ -213,7 +211,7 @@ class SnsParser(ServerlessAWSParser):
         )
 
     def parse_response(
-        self, url: str, status_code: int, headers, body: bytes
+        self, url: str, status_code: int, headers: dict, body: bytes
     ) -> dict:  # type: ignore[no-untyped-def,type-arg]
         return recursive_json_join(  # type: ignore[no-any-return]
             {
@@ -249,7 +247,7 @@ class KinesisParser(ServerlessAWSParser):
         )
 
     def parse_response(
-        self, url: str, status_code: int, headers, body: bytes
+        self, url: str, status_code: int, headers: dict, body: bytes
     ) -> dict:  # type: ignore[no-untyped-def,type-arg]
         return recursive_json_join(  # type: ignore[no-any-return]
             {"info": {"messageId": KinesisParser._extract_message_id(body)}},
@@ -275,7 +273,7 @@ class BaseSqsParser(ServerlessAWSParser, ABC):
         )
 
     def parse_response(
-        self, url: str, status_code: int, headers, body: bytes
+        self, url: str, status_code: int, headers: dict, body: bytes
     ) -> dict:  # type: ignore[no-untyped-def,type-arg]
         return recursive_json_join(  # type: ignore[no-any-return]
             {"info": {"messageId": self._extract_message_id(body)}},
@@ -326,13 +324,18 @@ class SqsJsonParser(BaseSqsParser):
 
         # If the request was to send a single message this should work
         message_id = parsed_body.get("MessageId")
-        if message_id:
+        if message_id and isinstance(message_id, str):
             return message_id
 
         # This should work if the request was to send a batch of messages.
         # Find the message id of the first successful message, and if there are none the first failed message
         messages = parsed_body.get("Successful", []) + parsed_body.get("Failed", [])
-        if messages and isinstance(messages[0], dict) and messages[0].get("MessageId"):
+        if (
+            messages
+            and isinstance(messages[0], dict)
+            and messages[0].get("MessageId")
+            and isinstance(messages[0].get("MessageId"), str)
+        ):
             return messages[0].get("MessageId")
 
         get_logger().warning("No MessageId was found in the SQS response body")
@@ -341,7 +344,8 @@ class SqsJsonParser(BaseSqsParser):
 
     @staticmethod
     def _extract_queue_url(request_body: bytes) -> Optional[str]:
-        return safe_key_from_json(json_str=request_body, key="QueueUrl", default=None)
+        queue_url = safe_key_from_json(json_str=request_body, key="QueueUrl", default=None)
+        return queue_url if isinstance(queue_url, str) else None
 
 
 class S3Parser(Parser):
@@ -355,7 +359,7 @@ class S3Parser(Parser):
         )
 
     def parse_response(
-        self, url: str, status_code: int, headers, body: bytes
+        self, url: str, status_code: int, headers: dict, body: bytes
     ) -> dict:  # type: ignore[no-untyped-def,type-arg]
         return recursive_json_join(  # type: ignore[no-any-return]
             {"info": {"messageId": headers.get("x-amz-request-id")}},
@@ -383,7 +387,7 @@ class EventBridgeParser(Parser):
         )
 
     def parse_response(
-        self, url: str, status_code: int, headers, body: bytes
+        self, url: str, status_code: int, headers: dict, body: bytes
     ) -> dict:  # type: ignore[no-untyped-def,type-arg]
         try:
             parsed_body = json.loads(body)
@@ -403,7 +407,7 @@ class ApiGatewayV2Parser(ServerlessAWSParser):
     # API-GW V1 covered by ServerlessAWSParser
 
     def parse_response(
-        self, url: str, status_code: int, headers, body: bytes
+        self, url: str, status_code: int, headers: dict, body: bytes
     ) -> dict:  # type: ignore[no-untyped-def,type-arg]
         aws_request_id = headers.get("x-amzn-requestid")
         apigw_request_id = headers.get("apigw-requestid")
@@ -417,8 +421,9 @@ class ApiGatewayV2Parser(ServerlessAWSParser):
 def get_parser(host: str, headers: Optional[dict] = None) -> Type[Parser]:  # type: ignore[type-arg]
     # Headers are case-insensitive, so lets lowercase them and always search them in lowercase
     lowercase_headers = {}
-    for key, value in headers.items():
-        lowercase_headers[key.lower()] = value
+    if headers:
+        for key, value in headers.items():
+            lowercase_headers[key.lower()] = value
 
     if should_use_tracer_extension():
         return Parser
