@@ -112,7 +112,7 @@ class Parser:
     def scrub_query_params(uri: str) -> str:
         with lumigo_safe_execute("scrub_query_params"):
             regexes = (
-                    CoreConfiguration.secret_masking_regex_http_query_params or get_omitting_regex()
+                CoreConfiguration.secret_masking_regex_http_query_params or get_omitting_regex()
             )
             if not uri or "?" not in uri or not regexes:
                 return uri
@@ -132,8 +132,9 @@ class ServerlessAWSParser(Parser):
     # Override this field to add message id using the amz headers
     should_add_message_id = True
 
-    def parse_response(self, url: str, status_code: int, headers,
-                       body: bytes) -> dict:  # type: ignore[no-untyped-def,type-arg]
+    def parse_response(
+        self, url: str, status_code: int, headers, body: bytes
+    ) -> dict:  # type: ignore[no-untyped-def,type-arg]
         additional_info = {}
         message_id = headers.get("x-amzn-requestid")
         if message_id and self.should_add_message_id:
@@ -211,8 +212,9 @@ class SnsParser(ServerlessAWSParser):
             super().parse_request(parse_params),
         )
 
-    def parse_response(self, url: str, status_code: int, headers,
-                       body: bytes) -> dict:  # type: ignore[no-untyped-def,type-arg]
+    def parse_response(
+        self, url: str, status_code: int, headers, body: bytes
+    ) -> dict:  # type: ignore[no-untyped-def,type-arg]
         return recursive_json_join(  # type: ignore[no-any-return]
             {
                 "info": {
@@ -246,8 +248,9 @@ class KinesisParser(ServerlessAWSParser):
             super().parse_request(parse_params),
         )
 
-    def parse_response(self, url: str, status_code: int, headers,
-                       body: bytes) -> dict:  # type: ignore[no-untyped-def,type-arg]
+    def parse_response(
+        self, url: str, status_code: int, headers, body: bytes
+    ) -> dict:  # type: ignore[no-untyped-def,type-arg]
         return recursive_json_join(  # type: ignore[no-any-return]
             {"info": {"messageId": KinesisParser._extract_message_id(body)}},
             super().parse_response(url, status_code, headers, body),
@@ -265,15 +268,15 @@ class KinesisParser(ServerlessAWSParser):
 
 
 class BaseSqsParser(ServerlessAWSParser, ABC):
-
     def parse_request(self, parse_params: HttpRequest) -> dict:  # type: ignore[type-arg]
         return recursive_json_join(  # type: ignore[no-any-return]
             {"info": {"resourceName": self._extract_queue_url(parse_params.body)}},
             super().parse_request(parse_params),
         )
 
-    def parse_response(self, url: str, status_code: int, headers,
-                       body: bytes) -> dict:  # type: ignore[no-untyped-def,type-arg]
+    def parse_response(
+        self, url: str, status_code: int, headers, body: bytes
+    ) -> dict:  # type: ignore[no-untyped-def,type-arg]
         return recursive_json_join(  # type: ignore[no-any-return]
             {"info": {"messageId": self._extract_message_id(body)}},
             super().parse_response(url, status_code, headers, body),
@@ -291,21 +294,20 @@ class BaseSqsParser(ServerlessAWSParser, ABC):
 
 
 class SqsXmlParser(BaseSqsParser):
-
     @staticmethod
     def _extract_message_id(response_body: bytes) -> Optional[str]:
         return (  # type: ignore[no-any-return]
-                safe_key_from_xml(
-                    response_body, "SendMessageResponse/SendMessageResult/MessageId"  # Single.
-                )
-                or safe_key_from_xml(  # noqa: W503
-            response_body,
-            "SendMessageBatchResponse/SendMessageBatchResult/SendMessageBatchResultEntry/0/MessageId",  # Batch.
-        )
-                or safe_key_from_xml(  # noqa: W503
-            response_body,
-            "SendMessageBatchResponse/SendMessageBatchResult/SendMessageBatchResultEntry/MessageId",  # Batch.
-        )
+            safe_key_from_xml(
+                response_body, "SendMessageResponse/SendMessageResult/MessageId"  # Single.
+            )
+            or safe_key_from_xml(  # noqa: W503
+                response_body,
+                "SendMessageBatchResponse/SendMessageBatchResult/SendMessageBatchResultEntry/0/MessageId",  # Batch.
+            )
+            or safe_key_from_xml(  # noqa: W503
+                response_body,
+                "SendMessageBatchResponse/SendMessageBatchResult/SendMessageBatchResultEntry/MessageId",  # Batch.
+            )
         )
 
     @staticmethod
@@ -314,27 +316,24 @@ class SqsXmlParser(BaseSqsParser):
 
 
 class SqsJsonParser(BaseSqsParser):
-
     @staticmethod
     def _extract_message_id(response_body: bytes) -> Optional[str]:
         parsed_body = {}
         try:
             parsed_body = json.loads(response_body)
         except json.JSONDecodeError as e:
-            get_logger().warning(
-                "Error while trying to parse sqs json request body", exc_info=e
-            )
+            get_logger().warning("Error while trying to parse sqs json request body", exc_info=e)
 
         # If the request was to send a single message this should work
-        message_id = parsed_body.get('MessageId')
+        message_id = parsed_body.get("MessageId")
         if message_id:
             return message_id
 
         # This should work if the request was to send a batch of messages.
         # Find the message id of the first successful message, and if there are none the first failed message
-        messages = parsed_body.get('Successful', []) + parsed_body.get('Failed', [])
-        if messages and isinstance(messages[0], dict) and messages[0].get('MessageId'):
-            return messages[0].get('MessageId')
+        messages = parsed_body.get("Successful", []) + parsed_body.get("Failed", [])
+        if messages and isinstance(messages[0], dict) and messages[0].get("MessageId"):
+            return messages[0].get("MessageId")
 
         get_logger().warning("No MessageId was found in the SQS response body")
 
@@ -342,7 +341,7 @@ class SqsJsonParser(BaseSqsParser):
 
     @staticmethod
     def _extract_queue_url(request_body: bytes) -> Optional[str]:
-        return safe_key_from_json(json_str=request_body, key='QueueUrl', default=None)
+        return safe_key_from_json(json_str=request_body, key="QueueUrl", default=None)
 
 
 class S3Parser(Parser):
@@ -355,8 +354,9 @@ class S3Parser(Parser):
             super().parse_request(parse_params),
         )
 
-    def parse_response(self, url: str, status_code: int, headers,
-                       body: bytes) -> dict:  # type: ignore[no-untyped-def,type-arg]
+    def parse_response(
+        self, url: str, status_code: int, headers, body: bytes
+    ) -> dict:  # type: ignore[no-untyped-def,type-arg]
         return recursive_json_join(  # type: ignore[no-any-return]
             {"info": {"messageId": headers.get("x-amz-request-id")}},
             super().parse_response(url, status_code, headers, body),
@@ -382,8 +382,9 @@ class EventBridgeParser(Parser):
             super().parse_request(parse_params),
         )
 
-    def parse_response(self, url: str, status_code: int, headers,
-                       body: bytes) -> dict:  # type: ignore[no-untyped-def,type-arg]
+    def parse_response(
+        self, url: str, status_code: int, headers, body: bytes
+    ) -> dict:  # type: ignore[no-untyped-def,type-arg]
         try:
             parsed_body = json.loads(body)
         except json.JSONDecodeError as e:
@@ -401,8 +402,9 @@ class EventBridgeParser(Parser):
 class ApiGatewayV2Parser(ServerlessAWSParser):
     # API-GW V1 covered by ServerlessAWSParser
 
-    def parse_response(self, url: str, status_code: int, headers,
-                       body: bytes) -> dict:  # type: ignore[no-untyped-def,type-arg]
+    def parse_response(
+        self, url: str, status_code: int, headers, body: bytes
+    ) -> dict:  # type: ignore[no-untyped-def,type-arg]
         aws_request_id = headers.get("x-amzn-requestid")
         apigw_request_id = headers.get("apigw-requestid")
         message_id = aws_request_id or apigw_request_id
@@ -437,7 +439,9 @@ def get_parser(host: str, headers: Optional[dict] = None) -> Type[Parser]:  # ty
         return S3Parser
     # SQS Legacy Endpoints: https://docs.aws.amazon.com/general/latest/gr/rande.html
     elif service in ("sqs", "sqs-fips") or "queue.amazonaws.com" in host:
-        using_json_protocol = lowercase_headers.get('content-type', '').lower() == 'application/x-amz-json-1.0'
+        using_json_protocol = (
+            lowercase_headers.get("content-type", "").lower() == "application/x-amz-json-1.0"
+        )
         return SqsJsonParser if using_json_protocol else SqsXmlParser
     elif "execute-api" in host:
         return ApiGatewayV2Parser

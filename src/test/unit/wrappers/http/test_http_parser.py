@@ -11,14 +11,14 @@ from lumigo_tracer.wrappers.http.http_parser import (
     ApiGatewayV2Parser,
     DynamoParser,
     EventBridgeParser,
+    KinesisParser,
     LambdaParser,
     Parser,
     S3Parser,
     ServerlessAWSParser,
     SnsParser,
-    SqsXmlParser,
     SqsJsonParser,
-    KinesisParser,
+    SqsXmlParser,
     get_parser,
 )
 
@@ -38,7 +38,11 @@ def test_serverless_aws_parser_fallback_doesnt_change():
     [
         ("ne3kjv28fh.execute-api.us-west-2.amazonaws.com", {}, ApiGatewayV2Parser),
         ("s3.eu-west-1.amazonaws.com", {"key": "value"}, S3Parser),
-        ("sqs.us-west-2.amazonaws.com", {'Content-Type': 'application/x-amz-json-1.0'}, SqsJsonParser),
+        (
+            "sqs.us-west-2.amazonaws.com",
+            {"Content-Type": "application/x-amz-json-1.0"},
+            SqsJsonParser,
+        ),
         ("sqs.us-west-2.amazonaws.com", {}, SqsXmlParser),
         ("lambda.us-west-2.amazonaws.com", {}, LambdaParser),
         ("kinesis.us-west-2.amazonaws.com", {}, KinesisParser),
@@ -47,7 +51,7 @@ def test_serverless_aws_parser_fallback_doesnt_change():
         # Non AWS Service
         ("events.other.service", {}, Parser),
         # If this header exists it should be detected as a ServerlessAWSParser
-        ("api.dev.com", {"x-amzn-requestid": "1234"}, ServerlessAWSParser)
+        ("api.dev.com", {"x-amzn-requestid": "1234"}, ServerlessAWSParser),
     ],
 )
 def test_get_parser(url, headers, expected_parser):
@@ -127,29 +131,28 @@ def test_lambda_parser_resource_name(uri, resource_name):
     "request_body",
     [
         # Send single message to SQS request
-        b'QueueUrl=https%3A%2F%2Fsqs.us-west-2.amazonaws.com%2F449953265267%2Fsagivdeleteme-node-sqs'
-        b'&MessageBody=%7B%0A%20%20%20%20%22body%22%3A%20%22test1%22%0A%7D'
-        b'&MessageAttribute.1.Name=AttributeName'
-        b'&MessageAttribute.1.Value.StringValue=Attribute%20Value'
-        b'&MessageAttribute.1.Value.DataType=String'
-        b'&Action=SendMessage'
-        b'&Version=2012-11-05',
-
+        b"QueueUrl=https%3A%2F%2Fsqs.us-west-2.amazonaws.com%2F449953265267%2Fsagivdeleteme-node-sqs"
+        b"&MessageBody=%7B%0A%20%20%20%20%22body%22%3A%20%22test1%22%0A%7D"
+        b"&MessageAttribute.1.Name=AttributeName"
+        b"&MessageAttribute.1.Value.StringValue=Attribute%20Value"
+        b"&MessageAttribute.1.Value.DataType=String"
+        b"&Action=SendMessage"
+        b"&Version=2012-11-05",
         # Send batch message request to SQS (on record in the batch)
-        b'QueueUrl=https%3A%2F%2Fsqs.us-west-2.amazonaws.com%2F449953265267%2Fsagivdeleteme-node-sqs'
-        b'&SendMessageBatchRequestEntry.1.Id=1'
-        b'&SendMessageBatchRequestEntry.1.MessageBody=Message%201'
-        b'&SendMessageBatchRequestEntry.2.Id=2'
-        b'&SendMessageBatchRequestEntry.2.MessageBody=Message%202'
-        b'&Action=SendMessageBatch'
-        b'&Version=2012-11-05'
-    ]
+        b"QueueUrl=https%3A%2F%2Fsqs.us-west-2.amazonaws.com%2F449953265267%2Fsagivdeleteme-node-sqs"
+        b"&SendMessageBatchRequestEntry.1.Id=1"
+        b"&SendMessageBatchRequestEntry.1.MessageBody=Message%201"
+        b"&SendMessageBatchRequestEntry.2.Id=2"
+        b"&SendMessageBatchRequestEntry.2.MessageBody=Message%202"
+        b"&Action=SendMessageBatch"
+        b"&Version=2012-11-05",
+    ],
 )
 def test_sqs_xml_parse_resource_name(request_body):
-    queue_url = 'https://sqs.us-west-2.amazonaws.com/449953265267/sagivdeleteme-node-sqs'
-    http_request = HttpRequest(host='dummy', method='POST', uri='', headers={}, body=request_body)
+    queue_url = "https://sqs.us-west-2.amazonaws.com/449953265267/sagivdeleteme-node-sqs"
+    http_request = HttpRequest(host="dummy", method="POST", uri="", headers={}, body=request_body)
     parsed_request = SqsXmlParser().parse_request(http_request)
-    assert parsed_request['info']['resourceName'] == queue_url
+    assert parsed_request["info"]["resourceName"] == queue_url
 
 
 @pytest.mark.parametrize(
@@ -169,95 +172,87 @@ def test_sqs_xml_parser_message_id(body):
     [
         (
             # Send single message to SQS response
-            b'{'
+            b"{"
             b'   "MD5OfMessageAttributes":"6e6aba56e93b3ddfdfe3fa28895feece",'
             b'   "MD5OfMessageBody":"0d40eb1479f7e61b1a1c7a425c3949e4",'
             b'   "MessageId":"c5aca29a-ff2f-4db5-94c3-90523d1ed4ca"'
-            b'}',
-            "c5aca29a-ff2f-4db5-94c3-90523d1ed4ca"
+            b"}",
+            "c5aca29a-ff2f-4db5-94c3-90523d1ed4ca",
         ),
-
         (
             # Send batch message request to SQS (on record in the batch), successful message
-            b'{'
+            b"{"
             b'   "Failed":[],'
             b'   "Successful":['
-            b'     {'
+            b"     {"
             b'        "Id":"1",'
             b'        "MD5OfMessageBody":"68390233272823b7adf13a1db79b2cd7",'
             b'        "MessageId":"c5aca29a-ff2f-4db5-94c3-90523d1ed4ca"'
-            b'     }'
-            b']}',
-            "c5aca29a-ff2f-4db5-94c3-90523d1ed4ca"
+            b"     }"
+            b"]}",
+            "c5aca29a-ff2f-4db5-94c3-90523d1ed4ca",
         ),
-
         (
             # Send batch message request to SQS (on record in the batch), failed message
-            b'{'
+            b"{"
             b'   "Successful":[],'
             b'   "Failed":['
-            b'     {'
+            b"     {"
             b'        "Id":"1",'
             b'        "MD5OfMessageBody":"68390233272823b7adf13a1db79b2cd7",'
             b'        "MessageId":"c5aca29a-ff2f-4db5-94c3-90523d1ed4ca"'
-            b'     }'
-            b']}',
-            "c5aca29a-ff2f-4db5-94c3-90523d1ed4ca"
+            b"     }"
+            b"]}",
+            "c5aca29a-ff2f-4db5-94c3-90523d1ed4ca",
         ),
-
-        (
-            b'{}',
-            None
-        ),
-
-        (
-            b'Not a json',
-            None
-        )
-    ]
+        (b"{}", None),
+        (b"Not a json", None),
+    ],
 )
 def test_sqs_json_parse_message_id(response_body: bytes, message_id):
-    parsed_response = SqsJsonParser().parse_response(url='', status_code=200, headers={}, body=response_body)
+    parsed_response = SqsJsonParser().parse_response(
+        url="", status_code=200, headers={}, body=response_body
+    )
     assert parsed_response["info"]["messageId"] == message_id
 
 
 @pytest.mark.parametrize(
-    'request_body, queue_url',
+    "request_body, queue_url",
     [
         (
             # Send single message to SQS request
-            b'{'
+            b"{"
             b'   "QueueUrl": "https://sqs.us-west-2.amazonaws.com/33/random-queue-test", '
             b'   "MessageBody": "This is a test message"'
-            b'}',
-            "https://sqs.us-west-2.amazonaws.com/33/random-queue-test"
+            b"}",
+            "https://sqs.us-west-2.amazonaws.com/33/random-queue-test",
         ),
         (
             # Send batch message request to SQS (on record in the batch)
-            b'{'
+            b"{"
             b'   "QueueUrl": "https://sqs.us-west-2.amazonaws.com/33/random-queue-test", '
             b'   "Entries": ['
             b'     {"Id": 1, "Message": "Message number 1"}'
-            b'   ]'
-            b'}',
-            "https://sqs.us-west-2.amazonaws.com/33/random-queue-test"
+            b"   ]"
+            b"}",
+            "https://sqs.us-west-2.amazonaws.com/33/random-queue-test",
         ),
         (
             # Empty json response body
-            b'{}',
-            None
+            b"{}",
+            None,
         ),
         (
             # Not a json body
-            b'This is not a json body',
-            None
-        )
-    ]
+            b"This is not a json body",
+            None,
+        ),
+    ],
 )
 def test_sqs_json_parse_resource_name(request_body: bytes, queue_url: str):
-    http_request = HttpRequest(host='dummy', method='POST', uri='', headers={}, body=request_body)
+    http_request = HttpRequest(host="dummy", method="POST", uri="", headers={}, body=request_body)
     parsed_request = SqsJsonParser().parse_request(http_request)
-    assert parsed_request['info']['resourceName'] == queue_url
+    assert parsed_request["info"]["resourceName"] == queue_url
 
 
 @pytest.mark.parametrize(
