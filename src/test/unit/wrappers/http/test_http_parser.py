@@ -180,7 +180,7 @@ def test_sqs_xml_parser_message_id(body):
             "c5aca29a-ff2f-4db5-94c3-90523d1ed4ca",
         ),
         (
-            # Send batch message request to SQS (on record in the batch), successful message
+            # Send batch message request to SQS (one record in the batch), successful message
             b"{"
             b'   "Failed":[],'
             b'   "Successful":['
@@ -192,8 +192,30 @@ def test_sqs_xml_parser_message_id(body):
             b"]}",
             "c5aca29a-ff2f-4db5-94c3-90523d1ed4ca",
         ),
+(
+            # Send batch message request to SQS (multiple record in the batch), successful message
+            # Note: Currently we only send the first message id of a batch, but if there would be a need we will change
+            #       this to send multiple message ids
+            b"{"
+            b'   "Failed":[],'
+            b'   "Successful":['
+            b"     {"
+            b'        "Id":"1",'
+            b'        "MD5OfMessageBody":"68390233272823b7adf13a1db79b2cd7",'  # pragma: allowlist secret
+            b'        "MessageId":"c5aca29a-ff2f-4db5-94c3-90523d1ed4ca"'
+            b"     },"
+            b"     {"
+            b'        "Id":"2",'
+            b'        "MD5OfMessageBody":"68390233272823b7adf13a1db7222222",'  # pragma: allowlist secret
+            b'        "MessageId":"c5aca29a-ff2f-4db5-94c3-90523d222222"'
+            b"     }"
+            b"]}",
+            "c5aca29a-ff2f-4db5-94c3-90523d1ed4ca",
+        ),
         (
-            # Send batch message request to SQS (on record in the batch), failed message
+            # Send batch message request to SQS (one record in the batch), failed message
+            # Note: Currently we only send the first message id of a batch, but if there would be a need we will change
+            #       this to send multiple message ids
             b"{"
             b'   "Successful":[],'
             b'   "Failed":['
@@ -201,6 +223,41 @@ def test_sqs_xml_parser_message_id(body):
             b'        "Id":"1",'
             b'        "MD5OfMessageBody":"68390233272823b7adf13a1db79b2cd7",'  # pragma: allowlist secret
             b'        "MessageId":"c5aca29a-ff2f-4db5-94c3-90523d1ed4ca"'
+            b"     },"
+            b"     {"
+            b'        "Id":"2",'
+            b'        "MD5OfMessageBody":"68390233272823b7adf13a1db7222222",'  # pragma: allowlist secret
+            b'        "MessageId":"c5aca29a-ff2f-4db5-94c3-90523d222222"'
+            b"     }"
+            b"]}",
+            "c5aca29a-ff2f-4db5-94c3-90523d1ed4ca",
+        ),
+        (
+            # Send batch message request to SQS (many successful & many failed messages)
+            # Note: Currently we only send the first successful message id of a batch, but if there would be a need
+            #       we will change this to send multiple message ids
+            b"{"
+            b'   "Successful":['
+            b"     {"
+            b'        "Id":"1",'
+            b'        "MD5OfMessageBody":"68390233272823b7adf13a1db79b2cd7",'  # pragma: allowlist secret
+            b'        "MessageId":"c5aca29a-ff2f-4db5-94c3-90523d1ed4ca"'
+            b"     },"
+            b"     {"
+            b'        "Id":"2",'
+            b'        "MD5OfMessageBody":"68390233272823b7adf13a1db7222222",'  # pragma: allowlist secret
+            b'        "MessageId":"c5aca29a-ff2f-4db5-94c3-90523d222222"'
+            b'     }],'
+            b'   "Failed":['
+            b"     {"
+            b'        "Id":"3",'
+            b'        "MD5OfMessageBody":"68390233272823b7adf13a1db7333333",'  # pragma: allowlist secret
+            b'        "MessageId":"c5aca29a-ff2f-4db5-94c3-90523d333333"'
+            b"     },"
+            b"     {"
+            b'        "Id":"4",'
+            b'        "MD5OfMessageBody":"68390233272823b7adf13a1db7444444",'  # pragma: allowlist secret
+            b'        "MessageId":"c5aca29a-ff2f-4db5-94c3-90523d444444"'
             b"     }"
             b"]}",
             "c5aca29a-ff2f-4db5-94c3-90523d1ed4ca",
