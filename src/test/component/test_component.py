@@ -2,6 +2,7 @@ import http.client
 import json
 import os
 import subprocess
+from datetime import datetime
 
 import boto3
 import pytest
@@ -215,22 +216,35 @@ def test_get_body_from_aws_response(sqs_resource, region, context):
     assert body and body != "b''"
 
 
+# Note: somtimes this test fails because of a gateway timeout returned by the external httpbin.org API.
+#       I added some logging to better detect these cases, but in case this persists we should find a solution.
 @pytest.mark.slow
 @pytest.mark.parametrize("as_kwarg", [True, False])
 def test_w3c_headers_requests_with_headers(sqs_resource, region, context, aws_env, as_kwarg):
     @lumigo_tracer(token=TOKEN, propagate_w3c=True)
     def lambda_test_function(event, context):
-        conn = http.client.HTTPConnection("httpbin.org")
+        host = 'httpbin.org'
+        url = '/anything'
+        method = 'GET'
+        conn = http.client.HTTPConnection(host)
+        start_time = datetime.now()
         if as_kwarg:
-            conn.request("GET", "/anything", b"content", headers={"A": "B"})
+            conn.request(method, url, b"content", headers={"A": "B"})
         else:
-            conn.request("GET", "/anything", b"content", {"A": "B"})
-        return conn.getresponse().read()
+            conn.request(method, url, b"content", {"A": "B"})
+        response = conn.getresponse().read()
+        end_time = datetime.now()
+        duration = end_time - start_time
+        print(f'HTTP request to host {host}, url {url} with method {method} took {duration} long '
+              f'and returns the response: {response}')
+        return response
 
     lambda_test_function({}, context)
     events = list(SpansContainer.get_span().spans.values())
     # making sure there is any data in the body.
     body = json.loads(events[0]["info"]["httpInfo"]["response"]["body"])
+    print(f'httpbin response body: {body}')
+
     assert body["data"] == "content"
     assert body["headers"]["A"] == "B"
     assert "Traceparent" in body["headers"]
