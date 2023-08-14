@@ -2,11 +2,12 @@ import http.client
 import json
 import os
 import subprocess
-from datetime import datetime
 
 import boto3
 import pytest
 from lumigo_core.lumigo_utils import md5hash
+from pytest_httpserver.httpserver import HTTPServer
+from werkzeug.wrappers import Request, Response
 
 from lumigo_tracer import global_scope_exec
 from lumigo_tracer.lambda_tracer.spans_container import SpansContainer
@@ -22,6 +23,36 @@ def serverless_yaml():
     subprocess.check_output(
         ["sls", "deploy", "--env", os.environ.get("USER", DEFAULT_USER)], cwd="test/"
     )
+
+
+@pytest.fixture()
+def echo_server(httpserver: HTTPServer) -> HTTPServer:
+    def respond_like_httpbin_anything_path(request: Request) -> Response:
+        response_body = {
+            "data": request.data.decode("utf-8")
+            if isinstance(request.data, bytes)
+            else request.data,
+            "headers": dict(request.headers),
+        }
+        print(f"Echo server will return response body: {response_body}")
+        return Response(response=json.dumps(response_body), status=200, headers={})
+
+    path = "/anything"
+    httpserver.expect_request(uri=path).respond_with_handler(respond_like_httpbin_anything_path)
+    host = httpserver.host
+    port = httpserver.port
+    print(f"local echo server created. host: {host}, port: {port}")
+    return httpserver
+
+
+@pytest.fixture()
+def echo_server_host(echo_server) -> str:
+    return echo_server.host
+
+
+@pytest.fixture()
+def echo_server_port(echo_server) -> int:
+    return echo_server.port
 
 
 @pytest.fixture(autouse=True)
@@ -216,29 +247,19 @@ def test_get_body_from_aws_response(sqs_resource, region, context):
     assert body and body != "b''"
 
 
-# Note: somtimes this test fails because of a gateway timeout returned by the external httpbin.org API.
-#       I added some logging to better detect these cases, but in case this persists we should find a solution.
 @pytest.mark.slow
 @pytest.mark.parametrize("as_kwarg", [True, False])
-def test_w3c_headers_requests_with_headers(sqs_resource, region, context, aws_env, as_kwarg):
+def test_w3c_headers_requests_with_headers(
+    sqs_resource, region, context, aws_env, as_kwarg, echo_server_host, echo_server_port
+):
     @lumigo_tracer(token=TOKEN, propagate_w3c=True)
     def lambda_test_function(event, context):
-        host = "httpbin.org"
-        url = "/anything"
-        method = "GET"
-        conn = http.client.HTTPConnection(host)
-        start_time = datetime.now()
+        conn = http.client.HTTPConnection(echo_server_host, echo_server_port)
         if as_kwarg:
-            conn.request(method, url, b"content", headers={"A": "B"})
+            conn.request("GET", "/anything", b"content", headers={"A": "B"})
         else:
-            conn.request(method, url, b"content", {"A": "B"})
+            conn.request("GET", "/anything", b"content", {"A": "B"})
         response = conn.getresponse().read()
-        end_time = datetime.now()
-        duration = end_time - start_time
-        print(
-            f"HTTP request to host {host}, url {url} with method {method} took {duration} long "
-            f"and returns the response: {response}"
-        )
         return response
 
     lambda_test_function({}, context)
@@ -253,10 +274,12 @@ def test_w3c_headers_requests_with_headers(sqs_resource, region, context, aws_en
 
 
 @pytest.mark.slow
-def test_w3c_headers_requests_without_headers(sqs_resource, region, context, aws_env):
+def test_w3c_headers_requests_without_headers(
+    sqs_resource, region, context, aws_env, echo_server_host, echo_server_port
+):
     @lumigo_tracer(token=TOKEN, propagate_w3c=True)
     def lambda_test_function(event, context):
-        conn = http.client.HTTPConnection("httpbin.org")
+        conn = http.client.HTTPConnection(echo_server_host, echo_server_port)
         conn.request("GET", "/anything", b"content")
         return conn.getresponse().read()
 
