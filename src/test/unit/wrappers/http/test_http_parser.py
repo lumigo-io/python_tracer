@@ -192,7 +192,7 @@ def test_sqs_xml_parser_message_id(body):
             b"]}",
             "c5aca29a-ff2f-4db5-94c3-90523d1ed4ca",
         ),
-(
+        (
             # Send batch message request to SQS (multiple record in the batch), successful message
             # Note: Currently we only send the first message id of a batch, but if there would be a need we will change
             #       this to send multiple message ids
@@ -247,7 +247,7 @@ def test_sqs_xml_parser_message_id(body):
             b'        "Id":"2",'
             b'        "MD5OfMessageBody":"68390233272823b7adf13a1db7222222",'  # pragma: allowlist secret
             b'        "MessageId":"c5aca29a-ff2f-4db5-94c3-90523d222222"'
-            b'     }],'
+            b"     }],"
             b'   "Failed":['
             b"     {"
             b'        "Id":"3",'
