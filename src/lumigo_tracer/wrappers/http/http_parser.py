@@ -418,15 +418,18 @@ class ApiGatewayV2Parser(ServerlessAWSParser):
 
 
 def get_parser(host: str, headers: Optional[dict] = None) -> Type[Parser]:  # type: ignore[type-arg]
-    # Headers are case-insensitive, so lets lowercase them and always search them in lowercase
-    lowercase_headers = {}
-    if headers:
-        for key, value in headers.items():
-            lowercase_headers[key.lower()] = value
+    """
+    Returns the matching Parser class based on the given http request properties
+    @param host: The http host the request was sent to (i.e. "google.com", without "https://")
+    @param headers: The http headers sent with the request, with all keys being lowercase
+    @return: Parser class best matching to parse the given http request
+    """
+
+    _headers = headers if headers else {}
 
     if should_use_tracer_extension():
         return Parser
-    if "amazonaws.com" not in host and not lowercase_headers.get("x-amzn-requestid"):
+    if "amazonaws.com" not in host and not _headers.get("x-amzn-requestid"):
         return Parser
     service = safe_split_get(host, ".", 0)
     if service == "dynamodb":
@@ -444,7 +447,7 @@ def get_parser(host: str, headers: Optional[dict] = None) -> Type[Parser]:  # ty
     # SQS Legacy Endpoints: https://docs.aws.amazon.com/general/latest/gr/rande.html
     elif service in ("sqs", "sqs-fips") or "queue.amazonaws.com" in host:
         using_json_protocol = (
-            lowercase_headers.get("content-type", "").lower() == "application/x-amz-json-1.0"
+            _headers.get("content-type", "").lower() == "application/x-amz-json-1.0"
         )
         return SqsJsonParser if using_json_protocol else SqsXmlParser
     elif "execute-api" in host:

@@ -40,7 +40,7 @@ def test_serverless_aws_parser_fallback_doesnt_change():
         ("s3.eu-west-1.amazonaws.com", {"key": "value"}, S3Parser),
         (
             "sqs.us-west-2.amazonaws.com",
-            {"Content-Type": "application/x-amz-json-1.0"},
+            {"content-type": "application/x-amz-json-1.0"},
             SqsJsonParser,
         ),
         ("sqs.us-west-2.amazonaws.com", {}, SqsXmlParser),
