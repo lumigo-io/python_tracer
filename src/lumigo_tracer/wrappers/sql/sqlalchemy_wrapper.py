@@ -1,16 +1,15 @@
 import importlib
+import uuid
 from typing import Optional
 
-import uuid
-
+from lumigo_tracer.lambda_tracer.spans_container import SpansContainer
 from lumigo_tracer.libs.wrapt import wrap_function_wrapper
 from lumigo_tracer.lumigo_utils import (
-    lumigo_safe_execute,
+    get_current_ms_time,
     get_logger,
     lumigo_dumps,
-    get_current_ms_time,
+    lumigo_safe_execute,
 )
-from lumigo_tracer.spans_container import SpansContainer
 
 try:
     from sqlalchemy.event import listen
@@ -22,7 +21,7 @@ SQL_SPAN = "mySql"
 _last_span_id: Optional[str] = None
 
 
-def _before_cursor_execute(conn, cursor, statement, parameters, context, executemany):
+def _before_cursor_execute(conn, cursor, statement, parameters, context, executemany):  # type: ignore[no-untyped-def]
     global _last_span_id
     with lumigo_safe_execute("handle sqlalchemy before execute"):
         _last_span_id = str(uuid.uuid4())
@@ -43,7 +42,7 @@ def _before_cursor_execute(conn, cursor, statement, parameters, context, execute
         )
 
 
-def _after_cursor_execute(conn, cursor, statement, parameters, context, executemany):
+def _after_cursor_execute(conn, cursor, statement, parameters, context, executemany):  # type: ignore[no-untyped-def]
     with lumigo_safe_execute("handle sqlalchemy after execute"):
         span = SpansContainer.get_span().get_span_by_id(_last_span_id)
         if not span:
@@ -52,7 +51,7 @@ def _after_cursor_execute(conn, cursor, statement, parameters, context, executem
         span.update({"ended": get_current_ms_time(), "response": ""})
 
 
-def _handle_error(context):
+def _handle_error(context):  # type: ignore[no-untyped-def]
     with lumigo_safe_execute("handle sqlalchemy error"):
         span = SpansContainer.get_span().get_span_by_id(_last_span_id)
         if not span:
@@ -71,7 +70,7 @@ def _handle_error(context):
         )
 
 
-def execute_wrapper(func, instance, args, kwargs):
+def execute_wrapper(func, instance, args, kwargs):  # type: ignore[no-untyped-def]
     result = func(*args, **kwargs)
     with lumigo_safe_execute("sqlalchemy: listen to engine"):
         listen(result, "before_cursor_execute", _before_cursor_execute)
@@ -80,7 +79,7 @@ def execute_wrapper(func, instance, args, kwargs):
     return result
 
 
-def wrap_sqlalchemy():
+def wrap_sqlalchemy():  # type: ignore[no-untyped-def]
     with lumigo_safe_execute("wrap sqlalchemy"):
         if importlib.util.find_spec("sqlalchemy") and listen:
             get_logger().debug("wrapping sqlalchemy")

@@ -6,16 +6,14 @@ from types import SimpleNamespace
 
 import mock
 import pytest
+from lumigo_core.logger import get_logger
+from lumigo_core.scrubbing import get_omitting_regex
 
-from lumigo_tracer import lumigo_utils
-from lumigo_tracer.lumigo_utils import (
-    Configuration,
-    get_omitting_regex,
-    get_logger,
-    get_edge_host,
-    InternalState,
-)
-from lumigo_tracer.spans_container import SpansContainer
+from lumigo_tracer import lumigo_utils, wrappers
+from lumigo_tracer.lambda_tracer import lambda_reporter
+from lumigo_tracer.lambda_tracer.lambda_reporter import get_edge_host
+from lumigo_tracer.lambda_tracer.spans_container import SpansContainer
+from lumigo_tracer.lumigo_utils import Configuration, InternalState
 from lumigo_tracer.wrappers.http.http_data_classes import HttpState
 
 USE_TRACER_EXTENSION = "LUMIGO_USE_TRACER_EXTENSION"
@@ -26,9 +24,9 @@ def reporter_mock(monkeypatch, request):
     if request.node.get_closest_marker("dont_mock_lumigo_utils_reporter"):
         return
     lumigo_utils.Configuration.should_report = False
-    reporter_mock = mock.Mock(lumigo_utils.report_json)
+    reporter_mock = mock.Mock(lambda_reporter.report_json)
     reporter_mock.return_value = 123
-    monkeypatch.setattr(lumigo_utils, "report_json", reporter_mock)
+    monkeypatch.setattr(lambda_reporter, "report_json", reporter_mock)
     return reporter_mock
 
 
@@ -46,7 +44,7 @@ def with_extension(monkeypatch):
 def remove_caches(monkeypatch):
     get_omitting_regex.cache_clear()
     get_edge_host.cache_clear()
-    monkeypatch.setattr(lumigo_utils, "edge_kinesis_boto_client", None)
+    monkeypatch.setattr(lambda_reporter, "edge_kinesis_boto_client", None)
 
 
 @pytest.yield_fixture(autouse=True)
@@ -103,6 +101,11 @@ def context():
     return SimpleNamespace(aws_request_id="1234", get_remaining_time_in_millis=lambda: 1000 * 2)
 
 
+@pytest.fixture
+def aws_environment(monkeypatch):
+    monkeypatch.setenv("AWS_LAMBDA_FUNCTION_VERSION", "true")
+
+
 @pytest.fixture(autouse=True)
 def extension_clean():
     yield
@@ -113,3 +116,21 @@ def extension_clean():
 @pytest.fixture
 def token():
     return "t_10faa5e13e7844aaa1234"
+
+
+@pytest.fixture
+def aws_env(monkeypatch):
+    monkeypatch.setenv(
+        "_X_AMZN_TRACE_ID",
+        "Root=1-12345678-111111111111111111111111;Parent=blablablablabla;Sampled=0",
+    )
+
+
+@pytest.fixture
+def lambda_traced(monkeypatch, aws_environment):
+    monkeypatch.setenv("LUMIGO_SWITCH_OFF", "false")
+
+
+@pytest.fixture
+def wrap_all_libraries(lambda_traced):
+    wrappers.wrap()

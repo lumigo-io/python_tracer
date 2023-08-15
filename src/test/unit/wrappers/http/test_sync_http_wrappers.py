@@ -1,35 +1,30 @@
 import copy
-import json
-import time
 import http.client
+import json
+import socket
+import time
 import urllib
 from io import BytesIO
 from types import SimpleNamespace
 from typing import Dict
-import socket
 
 import boto3
 import pytest
-import urllib3
 import requests
+import urllib3
+from lumigo_core.configuration import DEFAULT_MAX_ENTRY_SIZE, CoreConfiguration
 from urllib3 import HTTPConnectionPool
 
 import lumigo_tracer
-from lumigo_tracer import lumigo_utils
 from lumigo_tracer.auto_tag import auto_tag_event
-from lumigo_tracer.lumigo_utils import (
-    EXECUTION_TAGS_KEY,
-    DEFAULT_MAX_ENTRY_SIZE,
-    Configuration,
-    TRUNCATE_SUFFIX,
-)
-from lumigo_tracer.wrappers.http.http_parser import Parser
-from lumigo_tracer.spans_container import SpansContainer
+from lumigo_tracer.lambda_tracer.spans_container import SpansContainer
+from lumigo_tracer.lumigo_utils import TRUNCATE_SUFFIX, Configuration
 from lumigo_tracer.wrappers.http.http_data_classes import HttpRequest
+from lumigo_tracer.wrappers.http.http_parser import Parser
 from lumigo_tracer.wrappers.http.sync_http_wrappers import (
     add_request_event,
-    update_event_response,
     is_lumigo_edge,
+    update_event_response,
 )
 
 
@@ -152,6 +147,8 @@ def test_lambda_wrapper_http_same_connection_two_requests(context, token):
 
 def test_catch_file_like_object_sent_on_http(context, token):
     class A:
+        done = False
+
         def seek(self, where):
             pass
 
@@ -159,6 +156,9 @@ def test_catch_file_like_object_sent_on_http(context, token):
             return 1
 
         def read(self, amount=None):
+            if self.done:
+                return None
+            self.done = True
             return b"body"
 
     @lumigo_tracer.lumigo_tracer(token=token)
@@ -185,7 +185,7 @@ def test_bad_domains_scrubber(monkeypatch, context, token):
         pass
 
     lambda_test_function({}, context)
-    assert lumigo_utils.Configuration.should_report is False
+    assert CoreConfiguration.should_report is False
 
 
 def test_domains_scrubber_happy_flow(monkeypatch, context, token):
@@ -345,7 +345,7 @@ def test_requests_failure_with_kwargs(monkeypatch, context, token):
     assert span["info"]["httpInfo"]["request"]["method"] == "POST"
 
 
-def test_wrapping_with_tags_for_api_gw_headers(monkeypatch, context, token):
+def test_wrapping_with_tags_for_api_gw_headers(monkeypatch, context, token, lambda_traced):
     monkeypatch.setattr(auto_tag_event, "AUTO_TAG_API_GW_HEADERS", ["Accept"])
 
     @lumigo_tracer.lumigo_tracer()
@@ -355,7 +355,7 @@ def test_wrapping_with_tags_for_api_gw_headers(monkeypatch, context, token):
     result = lambda_test_function(api_gw_event(), context)
 
     assert result == "ret_value"
-    assert SpansContainer.get_span().function_span[EXECUTION_TAGS_KEY] == [
+    assert SpansContainer.get_span().execution_tags == [
         {"key": "Accept", "value": "application/json, text/plain, */*"}
     ]
 
@@ -532,7 +532,7 @@ def test_aggregating_response_body():
 
 
 def test_double_response_size_limit_on_error_status_code(context, monkeypatch, token):
-    d = {"a": "v" * int(Configuration.get_max_entry_size() * 1.5)}
+    d = {"a": "v" * int(CoreConfiguration.get_max_entry_size() * 1.5)}
     original_begin = http.client.HTTPResponse.begin
 
     def mocked_begin(*args, **kwargs):
@@ -542,15 +542,15 @@ def test_double_response_size_limit_on_error_status_code(context, monkeypatch, t
         return_value = original_begin(*args, **kwargs)
         response_self = args[0]
         response_self.code = status_code
-        response_self.headers = {"a": "v" * int(Configuration.get_max_entry_size() * 1.5)}
+        response_self.headers = {"a": "v" * int(CoreConfiguration.get_max_entry_size() * 1.5)}
         return return_value
 
     monkeypatch.setattr(http.client.HTTPResponse, "begin", mocked_begin)
 
     @lumigo_tracer.lumigo_tracer(token=token)
     def lambda_test_function(event, context):
-        conn = http.client.HTTPConnection("www.google.com")
-        conn.request("GET", "/", json.dumps(d), headers=d)
+        conn = http.client.HTTPSConnection("httpbin.org")
+        conn.request("GET", "/get", json.dumps(d), headers=d)
         conn.getresponse()
 
     status_code = 200

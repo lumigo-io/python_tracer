@@ -2,7 +2,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from lumigo_tracer.spans_container import SpansContainer
+from lumigo_tracer.lambda_tracer.spans_container import SpansContainer
 from lumigo_tracer.wrappers.pymongo.pymongo_wrapper import LumigoMongoMonitoring
 
 

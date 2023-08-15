@@ -1,13 +1,12 @@
-from datetime import datetime
-
-from typing import Optional, List, Union, Dict
-
-from dataclasses import dataclass
-
 import signal
+from dataclasses import dataclass
+from datetime import datetime
+from typing import Dict, List, Optional, Union
 
-from lumigo_tracer.extension.extension_utils import get_current_cpu_time
-from lumigo_tracer.extension.extension_utils import get_current_memory
+from lumigo_tracer.extension.extension_utils import (
+    get_current_cpu_time,
+    get_current_memory,
+)
 
 DEFAULT_SAMPLING_INTERVAL = 500
 
@@ -39,20 +38,20 @@ class MemorySample:
 
 
 class Sampler:
-    def __init__(self):
+    def __init__(self):  # type: ignore[no-untyped-def]
         self.cpu_last_sample_value: Optional[float] = None
         self.cpu_last_sample_time: Optional[datetime] = None
         self.cpu_samples: List[CpuSample] = []
         self.memory_samples: List[MemorySample] = []
 
-    def start_sampling(self, interval_ms: int = DEFAULT_SAMPLING_INTERVAL):
+    def start_sampling(self, interval_ms: int = DEFAULT_SAMPLING_INTERVAL):  # type: ignore[no-untyped-def]
         self.cpu_samples = []
         self.memory_samples = []
         self.sample()
         signal.signal(signal.SIGALRM, self.sample)
         signal.setitimer(signal.ITIMER_REAL, interval_ms / 1000, interval_ms / 1000)
 
-    def stop_sampling(self):
+    def stop_sampling(self):  # type: ignore[no-untyped-def]
         signal.alarm(0)
         signal.signal(signal.SIGALRM, signal.SIG_DFL)
         self.sample()
@@ -63,7 +62,7 @@ class Sampler:
     def get_memory_samples(self) -> List[MemorySample]:
         return self.memory_samples
 
-    def sample(self, *args):
+    def sample(self, *args):  # type: ignore[no-untyped-def]
         now = datetime.now()
         current_cpu = get_current_cpu_time()
         current_memory = get_current_memory()
@@ -75,6 +74,6 @@ class Sampler:
                     cpu_time=current_cpu - self.cpu_last_sample_value,
                 )
             )
-        self.memory_samples.append(MemorySample(memory_usage=current_memory, timestamp=now))
+        self.memory_samples.append(MemorySample(memory_usage=current_memory, timestamp=now))  # type: ignore[arg-type]
         self.cpu_last_sample_time = now
         self.cpu_last_sample_value = current_cpu

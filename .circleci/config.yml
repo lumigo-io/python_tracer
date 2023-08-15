@@ -8,37 +8,79 @@ defaults: &defaults
       password: $DOCKERHUB_PASSWORD
 
 orbs:
-  lumigo-orb: lumigo/lumigo-orb@volatile
+  lumigo-orb: &lumigo_orb_version lumigo/lumigo-orb@volatile
 
 
 workflows:
   test-deploy:
     jobs:
+    - lumigo-orb/print_orb_versions:
+        lumigo_orb_version: *lumigo_orb_version
+
     - test:
+        context: common
         filters:
           branches:
             ignore: master
+
+    - lumigo-orb/is_environment_available:
+        context: common
+        filters:
+          branches:
+            ignore: master
+
     - lumigo-orb/be-deploy:
-        filters:
-          branches:
-            ignore: master
+        context: common
         requires:
-          - test
-    - lumigo-orb/integration-test:
+          - lumigo-orb/is_environment_available
+
+    - lumigo-orb/integration-test-prep:
+        context: common
         deploy_spec: python
-        tests_spec: testPython
-        filters:
-          branches:
-            ignore: master
+        run_test_cleanup: false
         requires:
           - lumigo-orb/be-deploy
-    - lumigo-orb/e2e-test:
+
+    - lumigo-orb/integration-test-cleanup:
+        name: pre-test-cleanup
+        context: common
         requires:
-          - lumigo-orb/integration-test
-        filters:
-          branches:
-            ignore: master
+          - lumigo-orb/integration-test-prep
+
+    - lumigo-orb/integration-test-limited-flows:
+        context: common
+        run_test_cleanup: false
+        requires:
+          - pre-test-cleanup
+
+    - lumigo-orb/integration-test-parallel:
+        context: common
+        run_test_cleanup: false
+        requires:
+          - lumigo-orb/integration-test-limited-flows
+
+    - lumigo-orb/integration-test-cleanup:
+        name: post-test-cleanup
+        context: common
+        requires:
+          - lumigo-orb/integration-test-parallel
+
+    - lumigo-orb/e2e-test:
+        context: common
+        requires:
+          - lumigo-orb/integration-test-limited-flows
+
+    - lumigo-orb/workflow-completed-successfully:
+        context: common
+        requires:
+          - test
+          - lumigo-orb/integration-test-parallel
+          - lumigo-orb/e2e-test
+
     - deploy:
+        context:
+          - common
+          - twine
         filters:
           branches:
             only: master

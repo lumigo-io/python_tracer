@@ -1,10 +1,11 @@
-import pytest
 import signal
 import time
-from mock import mock_open, patch, Mock
 
-from lumigo_tracer.lumigo_utils import LUMIGO_TOKEN_KEY
+import pytest
+from mock import Mock, mock_open, patch
+
 from lumigo_tracer.extension.lambda_service import LambdaService
+from lumigo_tracer.lumigo_utils import LUMIGO_TOKEN_KEY
 
 
 @pytest.fixture(autouse=True)

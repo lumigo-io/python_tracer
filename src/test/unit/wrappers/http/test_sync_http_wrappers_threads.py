@@ -1,19 +1,19 @@
 import asyncio
-
-import requests
-import urllib.request
 import concurrent.futures
 import json
+import urllib.request
+
+import requests
 
 import lumigo_tracer
-from lumigo_tracer.spans_container import SpansContainer
+from lumigo_tracer.lambda_tracer.spans_container import SpansContainer
 
 COUNT = 5
 
 
 def test_lambda_with_threads(context, token):
     def to_exec(index):
-        urllib.request.urlopen(f"http://postman-echo.com/get?my_index={index}").read()
+        urllib.request.urlopen(f"https://postman-echo.com/get?my_index={index}").read()
 
     @lumigo_tracer.lumigo_tracer(token=token)
     def lambda_test_function(event, context):

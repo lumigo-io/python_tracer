@@ -1,11 +1,12 @@
-import re
 import json
 import os
+import re
 import urllib.request
-from typing import Optional, Dict
+from typing import Dict, Optional
 
-from lumigo_tracer.lumigo_utils import get_logger, lumigo_safe_execute
+from lumigo_core.logger import get_logger
 
+from lumigo_tracer.lumigo_utils import lumigo_safe_execute
 
 MEM_AVAILABLE_PATTERN = re.compile(r"(MemAvailable)[:][ ]*([0-9]*)")
 MEM_TOTAL_PATTERN = re.compile(r"(MemTotal)[:][ ]*([0-9]*)")
@@ -51,8 +52,8 @@ def get_current_bandwidth() -> Optional[int]:
 def request_event(extension_id: str) -> Dict[str, str]:
     url = f"http://{os.environ['AWS_LAMBDA_RUNTIME_API']}/2020-01-01/extension/event/next"
     headers = {"Lambda-Extension-Identifier": extension_id}
-    return json.loads(urllib.request.urlopen(urllib.request.Request(url, headers=headers)).read())
+    return json.loads(urllib.request.urlopen(urllib.request.Request(url, headers=headers)).read())  # type: ignore[no-any-return]
 
 
-def get_extension_logger():
+def get_extension_logger():  # type: ignore[no-untyped-def]
     return get_logger("lumigo-extension")

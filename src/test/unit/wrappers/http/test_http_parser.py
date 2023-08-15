@@ -1,19 +1,23 @@
 import json
+import re
 
 import pytest
-from lumigo_tracer.lumigo_utils import Configuration
+from lumigo_core.configuration import MASK_ALL_REGEX, CoreConfiguration
+from lumigo_core.scrubbing import MASKED_SECRET
 
+from lumigo_tracer.w3c_context import TRACEPARENT_HEADER_NAME
 from lumigo_tracer.wrappers.http.http_data_classes import HttpRequest
 from lumigo_tracer.wrappers.http.http_parser import (
-    ServerlessAWSParser,
-    Parser,
-    get_parser,
     ApiGatewayV2Parser,
     DynamoParser,
     EventBridgeParser,
     LambdaParser,
+    Parser,
     S3Parser,
+    ServerlessAWSParser,
+    SnsParser,
     SqsParser,
+    get_parser,
 )
 
 
@@ -42,6 +46,11 @@ def test_get_parser_s3():
 def test_get_parser_apigw():
     url = "https://ne3kjv28fh.execute-api.us-west-2.amazonaws.com/doriaviram"
     assert get_parser(url, {}) == ApiGatewayV2Parser
+
+
+def test_get_parser_non_aws():
+    url = "events.other.service"
+    assert get_parser(url, {}) == Parser
 
 
 def test_get_default_parser_when_using_extension(monkeypatch):
@@ -218,7 +227,7 @@ def test_dynamodb_parser_sad_flow_unsupported_query():
 
 
 def test_double_response_size_limit_on_error_status_code():
-    d = {"a": "v" * int(Configuration.get_max_entry_size() * 1.5)}
+    d = {"a": "v" * int(CoreConfiguration.get_max_entry_size() * 1.5)}
     info_no_error = Parser().parse_response("www.google.com", 200, d, json.dumps(d))
     response_no_error = info_no_error["info"]["httpInfo"]["response"]
     info_with_error = Parser().parse_response("www.google.com", 500, d, json.dumps(d))
@@ -321,3 +330,148 @@ def test_event_bridge_parser_response_sad_flow():
     parser = EventBridgeParser()
     response = parser.parse_response("", 200, {}, body=b"not a json")
     assert not response["info"]["messageIds"]
+
+
+def test_sns_parser_resource_name_topic_arn():
+    parser = SnsParser()
+    params = HttpRequest(
+        host="host",
+        method="PUT",
+        uri="uri",
+        headers={},
+        body=b"TopicArn=arn:aws:sns:us-west-2:123456:sns-name",
+    )
+    response = parser.parse_request(params)
+    assert response["info"]["resourceName"] == "arn:aws:sns:us-west-2:123456:sns-name"
+
+
+def test_sns_parser_resource_name_target_arn():
+    parser = SnsParser()
+    params = HttpRequest(
+        host="host",
+        method="PUT",
+        uri="uri",
+        headers={},
+        body=b"TargetArn=arn:aws:sns:us-west-2:123456:sns-name",
+    )
+    response = parser.parse_request(params)
+    assert response["info"]["resourceName"] == "arn:aws:sns:us-west-2:123456:sns-name"
+
+
+def test_base_parser_with_w3c():
+    parser = Parser()
+    params = HttpRequest(
+        host="host",
+        method="PUT",
+        uri="uri",
+        headers={
+            TRACEPARENT_HEADER_NAME: "00-11111111111111111111111100000000-aaaaaaaaaaaaaaaa-01"
+        },
+        body=b"TargetArn=arn:aws:sns:us-west-2:123456:sns-name",
+    )
+    response = parser.parse_request(params)
+    assert response["info"]["messageId"] == "aaaaaaaaaaaaaaaa"
+
+
+def test_parser_w3c_weaker_then_other_message_id():
+    """
+    We want to make sure that if we have a collision - both a W3C messageId and a messageId from other parser,
+     then we should use the other parser's MessageId.
+    """
+    parser = DynamoParser()
+    params = HttpRequest(
+        host="",
+        method="POST",
+        uri="",
+        headers={
+            "x-amz-target": "DynamoDB_20120810.PutItem",
+            TRACEPARENT_HEADER_NAME: "00-11111111111111111111111100000000-aaaaaaaaaaaaaaaa-01",
+        },
+        body=json.dumps({"TableName": "resourceName", "Item": {"key": {"S": "value"}}}),
+    )
+    response = parser.parse_request(params)
+    assert response["info"]["resourceName"] == "resourceName"
+    assert response["info"]["dynamodbMethod"] == "PutItem"
+    assert response["info"]["messageId"] == "1ad3dccc8064a706957c2c06ce3796bb"
+
+
+@pytest.mark.parametrize(
+    "input_uri, configs, expected_uri",
+    [
+        ("http://google.com", {}, "http://google.com"),
+        ("http://google.com?query=param", {}, "http://google.com?query=param"),
+        ("http://google.com?pass=1234&a=b", {}, "http://google.com?pass=----&a=b"),
+        (
+            "http://google.com?pass=1234&a=b",
+            {"secret_masking_regex_http_query_params": re.compile("a")},
+            "http://google.com?pass=1234&a=----",
+        ),
+        (
+            "http://google.com?pass=1234&a=b",
+            {"secret_masking_regex_http_query_params": MASK_ALL_REGEX},
+            "http://google.com?pass=----&a=----",
+        ),
+    ],
+)
+def test_scrub_query_params(monkeypatch, input_uri, configs, expected_uri):
+    for attr, value in configs.items():
+        monkeypatch.setattr(CoreConfiguration, attr, value)
+
+    response = Parser().parse_request(
+        HttpRequest(
+            host="host",
+            method="PUT",
+            uri=input_uri,
+            headers={},
+            body=b"body",
+        )
+    )
+    assert response["info"]["httpInfo"]["request"]["uri"] == expected_uri
+
+
+def test_scrub_request(monkeypatch):
+    monkeypatch.setattr(
+        CoreConfiguration, "secret_masking_regex_http_request_bodies", re.compile("other")
+    )
+    monkeypatch.setattr(
+        CoreConfiguration, "secret_masking_regex_http_request_headers", re.compile("bla")
+    )
+
+    response = Parser().parse_request(
+        HttpRequest(
+            host="host",
+            method="PUT",
+            uri="uri",
+            headers={"bla": "1234", "other": "5678"},
+            body=b'{"bla": "1234", "other": "5678"}',
+        )
+    )
+    assert (
+        response["info"]["httpInfo"]["request"]["body"]
+        == f'{{"bla": "1234", "other": "{MASKED_SECRET}"}}'
+    )
+    assert (
+        response["info"]["httpInfo"]["request"]["headers"]
+        == f'{{"bla": "{MASKED_SECRET}", "other": "5678"}}'
+    )
+
+
+def test_scrub_response(monkeypatch):
+    monkeypatch.setattr(
+        CoreConfiguration, "secret_masking_regex_http_response_bodies", MASK_ALL_REGEX
+    )
+    monkeypatch.setattr(
+        CoreConfiguration, "secret_masking_regex_http_response_headers", re.compile("bla")
+    )
+
+    response = Parser().parse_response(
+        url="uri",
+        status_code=200,
+        headers={"bla": "1234", "other": "5678"},
+        body=b'{"bla": "1234", "other": "5678"}',
+    )
+    assert response["info"]["httpInfo"]["response"]["body"] == MASKED_SECRET
+    assert (
+        response["info"]["httpInfo"]["response"]["headers"]
+        == f'{{"bla": "{MASKED_SECRET}", "other": "5678"}}'
+    )

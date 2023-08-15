@@ -1,41 +1,48 @@
 import copy
 import inspect
 import os
-from datetime import datetime
-
+import signal
 import time
 import uuid
-import signal
-from typing import List, Dict, Optional, Callable, Set
+from datetime import datetime
+from typing import Callable, Dict, List, Optional, Set, Union
+
+from lumigo_core.configuration import CoreConfiguration
+from lumigo_core.parsing_utils import (
+    parse_trace_id,
+    recursive_json_join,
+    safe_split_get,
+)
+from lumigo_core.scrubbing import EXECUTION_TAGS_KEY, MANUAL_TRACES_KEY
+from lumigo_core.triggers.event_trigger import parse_triggers
 
 from lumigo_tracer.event.event_dumper import EventDumper
+from lumigo_tracer.lambda_tracer import lambda_reporter
 from lumigo_tracer.lumigo_utils import (
-    Configuration,
     LUMIGO_EVENT_KEY,
     STEP_FUNCTION_UID_KEY,
-    format_frames,
-    lumigo_dumps,
-    EXECUTION_TAGS_KEY,
-    get_timeout_buffer,
-    get_logger,
-    _is_span_has_error,
+    Configuration,
     create_step_function_span,
+    format_frames,
     get_current_ms_time,
+    get_logger,
     get_region,
-    is_provision_concurrency_initialization,
     get_stacktrace,
-    write_extension_file,
-    should_use_tracer_extension,
-    MANUAL_TRACES_KEY,
+    get_timeout_buffer,
+    is_provision_concurrency_initialization,
+    is_python_37,
+    is_span_has_error,
+    lumigo_dumps,
+    lumigo_dumps_with_context,
     lumigo_safe_execute,
+    should_use_tracer_extension,
 )
-from lumigo_tracer import lumigo_utils
-from lumigo_tracer.parsing_utils import parse_trace_id, safe_split_get, recursive_json_join
-from lumigo_tracer.event.event_trigger import parse_triggered_by
+from lumigo_tracer.w3c_context import add_w3c_trace_propagator
 
-_VERSION_PATH = os.path.join(os.path.dirname(__file__), "VERSION")
+_VERSION_PATH = os.path.join(os.path.dirname(__file__), "../VERSION")
 MAX_LAMBDA_TIME = 15 * 60 * 1000
 FUNCTION_TYPE = "function"
+ENRICHMENT_TYPE = "enrichment"
 MALFORMED_TXID = "000000000000000000000000"
 
 
@@ -58,7 +65,7 @@ class SpansContainer:
         request_id: str = None,
         account: str = None,
         trace_id_suffix: str = None,
-        trigger_by: dict = None,
+        trigger_by: Optional[List[dict]] = None,  # type: ignore[type-arg]
         max_finish_time: int = None,
         is_new_invocation: bool = False,
         event: str = None,
@@ -100,31 +107,45 @@ class SpansContainer:
                 "info": {
                     "logStreamName": log_stream_name,
                     "logGroupName": log_group_name,
-                    **(trigger_by or {}),
+                    **({"trigger": trigger_by} if trigger_by else {}),
                 },
                 "isMalformedTransactionId": malformed_txid,
-                EXECUTION_TAGS_KEY: [],
                 MANUAL_TRACES_KEY: [],
             },
             self.base_msg,
         )
+        self.base_enrichment_span = {
+            "type": ENRICHMENT_TYPE,
+            "token": Configuration.token,
+            "invocation_id": request_id,
+            "transaction_id": transaction_id,
+        }
+        self.execution_tags: List[Dict[str, str]] = []
         self.span_ids_to_send: Set[str] = set()
-        self.spans: Dict[str, Dict] = {}
+        self.spans: Dict[str, Dict] = {}  # type: ignore[type-arg]
         self.manual_trace_start_times: Dict[str, int] = {}
         if is_new_invocation:
             SpansContainer.is_cold = False
 
-    def _generate_start_span(self) -> dict:
+    def _generate_start_span(self) -> dict:  # type: ignore[type-arg]
         to_send = self.function_span.copy()
         to_send["id"] = f"{to_send['id']}_started"
         to_send["ended"] = to_send["started"]
         to_send["maxFinishTime"] = self.max_finish_time
-        return to_send
+        return to_send  # type: ignore[no-any-return]
 
-    def start(self, event=None, context=None):
+    def generate_enrichment_span(self) -> Optional[Dict[str, Union[str, int]]]:
+        if not self.execution_tags:
+            return None
+        return recursive_json_join(  # type: ignore[no-any-return]
+            {"sending_time": get_current_ms_time(), EXECUTION_TAGS_KEY: self.execution_tags.copy()},
+            self.base_enrichment_span,
+        )
+
+    def start(self, event=None, context=None):  # type: ignore[no-untyped-def]
         to_send = self._generate_start_span()
         if not Configuration.send_only_if_error:
-            report_duration = lumigo_utils.report_json(
+            report_duration = lambda_reporter.report_json(
                 region=self.region, msgs=[to_send], is_start_span=True
             )
             self.function_span["reporter_rtt"] = report_duration
@@ -132,17 +153,20 @@ class SpansContainer:
             get_logger().debug("Skip sending start because tracer in 'send only if error' mode .")
         self.start_timeout_timer(context)
 
-    def handle_timeout(self, *args):
+    def handle_timeout(self, *args):  # type: ignore[no-untyped-def]
         with lumigo_safe_execute("spans container: handle_timeout"):
             get_logger().info("The tracer reached the end of the timeout timer")
             spans_id_copy = self.span_ids_to_send.copy()
             to_send = [self.spans[span_id] for span_id in spans_id_copy]
+            enrichment_span = self.generate_enrichment_span()
+            if enrichment_span:
+                to_send.insert(0, enrichment_span)
             self.span_ids_to_send.clear()
             if Configuration.send_only_if_error:
                 to_send.append(self._generate_start_span())
-            lumigo_utils.report_json(region=self.region, msgs=to_send)
+            lambda_reporter.report_json(region=self.region, msgs=to_send)
 
-    def start_timeout_timer(self, context=None) -> None:
+    def start_timeout_timer(self, context=None) -> None:  # type: ignore[no-untyped-def]
         if Configuration.timeout_timer:
             if not hasattr(context, "get_remaining_time_in_millis"):
                 get_logger().info("Skip setting timeout timer - Could not get the remaining time.")
@@ -154,7 +178,7 @@ class SpansContainer:
                 return
             TimeoutMechanism.start(remaining_time - buffer, self.handle_timeout)
 
-    def add_span(self, span: dict) -> dict:
+    def add_span(self, span: dict) -> dict:  # type: ignore[type-arg]
         """
         This function parses an request event and add it to the span.
         """
@@ -162,14 +186,14 @@ class SpansContainer:
         span_id = new_span["id"]
         self.spans[span_id] = new_span
         self.span_ids_to_send.add(span_id)
-        return new_span
+        return new_span  # type: ignore[no-any-return]
 
-    def get_span_by_id(self, span_id: Optional[str]) -> Optional[dict]:
+    def get_span_by_id(self, span_id: Optional[str]) -> Optional[dict]:  # type: ignore[type-arg]
         if not span_id:
             return None
         return self.spans.get(span_id)
 
-    def pop_span(self, span_id: Optional[str]) -> Optional[dict]:
+    def pop_span(self, span_id: Optional[str]) -> Optional[dict]:  # type: ignore[type-arg]
         if not span_id:
             return None
         self.span_ids_to_send.discard(span_id)
@@ -203,8 +227,8 @@ class SpansContainer:
             get_logger().warning(f"update_event_times: Got unknown span id: {span_id}")
 
     @staticmethod
-    def _create_exception_event(
-        exc_type: str, message: str, stacktrace: str = "", frames: Optional[List[dict]] = None
+    def _create_exception_event(  # type: ignore[no-untyped-def]
+        exc_type: str, message: str, stacktrace: str = "", frames: Optional[List[dict]] = None  # type: ignore[type-arg]
     ):
         return {
             "type": exc_type,
@@ -214,8 +238,8 @@ class SpansContainer:
         }
 
     @staticmethod
-    def add_exception_to_span(
-        span: dict, exception: Exception, frames_infos: List[inspect.FrameInfo]
+    def add_exception_to_span(  # type: ignore[no-untyped-def]
+        span: dict, exception: Exception, frames_infos: List[inspect.FrameInfo]  # type: ignore[type-arg]
     ):
         message = exception.args[0] if exception.args else None
         if not isinstance(message, str):
@@ -233,7 +257,7 @@ class SpansContainer:
         if self.function_span:
             self.add_exception_to_span(self.function_span, exception, frames_infos)
 
-    def add_step_end_event(self, ret_val):
+    def add_step_end_event(self, ret_val):  # type: ignore[no-untyped-def]
         message_id = str(uuid.uuid4())
         step_function_span = create_step_function_span(message_id)
         span_id = step_function_span["id"]
@@ -244,10 +268,10 @@ class SpansContainer:
             get_logger().debug(f"Added key {LUMIGO_EVENT_KEY} to the user's return value")
 
     def get_tags_len(self) -> int:
-        return len(self.function_span[EXECUTION_TAGS_KEY])
+        return len(self.execution_tags)
 
     def add_tag(self, key: str, value: str) -> None:
-        self.function_span[EXECUTION_TAGS_KEY].append({"key": key, "value": value})
+        self.execution_tags.append({"key": key, "value": value})
 
     def start_manual_trace(self, name: str) -> None:
         now = get_current_ms_time()
@@ -261,7 +285,7 @@ class SpansContainer:
                 {"name": name, "startTime": manual_trace_started, "endTime": now}
             )
 
-    def end(self, ret_val=None, event: Optional[dict] = None, context=None) -> Optional[int]:
+    def end(self, ret_val=None, event: Optional[dict] = None, context=None) -> Optional[int]:  # type: ignore[no-untyped-def,type-arg]
         TimeoutMechanism.stop()
         reported_rtt = None
         self.previous_request = None
@@ -274,51 +298,63 @@ class SpansContainer:
                 if ret_val is not None:
                     parsed_ret_val = lumigo_dumps(ret_val, enforce_jsonify=True, decimal_safe=True)
             except Exception as err:
-                suffix = ""
-                if err.args:
-                    suffix = f'Original message: "{err.args[0]}"'
-                self.function_span["error"] = self._create_exception_event(
-                    "ReturnValueError",
-                    "The lambda will probably fail due to bad return value. " + suffix,
-                )
+                if is_python_37():
+                    suffix = ""
+                    if err.args:
+                        suffix = f'Original message: "{err.args[0]}"'
+                    self.function_span["error"] = self._create_exception_event(
+                        "ReturnValueError",
+                        "The lambda will probably fail due to bad return value. " + suffix,
+                    )
+                else:
+                    get_logger().exception(
+                        "Could not serialize the return value of the lambda", exc_info=True
+                    )
         self.function_span.update({"return_value": parsed_ret_val})
-        if _is_span_has_error(self.function_span):
+        if is_span_has_error(self.function_span):
             self._set_error_extra_data(event)
         spans_contain_errors: bool = any(
-            _is_span_has_error(s) for s in self.spans.values()
-        ) or _is_span_has_error(self.function_span)
+            is_span_has_error(s) for s in self.spans.values()
+        ) or is_span_has_error(self.function_span)
 
         if (not Configuration.send_only_if_error) or spans_contain_errors:
             to_send = [self.function_span] + [
                 span for span_id, span in self.spans.items() if span_id in self.span_ids_to_send
             ]
-            reported_rtt = lumigo_utils.report_json(region=self.region, msgs=to_send)
+            enrichment_span = self.generate_enrichment_span()
+            if enrichment_span:
+                to_send.append(enrichment_span)
+            reported_rtt = lambda_reporter.report_json(region=self.region, msgs=to_send)
         else:
             get_logger().debug(
                 "No Spans were sent, `Configuration.send_only_if_error` is on and no span has error"
             )
             if should_use_tracer_extension():
-                write_extension_file([{}], "stop")
+                lambda_reporter.write_extension_file([{}], "stop")
         return reported_rtt
 
-    def _set_error_extra_data(self, event):
+    def _set_error_extra_data(self, event):  # type: ignore[no-untyped-def]
         self.function_span["envs"] = _get_envs_for_span(has_error=True)
         if event:
             self.function_span["event"] = EventDumper.dump_event(
                 copy.deepcopy(event), has_error=True
             )
 
-    def can_path_root(self):
+    def can_path_root(self):  # type: ignore[no-untyped-def]
         return self.trace_root and self.transaction_id and self.trace_id_suffix
 
-    def get_patched_root(self):
+    def get_patched_root(self):  # type: ignore[no-untyped-def]
         """
         We're changing the root in order to pass/share the transaction id. More info:
         https://docs.aws.amazon.com/xray/latest/devguide/xray-api-sendingdata.html#xray-api-traceids
         """
         current_time = int(time.time())
-        root = safe_split_get(self.trace_root, "-", 0)
+        root = safe_split_get(self.trace_root, "-", 0)  # type: ignore[arg-type]
         return f"Root={root}-{hex(current_time)[2:]}-{self.transaction_id}{self.trace_id_suffix}"
+
+    def add_w3c_trace_propagator(self, headers: Dict[str, str]) -> None:
+        if self.transaction_id:
+            add_w3c_trace_propagator(headers, self.transaction_id)
 
     @classmethod
     def get_span(cls) -> "SpansContainer":
@@ -327,7 +363,7 @@ class SpansContainer:
         return cls.create_span()
 
     @classmethod
-    def create_span(cls, event=None, context=None, is_new_invocation=False) -> "SpansContainer":
+    def create_span(cls, event=None, context=None, is_new_invocation=False) -> "SpansContainer":  # type: ignore[no-untyped-def]
         """
         This function creates a span out of a given AWS context.
         The force flag delete any existing span-container (to handle with warm execution of lambdas).
@@ -359,7 +395,7 @@ class SpansContainer:
             trace_id_suffix=suffix,
             request_id=getattr(context, "aws_request_id", ""),
             account=safe_split_get(getattr(context, "invoked_function_arn", ""), ":", 4, ""),
-            trigger_by=parse_triggered_by(event),
+            trigger_by=parse_triggers(event),
             max_finish_time=get_current_ms_time() + remaining_time,
             is_new_invocation=is_new_invocation,
             **additional_info,
@@ -369,21 +405,23 @@ class SpansContainer:
 
 class TimeoutMechanism:
     @staticmethod
-    def start(seconds: int, to_exec: Callable):
+    def start(seconds: int, to_exec: Callable):  # type: ignore[no-untyped-def,type-arg]
         if Configuration.timeout_timer:
             signal.signal(signal.SIGALRM, to_exec)
             signal.setitimer(signal.ITIMER_REAL, seconds)
 
     @staticmethod
-    def stop():
+    def stop():  # type: ignore[no-untyped-def]
         if Configuration.timeout_timer:
             signal.alarm(0)
             signal.signal(signal.SIGALRM, signal.SIG_DFL)
 
     @staticmethod
-    def is_activated():
+    def is_activated():  # type: ignore[no-untyped-def]
         return Configuration.timeout_timer and signal.getsignal(signal.SIGALRM) != signal.SIG_DFL
 
 
 def _get_envs_for_span(has_error: bool = False) -> str:
-    return lumigo_dumps(dict(os.environ), Configuration.get_max_entry_size(has_error))
+    return lumigo_dumps_with_context(
+        "environment", dict(os.environ), CoreConfiguration.get_max_entry_size(has_error)
+    )

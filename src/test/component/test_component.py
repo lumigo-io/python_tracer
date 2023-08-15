@@ -1,13 +1,15 @@
+import http.client
 import json
+import os
 import subprocess
+
 import boto3
 import pytest
-import os
+from lumigo_core.lumigo_utils import md5hash
 
-
-from lumigo_tracer.tracer import lumigo_tracer
-from lumigo_tracer.spans_container import SpansContainer
-from lumigo_tracer.lumigo_utils import md5hash
+from lumigo_tracer import global_scope_exec
+from lumigo_tracer.lambda_tracer.spans_container import SpansContainer
+from lumigo_tracer.lambda_tracer.tracer import lumigo_tracer
 
 TOKEN = "t_10faa5e13e7844aaa1234"
 
@@ -22,7 +24,7 @@ def serverless_yaml():
 
 
 @pytest.fixture(autouse=True)
-def aws_env_variables(monkeypatch):
+def aws_env_variables(monkeypatch, aws_environment):
     """
     When running in AWS Lambda, there are some environment variables that AWS creates and the tracer uses.
     This fixture creates those environment variables.
@@ -31,6 +33,7 @@ def aws_env_variables(monkeypatch):
         "_X_AMZN_TRACE_ID",
         "RequestId: 4365921c-fc6d-4745-9f00-9fe9c516ede5 Root=1-000044d4-c3881e0c19c02c5e6ffa8f9e;Parent=37cf579525dfb3ba;Sampled=0",
     )
+    global_scope_exec()
 
 
 @pytest.fixture
@@ -172,11 +175,11 @@ def test_sqs(sqs_resource, region, context):
     events = list(SpansContainer.get_span().spans.values())
     assert len(events) == 2
     # Single message.
-    assert events[0]["info"]["httpInfo"]["host"] == f"{region}.queue.amazonaws.com"
+    assert events[0]["info"]["httpInfo"]["host"] == f"sqs.{region}.amazonaws.com"
     assert events[0]["info"]["resourceName"] == sqs_resource
     assert events[0]["info"]["messageId"]
     # Batch messages.
-    assert events[1]["info"]["httpInfo"]["host"] == f"{region}.queue.amazonaws.com"
+    assert events[1]["info"]["httpInfo"]["host"] == f"sqs.{region}.amazonaws.com"
     assert events[1]["info"]["resourceName"] == sqs_resource
     assert events[1]["info"]["messageId"]
 
@@ -210,3 +213,40 @@ def test_get_body_from_aws_response(sqs_resource, region, context):
     # making sure there is any data in the body.
     body = events[0]["info"]["httpInfo"]["response"]["body"]
     assert body and body != "b''"
+
+
+@pytest.mark.slow
+@pytest.mark.parametrize("as_kwarg", [True, False])
+def test_w3c_headers_requests_with_headers(sqs_resource, region, context, aws_env, as_kwarg):
+    @lumigo_tracer(token=TOKEN, propagate_w3c=True)
+    def lambda_test_function(event, context):
+        conn = http.client.HTTPConnection("httpbin.org")
+        if as_kwarg:
+            conn.request("GET", "/anything", b"content", headers={"A": "B"})
+        else:
+            conn.request("GET", "/anything", b"content", {"A": "B"})
+        return conn.getresponse().read()
+
+    lambda_test_function({}, context)
+    events = list(SpansContainer.get_span().spans.values())
+    # making sure there is any data in the body.
+    body = json.loads(events[0]["info"]["httpInfo"]["response"]["body"])
+    assert body["data"] == "content"
+    assert body["headers"]["A"] == "B"
+    assert "Traceparent" in body["headers"]
+
+
+@pytest.mark.slow
+def test_w3c_headers_requests_without_headers(sqs_resource, region, context, aws_env):
+    @lumigo_tracer(token=TOKEN, propagate_w3c=True)
+    def lambda_test_function(event, context):
+        conn = http.client.HTTPConnection("httpbin.org")
+        conn.request("GET", "/anything", b"content")
+        return conn.getresponse().read()
+
+    lambda_test_function({}, context)
+    events = list(SpansContainer.get_span().spans.values())
+    # making sure there is any data in the body.
+    body = json.loads(events[0]["info"]["httpInfo"]["response"]["body"])
+    assert body["data"] == "content"
+    assert "Traceparent" in body["headers"]

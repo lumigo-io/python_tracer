@@ -1,10 +1,16 @@
-import pytest
-import urllib.request
 import http.client
-from mock import Mock
+import urllib.request
 from types import SimpleNamespace
 
-from lumigo_tracer.extension.main import start_extension_loop, register, main, STOP_EXTENSION_KEY
+import pytest
+from mock import Mock
+
+from lumigo_tracer.extension.main import (
+    STOP_EXTENSION_KEY,
+    main,
+    register,
+    start_extension_loop,
+)
 from lumigo_tracer.lumigo_utils import KILL_SWITCH
 
 

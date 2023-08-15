@@ -1,5 +1,6 @@
-import pytest
 import time
+
+import pytest
 from mock import mock_open, patch
 
 from lumigo_tracer.extension.extension import LumigoExtension

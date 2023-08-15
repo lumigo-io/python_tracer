@@ -1,14 +1,13 @@
 import uuid
 
 import pytest
-
+from lumigo_core.configuration import DEFAULT_MAX_ENTRY_SIZE
+from sqlalchemy import Column, Integer, MetaData, String, Table, create_engine
 from sqlalchemy.exc import OperationalError
-from sqlalchemy import create_engine, Table, Column, Integer, String, MetaData
 from sqlalchemy.sql import select
 
-from lumigo_tracer.lumigo_utils import DEFAULT_MAX_ENTRY_SIZE
-from lumigo_tracer.spans_container import SpansContainer
-from lumigo_tracer.tracer import lumigo_tracer
+from lumigo_tracer.lambda_tracer.spans_container import SpansContainer
+from lumigo_tracer.lambda_tracer.tracer import lumigo_tracer
 
 TOKEN = "t_10faa5e13e7844aaa1234"
 

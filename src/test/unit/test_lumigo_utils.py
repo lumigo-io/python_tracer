@@ -1,72 +1,34 @@
-import importlib.util
 import inspect
 import logging
-import os
-import uuid
-from collections import OrderedDict
-from decimal import Decimal
-import datetime
-import http.client
-import socket
-from unittest.mock import Mock
-
-import boto3
-from mock import MagicMock
 
 import pytest
-from lumigo_tracer import lumigo_utils
+from lumigo_core.configuration import CoreConfiguration
+from lumigo_core.scrubbing import lumigo_dumps
+
 from lumigo_tracer.lumigo_utils import (
-    _create_request_body,
-    _is_span_has_error,
-    _get_event_base64_size,
-    MAX_VARS_SIZE,
-    format_frames,
-    _truncate_locals,
-    MAX_VAR_LEN,
-    format_frame,
-    omit_keys,
-    config,
-    Configuration,
-    LUMIGO_SECRET_MASKING_REGEX,
-    LUMIGO_SECRET_MASKING_REGEX_BACKWARD_COMP,
-    get_omitting_regex,
-    warn_client,
-    WARN_CLIENT_PREFIX,
-    SKIP_SCRUBBING_KEYS,
-    get_timeout_buffer,
-    lumigo_dumps,
-    get_edge_host,
-    EDGE_PATH,
-    report_json,
-    is_kill_switch_on,
-    KILL_SWITCH,
-    is_error_code,
-    get_size_upper_bound,
-    is_aws_arn,
-    CHINA_REGION,
-    internal_analytics_message,
-    INTERNAL_ANALYTICS_PREFIX,
-    InternalState,
-    concat_old_body_to_new,
-    TRUNCATE_SUFFIX,
     DEFAULT_AUTO_TAG_KEY,
+    INTERNAL_ANALYTICS_PREFIX,
+    KILL_SWITCH,
+    MAX_VAR_LEN,
+    MAX_VARS_SIZE,
+    WARN_CLIENT_PREFIX,
+    Configuration,
+    _truncate_locals,
+    concat_old_body_to_new,
+    config,
+    format_frame,
+    format_frames,
+    get_size_upper_bound,
+    get_timeout_buffer,
+    internal_analytics_message,
+    is_aws_arn,
+    is_error_code,
+    is_kill_switch_on,
+    is_python_37,
+    is_span_has_error,
+    lumigo_safe_execute,
+    warn_client,
 )
-import json
-
-
-@pytest.fixture
-def dummy_span():
-    return {"dummy": "dummy"}
-
-
-@pytest.fixture
-def function_end_span():
-    return {"dummy_end": "dummy_end"}
-
-
-@pytest.fixture
-def error_span():
-    return {"dummy": "dummy", "error": "Error"}
 
 
 @pytest.mark.parametrize(
@@ -79,40 +41,7 @@ def error_span():
     ],
 )
 def test_is_span_has_error(input_span, expected_is_error):
-    assert _is_span_has_error(input_span) is expected_is_error
-
-
-def test_create_request_body_default(dummy_span):
-    assert _create_request_body([dummy_span], False) == json.dumps([dummy_span])
-
-
-def test_create_request_body_not_effecting_small_events(dummy_span):
-    assert _create_request_body([dummy_span], True, 1_000_000) == json.dumps([dummy_span])
-
-
-def test_create_request_body_keep_function_span_and_filter_other_spans(
-    dummy_span, function_end_span
-):
-    expected_result = [dummy_span, dummy_span, dummy_span, function_end_span]
-    size = _get_event_base64_size(expected_result)
-    assert _create_request_body(expected_result * 2, True, size) == json.dumps(
-        [function_end_span, dummy_span, dummy_span, dummy_span]
-    )
-
-
-def test_create_request_body_take_error_first(dummy_span, error_span, function_end_span):
-    expected_result = [function_end_span, error_span, dummy_span, dummy_span]
-    input = [
-        dummy_span,
-        dummy_span,
-        dummy_span,
-        dummy_span,
-        dummy_span,
-        error_span,
-        function_end_span,
-    ]
-    size = _get_event_base64_size(expected_result)
-    assert _create_request_body(input, True, size) == json.dumps(expected_result)
+    assert is_span_has_error(input_span) is expected_is_error
 
 
 @pytest.mark.parametrize(
@@ -229,116 +158,6 @@ def test_format_frames__check_all_keys_and_values():
     }
 
 
-@pytest.mark.parametrize(
-    ("value", "output"),
-    [
-        ("aa", '"aa"'),  # happy flow - string
-        (None, "null"),  # happy flow - None
-        ("a" * 101, '"' + "a" * 99 + "...[too long]"),  # simple long string
-        ({"a": "a"}, '{"a": "a"}'),  # happy flow - dict
-        ({"a": set([1])}, '{"a": "{1}"}'),  # dict that can't be converted to json
-        (b"a", '"a"'),  # bytes that can be decoded
-        (b"\xff\xfea\x00", "\"b'\\\\xff\\\\xfea\\\\x00'\""),  # bytes that can't be decoded
-        ({1: Decimal(1)}, '{"1": 1.0}'),  # decimal should be serializeable  (like in AWS!)
-        ({"key": "b"}, '{"key": "****"}'),  # simple omitting
-        ({"a": {"key": "b"}}, '{"a": {"key": "****"}}'),  # inner omitting
-        ({"a": {"key": "b" * 100}}, '{"a": {"key": "****"}}'),  # long omitting
-        ({"a": "b" * 300}, f'{{"a": "{"b" * 93}...[too long]'),  # long key
-        ('{"a": "b"}', '{"a": "b"}'),  # string which is a simple json
-        ('{"a": {"key": "b"}}', '{"a": {"key": "****"}}'),  # string with inner omitting
-        ("{1: ", '"{1: "'),  # string which is not json but look like one
-        (b'{"password": "abc"}', '{"password": "****"}'),  # omit of bytes
-        ({"a": '{"password": 123}'}, '{"a": "{\\"password\\": 123}"}'),  # ignore inner json-string
-        ({None: 1}, '{"null": 1}'),
-        ({"1": datetime.datetime(1994, 4, 22)}, '{"1": "1994-04-22 00:00:00"}'),
-        (OrderedDict({"a": "b", "key": "123"}), '{"a": "b", "key": "****"}'),  # OrderedDict
-        (  # Skip scrubbing
-            {SKIP_SCRUBBING_KEYS[0]: {"password": 1}},
-            f'{{"{SKIP_SCRUBBING_KEYS[0]}": {{"password": 1}}}}',
-        ),
-        ([{"password": 1}, {"a": "b"}], '[{"password": "****"}, {"a": "b"}]'),  # list of dicts
-        (  # Dict of long list
-            {"a": [{"key": "value", "password": "value", "b": "c"}]},
-            '{"a": [{"key": "****", "password": "****", "b": "c"}]}',
-        ),
-        (  # Multiple nested lists
-            {"a": [[[{"c": [{"key": "v"}]}], [{"c": [{"key": "v"}]}]]]},
-            '{"a": [[[{"c": [{"key": "****"}]}], [{"c": [{"key": "****"}]}]]]}',
-        ),
-        (  # non jsonable
-            {"set"},
-            "{'set'}",
-        ),
-        (  # redump already dumped and truncated json (avoid re-escaping)
-            f'{{"a": "b{TRUNCATE_SUFFIX}',
-            f'{{"a": "b{TRUNCATE_SUFFIX}',
-        ),
-    ],
-)
-def test_lumigo_dumps(value, output):
-    assert lumigo_dumps(value, max_size=100) == output
-
-
-def test_lumigo_dumps_fails_on_non_jsonable():
-    with pytest.raises(TypeError):
-        lumigo_utils({"set"})
-
-
-@pytest.mark.parametrize(
-    ("value", "omit_skip_path", "output"),
-    [
-        ({"a": "b", "Key": "v"}, ["Key"], '{"a": "b", "Key": "v"}'),  # Not nested
-        (  # Nested with list
-            {"R": [{"o": {"key": "value"}}]},
-            ["R", "o", "key"],
-            '{"R": [{"o": {"key": "value"}}]}',
-        ),
-        (  # Doesnt affect other paths
-            {"a": {"key": "v"}, "b": {"key": "v"}},
-            ["a", "key"],
-            '{"a": {"key": "v"}, "b": {"key": "****"}}',
-        ),
-        (  # Nested items not affected
-            {"key": {"password": "v"}},
-            ["key"],
-            '{"key": {"password": "****"}}',
-        ),
-        (  # Happy flow - nested case
-            {"key": {"password": "v"}},
-            ["key", "password"],
-            '{"key": {"password": "v"}}',
-        ),
-        ({"a": {"key": "c"}}, ["key"], '{"a": {"key": "****"}}'),  # Affect only the full path
-    ],
-)
-def test_lumigo_dumps_with_omit_skip(value, omit_skip_path, output):
-    assert lumigo_dumps(value, omit_skip_path=omit_skip_path) == output
-
-
-def test_lumigo_dumps_with_omit_skip_and_should_scrub_known_services(monkeypatch):
-    monkeypatch.setenv("LUMIGO_SCRUB_KNOWN_SERVICES", "true")
-    config()
-
-    assert lumigo_dumps({"key": "v"}, omit_skip_path=["key"]) == '{"key": "****"}'
-
-
-def test_lumigo_dumps_enforce_jsonify_raise_error():
-    with pytest.raises(TypeError):
-        assert lumigo_dumps({"a": set()}, max_size=100, enforce_jsonify=True)
-
-
-def test_lumigo_dumps_no_regexes(monkeypatch):
-    monkeypatch.setenv(LUMIGO_SECRET_MASKING_REGEX, "[]")
-    result = lumigo_dumps({"key": "123"}, max_size=100, enforce_jsonify=True)
-    assert result == '{"key": "123"}'
-
-
-def test_lumigo_dumps_omit_keys_environment(monkeypatch):
-    monkeypatch.setenv(LUMIGO_SECRET_MASKING_REGEX, '[".*evilPlan.*"]')
-    value = {"password": "abc", "evilPlan": {"take": "over", "the": "world"}}
-    assert lumigo_dumps(value, max_size=100) == '{"password": "abc", "evilPlan": "****"}'
-
-
 def test_format_frame():
     try:
         a = "A"  # noqa F841
@@ -358,33 +177,6 @@ def test_format_frame():
     assert variables["password"] == '"****"'
 
 
-def test_get_omitting_regexes(monkeypatch):
-    monkeypatch.setenv(LUMIGO_SECRET_MASKING_REGEX, '[".*evilPlan.*"]')
-    assert get_omitting_regex().pattern == "(.*evilPlan.*)"
-
-
-def test_get_omitting_regexes_backward_compatibility(monkeypatch):
-    monkeypatch.setenv(LUMIGO_SECRET_MASKING_REGEX_BACKWARD_COMP, '[".*evilPlan.*"]')
-    assert get_omitting_regex().pattern == "(.*evilPlan.*)"
-
-
-def test_get_omitting_regexes_prefer_new_environment_name(monkeypatch):
-    monkeypatch.setenv(LUMIGO_SECRET_MASKING_REGEX, '[".*evilPlan.*"]')
-    monkeypatch.setenv(LUMIGO_SECRET_MASKING_REGEX_BACKWARD_COMP, '[".*evilPlan2.*"]')
-    assert get_omitting_regex().pattern == "(.*evilPlan.*)"
-
-
-def test_get_omitting_regexes_fallback(monkeypatch):
-    expected = "(.*pass.*|.*key.*|.*secret.*|.*credential.*|SessionToken|x-amz-security-token|Signature|Authorization)"
-    assert get_omitting_regex().pattern == expected
-
-
-def test_omit_keys_environment(monkeypatch):
-    monkeypatch.setenv(LUMIGO_SECRET_MASKING_REGEX, '[".*evilPlan.*"]')
-    value = {"password": "abc", "evilPlan": {"take": "over", "the": "world"}}
-    assert omit_keys(value)[0] == {"password": "abc", "evilPlan": "****"}
-
-
 @pytest.mark.parametrize("configuration_value", (True, False))
 def test_config_step_function_with_envs(monkeypatch, configuration_value):
     monkeypatch.setenv("LUMIGO_STEP_FUNCTION", "TRUE")
@@ -397,6 +189,19 @@ def test_config_step_function_without_envs(monkeypatch, configuration_value):
     monkeypatch.delenv("LUMIGO_STEP_FUNCTION", raising=False)
     config(step_function=configuration_value)
     assert Configuration.is_step_function == configuration_value
+
+
+@pytest.mark.parametrize("value, expected", (("TRUE", True), ("FALSE", False)))
+def test_config_propagate_w3c_by_env(monkeypatch, value, expected):
+    monkeypatch.setenv("LUMIGO_PROPAGATE_W3C", value)
+    config()
+    assert Configuration.propagate_w3c == expected
+
+
+def test_config_propagate_w3c_default_value(monkeypatch):
+    monkeypatch.delenv("LUMIGO_PROPAGATE_W3C", raising=False)
+    config()
+    assert Configuration.propagate_w3c is False
 
 
 def test_config_lumigo_auto_tag(monkeypatch):
@@ -420,7 +225,7 @@ def test_config_lumigo_auto_tag_kwarg(monkeypatch):
 def test_config_lumigo_domains_scrubber_with_envs(monkeypatch):
     monkeypatch.setenv("LUMIGO_DOMAINS_SCRUBBER", '["lambda.us-west-2.amazonaws.com"]')
     config()
-    assert len(Configuration.domains_scrubber) == 1
+    assert Configuration.domains_scrubber.pattern == "(lambda.us-west-2.amazonaws.com)"
 
 
 def test_config_timeout_timer_buffer_with_exception(monkeypatch):
@@ -449,173 +254,10 @@ def test_get_timeout_buffer(remaining_time, conf, expected):
     assert get_timeout_buffer(remaining_time) == expected
 
 
-@pytest.mark.parametrize(
-    ["arg", "host"],
-    [("https://a.com", "a.com"), (f"https://b.com{EDGE_PATH}", "b.com"), ("h.com", "h.com")],
-)
-def test_get_edge_host(arg, host, monkeypatch):
-    monkeypatch.setattr(Configuration, "host", arg)
-    assert get_edge_host("region") == host
-
-
-def test_report_json_extension_spans_mode(monkeypatch, reporter_mock, tmpdir):
-    extension_dir = tmpdir.mkdir("tmp")
-    monkeypatch.setattr(uuid, "uuid4", lambda *args, **kwargs: "span_name")
-    monkeypatch.setattr(Configuration, "should_report", True)
-    monkeypatch.setenv("LUMIGO_USE_TRACER_EXTENSION", "TRUE")
-    monkeypatch.setenv("LUMIGO_EXTENSION_SPANS_DIR_KEY", extension_dir)
-    mocked_urandom = MagicMock(hex=MagicMock(return_value="my_mocked_data"))
-    monkeypatch.setattr(os, "urandom", lambda *args, **kwargs: mocked_urandom)
-
-    start_span = [{"span": "true"}]
-    report_json(region=None, msgs=start_span, is_start_span=True)
-
-    spans = []
-    size_factor = 100
-    for i in range(size_factor):
-        spans.append(
-            {
-                i: "a" * size_factor,
-            }
-        )
-    report_json(region=None, msgs=spans, is_start_span=False)
-    start_path_path = f"{lumigo_utils.get_extension_dir()}/span_name_span"
-    end_path_path = f"{lumigo_utils.get_extension_dir()}/span_name_end"
-    start_file_content = json.loads(open(start_path_path, "r").read())
-    end_file_content = json.loads(open(end_path_path, "r").read())
-    assert start_span == start_file_content
-    assert json.dumps(end_file_content) == json.dumps(spans)
-
-
-@pytest.mark.parametrize(
-    "errors, final_log", [(ValueError, "ERROR"), ([ValueError, Mock()], "INFO")]
-)
-def test_report_json_retry(monkeypatch, reporter_mock, caplog, errors, final_log):
-    reporter_mock.side_effect = report_json
-    monkeypatch.setattr(Configuration, "host", "force_reconnect")
-    monkeypatch.setattr(Configuration, "should_report", True)
-    monkeypatch.setattr(http.client, "HTTPSConnection", Mock())
-    http.client.HTTPSConnection("force_reconnect").getresponse.side_effect = errors
-
-    report_json(None, [{"a": "b"}])
-
-    assert caplog.records[-1].levelname == final_log
-
-
-def test_report_json_fast_failure_after_timeout(monkeypatch, reporter_mock, caplog):
-    reporter_mock.side_effect = report_json
-    monkeypatch.setattr(Configuration, "host", "host")
-    monkeypatch.setattr(Configuration, "should_report", True)
-    monkeypatch.setattr(http.client, "HTTPSConnection", Mock())
-    http.client.HTTPSConnection("force_reconnect").getresponse.side_effect = socket.timeout
-
-    assert report_json(None, [{"a": "b"}]) == 0
-    assert caplog.records[-1].msg == "Timeout while connecting to host"
-
-    assert report_json(None, [{"a": "b"}]) == 0
-    assert caplog.records[-1].msg == "Skip sending messages due to previous timeout"
-
-    InternalState.timeout_on_connection = datetime.datetime(2016, 1, 1)
-    assert report_json(None, [{"a": "b"}]) == 0
-    assert caplog.records[-1].msg == "Timeout while connecting to host"
-
-
-def test_report_json_china_missing_access_key_id(monkeypatch, reporter_mock, caplog):
-    monkeypatch.setattr(Configuration, "should_report", True)
-    reporter_mock.side_effect = report_json
-    assert report_json(CHINA_REGION, [{"a": "b"}]) == 0
-    assert any(
-        "edge_kinesis_aws_access_key_id" in record.message and record.levelname == "ERROR"
-        for record in caplog.records
-    )
-
-
-def test_report_json_china_missing_secret_access_key(monkeypatch, reporter_mock, caplog):
-    monkeypatch.setattr(Configuration, "should_report", True)
-    monkeypatch.setattr(Configuration, "edge_kinesis_aws_access_key_id", "my_value")
-    reporter_mock.side_effect = report_json
-    assert report_json(CHINA_REGION, [{"a": "b"}]) == 0
-    assert any(
-        "edge_kinesis_aws_secret_access_key" in record.message and record.levelname == "ERROR"
-        for record in caplog.records
-    )
-
-
-def test_report_json_china_no_boto(monkeypatch, reporter_mock, caplog):
-    reporter_mock.side_effect = report_json
-    monkeypatch.setattr(Configuration, "should_report", True)
-    monkeypatch.setattr(Configuration, "edge_kinesis_aws_access_key_id", "my_value")
-    monkeypatch.setattr(Configuration, "edge_kinesis_aws_secret_access_key", "my_value")
-    monkeypatch.setattr(lumigo_utils, "boto3", None)
-
-    report_json(CHINA_REGION, [{"a": "b"}])
-
-    assert any(
-        "boto3 is missing. Unable to send to Kinesis" in record.message
-        and record.levelname == "ERROR"  # noqa
-        for record in caplog.records
-    )
-
-
-def test_report_json_china_on_error_no_exception_and_notify_user(capsys, monkeypatch):
-    monkeypatch.setattr(Configuration, "should_report", True)
-    monkeypatch.setattr(Configuration, "edge_kinesis_aws_access_key_id", "my_value")
-    monkeypatch.setattr(Configuration, "edge_kinesis_aws_secret_access_key", "my_value")
-    monkeypatch.setattr(boto3, "client", MagicMock(side_effect=Exception))
-    lumigo_utils.get_logger().setLevel(logging.CRITICAL)
-
-    report_json(CHINA_REGION, [{"a": "b"}])
-
-    assert "Failed to send spans" in capsys.readouterr().out
-
-
-def test_china_shouldnt_establish_http_connection(monkeypatch):
-    monkeypatch.setenv("AWS_REGION", CHINA_REGION)
-    # Reload a duplicate of lumigo_utils
-    spec = importlib.util.find_spec("lumigo_tracer.lumigo_utils")
-    lumigo_utils_reloaded = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(lumigo_utils_reloaded)
-
-    assert lumigo_utils_reloaded.edge_connection is None
-
-
-def test_china_with_env_variable_shouldnt_reuse_boto3_connection(monkeypatch):
-    monkeypatch.setenv("LUMIGO_KINESIS_SHOULD_REUSE_CONNECTION", "false")
-    monkeypatch.setattr(Configuration, "should_report", True)
-    monkeypatch.setattr(Configuration, "edge_kinesis_aws_access_key_id", "my_value")
-    monkeypatch.setattr(Configuration, "edge_kinesis_aws_secret_access_key", "my_value")
-    monkeypatch.setattr(boto3, "client", MagicMock())
-
-    report_json(CHINA_REGION, [{"a": "b"}])
-    report_json(CHINA_REGION, [{"a": "b"}])
-
-    assert boto3.client.call_count == 2
-
-
-def test_china_reuse_boto3_connection(monkeypatch):
-    monkeypatch.setattr(Configuration, "should_report", True)
-    monkeypatch.setattr(Configuration, "edge_kinesis_aws_access_key_id", "my_value")
-    monkeypatch.setattr(Configuration, "edge_kinesis_aws_secret_access_key", "my_value")
-    monkeypatch.setattr(boto3, "client", MagicMock())
-
-    report_json(CHINA_REGION, [{"a": "b"}])
-    report_json(CHINA_REGION, [{"a": "b"}])
-
-    boto3.client.assert_called_once()
-
-
 @pytest.mark.parametrize("env, expected", [("True", True), ("other", False), ("123", False)])
 def test_is_kill_switch_on(monkeypatch, env, expected):
     monkeypatch.setenv(KILL_SWITCH, env)
     assert is_kill_switch_on() == expected
-
-
-def test_get_max_entry_size_default(monkeypatch):
-    assert Configuration.get_max_entry_size() == 2048
-
-
-def test_get_max_entry_size_has_error():
-    assert Configuration.get_max_entry_size(has_error=True) == 4096
 
 
 def test_get_size_upper_bound():
@@ -663,5 +305,29 @@ def test_internal_analytics_message(capsys):
     ],
 )
 def test_concat_old_body_to_new(old, new, expected, monkeypatch):
-    monkeypatch.setattr(Configuration, "max_entry_size", 5)
-    assert concat_old_body_to_new(lumigo_dumps(old), new) == lumigo_dumps(expected)
+    monkeypatch.setattr(CoreConfiguration, "max_entry_size", 5)
+    assert concat_old_body_to_new("requestBody", lumigo_dumps(old), new) == lumigo_dumps(expected)
+
+
+@pytest.mark.parametrize("severity", [logging.DEBUG, logging.ERROR])
+def test_lumigo_safe_execute_with_level(severity, caplog):
+    with lumigo_safe_execute("test", severity=severity):
+        raise ValueError("Failing")
+    assert caplog.records[-1].levelno == severity
+
+
+@pytest.mark.parametrize(
+    "env_value, expected",
+    [
+        ("AWS_Lambda_python3.8", False),
+        ("AWS_Lambda_python3.7", True),
+    ],
+)
+def test_is_python_37(monkeypatch, env_value, expected):
+    monkeypatch.setenv("AWS_EXECUTION_ENV", env_value)
+    assert is_python_37() == expected
+
+
+def test_is_python_37_without_env(monkeypatch):
+    monkeypatch.delenv("AWS_EXECUTION_ENV", raising=False)
+    assert is_python_37() is False

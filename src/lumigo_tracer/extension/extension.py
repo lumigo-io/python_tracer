@@ -1,13 +1,16 @@
 import os
-from dataclasses import dataclass, asdict
-
-from typing import Dict, Optional, List, Union
+from dataclasses import asdict, dataclass
 from datetime import datetime
+from typing import Dict, List, Optional, Union
 
-from lumigo_tracer.extension.extension_utils import get_current_bandwidth, get_extension_logger
 from lumigo_tracer import lumigo_utils
+from lumigo_tracer.extension.extension_utils import (
+    get_current_bandwidth,
+    get_extension_logger,
+)
 from lumigo_tracer.extension.lambda_service import LambdaService
 from lumigo_tracer.extension.sampler import Sampler
+from lumigo_tracer.lambda_tracer import lambda_reporter
 from lumigo_tracer.lumigo_utils import lumigo_safe_execute
 
 SPAN_TYPE = "extensionExecutionEnd"
@@ -32,7 +35,7 @@ class LumigoExtension:
         self.request_id: Optional[str] = None
         self.bandwidth: Optional[int] = None
 
-    def start_new_invocation(self, event: Dict[str, str]):
+    def start_new_invocation(self, event: Dict[str, str]):  # type: ignore[no-untyped-def]
         with lumigo_safe_execute("Extension: start_new_invocation"):
             current_bandwidth = get_current_bandwidth()
             if self.request_id:
@@ -43,12 +46,12 @@ class LumigoExtension:
             self.start_time = datetime.now()
             self.bandwidth = current_bandwidth
 
-    def shutdown(self):
+    def shutdown(self):  # type: ignore[no-untyped-def]
         with lumigo_safe_execute("Extension: shutdown"):
             current_bandwidth = get_current_bandwidth()
             self._finish_previous_invocation(current_bandwidth)
 
-    def _finish_previous_invocation(self, current_bandwidth: Optional[int]):
+    def _finish_previous_invocation(self, current_bandwidth: Optional[int]):  # type: ignore[no-untyped-def]
         self.sampler.stop_sampling()
         token = os.environ.get(lumigo_utils.LUMIGO_TOKEN_KEY)
         if not token:
@@ -74,4 +77,4 @@ class LumigoExtension:
             cpuUsageTime=[s.dump() for s in self.sampler.get_cpu_samples()],
             memoryUsage=[s.dump() for s in self.sampler.get_memory_samples()],
         )
-        lumigo_utils.report_json(os.environ.get("AWS_REGION", "us-east-1"), msgs=[asdict(span)])
+        lambda_reporter.report_json(os.environ.get("AWS_REGION", "us-east-1"), msgs=[asdict(span)])

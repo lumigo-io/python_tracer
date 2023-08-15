@@ -1,21 +1,21 @@
 import inspect
 from functools import wraps
 
+from lumigo_core.logger import get_logger
+
 from lumigo_tracer.auto_tag.auto_tag_event import AutoTagEvent
+from lumigo_tracer.lambda_tracer.spans_container import SpansContainer, TimeoutMechanism
 from lumigo_tracer.lumigo_utils import (
     config,
-    get_logger,
-    lumigo_safe_execute,
     is_aws_environment,
     is_kill_switch_on,
+    lumigo_safe_execute,
 )
-from lumigo_tracer.spans_container import SpansContainer, TimeoutMechanism
-from lumigo_tracer.wrappers import wrap
 
 CONTEXT_WRAPPED_BY_LUMIGO_KEY = "_wrapped_by_lumigo"
 
 
-def _is_context_already_wrapped(*args) -> bool:
+def _is_context_already_wrapped(*args) -> bool:  # type: ignore[no-untyped-def]
     """
     This function is here in order to validate that we didn't already wrap this lambda
         (using the sls plugin / auto instrumentation / etc.)
@@ -23,7 +23,7 @@ def _is_context_already_wrapped(*args) -> bool:
     return len(args) >= 2 and hasattr(args[1], CONTEXT_WRAPPED_BY_LUMIGO_KEY)
 
 
-def _add_wrap_flag_to_context(*args):
+def _add_wrap_flag_to_context(*args):  # type: ignore[no-untyped-def]
     """
     This function is here in order to validate that we didn't already wrap this invocation
         (using the sls plugin / auto instrumentation / etc.).
@@ -34,20 +34,19 @@ def _add_wrap_flag_to_context(*args):
             setattr(args[1], CONTEXT_WRAPPED_BY_LUMIGO_KEY, True)
 
 
-def _lumigo_tracer(func):
+def _lumigo_tracer(func):  # type: ignore[no-untyped-def]
     if is_kill_switch_on():
         return func
-    wrap()
 
     @wraps(func)
-    def lambda_wrapper(*args, **kwargs):
+    def lambda_wrapper(*args, **kwargs):  # type: ignore[no-untyped-def]
         if _is_context_already_wrapped(*args):
             return func(*args, **kwargs)
         _add_wrap_flag_to_context(*args)
         executed = False
         ret_val = None
         try:
-            SpansContainer.create_span(*args, is_new_invocation=True)
+            SpansContainer.create_span(*args, is_new_invocation=True)  # type: ignore[misc]
             with lumigo_safe_execute("auto tag"):
                 AutoTagEvent.auto_tag_event(args[0])
             SpansContainer.get_span().start(*args)
@@ -74,7 +73,7 @@ def _lumigo_tracer(func):
     return lambda_wrapper
 
 
-def _add_prefix_for_each_line(prefix: str, text: str):
+def _add_prefix_for_each_line(prefix: str, text: str):  # type: ignore[no-untyped-def]
     enhanced_lines = []
     for line in text.split("\n"):
         if line and not line.startswith(prefix):
@@ -83,7 +82,7 @@ def _add_prefix_for_each_line(prefix: str, text: str):
     return "\n".join(enhanced_lines)
 
 
-def lumigo_tracer(*args, **kwargs):
+def lumigo_tracer(*args, **kwargs):  # type: ignore[no-untyped-def]
     """
     This function should be used as wrapper to your lambda function.
     It will trace your HTTP calls and send it to our backend, which will help you understand it better.
@@ -109,22 +108,28 @@ class LumigoChalice:
         "on_dynamodb_record",
     ]
 
-    def __init__(self, app, *args, **kwargs):
+    def __new__(cls, app, *args, **kwargs):  # type: ignore[no-untyped-def]
+        if is_aws_environment() and not is_kill_switch_on():
+            return super().__new__(cls)
+        get_logger().debug("Disabling LumigoChalice")
+        return app
+
+    def __init__(self, app, *args, **kwargs):  # type: ignore[no-untyped-def]
         self.lumigo_conf_args = args
         self.lumigo_conf_kwargs = kwargs
         self.app = app
         self.original_app_attr_getter = app.__getattribute__
         self.lumigo_app = lumigo_tracer(*self.lumigo_conf_args, **self.lumigo_conf_kwargs)(app)
 
-    def __getattr__(self, item):
+    def __getattr__(self, item):  # type: ignore[no-untyped-def]
         original_attr = self.original_app_attr_getter(item)
         if is_aws_environment() and item in self.DECORATORS_OF_NEW_HANDLERS:
 
-            def get_decorator(*args, **kwargs):
+            def get_decorator(*args, **kwargs):  # type: ignore[no-untyped-def]
                 # calling the annotation, example `app.authorizer(THIS)`
                 chalice_actual_decorator = original_attr(*args, **kwargs)
 
-                def wrapper2(func):
+                def wrapper2(func):  # type: ignore[no-untyped-def]
                     user_func_wrapped_by_chalice = chalice_actual_decorator(func)
                     return LumigoChalice(
                         user_func_wrapped_by_chalice,
@@ -137,7 +142,7 @@ class LumigoChalice:
             return get_decorator
         return original_attr
 
-    def __call__(self, *args, **kwargs):
+    def __call__(self, *args, **kwargs):  # type: ignore[no-untyped-def]
         if len(args) < 2 and "context" not in kwargs:
             kwargs["context"] = getattr(getattr(self.app, "current_request", None), "context", None)
         return self.lumigo_app(*args, **kwargs)

@@ -1,8 +1,13 @@
-from lumigo_tracer.lumigo_utils import lumigo_safe_execute, get_logger, concat_old_body_to_new
+from lumigo_core.logger import get_logger
+
+from lumigo_tracer.lambda_tracer.spans_container import SpansContainer
 from lumigo_tracer.libs.wrapt import wrap_function_wrapper
-from lumigo_tracer.spans_container import SpansContainer
+from lumigo_tracer.lumigo_utils import concat_old_body_to_new, lumigo_safe_execute
 from lumigo_tracer.wrappers.http.http_data_classes import HttpRequest
-from lumigo_tracer.wrappers.http.sync_http_wrappers import add_request_event, update_event_response
+from lumigo_tracer.wrappers.http.sync_http_wrappers import (
+    add_request_event,
+    update_event_response,
+)
 
 try:
     import aiohttp
@@ -12,8 +17,8 @@ except Exception:
 LUMIGO_SPAN_ID_KEY = "_lumigo_span_id"
 
 
-def aiohttp_trace_configs_wrapper(trace_config):
-    def aiohttp_session_init_wrapper(func, instance, args, kwargs):
+def aiohttp_trace_configs_wrapper(trace_config):  # type: ignore[no-untyped-def]
+    def aiohttp_session_init_wrapper(func, instance, args, kwargs):  # type: ignore[no-untyped-def]
         with lumigo_safe_execute("aiohttp aiohttp_session_init_wrapper"):
             traces = kwargs.get("trace_configs") or []
             if isinstance(traces, list):
@@ -24,7 +29,7 @@ def aiohttp_trace_configs_wrapper(trace_config):
     return aiohttp_session_init_wrapper
 
 
-async def on_request_start(session, trace_config_ctx, params):
+async def on_request_start(session, trace_config_ctx, params):  # type: ignore[no-untyped-def]
     with lumigo_safe_execute("aiohttp on_request_start"):
         span = add_request_event(
             span_id=None,
@@ -39,17 +44,17 @@ async def on_request_start(session, trace_config_ctx, params):
         setattr(trace_config_ctx, LUMIGO_SPAN_ID_KEY, span["id"])
 
 
-async def on_request_chunk_sent(session, trace_config_ctx, params):
+async def on_request_chunk_sent(session, trace_config_ctx, params):  # type: ignore[no-untyped-def]
     with lumigo_safe_execute("aiohttp on_request_chunk_sent"):
         span_id = getattr(trace_config_ctx, LUMIGO_SPAN_ID_KEY)
         span = SpansContainer.get_span().get_span_by_id(span_id)
-        http_info = span.get("info", {}).get("httpInfo", {})
+        http_info = span.get("info", {}).get("httpInfo", {})  # type: ignore[union-attr]
         http_info["request"]["body"] = concat_old_body_to_new(
-            http_info.get("request", {}).get("body"), params.chunk
+            "requestBody", http_info.get("request", {}).get("body"), params.chunk
         )
 
 
-async def on_request_end(session, trace_config_ctx, params):
+async def on_request_end(session, trace_config_ctx, params):  # type: ignore[no-untyped-def]
     with lumigo_safe_execute("aiohttp on_request_end"):
         span_id = getattr(trace_config_ctx, LUMIGO_SPAN_ID_KEY)
         update_event_response(
@@ -57,24 +62,24 @@ async def on_request_end(session, trace_config_ctx, params):
         )
 
 
-async def on_response_chunk_received(session, trace_config_ctx, params):
+async def on_response_chunk_received(session, trace_config_ctx, params):  # type: ignore[no-untyped-def]
     with lumigo_safe_execute("aiohttp on_response_chunk_received"):
         span_id = getattr(trace_config_ctx, LUMIGO_SPAN_ID_KEY)
         span = SpansContainer.get_span().get_span_by_id(span_id)
-        http_info = span.get("info", {}).get("httpInfo", {})
+        http_info = span.get("info", {}).get("httpInfo", {})  # type: ignore[union-attr]
         http_info["response"]["body"] = concat_old_body_to_new(
-            http_info.get("response", {}).get("body"), params.chunk
+            "responseBody", http_info.get("response", {}).get("body"), params.chunk
         )
 
 
-async def on_request_exception(session, trace_config_ctx, params):
+async def on_request_exception(session, trace_config_ctx, params):  # type: ignore[no-untyped-def]
     with lumigo_safe_execute("aiohttp on_request_exception"):
         span_id = getattr(trace_config_ctx, LUMIGO_SPAN_ID_KEY)
         span = SpansContainer.get_span().get_span_by_id(span_id)
-        SpansContainer.add_exception_to_span(span, params.exception, [])
+        SpansContainer.add_exception_to_span(span, params.exception, [])  # type: ignore[arg-type]
 
 
-def wrap_aiohttp():
+def wrap_aiohttp():  # type: ignore[no-untyped-def]
     with lumigo_safe_execute("wrap http calls"):
         get_logger().debug("wrapping http requests")
         if aiohttp:

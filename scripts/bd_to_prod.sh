@@ -37,7 +37,7 @@ echo ${KEY} | gpg --batch -d --passphrase-fd 0 ${enc_location} > ~/.aws/credenti
 echo "Getting latest changes from git"
 changes=$(git log $(git describe --tags --abbrev=0)..HEAD --oneline)
 
-sudo pip install --upgrade bumpversion
+pip install --upgrade bumpversion
 bumpversion patch --message "{current_version} → {new_version}. Changes: ${changes}"
 
 push_tags
@@ -51,7 +51,13 @@ echo "Creating lumigo-python-tracer layer"
 ./scripts/prepare_layer_files.sh
 
 echo "Creating layer latest version arn table md file (LAYERS.md)"
-../utils/common_bash/create_layer.sh --layer-name lumigo-python-tracer --region ALL --package-folder python --version $(git describe --abbrev=0 --tags) --runtimes "python3.6 python3.7 python3.8 python3.9"
+commit_version="$(git describe --abbrev=0 --tags)"
+../utils/common_bash/create_layer.sh \
+    --layer-name lumigo-python-tracer \
+    --region ALL \
+    --package-folder python \
+    --version "$commit_version" \
+    --runtimes "python3.6 python3.7 python3.8 python3.9 python3.10"
 
 cd ../larn && npm i -g
 larn -r python3.6 -n layers/LAYERS36 --filter lumigo-python-tracer -p ~/python_tracer
@@ -61,5 +67,8 @@ git add layers/LAYERS36.md
 git add layers/LAYERS37.md
 git commit -m "layers-table: layers md [skip ci]"
 git push origin master
-echo \{\"type\":\"Release\",\"repo\":\"${CIRCLE_PROJECT_REPONAME}\",\"buildUrl\":\"${CIRCLE_BUILD_URL}\"\} | curl -X POST "https://listener.logz.io:8071?token=${LOGZ}" -v --data-binary @-
+
+source ../utils/common_bash/functions.sh
+send_metric_to_logz_io type=\"Release\"
+
 echo "Done"

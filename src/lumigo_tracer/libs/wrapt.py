@@ -28,12 +28,12 @@ POSSIBILITY OF SUCH DAMAGE.
 """
 
 
+import functools
+import inspect
+import operator
 import os
 import sys
-import functools
-import operator
 import weakref
-import inspect
 
 PY2 = sys.version_info[0] == 2
 PY3 = sys.version_info[0] == 3
@@ -762,11 +762,11 @@ class FunctionWrapper(_FunctionWrapperBase):
 try:
     if not os.environ.get("WRAPT_DISABLE_EXTENSIONS"):
         from ._wrappers import (
-            ObjectProxy,
-            CallableObjectProxy,
-            PartialCallableObjectProxy,
-            FunctionWrapper,
             BoundFunctionWrapper,
+            CallableObjectProxy,
+            FunctionWrapper,
+            ObjectProxy,
+            PartialCallableObjectProxy,
             _FunctionWrapperBase,
         )
 except ImportError:
