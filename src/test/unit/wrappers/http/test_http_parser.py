@@ -43,6 +43,13 @@ def test_serverless_aws_parser_fallback_doesnt_change():
             {"content-type": "application/x-amz-json-1.0"},
             SqsJsonParser,
         ),
+        (
+            "sqs.us-west-2.amazonaws.com",
+            # This is a made up future version of the json protocol, to make sure that the SqsJsonParser
+            # is still selected
+            {"content-type": "application/x-amz-json-2.3.4"},
+            SqsJsonParser,
+        ),
         ("sqs.us-west-2.amazonaws.com", {}, SqsXmlParser),
         ("lambda.us-west-2.amazonaws.com", {}, LambdaParser),
         ("kinesis.us-west-2.amazonaws.com", {}, KinesisParser),

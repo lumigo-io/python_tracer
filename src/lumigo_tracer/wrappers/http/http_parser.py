@@ -447,7 +447,7 @@ def get_parser(host: str, headers: Optional[dict] = None) -> Type[Parser]:  # ty
     # SQS Legacy Endpoints: https://docs.aws.amazon.com/general/latest/gr/rande.html
     elif service in ("sqs", "sqs-fips") or "queue.amazonaws.com" in host:
         using_json_protocol = (
-            _headers.get("content-type", "").lower() == "application/x-amz-json-1.0"
+            _headers.get("content-type", "").lower().startswith("application/x-amz-json-")
         )
         return SqsJsonParser if using_json_protocol else SqsXmlParser
     elif "execute-api" in host:
