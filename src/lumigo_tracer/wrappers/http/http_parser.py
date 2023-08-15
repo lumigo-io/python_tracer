@@ -1,6 +1,5 @@
 import json
 import uuid
-from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional, Type
 from urllib.parse import parse_qsl, unquote, urlencode, urlparse, urlunparse
 
@@ -266,7 +265,6 @@ class KinesisParser(ServerlessAWSParser):
 
 
 class SqsXmlParser(ServerlessAWSParser):
-
     def parse_request(self, parse_params: HttpRequest) -> dict:  # type: ignore[type-arg]
         return recursive_json_join(  # type: ignore[no-any-return]
             {"info": {"resourceName": self._extract_queue_url(parse_params.body)}},
@@ -303,7 +301,6 @@ class SqsXmlParser(ServerlessAWSParser):
 
 
 class SqsJsonParser(ServerlessAWSParser):
-
     def parse_request(self, parse_params: HttpRequest) -> dict:  # type: ignore[type-arg]
         return recursive_json_join(  # type: ignore[no-any-return]
             {"info": {"resourceName": self._extract_queue_url(parse_params.body)}},
