@@ -230,7 +230,7 @@ def test_sqs_xml_parser_message_id(body):
             b'        "MessageId":"c5aca29a-ff2f-4db5-94c3-90523d222222"'
             b"     }"
             b"]}",
-            "c5aca29a-ff2f-4db5-94c3-90523d1ed4ca",
+            None,
         ),
         (
             # Send batch message request to SQS (many successful & many failed messages)

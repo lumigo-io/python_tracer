@@ -328,8 +328,7 @@ class SqsJsonParser(BaseSqsParser):
             return message_id
 
         # This should work if the request was to send a batch of messages.
-        # Find the message id of the first successful message, and if there are none the first failed message
-        messages = parsed_body.get("Successful", []) + parsed_body.get("Failed", [])
+        messages = parsed_body.get("Successful", [])
         if (
             messages
             and isinstance(messages[0], dict)
