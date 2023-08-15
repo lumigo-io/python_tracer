@@ -265,7 +265,8 @@ class KinesisParser(ServerlessAWSParser):
         return ["PartitionKey"]
 
 
-class BaseSqsParser(ServerlessAWSParser, ABC):
+class SqsXmlParser(ServerlessAWSParser):
+
     def parse_request(self, parse_params: HttpRequest) -> dict:  # type: ignore[type-arg]
         return recursive_json_join(  # type: ignore[no-any-return]
             {"info": {"resourceName": self._extract_queue_url(parse_params.body)}},
@@ -280,18 +281,6 @@ class BaseSqsParser(ServerlessAWSParser, ABC):
             super().parse_response(url, status_code, headers, body),
         )
 
-    @staticmethod
-    @abstractmethod
-    def _extract_message_id(response_body: bytes) -> Optional[str]:
-        raise NotImplementedError()  # pragma: no cover
-
-    @staticmethod
-    @abstractmethod
-    def _extract_queue_url(request_body: bytes) -> Optional[str]:
-        raise NotImplementedError()  # pragma: no cover
-
-
-class SqsXmlParser(BaseSqsParser):
     @staticmethod
     def _extract_message_id(response_body: bytes) -> Optional[str]:
         return (  # type: ignore[no-any-return]
@@ -313,7 +302,22 @@ class SqsXmlParser(BaseSqsParser):
         return safe_key_from_query(request_body, "QueueUrl")
 
 
-class SqsJsonParser(BaseSqsParser):
+class SqsJsonParser(ServerlessAWSParser):
+
+    def parse_request(self, parse_params: HttpRequest) -> dict:  # type: ignore[type-arg]
+        return recursive_json_join(  # type: ignore[no-any-return]
+            {"info": {"resourceName": self._extract_queue_url(parse_params.body)}},
+            super().parse_request(parse_params),
+        )
+
+    def parse_response(
+        self, url: str, status_code: int, headers: Dict[str, Any], body: bytes
+    ) -> dict:  # type: ignore[type-arg]
+        return recursive_json_join(  # type: ignore[no-any-return]
+            {"info": {"messageId": self._extract_message_id(body)}},
+            super().parse_response(url, status_code, headers, body),
+        )
+
     @staticmethod
     def _extract_message_id(response_body: bytes) -> Optional[str]:
         parsed_body = {}
