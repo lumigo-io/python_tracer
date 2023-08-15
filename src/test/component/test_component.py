@@ -34,7 +34,6 @@ def echo_server(httpserver: HTTPServer) -> HTTPServer:
             else request.data,
             "headers": dict(request.headers),
         }
-        print(f"Echo server will return response body: {response_body}")
         return Response(response=json.dumps(response_body), status=200, headers={})
 
     path = "/anything"
