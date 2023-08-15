@@ -172,105 +172,117 @@ def test_sqs_xml_parser_message_id(body):
     [
         (
             # Send single message to SQS response
-            b"{"
-            b'   "MD5OfMessageAttributes":"6e6aba56e93b3ddfdfe3fa28895feece",'  # pragma: allowlist secret
-            b'   "MD5OfMessageBody":"0d40eb1479f7e61b1a1c7a425c3949e4",'  # pragma: allowlist secret
-            b'   "MessageId":"c5aca29a-ff2f-4db5-94c3-90523d1ed4ca"'  # pragma: allowlist secret
-            b"}",
-            "c5aca29a-ff2f-4db5-94c3-90523d1ed4ca",
+            {
+                "MD5OfMessageAttributes": "11111111111111111111111111111111",
+                "MD5OfMessageBody": "11111111111111111111111111111111",
+                "MessageId": "11111111-1111-1111-1111-111111111111",
+            },
+            "11111111-1111-1111-1111-111111111111",
         ),
         (
             # Send batch message request to SQS (one record in the batch), successful message
-            b"{"
-            b'   "Failed":[],'
-            b'   "Successful":['
-            b"     {"
-            b'        "Id":"1",'
-            b'        "MD5OfMessageBody":"68390233272823b7adf13a1db79b2cd7",'  # pragma: allowlist secret
-            b'        "MessageId":"c5aca29a-ff2f-4db5-94c3-90523d1ed4ca"'
-            b"     }"
-            b"]}",
-            "c5aca29a-ff2f-4db5-94c3-90523d1ed4ca",
+            {
+                "Failed": [],
+                "Successful": [
+                    {
+                        "Id": "1",
+                        "MD5OfMessageBody": "11111111111111111111111111111111",
+                        "MessageId": "11111111-1111-1111-1111-111111111111",
+                    }
+                ],
+            },
+            "11111111-1111-1111-1111-111111111111",
         ),
         (
             # Send batch message request to SQS (multiple record in the batch), successful message
-            # Note: Currently we only send the first message id of a batch, but if there would be a need we will change
-            #       this to send multiple message ids
-            b"{"
-            b'   "Failed":[],'
-            b'   "Successful":['
-            b"     {"
-            b'        "Id":"1",'
-            b'        "MD5OfMessageBody":"68390233272823b7adf13a1db79b2cd7",'  # pragma: allowlist secret
-            b'        "MessageId":"c5aca29a-ff2f-4db5-94c3-90523d1ed4ca"'
-            b"     },"
-            b"     {"
-            b'        "Id":"2",'
-            b'        "MD5OfMessageBody":"68390233272823b7adf13a1db7222222",'  # pragma: allowlist secret
-            b'        "MessageId":"c5aca29a-ff2f-4db5-94c3-90523d222222"'
-            b"     }"
-            b"]}",
-            "c5aca29a-ff2f-4db5-94c3-90523d1ed4ca",
+            # Note: Currently we only send the first message id of a batch, but if there would be a need we will
+            #       change this to send multiple message ids
+            {
+                "Failed": [],
+                "Successful": [
+                    {
+                        "Id": "1",
+                        "MD5OfMessageBody": "11111111111111111111111111111111",
+                        "MessageId": "11111111-1111-1111-1111-111111111111",
+                    },
+                    {
+                        "Id": "2",
+                        "MD5OfMessageBody": "22222222222222222222222222222222",
+                        "MessageId": "22222222-2222-2222-2222-222222222222",
+                    },
+                ],
+            },
+            "11111111-1111-1111-1111-111111111111",
         ),
         (
             # Send batch message request to SQS (one record in the batch), failed message
-            # Note: Currently we only send the first message id of a batch, but if there would be a need we will change
-            #       this to send multiple message ids
-            b"{"
-            b'   "Successful":[],'
-            b'   "Failed":['
-            b"     {"
-            b'        "Id":"1",'
-            b'        "MD5OfMessageBody":"68390233272823b7adf13a1db79b2cd7",'  # pragma: allowlist secret
-            b'        "MessageId":"c5aca29a-ff2f-4db5-94c3-90523d1ed4ca"'
-            b"     },"
-            b"     {"
-            b'        "Id":"2",'
-            b'        "MD5OfMessageBody":"68390233272823b7adf13a1db7222222",'  # pragma: allowlist secret
-            b'        "MessageId":"c5aca29a-ff2f-4db5-94c3-90523d222222"'
-            b"     }"
-            b"]}",
+            # Note: Currently we only send the first message id of a batch, but if there would be a need we will
+            #       change this to send multiple message ids
+            {
+                "Successful": [],
+                "Failed": [
+                    {
+                        "Id": "1",
+                        "MD5OfMessageBody": "11111111111111111111111111111111",
+                        "MessageId": "11111111-1111-1111-1111-111111111111",
+                    },
+                    {
+                        "Id": "2",
+                        "MD5OfMessageBody": "22222222222222222222222222222222",
+                        "MessageId": "22222222-2222-2222-2222-222222222222",
+                    },
+                ],
+            },
             None,
         ),
         (
             # Send batch message request to SQS (many successful & many failed messages)
             # Note: Currently we only send the first successful message id of a batch, but if there would be a need
             #       we will change this to send multiple message ids
-            b"{"
-            b'   "Successful":['
-            b"     {"
-            b'        "Id":"1",'
-            b'        "MD5OfMessageBody":"68390233272823b7adf13a1db79b2cd7",'  # pragma: allowlist secret
-            b'        "MessageId":"c5aca29a-ff2f-4db5-94c3-90523d1ed4ca"'
-            b"     },"
-            b"     {"
-            b'        "Id":"2",'
-            b'        "MD5OfMessageBody":"68390233272823b7adf13a1db7222222",'  # pragma: allowlist secret
-            b'        "MessageId":"c5aca29a-ff2f-4db5-94c3-90523d222222"'
-            b"     }],"
-            b'   "Failed":['
-            b"     {"
-            b'        "Id":"3",'
-            b'        "MD5OfMessageBody":"68390233272823b7adf13a1db7333333",'  # pragma: allowlist secret
-            b'        "MessageId":"c5aca29a-ff2f-4db5-94c3-90523d333333"'
-            b"     },"
-            b"     {"
-            b'        "Id":"4",'
-            b'        "MD5OfMessageBody":"68390233272823b7adf13a1db7444444",'  # pragma: allowlist secret
-            b'        "MessageId":"c5aca29a-ff2f-4db5-94c3-90523d444444"'
-            b"     }"
-            b"]}",
-            "c5aca29a-ff2f-4db5-94c3-90523d1ed4ca",
+            {
+                "Successful": [
+                    {
+                        "Id": "1",
+                        "MD5OfMessageBody": "11111111111111111111111111111111",
+                        "MessageId": "11111111-1111-1111-1111-111111111111",
+                    },
+                    {
+                        "Id": "2",
+                        "MD5OfMessageBody": "22222222222222222222222222222222",
+                        "MessageId": "22222222-2222-2222-2222-222222222222",
+                    },
+                ],
+                "Failed": [
+                    {
+                        "Id": "3",
+                        "MD5OfMessageBody": "33333333333333333333333333333333",
+                        "MessageId": "33333333-3333-3333-3333-333333333333",
+                    },
+                    {
+                        "Id": "4",
+                        "MD5OfMessageBody": "44444444444444444444444444444444",
+                        "MessageId": "44444444-4444-4444-4444-444444444444",
+                    },
+                ],
+            },
+            "11111111-1111-1111-1111-111111111111",
         ),
-        (b"{}", None),
-        (b"Not a json", None),
+        ({}, None),
     ],
 )
-def test_sqs_json_parse_message_id(response_body: bytes, message_id):
+def test_sqs_json_parse_message_id(response_body: dict, message_id):
+    response_body_bytes = bytes(json.dumps(response_body), "utf-8")
     parsed_response = SqsJsonParser().parse_response(
-        url="", status_code=200, headers={}, body=response_body
+        url="", status_code=200, headers={}, body=response_body_bytes
     )
     assert parsed_response["info"]["messageId"] == message_id
+
+
+def test_sqs_json_parse_message_id_body_not_a_json():
+    parsed_response = SqsJsonParser().parse_response(
+        url="", status_code=200, headers={}, body=b"no a json"
+    )
+    assert parsed_response["info"]["messageId"] is None
 
 
 @pytest.mark.parametrize(
@@ -278,38 +290,40 @@ def test_sqs_json_parse_message_id(response_body: bytes, message_id):
     [
         (
             # Send single message to SQS request
-            b"{"
-            b'   "QueueUrl": "https://sqs.us-west-2.amazonaws.com/33/random-queue-test", '
-            b'   "MessageBody": "This is a test message"'
-            b"}",
+            {
+                "QueueUrl": "https://sqs.us-west-2.amazonaws.com/33/random-queue-test",
+                "MessageBody": "This is a test message",
+            },
             "https://sqs.us-west-2.amazonaws.com/33/random-queue-test",
         ),
         (
             # Send batch message request to SQS (on record in the batch)
-            b"{"
-            b'   "QueueUrl": "https://sqs.us-west-2.amazonaws.com/33/random-queue-test", '
-            b'   "Entries": ['
-            b'     {"Id": 1, "Message": "Message number 1"}'
-            b"   ]"
-            b"}",
+            {
+                "QueueUrl": "https://sqs.us-west-2.amazonaws.com/33/random-queue-test",
+                "Entries": [{"Id": 1, "Message": "Message number 1"}],
+            },
             "https://sqs.us-west-2.amazonaws.com/33/random-queue-test",
         ),
         (
             # Empty json response body
-            b"{}",
-            None,
-        ),
-        (
-            # Not a json body
-            b"This is not a json body",
+            {},
             None,
         ),
     ],
 )
-def test_sqs_json_parse_resource_name(request_body: bytes, queue_url: str):
-    http_request = HttpRequest(host="dummy", method="POST", uri="", headers={}, body=request_body)
+def test_sqs_json_parse_resource_name(request_body: dict, queue_url: str):
+    request_body_bytes = bytes(json.dumps(request_body), "utf-8")
+    http_request = HttpRequest(
+        host="dummy", method="POST", uri="", headers={}, body=request_body_bytes
+    )
     parsed_request = SqsJsonParser().parse_request(http_request)
     assert parsed_request["info"]["resourceName"] == queue_url
+
+
+def test_sqs_json_parse_resource_name_body_not_a_json():
+    http_request = HttpRequest(host="dummy", method="POST", uri="", headers={}, body=b"Not a json")
+    parsed_request = SqsJsonParser().parse_request(http_request)
+    assert parsed_request["info"]["resourceName"] is None
 
 
 @pytest.mark.parametrize(
