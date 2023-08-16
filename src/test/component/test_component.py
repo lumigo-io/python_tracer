@@ -6,6 +6,8 @@ import subprocess
 import boto3
 import pytest
 from lumigo_core.lumigo_utils import md5hash
+from pytest_httpserver.httpserver import HTTPServer
+from werkzeug.wrappers import Request, Response
 
 from lumigo_tracer import global_scope_exec
 from lumigo_tracer.lambda_tracer.spans_container import SpansContainer
@@ -21,6 +23,35 @@ def serverless_yaml():
     subprocess.check_output(
         ["sls", "deploy", "--env", os.environ.get("USER", DEFAULT_USER)], cwd="test/"
     )
+
+
+@pytest.fixture()
+def echo_server(httpserver: HTTPServer) -> HTTPServer:
+    def respond_like_httpbin_anything_path(request: Request) -> Response:
+        response_body = {
+            "data": request.data.decode("utf-8")
+            if isinstance(request.data, bytes)
+            else request.data,
+            "headers": dict(request.headers),
+        }
+        return Response(response=json.dumps(response_body), status=200, headers={})
+
+    path = "/anything"
+    httpserver.expect_request(uri=path).respond_with_handler(respond_like_httpbin_anything_path)
+    host = httpserver.host
+    port = httpserver.port
+    print(f"local echo server created. host: {host}, port: {port}")
+    return httpserver
+
+
+@pytest.fixture()
+def echo_server_host(echo_server) -> str:
+    return echo_server.host
+
+
+@pytest.fixture()
+def echo_server_port(echo_server) -> int:
+    return echo_server.port
 
 
 @pytest.fixture(autouse=True)
@@ -217,30 +248,37 @@ def test_get_body_from_aws_response(sqs_resource, region, context):
 
 @pytest.mark.slow
 @pytest.mark.parametrize("as_kwarg", [True, False])
-def test_w3c_headers_requests_with_headers(sqs_resource, region, context, aws_env, as_kwarg):
+def test_w3c_headers_requests_with_headers(
+    sqs_resource, region, context, aws_env, as_kwarg, echo_server_host, echo_server_port
+):
     @lumigo_tracer(token=TOKEN, propagate_w3c=True)
     def lambda_test_function(event, context):
-        conn = http.client.HTTPConnection("httpbin.org")
+        conn = http.client.HTTPConnection(echo_server_host, echo_server_port)
         if as_kwarg:
             conn.request("GET", "/anything", b"content", headers={"A": "B"})
         else:
             conn.request("GET", "/anything", b"content", {"A": "B"})
-        return conn.getresponse().read()
+        response = conn.getresponse().read()
+        return response
 
     lambda_test_function({}, context)
     events = list(SpansContainer.get_span().spans.values())
     # making sure there is any data in the body.
     body = json.loads(events[0]["info"]["httpInfo"]["response"]["body"])
+    print(f"httpbin response body: {body}")
+
     assert body["data"] == "content"
     assert body["headers"]["A"] == "B"
     assert "Traceparent" in body["headers"]
 
 
 @pytest.mark.slow
-def test_w3c_headers_requests_without_headers(sqs_resource, region, context, aws_env):
+def test_w3c_headers_requests_without_headers(
+    sqs_resource, region, context, aws_env, echo_server_host, echo_server_port
+):
     @lumigo_tracer(token=TOKEN, propagate_w3c=True)
     def lambda_test_function(event, context):
-        conn = http.client.HTTPConnection("httpbin.org")
+        conn = http.client.HTTPConnection(echo_server_host, echo_server_port)
         conn.request("GET", "/anything", b"content")
         return conn.getresponse().read()
 

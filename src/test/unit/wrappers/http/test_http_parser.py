@@ -11,12 +11,14 @@ from lumigo_tracer.wrappers.http.http_parser import (
     ApiGatewayV2Parser,
     DynamoParser,
     EventBridgeParser,
+    KinesisParser,
     LambdaParser,
     Parser,
     S3Parser,
     ServerlessAWSParser,
     SnsParser,
-    SqsParser,
+    SqsJsonParser,
+    SqsXmlParser,
     get_parser,
 )
 
@@ -31,26 +33,36 @@ def test_serverless_aws_parser_fallback_doesnt_change():
     assert serverless_parser == root_parser
 
 
-def test_get_parser_check_headers():
-    url = "api.dev.com"
-    headers = {"x-amzn-requestid": "1234"}
-    assert get_parser(url, headers) == ServerlessAWSParser
-
-
-def test_get_parser_s3():
-    url = "s3.eu-west-1.amazonaws.com"
-    headers = {"key": "value"}
-    assert get_parser(url, headers) == S3Parser
-
-
-def test_get_parser_apigw():
-    url = "https://ne3kjv28fh.execute-api.us-west-2.amazonaws.com/doriaviram"
-    assert get_parser(url, {}) == ApiGatewayV2Parser
-
-
-def test_get_parser_non_aws():
-    url = "events.other.service"
-    assert get_parser(url, {}) == Parser
+@pytest.mark.parametrize(
+    "url, headers, expected_parser",
+    [
+        ("ne3kjv28fh.execute-api.us-west-2.amazonaws.com", {}, ApiGatewayV2Parser),
+        ("s3.eu-west-1.amazonaws.com", {"key": "value"}, S3Parser),
+        (
+            "sqs.us-west-2.amazonaws.com",
+            {"content-type": "application/x-amz-json-1.0"},
+            SqsJsonParser,
+        ),
+        (
+            "sqs.us-west-2.amazonaws.com",
+            # This is a made up future version of the json protocol, to make sure that the SqsJsonParser
+            # is still selected
+            {"content-type": "application/x-amz-json-2.3.4"},
+            SqsJsonParser,
+        ),
+        ("sqs.us-west-2.amazonaws.com", {}, SqsXmlParser),
+        ("lambda.us-west-2.amazonaws.com", {}, LambdaParser),
+        ("kinesis.us-west-2.amazonaws.com", {}, KinesisParser),
+        ("events.us-west-2.amazonaws.com", {}, EventBridgeParser),
+        ("sns.us-west-2.amazonaws.com", {}, SnsParser),
+        # Non AWS Service
+        ("events.other.service", {}, Parser),
+        # If this header exists it should be detected as a ServerlessAWSParser
+        ("api.dev.com", {"x-amzn-requestid": "1234"}, ServerlessAWSParser),
+    ],
+)
+def test_get_parser(url, headers, expected_parser):
+    assert get_parser(url, headers) == expected_parser
 
 
 def test_get_default_parser_when_using_extension(monkeypatch):
@@ -123,15 +135,202 @@ def test_lambda_parser_resource_name(uri, resource_name):
 
 
 @pytest.mark.parametrize(
+    "request_body",
+    [
+        # Send single message to SQS request
+        b"QueueUrl=https%3A%2F%2Fsqs.us-west-2.amazonaws.com%2F449953265267%2Fsagivdeleteme-node-sqs"
+        b"&MessageBody=%7B%0A%20%20%20%20%22body%22%3A%20%22test1%22%0A%7D"
+        b"&MessageAttribute.1.Name=AttributeName"
+        b"&MessageAttribute.1.Value.StringValue=Attribute%20Value"
+        b"&MessageAttribute.1.Value.DataType=String"
+        b"&Action=SendMessage"
+        b"&Version=2012-11-05",
+        # Send batch message request to SQS (on record in the batch)
+        b"QueueUrl=https%3A%2F%2Fsqs.us-west-2.amazonaws.com%2F449953265267%2Fsagivdeleteme-node-sqs"
+        b"&SendMessageBatchRequestEntry.1.Id=1"
+        b"&SendMessageBatchRequestEntry.1.MessageBody=Message%201"
+        b"&SendMessageBatchRequestEntry.2.Id=2"
+        b"&SendMessageBatchRequestEntry.2.MessageBody=Message%202"
+        b"&Action=SendMessageBatch"
+        b"&Version=2012-11-05",
+    ],
+)
+def test_sqs_xml_parse_resource_name(request_body):
+    queue_url = "https://sqs.us-west-2.amazonaws.com/449953265267/sagivdeleteme-node-sqs"
+    http_request = HttpRequest(host="dummy", method="POST", uri="", headers={}, body=request_body)
+    parsed_request = SqsXmlParser().parse_request(http_request)
+    assert parsed_request["info"]["resourceName"] == queue_url
+
+
+@pytest.mark.parametrize(
     "body",
     [
         b'<?xml version="1.0"?><SendMessageBatchResponse xmlns="http://queue.amazonaws.com/doc/2012-11-05/"><SendMessageBatchResult><SendMessageBatchResultEntry><Id>123</Id><MessageId>85dc3997-b060-47bc-9d89-c754d7260dbd</MessageId><MD5OfMessageBody>485b9ada0d1f06d60d71145304704c27</MD5OfMessageBody></SendMessageBatchResultEntry></SendMessageBatchResult><ResponseMetadata><RequestId>41295a06-b432-55b5-a8aa-00e764c8b9cf</RequestId></ResponseMetadata></SendMessageBatchResponse>',
         b'<?xml version="1.0"?><SendMessageResponse xmlns="http://queue.amazonAwsParser.com/doc/2012-11-05/"><SendMessageResult><MessageId>85dc3997-b060-47bc-9d89-c754d7260dbd</MessageId><MD5OfMessageBody>c5cb6abef11b88049177473a73ed662f</MD5OfMessageBody></SendMessageResult><ResponseMetadata><RequestId>b6b5a045-23c6-5e3a-a54f-f7dd99f7b379</RequestId></ResponseMetadata></SendMessageResponse>',
     ],
 )
-def test_sqs_parser_message_id(body):
-    response = SqsParser().parse_response("dummy", 200, {}, body=body)
+def test_sqs_xml_parser_message_id(body):
+    response = SqsXmlParser().parse_response("dummy", 200, {}, body=body)
     assert response["info"]["messageId"] == "85dc3997-b060-47bc-9d89-c754d7260dbd"
+
+
+@pytest.mark.parametrize(
+    "response_body, message_id",
+    [
+        (
+            # Send single message to SQS response
+            {
+                "MD5OfMessageAttributes": "11111111111111111111111111111111",
+                "MD5OfMessageBody": "11111111111111111111111111111111",
+                "MessageId": "11111111-1111-1111-1111-111111111111",
+            },
+            "11111111-1111-1111-1111-111111111111",
+        ),
+        (
+            # Send batch message request to SQS (one record in the batch), successful message
+            {
+                "Failed": [],
+                "Successful": [
+                    {
+                        "Id": "1",
+                        "MD5OfMessageBody": "11111111111111111111111111111111",
+                        "MessageId": "11111111-1111-1111-1111-111111111111",
+                    }
+                ],
+            },
+            "11111111-1111-1111-1111-111111111111",
+        ),
+        (
+            # Send batch message request to SQS (multiple record in the batch), successful message
+            # Note: Currently we only send the first message id of a batch, but if there would be a need we will
+            #       change this to send multiple message ids
+            {
+                "Failed": [],
+                "Successful": [
+                    {
+                        "Id": "1",
+                        "MD5OfMessageBody": "11111111111111111111111111111111",
+                        "MessageId": "11111111-1111-1111-1111-111111111111",
+                    },
+                    {
+                        "Id": "2",
+                        "MD5OfMessageBody": "22222222222222222222222222222222",
+                        "MessageId": "22222222-2222-2222-2222-222222222222",
+                    },
+                ],
+            },
+            "11111111-1111-1111-1111-111111111111",
+        ),
+        (
+            # Send batch message request to SQS (one record in the batch), failed message
+            # Note: Currently we only send the first message id of a batch, but if there would be a need we will
+            #       change this to send multiple message ids
+            {
+                "Successful": [],
+                "Failed": [
+                    {
+                        "Id": "1",
+                        "MD5OfMessageBody": "11111111111111111111111111111111",
+                        "MessageId": "11111111-1111-1111-1111-111111111111",
+                    },
+                    {
+                        "Id": "2",
+                        "MD5OfMessageBody": "22222222222222222222222222222222",
+                        "MessageId": "22222222-2222-2222-2222-222222222222",
+                    },
+                ],
+            },
+            None,
+        ),
+        (
+            # Send batch message request to SQS (many successful & many failed messages)
+            # Note: Currently we only send the first successful message id of a batch, but if there would be a need
+            #       we will change this to send multiple message ids
+            {
+                "Successful": [
+                    {
+                        "Id": "1",
+                        "MD5OfMessageBody": "11111111111111111111111111111111",
+                        "MessageId": "11111111-1111-1111-1111-111111111111",
+                    },
+                    {
+                        "Id": "2",
+                        "MD5OfMessageBody": "22222222222222222222222222222222",
+                        "MessageId": "22222222-2222-2222-2222-222222222222",
+                    },
+                ],
+                "Failed": [
+                    {
+                        "Id": "3",
+                        "MD5OfMessageBody": "33333333333333333333333333333333",
+                        "MessageId": "33333333-3333-3333-3333-333333333333",
+                    },
+                    {
+                        "Id": "4",
+                        "MD5OfMessageBody": "44444444444444444444444444444444",
+                        "MessageId": "44444444-4444-4444-4444-444444444444",
+                    },
+                ],
+            },
+            "11111111-1111-1111-1111-111111111111",
+        ),
+        ({}, None),
+    ],
+)
+def test_sqs_json_parse_message_id(response_body: dict, message_id):
+    response_body_bytes = bytes(json.dumps(response_body), "utf-8")
+    parsed_response = SqsJsonParser().parse_response(
+        url="", status_code=200, headers={}, body=response_body_bytes
+    )
+    assert parsed_response["info"]["messageId"] == message_id
+
+
+def test_sqs_json_parse_message_id_body_not_a_json():
+    parsed_response = SqsJsonParser().parse_response(
+        url="", status_code=200, headers={}, body=b"no a json"
+    )
+    assert parsed_response["info"]["messageId"] is None
+
+
+@pytest.mark.parametrize(
+    "request_body, queue_url",
+    [
+        (
+            # Send single message to SQS request
+            {
+                "QueueUrl": "https://sqs.us-west-2.amazonaws.com/33/random-queue-test",
+                "MessageBody": "This is a test message",
+            },
+            "https://sqs.us-west-2.amazonaws.com/33/random-queue-test",
+        ),
+        (
+            # Send batch message request to SQS (on record in the batch)
+            {
+                "QueueUrl": "https://sqs.us-west-2.amazonaws.com/33/random-queue-test",
+                "Entries": [{"Id": 1, "Message": "Message number 1"}],
+            },
+            "https://sqs.us-west-2.amazonaws.com/33/random-queue-test",
+        ),
+        (
+            # Empty json response body
+            {},
+            None,
+        ),
+    ],
+)
+def test_sqs_json_parse_resource_name(request_body: dict, queue_url: str):
+    request_body_bytes = bytes(json.dumps(request_body), "utf-8")
+    http_request = HttpRequest(
+        host="dummy", method="POST", uri="", headers={}, body=request_body_bytes
+    )
+    parsed_request = SqsJsonParser().parse_request(http_request)
+    assert parsed_request["info"]["resourceName"] == queue_url
+
+
+def test_sqs_json_parse_resource_name_body_not_a_json():
+    http_request = HttpRequest(host="dummy", method="POST", uri="", headers={}, body=b"Not a json")
+    parsed_request = SqsJsonParser().parse_request(http_request)
+    assert parsed_request["info"]["resourceName"] is None
 
 
 @pytest.mark.parametrize(
