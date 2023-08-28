@@ -233,7 +233,9 @@ def test_skip_collecting_http_parts(wrap_all_libraries, monkeypatch, context, is
 def test_add_w3c_headers_to_http_without_headers(
     wrap_all_libraries, monkeypatch, context, propagate_w3c, aws_env
 ):
-    @lumigo_tracer(propagate_w3c=propagate_w3c)
+    os.environ["LUMIGO_PROPAGATE_W3C"] = "TRUE" if propagate_w3c else "FALSE"
+
+    @lumigo_tracer()
     def lambda_test_function(event, context):
         conn = http.client.HTTPConnection("www.google.com")
         conn.request("POST", "/", json.dumps({"a": "b"}))
