@@ -70,7 +70,8 @@ class Parser:
 
         message_id = None
         if parse_params.headers and is_w3c_headers(parse_params.headers):
-            message_id = get_w3c_message_id(parse_params.headers)
+            if not parse_params.host or not parse_params.host.startswith("lambda."):
+                message_id = get_w3c_message_id(parse_params.headers)
         return {
             "id": str(uuid.uuid4()),
             "type": HTTP_TYPE,
