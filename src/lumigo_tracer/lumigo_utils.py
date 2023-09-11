@@ -198,7 +198,7 @@ def config(
     )
     Configuration.is_sync_tracer = os.environ.get(LUMIGO_SYNC_TRACING, "FALSE").lower() == "true"
     Configuration.propagate_w3c = (
-        propagate_w3c or os.environ.get(LUMIGO_PROPAGATE_W3C, "false").lower() == "true"
+        propagate_w3c or os.environ.get(LUMIGO_PROPAGATE_W3C, "true").lower() == "true"
     )
     Configuration.auto_tag = auto_tag or os.environ.get(
         "LUMIGO_AUTO_TAG", DEFAULT_AUTO_TAG_KEY
