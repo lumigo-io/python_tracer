@@ -57,7 +57,7 @@ commit_version="$(git describe --abbrev=0 --tags)"
     --region ALL \
     --package-folder python \
     --version "$commit_version" \
-    --runtimes "python3.6 python3.7 python3.8 python3.9 python3.10"
+    --runtimes "python3.6 python3.7 python3.8 python3.9 python3.10 python3.11"
 
 cd ../larn && npm i -g
 larn -r python3.6 -n layers/LAYERS36 --filter lumigo-python-tracer -p ~/python_tracer
