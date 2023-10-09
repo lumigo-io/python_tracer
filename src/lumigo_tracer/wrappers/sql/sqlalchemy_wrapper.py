@@ -46,7 +46,7 @@ def _after_cursor_execute(conn, cursor, statement, parameters, context, executem
     with lumigo_safe_execute("handle sqlalchemy after execute"):
         span = SpansContainer.get_span().get_span_by_id(_last_span_id)
         if not span:
-            get_logger().warning("Redis span ended without a record on its start")
+            get_logger().warning("SQLAlchemy span ended without a record on its start")
             return
         span.update({"ended": get_current_ms_time(), "response": ""})
 
@@ -55,7 +55,7 @@ def _handle_error(context):  # type: ignore[no-untyped-def]
     with lumigo_safe_execute("handle sqlalchemy error"):
         span = SpansContainer.get_span().get_span_by_id(_last_span_id)
         if not span:
-            get_logger().warning("Redis span ended without a record on its start")
+            get_logger().warning("SQLAlchemy span ended without a record on its start")
             return
         span.update(
             {
@@ -73,9 +73,9 @@ def _handle_error(context):  # type: ignore[no-untyped-def]
 def execute_wrapper(func, instance, args, kwargs):  # type: ignore[no-untyped-def]
     result = func(*args, **kwargs)
     with lumigo_safe_execute("sqlalchemy: listen to engine"):
-        listen(result, "before_cursor_execute", _before_cursor_execute)
-        listen(result, "after_cursor_execute", _after_cursor_execute)
-        listen(result, "handle_error", _handle_error)
+        listen(instance, "before_cursor_execute", _before_cursor_execute)
+        listen(instance, "after_cursor_execute", _after_cursor_execute)
+        listen(instance, "handle_error", _handle_error)
     return result
 
 
@@ -83,6 +83,4 @@ def wrap_sqlalchemy():  # type: ignore[no-untyped-def]
     with lumigo_safe_execute("wrap sqlalchemy"):
         if importlib.util.find_spec("sqlalchemy") and listen:
             get_logger().debug("wrapping sqlalchemy")
-            wrap_function_wrapper(
-                "sqlalchemy.engine.strategies", "DefaultEngineStrategy.create", execute_wrapper
-            )
+            wrap_function_wrapper("sqlalchemy.engine.base", "Engine.__init__", execute_wrapper)
