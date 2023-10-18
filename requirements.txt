@@ -9,7 +9,7 @@ pymongo==3.11.0
 redispy==3.0.0
 sqlalchemy==1.4.3
 moto==4.2.5
-urllib3==1.26.17
+urllib3==1.26.18
 aiohttp==3.8.5
 mypy==0.971
 pytest-httpserver==1.0.6
