@@ -10,7 +10,7 @@ redispy==3.0.0
 sqlalchemy==1.4.3
 moto==4.2.5
 urllib3==1.26.17
-aiohttp==3.8.5
+aiohttp==3.9.0
 mypy==0.971
 pytest-httpserver==1.0.6
 Werkzeug==2.2.3
