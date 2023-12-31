@@ -1,5 +1,5 @@
-import traceback
 import sys
+import traceback
 
 import mock
 import pytest
@@ -8,11 +8,15 @@ from lumigo_tracer.auto_instrument_handler import ORIGINAL_HANDLER_KEY, _handler
 
 if sys.version_info >= (3, 7):
     # This version supports python 3.7 up to 3.12
-    from lumigo_tracer.libs.awslambdaric.release_2_0_8.lambda_runtime_exception import FaultException
+    from lumigo_tracer.libs.awslambdaric.release_2_0_8.lambda_runtime_exception import (
+        FaultException,
+    )
 else:
     # This is the latest version that supports python 3.6, so we default to it
     # (We don't support python 3.5 or below)
-    from lumigo_tracer.libs.awslambdaric.release_2_0_0.lambda_runtime_exception import FaultException
+    from lumigo_tracer.libs.awslambdaric.release_2_0_0.lambda_runtime_exception import (
+        FaultException,
+    )
 
 
 def abc(*args, **kwargs):
@@ -57,6 +61,7 @@ def test_no_env_handler_error(monkeypatch, context):
 
 def test_error_in_original_handler_no_extra_exception_log(monkeypatch, context):
     import importlib
+
     monkeypatch.setattr(importlib, "import_module", mock.Mock(side_effect=ZeroDivisionError))
     monkeypatch.setenv(ORIGINAL_HANDLER_KEY, "lumigo_tracer.test_module.test.handler")
 
@@ -71,6 +76,7 @@ def test_error_in_original_handler_no_extra_exception_log(monkeypatch, context):
 
 def test_error_in_original_handler_syntax_error(monkeypatch, context):
     import importlib
+
     monkeypatch.setattr(importlib, "import_module", mock.Mock(side_effect=SyntaxError))
     monkeypatch.setenv(ORIGINAL_HANDLER_KEY, "lumigo_tracer.test_module.test.handler")
 

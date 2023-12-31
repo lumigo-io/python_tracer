@@ -28,9 +28,7 @@ from .lambda_runtime_marshaller import to_json
 ERROR_LOG_LINE_TERMINATE = "\r"
 ERROR_LOG_IDENT = "\u00a0"  # NO-BREAK SPACE U+00A0
 _AWS_LAMBDA_LOG_FORMAT = LogFormat.from_str(os.environ.get("AWS_LAMBDA_LOG_FORMAT"))
-_AWS_LAMBDA_LOG_LEVEL = _get_log_level_from_env_var(
-    os.environ.get("AWS_LAMBDA_LOG_LEVEL")
-)
+_AWS_LAMBDA_LOG_LEVEL = _get_log_level_from_env_var(os.environ.get("AWS_LAMBDA_LOG_LEVEL"))
 
 
 def _get_handler(handler):
@@ -116,15 +114,14 @@ if _AWS_LAMBDA_LOG_FORMAT == LogFormat.JSON:
 
     def log_error(error_result, log_sink):
         error_result = {
-            "timestamp": time.strftime(
-                _DATETIME_FORMAT, logging.Formatter.converter(time.time())
-            ),
+            "timestamp": time.strftime(_DATETIME_FORMAT, logging.Formatter.converter(time.time())),
             "log_level": "ERROR",
             **error_result,
         }
         log_sink.log_error(
             [to_json(error_result)],
         )
+
 
 else:
     _ERROR_FRAME_TYPE = _TEXT_FRAME_TYPES[logging.ERROR]
@@ -180,13 +177,9 @@ def handle_event_request(
             invoke_id,
             invoked_function_arn,
         )
-        event = lambda_runtime_client.marshaller.unmarshal_request(
-            event_body, content_type
-        )
+        event = lambda_runtime_client.marshaller.unmarshal_request(event_body, content_type)
         response = request_handler(event, lambda_context)
-        result, result_content_type = lambda_runtime_client.marshaller.marshal_response(
-            response
-        )
+        result, result_content_type = lambda_runtime_client.marshaller.marshal_response(response)
     except FaultException as e:
         xray_fault = make_xray_fault("LambdaValidationError", e.msg, os.getcwd(), [])
         error_result = make_error(
@@ -215,9 +208,7 @@ def handle_event_request(
             invoke_id, to_json(error_result), to_json(xray_fault)
         )
     else:
-        lambda_runtime_client.post_invocation_result(
-            invoke_id, result, result_content_type
-        )
+        lambda_runtime_client.post_invocation_result(invoke_id, result, result_content_type)
 
 
 def parse_json_header(header, name):
@@ -289,8 +280,7 @@ def make_xray_fault(ex_type, ex_msg, working_dir, tb_tuples):
 
 def extract_traceback(tb):
     return [
-        (frame.filename, frame.lineno, frame.name, frame.line)
-        for frame in traceback.extract_tb(tb)
+        (frame.filename, frame.lineno, frame.name, frame.line) for frame in traceback.extract_tb(tb)
     ]
 
 
@@ -462,9 +452,7 @@ def run(app_root, handler, lambda_runtime_api_addr):
     sys.stdout = Unbuffered(sys.stdout)
     sys.stderr = Unbuffered(sys.stderr)
 
-    use_thread_for_polling_next = (
-        os.environ.get("AWS_EXECUTION_ENV") == "AWS_Lambda_python3.12"
-    )
+    use_thread_for_polling_next = os.environ.get("AWS_EXECUTION_ENV") == "AWS_Lambda_python3.12"
 
     with create_log_sink() as log_sink:
         lambda_runtime_client = LambdaRuntimeClient(

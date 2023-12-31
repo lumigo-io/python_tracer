@@ -1,10 +1,13 @@
 """Python 3 compatibility shims
 """
 import sys
+
 if sys.version_info[0] < 3:
     PY3 = False
+
     def b(s):
         return s
+
     try:
         from cStringIO import StringIO
     except ImportError:
@@ -22,9 +25,12 @@ else:
         from importlib import reload as reload_module
     else:
         from imp import reload as reload_module
+
     def b(s):
-        return bytes(s, 'latin1')
-    from io import StringIO, BytesIO
+        return bytes(s, "latin1")
+
+    from io import BytesIO, StringIO
+
     text_type = str
     binary_type = bytes
     string_types = (str,)
