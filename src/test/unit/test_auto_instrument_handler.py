@@ -1,3 +1,4 @@
+import importlib
 import sys
 import traceback
 
@@ -60,8 +61,6 @@ def test_no_env_handler_error(monkeypatch, context):
 
 
 def test_error_in_original_handler_no_extra_exception_log(monkeypatch, context):
-    import importlib
-
     monkeypatch.setattr(importlib, "import_module", mock.Mock(side_effect=ZeroDivisionError))
     monkeypatch.setenv(ORIGINAL_HANDLER_KEY, "lumigo_tracer.test_module.test.handler")
 
@@ -75,8 +74,6 @@ def test_error_in_original_handler_no_extra_exception_log(monkeypatch, context):
 
 
 def test_error_in_original_handler_syntax_error(monkeypatch, context):
-    import importlib
-
     monkeypatch.setattr(importlib, "import_module", mock.Mock(side_effect=SyntaxError))
     monkeypatch.setenv(ORIGINAL_HANDLER_KEY, "lumigo_tracer.test_module.test.handler")
 
