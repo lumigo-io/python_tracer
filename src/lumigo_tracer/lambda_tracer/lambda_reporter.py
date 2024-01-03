@@ -38,6 +38,9 @@ HTTPS_PREFIX = "https://"
 SECONDS_TO_TIMEOUT = 0.5
 EDGE_TIMEOUT = float(os.environ.get("LUMIGO_EDGE_TIMEOUT", SECONDS_TO_TIMEOUT))
 MAX_SIZE_FOR_REQUEST: int = int(os.environ.get("LUMIGO_MAX_SIZE_FOR_REQUEST", 1024 * 500))
+MAX_SIZE_FOR_REQUEST_ON_ERROR: int = int(
+    os.environ.get("MAX_SIZE_FOR_REQUEST_ON_ERROR", 1024 * 990)
+)
 MAX_NUMBER_OF_SPANS: int = int(os.environ.get("LUMIGO_MAX_NUMBER_OF_SPANS", 2000))
 TOO_BIG_SPANS_THRESHOLD = 5
 NUMBER_OF_SPANS_IN_REPORT_OPTIMIZATION = 200
@@ -172,14 +175,16 @@ def _create_request_body(
     msgs: List[dict],  # type: ignore[type-arg]
     prune_size_flag: bool,
     max_size: int = MAX_SIZE_FOR_REQUEST,
+    max_error_size: int = MAX_SIZE_FOR_REQUEST_ON_ERROR,
     too_big_spans_threshold: int = TOO_BIG_SPANS_THRESHOLD,
 ) -> str:
+    request_size_limit = max_error_size if any(map(is_span_has_error, msgs)) else max_size
 
     if not prune_size_flag or (
         len(msgs) < NUMBER_OF_SPANS_IN_REPORT_OPTIMIZATION
-        and _get_event_base64_size(msgs) < max_size  # noqa
+        and _get_event_base64_size(msgs) < request_size_limit  # noqa
     ):
-        return aws_dump(msgs)[:max_size]
+        return aws_dump(msgs)[:request_size_limit]
 
     end_span = msgs[-1]
     ordered_spans = sorted(msgs[:-1], key=is_span_has_error, reverse=True)
@@ -189,7 +194,7 @@ def _create_request_body(
     too_big_spans = 0
     for span in ordered_spans:
         span_size = _get_event_base64_size(span)
-        if current_size + span_size < max_size:
+        if current_size + span_size < request_size_limit:
             spans_to_send.append(span)
             current_size += span_size
         else:
@@ -197,7 +202,7 @@ def _create_request_body(
             too_big_spans += 1
             if too_big_spans == too_big_spans_threshold:
                 break
-    return aws_dump(spans_to_send)[:max_size]
+    return aws_dump(spans_to_send)[:request_size_limit]
 
 
 def write_spans_to_files(
