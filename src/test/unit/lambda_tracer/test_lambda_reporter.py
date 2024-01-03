@@ -73,7 +73,9 @@ def test_create_request_body_take_error_first(dummy_span, error_span, function_e
         function_end_span,
     ]
     size = _get_event_base64_size(expected_result)
-    assert _create_request_body(input, True, size) == json.dumps(expected_result)
+    assert _create_request_body(input, True, max_size=size, max_error_size=size) == json.dumps(
+        expected_result
+    )
 
 
 @pytest.mark.parametrize(
