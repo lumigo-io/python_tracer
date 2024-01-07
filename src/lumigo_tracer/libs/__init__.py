@@ -7,5 +7,4 @@ avoid dependency version conflict with the users dependencies.
 
 The source code is not altered in any way, except for:
 * Imports between libraries are changed to use the local copy.
-* Auto formatting is applied.
 """
