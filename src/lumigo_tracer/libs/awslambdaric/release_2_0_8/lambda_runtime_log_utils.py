@@ -50,20 +50,20 @@ def _get_log_level_from_env_var(log_level):
 
 
 _JSON_FRAME_TYPES = {
-    logging.NOTSET: 0xA55A0002 .to_bytes(4, "big"),
-    logging.DEBUG: 0xA55A000A .to_bytes(4, "big"),
-    logging.INFO: 0xA55A000E .to_bytes(4, "big"),
-    logging.WARNING: 0xA55A0012 .to_bytes(4, "big"),
-    logging.ERROR: 0xA55A0016 .to_bytes(4, "big"),
-    logging.CRITICAL: 0xA55A001A .to_bytes(4, "big"),
+    logging.NOTSET: 0xA55A0002.to_bytes(4, "big"),
+    logging.DEBUG: 0xA55A000A.to_bytes(4, "big"),
+    logging.INFO: 0xA55A000E.to_bytes(4, "big"),
+    logging.WARNING: 0xA55A0012.to_bytes(4, "big"),
+    logging.ERROR: 0xA55A0016.to_bytes(4, "big"),
+    logging.CRITICAL: 0xA55A001A.to_bytes(4, "big"),
 }
 _TEXT_FRAME_TYPES = {
-    logging.NOTSET: 0xA55A0003 .to_bytes(4, "big"),
-    logging.DEBUG: 0xA55A000B .to_bytes(4, "big"),
-    logging.INFO: 0xA55A000F .to_bytes(4, "big"),
-    logging.WARNING: 0xA55A0013 .to_bytes(4, "big"),
-    logging.ERROR: 0xA55A0017 .to_bytes(4, "big"),
-    logging.CRITICAL: 0xA55A001B .to_bytes(4, "big"),
+    logging.NOTSET: 0xA55A0003.to_bytes(4, "big"),
+    logging.DEBUG: 0xA55A000B.to_bytes(4, "big"),
+    logging.INFO: 0xA55A000F.to_bytes(4, "big"),
+    logging.WARNING: 0xA55A0013.to_bytes(4, "big"),
+    logging.ERROR: 0xA55A0017.to_bytes(4, "big"),
+    logging.CRITICAL: 0xA55A001B.to_bytes(4, "big"),
 }
 _DEFAULT_FRAME_TYPE = _TEXT_FRAME_TYPES[logging.NOTSET]
 

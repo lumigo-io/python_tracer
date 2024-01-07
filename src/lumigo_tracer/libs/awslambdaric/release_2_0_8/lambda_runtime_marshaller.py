@@ -5,7 +5,6 @@ Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
 import decimal
 import math
 import os
-
 import lumigo_tracer.libs.simplejson.release_3_17_2 as json
 
 from .lambda_runtime_exception import FaultException
