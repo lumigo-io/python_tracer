@@ -316,7 +316,7 @@ def test_requests_failure_before_http_call(monkeypatch, context, func_to_patch, 
 
     assert len(SpansContainer.get_span().spans) == 1
     span = list(SpansContainer.get_span().spans.values())[0]
-    assert span["error"]["message"] == "division by zero"
+    assert span["error"]["message"] == '"division by zero"'
     assert span["info"]["httpInfo"]["request"]["method"] == "POST"
     assert span["info"]["httpInfo"]["request"]["body"] == '"123"'
     assert span["info"]["httpInfo"]["request"]["headers"]

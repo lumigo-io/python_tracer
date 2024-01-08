@@ -13,17 +13,17 @@ FUNCTION_RESULT = "Result"
 
 
 @pytest.fixture
-def instance():
+def instance() -> SimpleNamespace:
     return SimpleNamespace(
         connection_pool=SimpleNamespace(connection_kwargs={"host": "lumigo"}), command_stack=None
     )
 
 
-def func(*args, **kwargs):
+def func(*args, **kwargs) -> str:
     return FUNCTION_RESULT
 
 
-def test_execute_command_wrapper_happy_flow(instance):
+def test_execute_command_wrapper_happy_flow(instance: SimpleNamespace):
     result = execute_command_wrapper(func, instance, ["SET", {"a": 1}, "b"], {})
 
     spans = list(SpansContainer.get_span().spans.values())
@@ -37,7 +37,7 @@ def test_execute_command_wrapper_happy_flow(instance):
     assert result == FUNCTION_RESULT
 
 
-def test_execute_command_wrapper_non_json(instance):
+def test_execute_command_wrapper_non_json(instance: SimpleNamespace):
     result = execute_command_wrapper(
         lambda *args, **kwargs: datetime.now(), instance, ["SET", {"a": 1}, "b"], {}
     )
@@ -53,7 +53,7 @@ def test_execute_command_wrapper_non_json(instance):
     assert isinstance(result, datetime)
 
 
-def test_execute_command_wrapper_failing_command(instance):
+def test_execute_command_wrapper_failing_command(instance: SimpleNamespace):
     with pytest.raises(ZeroDivisionError):
         execute_command_wrapper(lambda *args, **kwargs: 1 / 0, instance, ["SET", {"a": 1}], {})
 
@@ -65,7 +65,7 @@ def test_execute_command_wrapper_failing_command(instance):
     assert "response" not in spans[0]
 
 
-def test_execute_command_wrapper_unexpected_params(instance):
+def test_execute_command_wrapper_unexpected_params(instance: SimpleNamespace):
     result = execute_command_wrapper(func, instance, {"not": "list"}, {})
 
     spans = list(SpansContainer.get_span().spans.values())
@@ -73,7 +73,7 @@ def test_execute_command_wrapper_unexpected_params(instance):
     assert result == FUNCTION_RESULT
 
 
-def test_execute_wrapper_happy_flow(instance, monkeypatch):
+def test_execute_wrapper_happy_flow(instance: SimpleNamespace, monkeypatch):
     monkeypatch.setattr(instance, "command_stack", [["SET", {"a": 1}], ["GET", "a"]])
     execute_wrapper(func, instance, [], {})
 
@@ -86,7 +86,7 @@ def test_execute_wrapper_happy_flow(instance, monkeypatch):
     assert "error" not in spans[0]
 
 
-def test_execute_wrapper_failing_command(instance, monkeypatch):
+def test_execute_wrapper_failing_command(instance: SimpleNamespace, monkeypatch):
     monkeypatch.setattr(instance, "command_stack", [["SET", {"a": 1}], ["GET", "a"]])
     with pytest.raises(ZeroDivisionError):
         execute_wrapper(lambda *args, **kwargs: 1 / 0, instance, [], {})
@@ -99,7 +99,7 @@ def test_execute_wrapper_failing_command(instance, monkeypatch):
     assert "response" not in spans[0]
 
 
-def test_execute_wrapper_unexpected_params(instance, monkeypatch):
+def test_execute_wrapper_unexpected_params(instance: SimpleNamespace, monkeypatch):
     monkeypatch.setattr(instance, "command_stack", [{"not": "list"}])
     result = execute_wrapper(func, instance, [], {})
 

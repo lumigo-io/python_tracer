@@ -57,7 +57,6 @@ HTTP_TYPE = "http"
 MONGO_SPAN = "mongoDb"
 REDIS_SPAN = "redis"
 SQL_SPAN = "mySql"
-SPAN_TYPES = [FUNCTION_TYPE, ENRICHMENT_TYPE, HTTP_TYPE, MONGO_SPAN, REDIS_SPAN, SQL_SPAN]
 
 
 edge_kinesis_boto_client = None
@@ -194,41 +193,36 @@ def get_span_priority(span: Dict[Any, Any]) -> int:
 
 
 def get_span_metadata(span: Dict[Any, Any]) -> Dict[Any, Any]:
-    span_type = span.get("type")
-    if span_type not in SPAN_TYPES:
-        get_logger().warning(f"Got unsupported span type: {span_type}")
-        return span
+    with lumigo_safe_execute("get_span_metadata"):
+        span_type = span.get("type")
+        span_copy = copy.deepcopy(span)
 
-    span_copy = copy.deepcopy(span)
+        if span_type == FUNCTION_TYPE:
+            span_copy.pop("envs", None)
+            return span_copy
+        if span_type == ENRICHMENT_TYPE:
+            return {}
+        if span_type == HTTP_TYPE:
+            span_copy.get("info", {}).get("httpInfo", {}).get("request", {}).pop("headers", None)
+            span_copy.get("info", {}).get("httpInfo", {}).get("request", {}).pop("body", None)
+            span_copy.get("info", {}).get("httpInfo", {}).get("response", {}).pop("headers", None)
+            span_copy.get("info", {}).get("httpInfo", {}).get("response", {}).pop("body", None)
+            return span_copy
+        if span_type == MONGO_SPAN:
+            span_copy.pop("request", None)
+            span_copy.pop("response", None)
+            return span_copy
+        if span_type == REDIS_SPAN:
+            span_copy.pop("requestArgs", None)
+            span_copy.pop("response", None)
+            return span_copy
+        if span_type == SQL_SPAN:
+            span_copy.pop("query", None)
+            span_copy.pop("values", None)
+            span_copy.pop("response", None)
+            return span_copy
 
-    if span_type == FUNCTION_TYPE:
-        with lumigo_safe_execute("get_function_span_metadata"):
-            span_copy.pop("envs")
-        return span_copy
-    if span_type == ENRICHMENT_TYPE:
-        return {}
-    if span_type == HTTP_TYPE:
-        with lumigo_safe_execute("get_http_span_metadata"):
-            span_copy.get("info", {}).get("httpInfo", {}).get("request", {}).pop("headers")
-            span_copy.get("info", {}).get("httpInfo", {}).get("request", {}).pop("body")
-            span_copy.get("info", {}).get("httpInfo", {}).get("response", {}).pop("headers")
-            span_copy.get("info", {}).get("httpInfo", {}).get("response", {}).pop("body")
-        return span_copy
-    if span_type == MONGO_SPAN:
-        with lumigo_safe_execute("get_mongo_span_metadata"):
-            span_copy.pop("request")
-            span_copy.pop("response")
-        return span_copy
-    if span_type == REDIS_SPAN:
-        with lumigo_safe_execute("get_redis_span_metadata"):
-            span_copy.pop("requestArgs")
-            span_copy.pop("response")
-        return span_copy
-    if span_type == SQL_SPAN:
-        with lumigo_safe_execute("get_sql_span_metadata"):
-            span_copy.pop("query")
-            span_copy.pop("values")
-        return span_copy
+    get_logger().warning(f"Got unsupported span type: {span_type}")
     return span
 
 
@@ -264,29 +258,33 @@ def _create_request_body(
         if current_size + span_size > max_size:
             break
 
-        spans_to_send[index] = span
+        spans_to_send.append(span)
         current_size += span_size
 
     if len(spans_to_send) < len(msgs):
         # If we didn't send all the spans, we need to apply the smart span selection.
-        ordered_spans = sorted(msgs[:-1], key=get_span_priority)
+        ordered_spans = sorted(msgs, key=get_span_priority)
         current_size = 0
         too_big_spans = 0
-        spans_metadata_sizes = []
-        spans_to_send = []
+        spans_to_send_sizes = {}
+        spans_to_send_dict = {}
 
         # Take only spans metadata
-        for span in ordered_spans:
+        for index, span in enumerate(ordered_spans):
+            spans_to_send_sizes[index] = 0
             span_metadata = get_span_metadata(span)
+            if span_metadata == {}:
+                continue
             span_metadata_size = _get_event_base64_size(span_metadata)
-            spans_metadata_sizes.append(span_metadata_size)
 
             if span.get("type") == FUNCTION_TYPE:
                 # We always want to at least send the function span
-                spans_to_send.append(span_metadata)
+                spans_to_send_dict[index] = span_metadata
+                spans_to_send_sizes[index] = span_metadata_size
                 current_size += span_metadata_size
             elif current_size + span_metadata_size < max_size:
-                spans_to_send.append(span_metadata)
+                spans_to_send_dict[index] = span_metadata
+                spans_to_send_sizes[index] = span_metadata_size
                 current_size += span_metadata_size
             else:
                 # This is an optimization step. If the spans are too big, don't try to send them.
@@ -296,17 +294,19 @@ def _create_request_body(
 
         # Override basic spans with full spans
         for index, span in enumerate(ordered_spans):
-            span_metadata_size = spans_metadata_sizes[index]
+            span_metadata_size = spans_to_send_sizes[index]
             span_size = _get_event_base64_size(span)
 
             if current_size + span_size - span_metadata_size < max_size:
-                spans_to_send[index] = span
+                spans_to_send_dict[index] = span
                 current_size += span_size - span_metadata_size
             else:
                 # This is an optimization step. If the spans are too big, don't try to send them.
                 too_big_spans += 1
                 if too_big_spans == too_big_spans_threshold:
                     break
+
+        spans_to_send = sorted(spans_to_send_dict.values(), key=get_span_priority)
 
     return aws_dump(spans_to_send)[:request_size_limit]
 
