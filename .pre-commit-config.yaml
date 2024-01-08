@@ -39,5 +39,5 @@ repos:
     rev: 5.11.5
     hooks:
         - id: isort
-          args: ["--profile", "black", "--verbose"]
+          args: ["--profile", "black"]
           exclude: ^src/lumigo_tracer/libs/

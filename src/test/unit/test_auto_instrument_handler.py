@@ -5,9 +5,7 @@ import mock
 import pytest
 
 from lumigo_tracer.auto_instrument_handler import ORIGINAL_HANDLER_KEY, _handler
-from lumigo_tracer.libs.awslambdaric.release_2_0_8.lambda_runtime_exception import (
-    FaultException,
-)
+from lumigo_tracer.libs.awslambdaric.lambda_runtime_exception import FaultException
 
 
 def abc(*args, **kwargs):
