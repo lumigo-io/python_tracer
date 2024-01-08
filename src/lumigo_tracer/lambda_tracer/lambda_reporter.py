@@ -8,7 +8,7 @@ import uuid
 from base64 import b64encode
 from functools import lru_cache
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 from lumigo_core.configuration import CoreConfiguration
 
@@ -37,9 +37,12 @@ EDGE_PATH = "/api/spans"
 HTTPS_PREFIX = "https://"
 SECONDS_TO_TIMEOUT = 0.5
 EDGE_TIMEOUT = float(os.environ.get("LUMIGO_EDGE_TIMEOUT", SECONDS_TO_TIMEOUT))
-MAX_SIZE_FOR_REQUEST: int = int(os.environ.get("LUMIGO_MAX_SIZE_FOR_REQUEST", 1024 * 500))
-MAX_SIZE_FOR_REQUEST_ON_ERROR: int = int(
-    os.environ.get("MAX_SIZE_FOR_REQUEST_ON_ERROR", 1024 * 990)
+REQUEST_MAX_SIZE = 1024 * 990
+MAX_SIZE_FOR_REQUEST: int = min(
+    int(os.environ.get("LUMIGO_MAX_SIZE_FOR_REQUEST", 1024 * 500)), REQUEST_MAX_SIZE
+)
+MAX_SIZE_FOR_REQUEST_ON_ERROR: int = min(
+    int(os.environ.get("MAX_SIZE_FOR_REQUEST_ON_ERROR", 1024 * 990)), REQUEST_MAX_SIZE
 )
 MAX_NUMBER_OF_SPANS: int = int(os.environ.get("LUMIGO_MAX_NUMBER_OF_SPANS", 2000))
 TOO_BIG_SPANS_THRESHOLD = 5
@@ -47,6 +50,8 @@ NUMBER_OF_SPANS_IN_REPORT_OPTIMIZATION = 200
 COOLDOWN_AFTER_TIMEOUT_DURATION = datetime.timedelta(seconds=10)
 CHINA_REGION = "cn-northwest-1"
 LUMIGO_SPANS_DIR = "/tmp/lumigo-spans"
+FUNCTION_TYPE = "function"
+ENRICHMENT_TYPE = "enrichment"
 
 edge_kinesis_boto_client = None
 edge_connection = None
@@ -171,6 +176,27 @@ def report_json(
     return duration
 
 
+def add_spans_until_max_size(
+    original_spans: List[Dict[Any, Any]],
+    spans_to_send: List,
+    current_size: int,
+    max_size: int,
+    too_big_spans: int,
+    too_big_spans_threshold,
+) -> Tuple[List[Dict[Any, Any]], int]:
+    for span in original_spans:
+        span_size = _get_event_base64_size(span)
+        if current_size + span_size < max_size:
+            spans_to_send.append(span)
+            current_size += span_size
+        else:
+            # This is an optimization step. If the spans are too big, don't try to send them.
+            too_big_spans += 1
+            if too_big_spans == too_big_spans_threshold:
+                break
+    return spans_to_send, too_big_spans
+
+
 def _create_request_body(
     msgs: List[dict],  # type: ignore[type-arg]
     prune_size_flag: bool,
@@ -178,6 +204,17 @@ def _create_request_body(
     max_error_size: int = MAX_SIZE_FOR_REQUEST_ON_ERROR,
     too_big_spans_threshold: int = TOO_BIG_SPANS_THRESHOLD,
 ) -> str:
+    """
+    This function creates the request body from the given spans.
+    If there is an error we limit the size of the request to max_error_size otherwise to max_size.
+
+    The order of the spans is:
+    1. The root span (end span) without the ENVs.
+    2. The spans with errors.
+    3. The ENVs.
+    4. Execution Tags.
+    5. The spans without errors.
+    """
     request_size_limit = max_error_size if any(map(is_span_has_error, msgs)) else max_size
 
     if not prune_size_flag or (
@@ -187,21 +224,62 @@ def _create_request_body(
         return aws_dump(msgs)[:request_size_limit]
 
     end_span = msgs[-1]
-    ordered_spans = sorted(msgs[:-1], key=is_span_has_error, reverse=True)
 
+    spans_with_errors = []
+    enrichment_spans = []
+    spans_without_errors = []
+    for span in msgs[:-1]:
+        if is_span_has_error(span):
+            spans_with_errors.append(span)
+        if span.get("type") == ENRICHMENT_TYPE:
+            enrichment_spans.append(span)
+        else:
+            spans_without_errors.append(span)
+
+    too_big_spans = 0
+
+    # Add span data (without the ENVs)
+    envs = end_span.get("envs", {})
+    end_span["envs"] = {}
     spans_to_send: list = [end_span]  # type: ignore[type-arg]
     current_size = _get_event_base64_size(end_span)
-    too_big_spans = 0
-    for span in ordered_spans:
-        span_size = _get_event_base64_size(span)
-        if current_size + span_size < request_size_limit:
-            spans_to_send.append(span)
-            current_size += span_size
-        else:
-            # This is an optimization step. If the spans are too big, don't try to send them.
-            too_big_spans += 1
-            if too_big_spans == too_big_spans_threshold:
-                break
+
+    # Add spans with errors
+    spans_to_send, too_big_spans = add_spans_until_max_size(
+        original_spans=spans_with_errors,
+        spans_to_send=spans_to_send,
+        current_size=current_size,
+        max_size=request_size_limit,
+        too_big_spans=too_big_spans,
+        too_big_spans_threshold=too_big_spans_threshold,
+    )
+
+    # Add the ENVs
+    envs_size = _get_event_base64_size(envs)
+    if current_size + envs_size < request_size_limit:
+        spans_to_send[0]["envs"] = envs
+        current_size += envs_size
+
+    # Add enrichment spans
+    spans_to_send, too_big_spans = add_spans_until_max_size(
+        original_spans=enrichment_spans,
+        spans_to_send=spans_to_send,
+        current_size=current_size,
+        max_size=request_size_limit,
+        too_big_spans=too_big_spans,
+        too_big_spans_threshold=too_big_spans_threshold,
+    )
+
+    # Add spans without errors
+    spans_to_send, too_big_spans = add_spans_until_max_size(
+        original_spans=spans_with_errors,
+        spans_to_send=spans_to_send,
+        current_size=current_size,
+        max_size=request_size_limit,
+        too_big_spans=too_big_spans,
+        too_big_spans_threshold=too_big_spans_threshold,
+    )
+
     return aws_dump(spans_to_send)[:request_size_limit]
 
 
