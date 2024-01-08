@@ -3,6 +3,7 @@ import importlib
 import uuid
 from typing import Dict, List, Optional, Union
 
+from lumigo_tracer.lambda_tracer.lambda_reporter import REDIS_SPAN
 from lumigo_tracer.lambda_tracer.spans_container import SpansContainer
 from lumigo_tracer.libs.wrapt import wrap_function_wrapper
 from lumigo_tracer.lumigo_utils import (
@@ -11,8 +12,6 @@ from lumigo_tracer.lumigo_utils import (
     lumigo_dumps,
     lumigo_safe_execute,
 )
-
-REDIS_SPAN = "redis"
 
 
 def command_started(

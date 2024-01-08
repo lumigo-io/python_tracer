@@ -26,10 +26,6 @@ from lumigo_tracer.lumigo_utils import (
     should_use_tracer_extension,
     warn_client,
 )
-from lumigo_tracer.wrappers.http.http_parser import HTTP_TYPE
-from lumigo_tracer.wrappers.pymongo.pymongo_wrapper import MONGO_SPAN
-from lumigo_tracer.wrappers.redis.redis_wrapper import REDIS_SPAN
-from lumigo_tracer.wrappers.sql.sqlalchemy_wrapper import SQL_SPAN
 
 try:
     import boto3
@@ -57,6 +53,12 @@ CHINA_REGION = "cn-northwest-1"
 LUMIGO_SPANS_DIR = "/tmp/lumigo-spans"
 FUNCTION_TYPE = "function"
 ENRICHMENT_TYPE = "enrichment"
+HTTP_TYPE = "http"
+MONGO_SPAN = "mongoDb"
+REDIS_SPAN = "redis"
+SQL_SPAN = "mySql"
+SPAN_TYPES = [FUNCTION_TYPE, ENRICHMENT_TYPE, HTTP_TYPE, MONGO_SPAN, REDIS_SPAN, SQL_SPAN]
+
 
 edge_kinesis_boto_client = None
 edge_connection = None
@@ -193,6 +195,10 @@ def get_span_priority(span: Dict[Any, Any]) -> int:
 
 def get_span_metadata(span: Dict[Any, Any]) -> Dict[Any, Any]:
     span_type = span.get("type")
+    if span_type not in SPAN_TYPES:
+        get_logger().warning(f"Got unsupported span type: {span_type}")
+        return span
+
     span_copy = copy.deepcopy(span)
 
     if span_type == FUNCTION_TYPE:
@@ -223,8 +229,6 @@ def get_span_metadata(span: Dict[Any, Any]) -> Dict[Any, Any]:
             span_copy.pop("query")
             span_copy.pop("values")
         return span_copy
-
-    get_logger().warning(f"Got unsupported span type: {span_type}")
     return span
 
 

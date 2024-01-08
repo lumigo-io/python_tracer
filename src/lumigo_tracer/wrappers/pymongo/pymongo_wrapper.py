@@ -1,6 +1,7 @@
 import uuid
 from typing import Dict
 
+from lumigo_tracer.lambda_tracer.lambda_reporter import MONGO_SPAN
 from lumigo_tracer.lambda_tracer.spans_container import SpansContainer
 from lumigo_tracer.lumigo_utils import (
     get_current_ms_time,
@@ -8,8 +9,6 @@ from lumigo_tracer.lumigo_utils import (
     lumigo_dumps,
     lumigo_safe_execute,
 )
-
-MONGO_SPAN = "mongoDb"
 
 try:
     from pymongo import monitoring
