@@ -1,3 +1,4 @@
+import copy
 import datetime
 import http.client
 import os
@@ -8,7 +9,7 @@ import uuid
 from base64 import b64encode
 from functools import lru_cache
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Union
 
 from lumigo_core.configuration import CoreConfiguration
 
@@ -25,6 +26,10 @@ from lumigo_tracer.lumigo_utils import (
     should_use_tracer_extension,
     warn_client,
 )
+from lumigo_tracer.wrappers.http.http_parser import HTTP_TYPE
+from lumigo_tracer.wrappers.pymongo.pymongo_wrapper import MONGO_SPAN
+from lumigo_tracer.wrappers.redis.redis_wrapper import REDIS_SPAN
+from lumigo_tracer.wrappers.sql.sqlalchemy_wrapper import SQL_SPAN
 
 try:
     import boto3
@@ -176,25 +181,51 @@ def report_json(
     return duration
 
 
-def add_spans_until_max_size(
-    original_spans: List[Dict[Any, Any]],
-    spans_to_send: List,
-    current_size: int,
-    max_size: int,
-    too_big_spans: int,
-    too_big_spans_threshold,
-) -> Tuple[List[Dict[Any, Any]], int]:
-    for span in original_spans:
-        span_size = _get_event_base64_size(span)
-        if current_size + span_size < max_size:
-            spans_to_send.append(span)
-            current_size += span_size
-        else:
-            # This is an optimization step. If the spans are too big, don't try to send them.
-            too_big_spans += 1
-            if too_big_spans == too_big_spans_threshold:
-                break
-    return spans_to_send, too_big_spans
+def get_span_priority(span: Dict[Any, Any]) -> int:
+    if span.get("type") == FUNCTION_TYPE:
+        return 0
+    if is_span_has_error(span):
+        return 1
+    if span.get("type") == ENRICHMENT_TYPE:
+        return 2
+    return 3
+
+
+def get_span_metadata(span: Dict[Any, Any]) -> Dict[Any, Any]:
+    span_type = span.get("type")
+    span_copy = copy.deepcopy(span)
+
+    if span_type == FUNCTION_TYPE:
+        with lumigo_safe_execute("get_function_span_metadata"):
+            span_copy.pop("envs")
+        return span_copy
+    if span_type == ENRICHMENT_TYPE:
+        return {}
+    if span_type == HTTP_TYPE:
+        with lumigo_safe_execute("get_http_span_metadata"):
+            span_copy.get("info", {}).get("httpInfo", {}).get("request", {}).pop("headers")
+            span_copy.get("info", {}).get("httpInfo", {}).get("request", {}).pop("body")
+            span_copy.get("info", {}).get("httpInfo", {}).get("response", {}).pop("headers")
+            span_copy.get("info", {}).get("httpInfo", {}).get("response", {}).pop("body")
+        return span_copy
+    if span_type == MONGO_SPAN:
+        with lumigo_safe_execute("get_mongo_span_metadata"):
+            span_copy.pop("request")
+            span_copy.pop("response")
+        return span_copy
+    if span_type == REDIS_SPAN:
+        with lumigo_safe_execute("get_redis_span_metadata"):
+            span_copy.pop("requestArgs")
+            span_copy.pop("response")
+        return span_copy
+    if span_type == SQL_SPAN:
+        with lumigo_safe_execute("get_sql_span_metadata"):
+            span_copy.pop("query")
+            span_copy.pop("values")
+        return span_copy
+
+    get_logger().warning(f"Got unsupported span type: {span_type}")
+    return span
 
 
 def _create_request_body(
@@ -208,12 +239,11 @@ def _create_request_body(
     This function creates the request body from the given spans.
     If there is an error we limit the size of the request to max_error_size otherwise to max_size.
 
-    The order of the spans is:
-    1. The root span (end span) without the ENVs.
-    2. The spans with errors.
-    3. The ENVs.
-    4. Execution Tags.
-    5. The spans without errors.
+    First we try to take all the spans and then we apply the smart span selection.
+
+    The smart span selection has 2 parts:
+    1. We order the spans by FUNCTION_SPAN, ERROR_HTTP_SPAN, ENRICHMENT_SPAN, HTTP_SPAN.
+    2. We take all the spans metadata, We take the full spans. We do this until reach the max_size.
     """
     request_size_limit = max_error_size if any(map(is_span_has_error, msgs)) else max_size
 
@@ -223,62 +253,56 @@ def _create_request_body(
     ):
         return aws_dump(msgs)[:request_size_limit]
 
-    end_span = msgs[-1]
+    current_size = 0
+    spans_to_send: List[dict] = []  # type: ignore[type-arg]
+    for index, span in enumerate(msgs):
+        span_size = _get_event_base64_size(span)
+        if current_size + span_size > max_size:
+            break
 
-    spans_with_errors = []
-    enrichment_spans = []
-    spans_without_errors = []
-    for span in msgs[:-1]:
-        if is_span_has_error(span):
-            spans_with_errors.append(span)
-        if span.get("type") == ENRICHMENT_TYPE:
-            enrichment_spans.append(span)
-        else:
-            spans_without_errors.append(span)
+        spans_to_send[index] = span
+        current_size += span_size
 
-    too_big_spans = 0
+    if len(spans_to_send) < len(msgs):
+        # If we didn't send all the spans, we need to apply the smart span selection.
+        ordered_spans = sorted(msgs[:-1], key=get_span_priority)
+        current_size = 0
+        too_big_spans = 0
+        spans_metadata_sizes = []
+        spans_to_send = []
 
-    # Add span data (without the ENVs)
-    envs = end_span.get("envs", {})
-    end_span["envs"] = {}
-    spans_to_send: list = [end_span]  # type: ignore[type-arg]
-    current_size = _get_event_base64_size(end_span)
+        # Take only spans metadata
+        for span in ordered_spans:
+            span_metadata = get_span_metadata(span)
+            span_metadata_size = _get_event_base64_size(span_metadata)
+            spans_metadata_sizes.append(span_metadata_size)
 
-    # Add spans with errors
-    spans_to_send, too_big_spans = add_spans_until_max_size(
-        original_spans=spans_with_errors,
-        spans_to_send=spans_to_send,
-        current_size=current_size,
-        max_size=request_size_limit,
-        too_big_spans=too_big_spans,
-        too_big_spans_threshold=too_big_spans_threshold,
-    )
+            if span.get("type") == FUNCTION_TYPE:
+                # We always want to at least send the function span
+                spans_to_send.append(span_metadata)
+                current_size += span_metadata_size
+            elif current_size + span_metadata_size < max_size:
+                spans_to_send.append(span_metadata)
+                current_size += span_metadata_size
+            else:
+                # This is an optimization step. If the spans are too big, don't try to send them.
+                too_big_spans += 1
+                if too_big_spans == too_big_spans_threshold:
+                    break
 
-    # Add the ENVs
-    envs_size = _get_event_base64_size(envs)
-    if current_size + envs_size < request_size_limit:
-        spans_to_send[0]["envs"] = envs
-        current_size += envs_size
+        # Override basic spans with full spans
+        for index, span in enumerate(ordered_spans):
+            span_metadata_size = spans_metadata_sizes[index]
+            span_size = _get_event_base64_size(span)
 
-    # Add enrichment spans
-    spans_to_send, too_big_spans = add_spans_until_max_size(
-        original_spans=enrichment_spans,
-        spans_to_send=spans_to_send,
-        current_size=current_size,
-        max_size=request_size_limit,
-        too_big_spans=too_big_spans,
-        too_big_spans_threshold=too_big_spans_threshold,
-    )
-
-    # Add spans without errors
-    spans_to_send, too_big_spans = add_spans_until_max_size(
-        original_spans=spans_with_errors,
-        spans_to_send=spans_to_send,
-        current_size=current_size,
-        max_size=request_size_limit,
-        too_big_spans=too_big_spans,
-        too_big_spans_threshold=too_big_spans_threshold,
-    )
+            if current_size + span_size - span_metadata_size < max_size:
+                spans_to_send[index] = span
+                current_size += span_size - span_metadata_size
+            else:
+                # This is an optimization step. If the spans are too big, don't try to send them.
+                too_big_spans += 1
+                if too_big_spans == too_big_spans_threshold:
+                    break
 
     return aws_dump(spans_to_send)[:request_size_limit]
 
