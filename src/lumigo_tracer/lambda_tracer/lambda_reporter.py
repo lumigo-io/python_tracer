@@ -43,7 +43,7 @@ MAX_SIZE_FOR_REQUEST: int = min(
     int(os.environ.get("LUMIGO_MAX_SIZE_FOR_REQUEST", 1024 * 500)), REQUEST_MAX_SIZE
 )
 MAX_SIZE_FOR_REQUEST_ON_ERROR: int = min(
-    int(os.environ.get("MAX_SIZE_FOR_REQUEST_ON_ERROR", 1024 * 990)), REQUEST_MAX_SIZE
+    int(os.environ.get("LUMIGO_MAX_SIZE_FOR_REQUEST_ON_ERROR", 1024 * 990)), REQUEST_MAX_SIZE
 )
 MAX_NUMBER_OF_SPANS: int = int(os.environ.get("LUMIGO_MAX_NUMBER_OF_SPANS", 2000))
 TOO_BIG_SPANS_THRESHOLD = 5
@@ -262,51 +262,53 @@ def _create_request_body(
         current_size += span_size
 
     if len(spans_to_send) < len(msgs):
-        # If we didn't send all the spans, we need to apply the smart span selection.
-        ordered_spans = sorted(msgs, key=get_span_priority)
-        current_size = 0
-        too_big_spans = 0
-        spans_to_send_sizes = {}
-        spans_to_send_dict = {}
+        with lumigo_safe_execute("create_request_body: smart span selection"):
+            get_logger().info("Starting smart span selection")
+            # If we didn't send all the spans, we need to apply the smart span selection.
+            ordered_spans = sorted(msgs, key=get_span_priority)
+            current_size = 0
+            too_big_spans = 0
+            spans_to_send_sizes = {}
+            spans_to_send_dict = {}
 
-        # Take only spans metadata
-        for index, span in enumerate(ordered_spans):
-            spans_to_send_sizes[index] = 0
-            span_metadata = get_span_metadata(span)
-            if span_metadata == {}:
-                continue
-            span_metadata_size = _get_event_base64_size(span_metadata)
+            # Take only spans metadata
+            for index, span in enumerate(ordered_spans):
+                spans_to_send_sizes[index] = 0
+                span_metadata = get_span_metadata(span)
+                if span_metadata == {}:
+                    continue
+                span_metadata_size = _get_event_base64_size(span_metadata)
 
-            if span.get("type") == FUNCTION_TYPE:
-                # We always want to at least send the function span
-                spans_to_send_dict[index] = span_metadata
-                spans_to_send_sizes[index] = span_metadata_size
-                current_size += span_metadata_size
-            elif current_size + span_metadata_size < max_size:
-                spans_to_send_dict[index] = span_metadata
-                spans_to_send_sizes[index] = span_metadata_size
-                current_size += span_metadata_size
-            else:
-                # This is an optimization step. If the spans are too big, don't try to send them.
-                too_big_spans += 1
-                if too_big_spans == too_big_spans_threshold:
-                    break
+                if span.get("type") == FUNCTION_TYPE:
+                    # We always want to at least send the function span
+                    spans_to_send_dict[index] = span_metadata
+                    spans_to_send_sizes[index] = span_metadata_size
+                    current_size += span_metadata_size
+                elif current_size + span_metadata_size < max_size:
+                    spans_to_send_dict[index] = span_metadata
+                    spans_to_send_sizes[index] = span_metadata_size
+                    current_size += span_metadata_size
+                else:
+                    # This is an optimization step. If the spans are too big, don't try to send them.
+                    too_big_spans += 1
+                    if too_big_spans >= too_big_spans_threshold:
+                        break
 
-        # Override basic spans with full spans
-        for index, span in enumerate(ordered_spans):
-            span_metadata_size = spans_to_send_sizes[index]
-            span_size = _get_event_base64_size(span)
+            # Override basic spans with full spans
+            for index, span in enumerate(ordered_spans):
+                span_metadata_size = spans_to_send_sizes[index]
+                span_size = _get_event_base64_size(span)
 
-            if current_size + span_size - span_metadata_size < max_size:
-                spans_to_send_dict[index] = span
-                current_size += span_size - span_metadata_size
-            else:
-                # This is an optimization step. If the spans are too big, don't try to send them.
-                too_big_spans += 1
-                if too_big_spans == too_big_spans_threshold:
-                    break
+                if current_size + span_size - span_metadata_size < max_size:
+                    spans_to_send_dict[index] = span
+                    current_size += span_size - span_metadata_size
+                else:
+                    # This is an optimization step. If the spans are too big, don't try to send them.
+                    too_big_spans += 1
+                    if too_big_spans >= too_big_spans_threshold:
+                        break
 
-        spans_to_send = sorted(spans_to_send_dict.values(), key=get_span_priority)
+            spans_to_send = sorted(spans_to_send_dict.values(), key=get_span_priority)
 
     return aws_dump(spans_to_send)[:request_size_limit]
 

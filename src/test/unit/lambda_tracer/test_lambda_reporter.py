@@ -281,6 +281,16 @@ def test_create_request_body_take_only_metadata_sql_span(
     assert_use_metadata_span_when_needed(function_end_span, sql_span, sql_span_metadata)
 
 
+def test_with_many_spans(function_end_span, http_span, http_span_metadata):
+    expected_result = [function_end_span] + [http_span] * 51 + [http_span_metadata] * 49
+    input_spans = [function_end_span] + [http_span] * 100
+    size = 78080
+
+    result = _create_request_body(input_spans, True, max_size=size, max_error_size=size)
+
+    assert result == json.dumps(expected_result)
+
+
 @pytest.mark.parametrize(
     ["arg", "host"],
     [("https://a.com", "a.com"), (f"https://b.com{EDGE_PATH}", "b.com"), ("h.com", "h.com")],
