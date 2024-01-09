@@ -1,5 +1,5 @@
 black==18.9b0
-pytest==5.2.0
+pytest==7.4.4
 mock
 boto3
 pytest-cov==2.6.1
@@ -8,7 +8,7 @@ requests==2.31.0
 pymongo==3.11.0
 redispy==3.0.0
 sqlalchemy==1.4.3
-moto==4.2.5
+moto==4.2.13
 urllib3==1.26.17
 aiohttp==3.8.5
 mypy==0.971
