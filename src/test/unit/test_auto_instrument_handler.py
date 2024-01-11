@@ -1,11 +1,11 @@
-import imp
+import importlib
 import traceback
 
 import mock
 import pytest
 
 from lumigo_tracer.auto_instrument_handler import ORIGINAL_HANDLER_KEY, _handler
-from lumigo_tracer.libs.lambda_runtime_exception import FaultException
+from lumigo_tracer.libs.awslambdaric.lambda_runtime_exception import FaultException
 
 
 def abc(*args, **kwargs):
@@ -49,7 +49,7 @@ def test_no_env_handler_error(monkeypatch, context):
 
 
 def test_error_in_original_handler_no_extra_exception_log(monkeypatch, context):
-    monkeypatch.setattr(imp, "load_module", mock.Mock(side_effect=ZeroDivisionError))
+    monkeypatch.setattr(importlib, "import_module", mock.Mock(side_effect=ZeroDivisionError))
     monkeypatch.setenv(ORIGINAL_HANDLER_KEY, "lumigo_tracer.test_module.test.handler")
 
     try:
@@ -62,7 +62,7 @@ def test_error_in_original_handler_no_extra_exception_log(monkeypatch, context):
 
 
 def test_error_in_original_handler_syntax_error(monkeypatch, context):
-    monkeypatch.setattr(imp, "load_module", mock.Mock(side_effect=SyntaxError))
+    monkeypatch.setattr(importlib, "import_module", mock.Mock(side_effect=SyntaxError))
     monkeypatch.setenv(ORIGINAL_HANDLER_KEY, "lumigo_tracer.test_module.test.handler")
 
     try:

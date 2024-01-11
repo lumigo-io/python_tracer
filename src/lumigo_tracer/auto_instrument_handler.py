@@ -6,8 +6,19 @@ try:
     # Try to import AWS's current _get_handler logic
     from bootstrap import _get_handler as aws_get_handler
 except Exception:
-    # Import a snapshot of _get_handler from python38 runtime
-    from lumigo_tracer.libs.bootstrap import _get_handler as aws_get_handler
+    # Only import the logger if we need it, no need to slow down the import time
+    from lumigo_tracer.lumigo_utils import warn_client
+
+    warn_client(
+        "Could not import built in AWS bootstrap._get_handler function. Using fallback. "
+        "Please contact Lumigo for more information."
+    )
+
+    # Import a snapshot of _get_handler from the lambda runtime interface client (awslambdaric),
+    # in the unlikely case that the bootstrap module is not available
+    from lumigo_tracer.libs.awslambdaric.bootstrap import (
+        _get_handler as aws_get_handler,
+    )
 
 from lumigo_tracer import lumigo_tracer
 

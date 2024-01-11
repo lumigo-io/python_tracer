@@ -40,3 +40,4 @@ repos:
     hooks:
         - id: isort
           args: ["--profile", "black"]
+          exclude: ^src/lumigo_tracer/libs/
