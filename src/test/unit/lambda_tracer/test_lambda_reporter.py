@@ -1,4 +1,3 @@
-import copy
 import http.client
 import importlib.util
 import json
@@ -13,278 +12,324 @@ import boto3
 import pytest
 from lumigo_core.configuration import CoreConfiguration
 from mock import MagicMock
-from pytest import fixture
 
 from lumigo_tracer import lumigo_utils
 from lumigo_tracer.lambda_tracer import lambda_reporter
 from lumigo_tracer.lambda_tracer.lambda_reporter import (
     CHINA_REGION,
     EDGE_PATH,
-    ENRICHMENT_TYPE,
     FUNCTION_TYPE,
     HTTP_TYPE,
     MONGO_SPAN,
-    REDIS_SPAN,
     _create_request_body,
-    _get_event_base64_size,
     establish_connection,
     get_edge_host,
+    get_event_base64_size,
     get_extension_dir,
     report_json,
 )
 from lumigo_tracer.lumigo_utils import Configuration, InternalState
 
-
-@fixture
-def dummy_span() -> dict:
-    return {"dummy": "dummy", "type": ENRICHMENT_TYPE}
-
-
-@fixture
-def function_end_span() -> dict:
-    return {"dummy_end": "dummy_end", "type": FUNCTION_TYPE, "envs": {"a": "b"}}
-
-
-@fixture
-def function_end_span_metadata() -> dict:
-    return {"dummy_end": "dummy_end", "type": FUNCTION_TYPE}
-
-
-@fixture
-def error_span() -> dict:
-    return {"dummy": "dummy", "error": "Error", "type": HTTP_TYPE}
-
-
-@fixture
-def redis_span() -> dict:
-    now = datetime.now()
-    return {
-        "type": REDIS_SPAN,
-        "id": "77d0b751-9496-4257-b910-25e33c029365",
-        "connectionOptions": {"host": "lumigo", "port": None},
-        "transactionId": "transaction-id",
-        "started": (now - timedelta(seconds=10)).timestamp() * 1000,
-        "requestArgs": '[[{"a": 1}], ["a"]]',
-        "lambda_container_id": "b7bfabd6-bc95-445a-965d-513922afbcdd",
-        "account": "account-id",
-        "region": "UNKNOWN",
-        "parentId": "parent-id",
-        "info": {"tracer": {"version": "1.1.230"}, "traceId": {"Root": ""}},
-        "requestCommand": '["SET", "GET"]',
-        "token": "t_token",
-        "ended": now.timestamp() * 1000,
-        "response": '"Result"',
-    }
-
-
-@fixture
-def redis_span_metadata(redis_span: dict) -> dict:
-    span_copy = copy.deepcopy(redis_span)
-    span_copy.pop("requestArgs")
-    span_copy.pop("response")
-    return span_copy
-
-
-@fixture
-def http_span() -> dict:
-    now = datetime.now()
-    return {
-        "transactionId": "transaction-id",
-        "id": "8b32c4b4-e483-4741-9eef-b8f8f6c72f66",
-        "started": (now - timedelta(seconds=10)).timestamp() * 1000,
-        "info": {
-            "tracer": {"version": "1.1.230"},
-            "traceId": {"Root": ""},
-            "httpInfo": {
-                "host": "www.google.com",
-                "request": {
-                    "headers": '{"host": "www.google.com", "accept-encoding": "identity", "content-length": "0"}',
-                    "body": "very interesting body",
-                    "method": "POST",
-                    "uri": "www.google.com/",
-                    "instance_id": 4380969952,
-                },
+NOW = datetime.now()
+STARTED = (NOW - timedelta(seconds=10)).timestamp() * 1000
+ENDED = NOW.timestamp() * 1000
+DUMMY_SPAN = {"dummy": "dummy", "type": HTTP_TYPE}
+FUNCTION_END_SPAN = {
+    "dummy_end": "dummy_end",
+    "type": FUNCTION_TYPE,
+    "envs": {"var_name": "very_long_env_var_value"},
+}
+FUNCTION_END_SPAN_METADATA = {"dummy_end": "dummy_end", "type": FUNCTION_TYPE, "is_metadata": True}
+HTTP_SPAN = {
+    "transactionId": "transaction-id",
+    "id": "8b32c4b4-e483-4741-9eef-b8f8f6c72f66",
+    "started": STARTED,
+    "info": {
+        "tracer": {"version": "1.1.230"},
+        "traceId": {"Root": ""},
+        "httpInfo": {
+            "host": "www.google.com",
+            "request": {
+                "headers": '{"host": "www.google.com", "accept-encoding": "identity", "content-length": "0"}',
+                "body": "very interesting body with very long text that should be filtered",
+                "method": "POST",
+                "uri": "www.google.com/",
+                "instance_id": 4380969952,
             },
         },
-        "type": HTTP_TYPE,
-        "account": "account-id",
-        "region": "UNKNOWN",
-        "parentId": "1234",
-        "lambda_container_id": "4062b9eb-5f2d-4dde-9983-3f4404f30b5a",
-        "token": "t_10faa5e13e7844aaa1234",
-        "ended": now.timestamp() * 1000,
-    }
-
-
-@fixture
-def http_span_metadata(http_span: dict) -> dict:
-    span_copy = copy.deepcopy(http_span)
-    span_copy["info"]["httpInfo"]["request"].pop("headers")
-    span_copy["info"]["httpInfo"]["request"].pop("body")
-    return span_copy
-
-
-@fixture
-def pymongo_span() -> dict:
-    now = datetime.now()
-    return {
-        "id": "6c86ff87-07b4-4663-9e2b-15acb75a81f0",
-        "mongoOperationId": "oid",
-        "type": MONGO_SPAN,
-        "mongoConnectionId": "cid",
-        "databaseName": "dname",
-        "mongoRequestId": "rid",
-        "lambda_container_id": "7fa30d38-3aed-4e15-96a7-b53116e2b5fa",
-        "account": "account",
-        "request": '"cmd"',
-        "started": (now - timedelta(seconds=10)).timestamp() * 1000,
-        "transactionId": "transaction-id",
-        "region": "UNKNOWN",
-        "parentId": "parent-id",
-        "info": {"tracer": {"version": "1.1.230"}, "traceId": {"Root": ""}},
-        "token": "token",
-        "commandName": "cname",
-        "ended": now.timestamp() * 1000,
-        "response": '{"code": 200}',
-    }
-
-
-@fixture
-def pymongo_span_metadata(pymongo_span: dict) -> dict:
-    span_copy = copy.deepcopy(pymongo_span)
-    span_copy.pop("request", None)
-    span_copy.pop("response", None)
-    return span_copy
-
-
-@fixture
-def sql_span() -> dict:
-    now = datetime.now()
-    return {
-        "parentId": "1234",
-        "transactionId": "",
-        "values": '["saart"]',
-        "region": "UNKNOWN",
-        "account": "",
-        "query": '"INSERT INTO users (name) VALUES (?)"',
-        "info": {"tracer": {"version": "1.1.230"}, "traceId": {"Root": ""}},
-        "token": "t_10faa5e13e7844aaa1234",
-        "type": "mySql",
-        "started": (now - timedelta(seconds=10)).timestamp() * 1000,
-        "connectionParameters": {
-            "host": "/private/var/folders/qv/w6y030t978518rzpnk1kt0_80000gn/T/pytest-of-nadavgihasi/pytest-29/test_happy_flow0/file.db",
-            "port": 1234,
-            "database": "/private/var/folders/qv/w6y030t978518rzpnk1kt0_80000gn/T/pytest-of-nadavgihasi/pytest-29/test_happy_flow0/file.db",
-            "user": "ng",
+    },
+    "type": HTTP_TYPE,
+    "account": "account-id",
+    "region": "UNKNOWN",
+    "parentId": "1234",
+    "lambda_container_id": "4062b9eb-5f2d-4dde-9983-3f4404f30b5a",
+    "token": "t_10faa5e13e7844aaa1234",
+    "ended": ENDED,
+}
+HTTP_SPAN_METADATA = {
+    "transactionId": "transaction-id",
+    "id": "8b32c4b4-e483-4741-9eef-b8f8f6c72f66",
+    "started": STARTED,
+    "info": {
+        "tracer": {"version": "1.1.230"},
+        "traceId": {"Root": ""},
+        "httpInfo": {
+            "host": "www.google.com",
+            "request": {
+                "method": "POST",
+                "uri": "www.google.com/",
+                "instance_id": 4380969952,
+            },
         },
-        "lambda_container_id": "8e86b65e-45b7-46ac-b924-be89113964b7",
-        "id": "e3cac203-50db-43e8-bb6e-07add431edf2",
-        "ended": now.timestamp() * 1000,
-        "response": "very-long-response",
-    }
+    },
+    "type": HTTP_TYPE,
+    "account": "account-id",
+    "region": "UNKNOWN",
+    "parentId": "1234",
+    "lambda_container_id": "4062b9eb-5f2d-4dde-9983-3f4404f30b5a",
+    "token": "t_10faa5e13e7844aaa1234",
+    "ended": ENDED,
+    "is_metadata": True,
+}
+ERROR_HTTP_SPAN = {
+    "transactionId": "transaction-id",
+    "id": "8b32c4b4-e483-4741-9eef-b8f8f6c72f66",
+    "started": STARTED,
+    "info": {
+        "tracer": {"version": "1.1.230"},
+        "traceId": {"Root": ""},
+        "httpInfo": {
+            "host": "www.google.com",
+            "request": {
+                "headers": '{"host": "www.google.com", "accept-encoding": "identity", "content-length": "0"}',
+                "body": "very interesting body with very long text that should be filtered",
+                "method": "POST",
+                "uri": "www.google.com/",
+                "instance_id": 4380969952,
+            },
+        },
+    },
+    "type": HTTP_TYPE,
+    "account": "account-id",
+    "region": "UNKNOWN",
+    "parentId": "1234",
+    "lambda_container_id": "4062b9eb-5f2d-4dde-9983-3f4404f30b5a",
+    "token": "t_10faa5e13e7844aaa1234",
+    "error": "ERROR",
+    "ended": ENDED,
+}
+ERROR_HTTP_SPAN_METADATA = {
+    "transactionId": "transaction-id",
+    "id": "8b32c4b4-e483-4741-9eef-b8f8f6c72f66",
+    "started": STARTED,
+    "info": {
+        "tracer": {"version": "1.1.230"},
+        "traceId": {"Root": ""},
+        "httpInfo": {
+            "host": "www.google.com",
+            "request": {
+                "method": "POST",
+                "uri": "www.google.com/",
+                "instance_id": 4380969952,
+            },
+        },
+    },
+    "type": HTTP_TYPE,
+    "account": "account-id",
+    "region": "UNKNOWN",
+    "parentId": "1234",
+    "lambda_container_id": "4062b9eb-5f2d-4dde-9983-3f4404f30b5a",
+    "token": "t_10faa5e13e7844aaa1234",
+    "error": "ERROR",
+    "ended": ENDED,
+    "is_metadata": True,
+}
+REDIS_SPAN = {
+    "type": "redis",
+    "id": "77d0b751-9496-4257-b910-25e33c029365",
+    "connectionOptions": {"host": "lumigo", "port": None},
+    "transactionId": "transaction-id",
+    "started": STARTED,
+    "requestArgs": '[[{"a": 1}], ["a"]]',
+    "lambda_container_id": "b7bfabd6-bc95-445a-965d-513922afbcdd",
+    "account": "account-id",
+    "region": "UNKNOWN",
+    "parentId": "parent-id",
+    "info": {"tracer": {"version": "1.1.230"}, "traceId": {"Root": ""}},
+    "requestCommand": '["SET", "GET"]',
+    "token": "t_token",
+    "ended": ENDED,
+    "response": '"Very long result that we should cut because it is too long"',
+}
+REDIS_SPAN_METADATA = {
+    "type": "redis",
+    "id": "77d0b751-9496-4257-b910-25e33c029365",
+    "connectionOptions": {"host": "lumigo", "port": None},
+    "transactionId": "transaction-id",
+    "started": STARTED,
+    "lambda_container_id": "b7bfabd6-bc95-445a-965d-513922afbcdd",
+    "account": "account-id",
+    "region": "UNKNOWN",
+    "parentId": "parent-id",
+    "info": {"tracer": {"version": "1.1.230"}, "traceId": {"Root": ""}},
+    "requestCommand": '["SET", "GET"]',
+    "token": "t_token",
+    "ended": ENDED,
+    "is_metadata": True,
+}
+PYMONGO_SPAN = {
+    "id": "6c86ff87-07b4-4663-9e2b-15acb75a81f0",
+    "mongoOperationId": "oid",
+    "type": MONGO_SPAN,
+    "mongoConnectionId": "cid",
+    "databaseName": "dname",
+    "mongoRequestId": "rid",
+    "lambda_container_id": "7fa30d38-3aed-4e15-96a7-b53116e2b5fa",
+    "account": "account",
+    "request": '"cmd"',
+    "started": STARTED,
+    "transactionId": "transaction-id",
+    "region": "UNKNOWN",
+    "parentId": "parent-id",
+    "info": {"tracer": {"version": "1.1.230"}, "traceId": {"Root": ""}},
+    "token": "token",
+    "commandName": "cname",
+    "ended": ENDED,
+    "response": '{"code": 200}',
+}
+PYMONGO_SPAN_METADATA = {
+    "id": "6c86ff87-07b4-4663-9e2b-15acb75a81f0",
+    "mongoOperationId": "oid",
+    "type": MONGO_SPAN,
+    "mongoConnectionId": "cid",
+    "databaseName": "dname",
+    "mongoRequestId": "rid",
+    "lambda_container_id": "7fa30d38-3aed-4e15-96a7-b53116e2b5fa",
+    "account": "account",
+    "started": STARTED,
+    "transactionId": "transaction-id",
+    "region": "UNKNOWN",
+    "parentId": "parent-id",
+    "info": {"tracer": {"version": "1.1.230"}, "traceId": {"Root": ""}},
+    "token": "token",
+    "commandName": "cname",
+    "ended": ENDED,
+    "is_metadata": True,
+}
+SQL_SPAN = {
+    "parentId": "1234",
+    "transactionId": "",
+    "values": '["saart"]',
+    "region": "UNKNOWN",
+    "account": "",
+    "query": '"INSERT INTO users (name) VALUES (?)"',
+    "info": {"tracer": {"version": "1.1.230"}, "traceId": {"Root": ""}},
+    "token": "t_10faa5e13e7844aaa1234",
+    "type": "mySql",
+    "started": STARTED,
+    "connectionParameters": {
+        "host": "/private/var/folders/qv/w6y030t978518rzpnk1kt0_80000gn/T/pytest-of-nadavgihasi/pytest-29/test_happy_flow0/file.db",
+        "port": 1234,
+        "database": "/private/var/folders/qv/w6y030t978518rzpnk1kt0_80000gn/T/pytest-of-nadavgihasi/pytest-29/test_happy_flow0/file.db",
+        "user": "ng",
+    },
+    "lambda_container_id": "8e86b65e-45b7-46ac-b924-be89113964b7",
+    "id": "e3cac203-50db-43e8-bb6e-07add431edf2",
+    "ended": ENDED,
+    "response": "very-long-response",
+}
+SQL_SPAN_METADATA = {
+    "parentId": "1234",
+    "transactionId": "",
+    "region": "UNKNOWN",
+    "account": "",
+    "info": {"tracer": {"version": "1.1.230"}, "traceId": {"Root": ""}},
+    "token": "t_10faa5e13e7844aaa1234",
+    "type": "mySql",
+    "started": STARTED,
+    "connectionParameters": {
+        "host": "/private/var/folders/qv/w6y030t978518rzpnk1kt0_80000gn/T/pytest-of-nadavgihasi/pytest-29/test_happy_flow0/file.db",
+        "port": 1234,
+        "database": "/private/var/folders/qv/w6y030t978518rzpnk1kt0_80000gn/T/pytest-of-nadavgihasi/pytest-29/test_happy_flow0/file.db",
+        "user": "ng",
+    },
+    "lambda_container_id": "8e86b65e-45b7-46ac-b924-be89113964b7",
+    "id": "e3cac203-50db-43e8-bb6e-07add431edf2",
+    "ended": ENDED,
+    "is_metadata": True,
+}
 
 
-@fixture
-def sql_span_metadata(sql_span: dict) -> dict:
-    span_copy = copy.deepcopy(sql_span)
-    span_copy.pop("query", None)
-    span_copy.pop("values", None)
-    span_copy.pop("response", None)
-    return span_copy
+def test_create_request_body_default():
+    assert _create_request_body([DUMMY_SPAN], False) == json.dumps([DUMMY_SPAN])
 
 
-def test_create_request_body_default(dummy_span: dict):
-    assert _create_request_body([dummy_span], False) == json.dumps([dummy_span])
+def test_create_request_body_not_effecting_small_events():
+    assert _create_request_body([DUMMY_SPAN], True, 1_000_000) == json.dumps([DUMMY_SPAN])
 
 
-def test_create_request_body_not_effecting_small_events(dummy_span: dict):
-    assert _create_request_body([dummy_span], True, 1_000_000) == json.dumps([dummy_span])
-
-
-def test_create_request_body_keep_function_span_and_filter_other_spans(
-    dummy_span: dict, function_end_span: dict
-):
-    input_spans = [dummy_span, dummy_span, dummy_span, function_end_span, function_end_span]
-    expected_result = [function_end_span, function_end_span, dummy_span]
-    size = _get_event_base64_size(expected_result)
+def test_create_request_body_keep_function_span_and_filter_other_spans():
+    input_spans = [DUMMY_SPAN, DUMMY_SPAN, DUMMY_SPAN, FUNCTION_END_SPAN, FUNCTION_END_SPAN]
+    expected_result = [FUNCTION_END_SPAN_METADATA, FUNCTION_END_SPAN_METADATA]
+    size = get_event_base64_size(expected_result)
 
     result = _create_request_body(input_spans, True, size)
-    print(result)
 
     assert result == json.dumps(expected_result)
 
 
-def test_create_request_body_take_error_first(
-    dummy_span: dict, error_span: dict, function_end_span: dict
-):
-    expected_result = [function_end_span, error_span, dummy_span, dummy_span]
+def test_create_request_body_take_error_first():
+    expected_result = [FUNCTION_END_SPAN_METADATA, ERROR_HTTP_SPAN_METADATA]
     input_spans = [
-        dummy_span,
-        dummy_span,
-        dummy_span,
-        dummy_span,
-        dummy_span,
-        error_span,
-        function_end_span,
+        DUMMY_SPAN,
+        DUMMY_SPAN,
+        DUMMY_SPAN,
+        ERROR_HTTP_SPAN,
+        FUNCTION_END_SPAN,
     ]
-    size = _get_event_base64_size(expected_result)
-    assert _create_request_body(
-        input_spans, True, max_size=size, max_error_size=size
-    ) == json.dumps(expected_result)
-
-
-def test_create_request_body_take_only_metadata_function_span(
-    function_end_span: dict, function_end_span_metadata: dict
-):
-    expected_result = [function_end_span_metadata]
-    input_spans = [function_end_span]
-    size = _get_event_base64_size(expected_result)
+    size = get_event_base64_size(expected_result)
 
     result = _create_request_body(input_spans, True, max_size=size, max_error_size=size)
-
     assert result == json.dumps(expected_result)
 
 
-def assert_use_metadata_span_when_needed(
-    function_span, wrapper_span, wrapper_span_metadata
+def test_create_request_body_take_only_metadata_function_span(caplog):
+    expected_result = [FUNCTION_END_SPAN_METADATA]
+    input_spans = [FUNCTION_END_SPAN]
+    size = get_event_base64_size(expected_result)
+
+    result = _create_request_body(input_spans, True, max_size=size, max_error_size=size)
+
+    assert caplog.records[0].message == "Starting smart span selection"
+    assert result == json.dumps(expected_result)
+
+
+@pytest.mark.parametrize(
+    ["test_case", "wrapper_span", "wrapper_span_metadata"],
+    [
+        ["test redis span", REDIS_SPAN, REDIS_SPAN_METADATA],
+        ["test http span", HTTP_SPAN, HTTP_SPAN_METADATA],
+        ["test pymongo span", PYMONGO_SPAN, PYMONGO_SPAN_METADATA],
+        ["test sql span", SQL_SPAN, SQL_SPAN_METADATA],
+    ],
+)
+def test_create_request_body(
+    test_case: str, wrapper_span: dict, wrapper_span_metadata: dict, caplog
 ) -> None:
-    expected_result = [function_span, wrapper_span_metadata]
-    input_spans = [wrapper_span, function_span]
-    size = _get_event_base64_size(expected_result)
+    expected_result = [FUNCTION_END_SPAN, wrapper_span_metadata]
+    input_spans = [wrapper_span, FUNCTION_END_SPAN]
+    size = get_event_base64_size(expected_result)
 
     result = _create_request_body(input_spans, True, max_size=size, max_error_size=size)
 
+    assert caplog.records[0].message == "Starting smart span selection"
     assert result == json.dumps(expected_result)
 
 
-def test_create_request_body_take_only_metadata_redis_span(
-    function_end_span: dict, redis_span: dict, redis_span_metadata: dict
-):
-    assert_use_metadata_span_when_needed(function_end_span, redis_span, redis_span_metadata)
-
-
-def test_create_request_body_take_only_metadata_http_span(
-    function_end_span: dict, http_span: dict, http_span_metadata: dict
-):
-    assert_use_metadata_span_when_needed(function_end_span, http_span, http_span_metadata)
-
-
-def test_create_request_body_take_only_metadata_pymongo_span(
-    function_end_span: dict, pymongo_span: dict, pymongo_span_metadata: dict
-):
-    assert_use_metadata_span_when_needed(function_end_span, pymongo_span, pymongo_span_metadata)
-
-
-def test_create_request_body_take_only_metadata_sql_span(
-    function_end_span: dict, sql_span: dict, sql_span_metadata: dict
-):
-    assert_use_metadata_span_when_needed(function_end_span, sql_span, sql_span_metadata)
-
-
-def test_with_many_spans(function_end_span, http_span, http_span_metadata):
-    expected_result = [function_end_span] + [http_span] * 51 + [http_span_metadata] * 49
-    input_spans = [function_end_span] + [http_span] * 100
-    size = 78080
+def test_with_many_spans():
+    expected_result = [FUNCTION_END_SPAN] + [HTTP_SPAN] * 50 + [HTTP_SPAN_METADATA] * 50
+    input_spans = [FUNCTION_END_SPAN] + [HTTP_SPAN] * 100
+    size = get_event_base64_size(expected_result)
 
     result = _create_request_body(input_spans, True, max_size=size, max_error_size=size)
 

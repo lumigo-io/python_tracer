@@ -185,9 +185,9 @@ def report_json(
 def get_span_priority(span: Dict[Any, Any]) -> int:
     if span.get("type") == FUNCTION_TYPE:
         return 0
-    if is_span_has_error(span):
-        return 1
     if span.get("type") == ENRICHMENT_TYPE:
+        return 1
+    if is_span_has_error(span):
         return 2
     return 3
 
@@ -196,6 +196,7 @@ def get_span_metadata(span: Dict[Any, Any]) -> Dict[Any, Any]:
     with lumigo_safe_execute("get_span_metadata"):
         span_type = span.get("type")
         span_copy = copy.deepcopy(span)
+        span_copy["is_metadata"] = True
 
         if span_type == FUNCTION_TYPE:
             span_copy.pop("envs", None)
@@ -222,8 +223,67 @@ def get_span_metadata(span: Dict[Any, Any]) -> Dict[Any, Any]:
             span_copy.pop("response", None)
             return span_copy
 
-    get_logger().warning(f"Got unsupported span type: {span_type}")
-    return span
+    get_logger().warning(f"Got unsupported span type: {span_type}", extra={"span_type": span_type})
+    return {}
+
+
+def _get_prioritized_spans(
+    msgs: List[dict], request_max_size: int, too_big_spans_threshold: int  # type: ignore[type-arg]
+) -> List[dict]:  # type: ignore[type-arg]
+    """
+    When we exceed the request size limit, we need to apply the smart span selection.
+
+    The smart span selection has 3 parts:
+    1. We order the spans by the spans priority logic see get_span_priority.
+    2. We take all the spans metadata,
+    3 We take the full spans.
+    We do steps 2 and 3 until we reach the request_max_size.
+    """
+    with lumigo_safe_execute("create_request_body: smart span selection"):
+        get_logger().info("Starting smart span selection")
+        # If we didn't send all the spans, we need to apply the smart span selection.
+        ordered_spans = sorted(msgs, key=get_span_priority)
+        current_size = 0
+        too_big_spans = 0
+        spans_to_send_sizes = {}
+        spans_to_send_dict = {}
+
+        # Take only spans metadata
+        for index, span in enumerate(ordered_spans):
+            spans_to_send_sizes[index] = 0
+            span_metadata = get_span_metadata(span)
+            if span_metadata == {}:
+                continue
+            span_metadata_size = get_event_base64_size(span_metadata)
+
+            if (
+                current_size + span_metadata_size < request_max_size
+                or span.get("type") == FUNCTION_TYPE
+            ):
+                # We always want to at least send the function span
+                spans_to_send_dict[index] = span_metadata
+                spans_to_send_sizes[index] = span_metadata_size
+                current_size += span_metadata_size
+            else:
+                # This is an optimization step. If the spans are too big, don't try to send them.
+                too_big_spans += 1
+                if too_big_spans >= too_big_spans_threshold:
+                    break
+
+        # Override basic spans with full spans
+        for index, span in enumerate(ordered_spans):
+            span_metadata_size = spans_to_send_sizes[index]
+            span_size = get_event_base64_size(span)
+
+            if current_size + span_size - span_metadata_size < request_max_size:
+                spans_to_send_dict[index] = span
+                current_size += span_size - span_metadata_size
+            else:
+                # This is an optimization step. If the spans are too big, don't try to send them.
+                too_big_spans += 1
+                if too_big_spans >= too_big_spans_threshold:
+                    break
+    return list(spans_to_send_dict.values())
 
 
 def _create_request_body(
@@ -247,68 +307,23 @@ def _create_request_body(
 
     if not prune_size_flag or (
         len(msgs) < NUMBER_OF_SPANS_IN_REPORT_OPTIMIZATION
-        and _get_event_base64_size(msgs) < request_size_limit  # noqa
+        and get_event_base64_size(msgs) < request_size_limit  # noqa
     ):
         return aws_dump(msgs)[:request_size_limit]
 
     current_size = 0
     spans_to_send: List[dict] = []  # type: ignore[type-arg]
     for index, span in enumerate(msgs):
-        span_size = _get_event_base64_size(span)
-        if current_size + span_size > max_size:
+        span_size = get_event_base64_size(span)
+        if current_size + span_size > request_size_limit:
             break
 
         spans_to_send.append(span)
         current_size += span_size
 
     if len(spans_to_send) < len(msgs):
-        with lumigo_safe_execute("create_request_body: smart span selection"):
-            get_logger().info("Starting smart span selection")
-            # If we didn't send all the spans, we need to apply the smart span selection.
-            ordered_spans = sorted(msgs, key=get_span_priority)
-            current_size = 0
-            too_big_spans = 0
-            spans_to_send_sizes = {}
-            spans_to_send_dict = {}
-
-            # Take only spans metadata
-            for index, span in enumerate(ordered_spans):
-                spans_to_send_sizes[index] = 0
-                span_metadata = get_span_metadata(span)
-                if span_metadata == {}:
-                    continue
-                span_metadata_size = _get_event_base64_size(span_metadata)
-
-                if span.get("type") == FUNCTION_TYPE:
-                    # We always want to at least send the function span
-                    spans_to_send_dict[index] = span_metadata
-                    spans_to_send_sizes[index] = span_metadata_size
-                    current_size += span_metadata_size
-                elif current_size + span_metadata_size < max_size:
-                    spans_to_send_dict[index] = span_metadata
-                    spans_to_send_sizes[index] = span_metadata_size
-                    current_size += span_metadata_size
-                else:
-                    # This is an optimization step. If the spans are too big, don't try to send them.
-                    too_big_spans += 1
-                    if too_big_spans >= too_big_spans_threshold:
-                        break
-
-            # Override basic spans with full spans
-            for index, span in enumerate(ordered_spans):
-                span_metadata_size = spans_to_send_sizes[index]
-                span_size = _get_event_base64_size(span)
-
-                if current_size + span_size - span_metadata_size < max_size:
-                    spans_to_send_dict[index] = span
-                    current_size += span_size - span_metadata_size
-                else:
-                    # This is an optimization step. If the spans are too big, don't try to send them.
-                    too_big_spans += 1
-                    if too_big_spans >= too_big_spans_threshold:
-                        break
-
-            spans_to_send = sorted(spans_to_send_dict.values(), key=get_span_priority)
+        selected_spans = _get_prioritized_spans(msgs, request_size_limit, too_big_spans_threshold)
+        spans_to_send = sorted(selected_spans, key=get_span_priority)
 
     return aws_dump(spans_to_send)[:request_size_limit]
 
@@ -404,5 +419,5 @@ def _is_edge_kinesis_connection_cache_disabled() -> bool:
     return os.environ.get("LUMIGO_KINESIS_SHOULD_REUSE_CONNECTION", "").lower() == "false"
 
 
-def _get_event_base64_size(event: Union[Dict[Any, Any], List[Dict[Any, Any]]]) -> int:
+def get_event_base64_size(event: Union[Dict[Any, Any], List[Dict[Any, Any]]]) -> int:
     return len(b64encode(aws_dump(event).encode()))

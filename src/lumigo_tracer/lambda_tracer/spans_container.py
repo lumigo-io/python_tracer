@@ -13,7 +13,7 @@ from lumigo_core.parsing_utils import (
     recursive_json_join,
     safe_split_get,
 )
-from lumigo_core.scrubbing import EXECUTION_TAGS_KEY, MANUAL_TRACES_KEY
+from lumigo_core.scrubbing import EXECUTION_TAGS_KEY, MANUAL_TRACES_KEY, TRUNCATE_SUFFIX
 from lumigo_core.triggers.event_trigger import parse_triggers
 
 from lumigo_tracer.event.event_dumper import EventDumper
@@ -243,9 +243,11 @@ class SpansContainer:
         message = exception.args[0] if exception.args else None
         if not isinstance(message, str):
             message = str(message)
+        if len(message) >= CoreConfiguration.get_max_entry_size():
+            message = message[: CoreConfiguration.get_max_entry_size()] + TRUNCATE_SUFFIX
         span["error"] = SpansContainer._create_exception_event(
             exc_type=exception.__class__.__name__,
-            message=lumigo_dumps(message),
+            message=message,
             stacktrace=get_stacktrace(exception),
             frames=format_frames(frames_infos) if Configuration.verbose else [],
         )
