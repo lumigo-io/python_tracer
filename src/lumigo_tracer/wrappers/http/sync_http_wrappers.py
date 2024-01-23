@@ -46,7 +46,7 @@ def is_lumigo_edge(host: Optional[str]) -> bool:
 
 def add_request_event(span_id: Optional[str], parse_params: HttpRequest) -> Dict:  # type: ignore[type-arg]
     """
-    This function parses an request event and add it to the span.
+    This function parses a request event and add it to the span.
     """
     if is_lumigo_edge(parse_params.host):
         return {}

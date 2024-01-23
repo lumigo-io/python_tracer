@@ -1,6 +1,7 @@
 import uuid
 from typing import Dict
 
+from lumigo_tracer.lambda_tracer.lambda_reporter import MONGO_SPAN
 from lumigo_tracer.lambda_tracer.spans_container import SpansContainer
 from lumigo_tracer.lumigo_utils import (
     get_current_ms_time,
@@ -18,7 +19,6 @@ if monitoring:
 
     class LumigoMongoMonitoring(monitoring.CommandListener):
         request_to_span_id: Dict[str, str] = {}
-        MONGO_SPAN = "mongoDb"
 
         def started(self, event):  # type: ignore[no-untyped-def]
             with lumigo_safe_execute("pymongo started"):
@@ -27,7 +27,7 @@ if monitoring:
                 SpansContainer.get_span().add_span(
                     {
                         "id": span_id,
-                        "type": self.MONGO_SPAN,
+                        "type": MONGO_SPAN,
                         "started": get_current_ms_time(),
                         "databaseName": event.database_name,
                         "commandName": event.command_name,

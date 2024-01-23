@@ -2,6 +2,7 @@ import importlib
 import uuid
 from typing import Optional
 
+from lumigo_tracer.lambda_tracer.lambda_reporter import SQL_SPAN
 from lumigo_tracer.lambda_tracer.spans_container import SpansContainer
 from lumigo_tracer.libs.wrapt import wrap_function_wrapper
 from lumigo_tracer.lumigo_utils import (
@@ -17,7 +18,6 @@ except Exception:
     listen = None
 
 
-SQL_SPAN = "mySql"
 _last_span_id: Optional[str] = None
 
 

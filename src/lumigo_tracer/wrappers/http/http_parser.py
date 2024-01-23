@@ -16,6 +16,7 @@ from lumigo_core.parsing_utils import (
 )
 from lumigo_core.scrubbing import get_omitting_regex
 
+from lumigo_tracer.lambda_tracer.lambda_reporter import HTTP_TYPE
 from lumigo_tracer.lumigo_utils import (
     Configuration,
     get_current_ms_time,
@@ -29,8 +30,6 @@ from lumigo_tracer.lumigo_utils import (
 from lumigo_tracer.parsing_utils import should_scrub_domain
 from lumigo_tracer.w3c_context import get_w3c_message_id, is_w3c_headers
 from lumigo_tracer.wrappers.http.http_data_classes import HttpRequest, HttpState
-
-HTTP_TYPE = "http"
 
 
 class Parser:

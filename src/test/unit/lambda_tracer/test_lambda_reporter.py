@@ -1,4 +1,3 @@
-import datetime
 import http.client
 import importlib.util
 import json
@@ -6,6 +5,7 @@ import logging
 import os
 import socket
 import uuid
+from datetime import datetime, timedelta
 from unittest.mock import Mock
 
 import boto3
@@ -18,62 +18,322 @@ from lumigo_tracer.lambda_tracer import lambda_reporter
 from lumigo_tracer.lambda_tracer.lambda_reporter import (
     CHINA_REGION,
     EDGE_PATH,
+    FUNCTION_TYPE,
+    HTTP_TYPE,
+    MONGO_SPAN,
     _create_request_body,
-    _get_event_base64_size,
     establish_connection,
     get_edge_host,
+    get_event_base64_size,
     get_extension_dir,
     report_json,
 )
 from lumigo_tracer.lumigo_utils import Configuration, InternalState
 
+NOW = datetime.now()
+STARTED = (NOW - timedelta(seconds=10)).timestamp() * 1000
+ENDED = NOW.timestamp() * 1000
+DUMMY_SPAN = {"dummy": "dummy", "type": HTTP_TYPE}
+FUNCTION_END_SPAN = {
+    "dummy_end": "dummy_end",
+    "type": FUNCTION_TYPE,
+    "envs": {"var_name": "very_long_env_var_value"},
+}
+FUNCTION_END_SPAN_METADATA = {"dummy_end": "dummy_end", "type": FUNCTION_TYPE, "is_metadata": True}
+HTTP_SPAN = {
+    "transactionId": "transaction-id",
+    "id": "8b32c4b4-e483-4741-9eef-b8f8f6c72f66",
+    "started": STARTED,
+    "info": {
+        "tracer": {"version": "1.1.230"},
+        "traceId": {"Root": ""},
+        "httpInfo": {
+            "host": "www.google.com",
+            "request": {
+                "headers": '{"host": "www.google.com", "accept-encoding": "identity", "content-length": "0"}',
+                "body": "very interesting body with very long text that should be filtered",
+                "method": "POST",
+                "uri": "www.google.com/",
+                "instance_id": 4380969952,
+            },
+        },
+    },
+    "type": HTTP_TYPE,
+    "account": "account-id",
+    "region": "UNKNOWN",
+    "parentId": "1234",
+    "lambda_container_id": "4062b9eb-5f2d-4dde-9983-3f4404f30b5a",
+    "token": "t_10faa5e13e7844aaa1234",
+    "ended": ENDED,
+}
+HTTP_SPAN_METADATA = {
+    "transactionId": "transaction-id",
+    "id": "8b32c4b4-e483-4741-9eef-b8f8f6c72f66",
+    "started": STARTED,
+    "info": {
+        "tracer": {"version": "1.1.230"},
+        "traceId": {"Root": ""},
+        "httpInfo": {
+            "host": "www.google.com",
+            "request": {
+                "method": "POST",
+                "uri": "www.google.com/",
+                "instance_id": 4380969952,
+            },
+        },
+    },
+    "type": HTTP_TYPE,
+    "account": "account-id",
+    "region": "UNKNOWN",
+    "parentId": "1234",
+    "lambda_container_id": "4062b9eb-5f2d-4dde-9983-3f4404f30b5a",
+    "token": "t_10faa5e13e7844aaa1234",
+    "ended": ENDED,
+    "is_metadata": True,
+}
+ERROR_HTTP_SPAN = {
+    "transactionId": "transaction-id",
+    "id": "8b32c4b4-e483-4741-9eef-b8f8f6c72f66",
+    "started": STARTED,
+    "info": {
+        "tracer": {"version": "1.1.230"},
+        "traceId": {"Root": ""},
+        "httpInfo": {
+            "host": "www.google.com",
+            "request": {
+                "headers": '{"host": "www.google.com", "accept-encoding": "identity", "content-length": "0"}',
+                "body": "very interesting body with very long text that should be filtered",
+                "method": "POST",
+                "uri": "www.google.com/",
+                "instance_id": 4380969952,
+            },
+        },
+    },
+    "type": HTTP_TYPE,
+    "account": "account-id",
+    "region": "UNKNOWN",
+    "parentId": "1234",
+    "lambda_container_id": "4062b9eb-5f2d-4dde-9983-3f4404f30b5a",
+    "token": "t_10faa5e13e7844aaa1234",
+    "error": "ERROR",
+    "ended": ENDED,
+}
+ERROR_HTTP_SPAN_METADATA = {
+    "transactionId": "transaction-id",
+    "id": "8b32c4b4-e483-4741-9eef-b8f8f6c72f66",
+    "started": STARTED,
+    "info": {
+        "tracer": {"version": "1.1.230"},
+        "traceId": {"Root": ""},
+        "httpInfo": {
+            "host": "www.google.com",
+            "request": {
+                "method": "POST",
+                "uri": "www.google.com/",
+                "instance_id": 4380969952,
+            },
+        },
+    },
+    "type": HTTP_TYPE,
+    "account": "account-id",
+    "region": "UNKNOWN",
+    "parentId": "1234",
+    "lambda_container_id": "4062b9eb-5f2d-4dde-9983-3f4404f30b5a",
+    "token": "t_10faa5e13e7844aaa1234",
+    "error": "ERROR",
+    "ended": ENDED,
+    "is_metadata": True,
+}
+REDIS_SPAN = {
+    "type": "redis",
+    "id": "77d0b751-9496-4257-b910-25e33c029365",
+    "connectionOptions": {"host": "lumigo", "port": None},
+    "transactionId": "transaction-id",
+    "started": STARTED,
+    "requestArgs": '[[{"a": 1}], ["a"]]',
+    "lambda_container_id": "b7bfabd6-bc95-445a-965d-513922afbcdd",
+    "account": "account-id",
+    "region": "UNKNOWN",
+    "parentId": "parent-id",
+    "info": {"tracer": {"version": "1.1.230"}, "traceId": {"Root": ""}},
+    "requestCommand": '["SET", "GET"]',
+    "token": "t_token",
+    "ended": ENDED,
+    "response": '"Very long result that we should cut because it is too long"',
+}
+REDIS_SPAN_METADATA = {
+    "type": "redis",
+    "id": "77d0b751-9496-4257-b910-25e33c029365",
+    "connectionOptions": {"host": "lumigo", "port": None},
+    "transactionId": "transaction-id",
+    "started": STARTED,
+    "lambda_container_id": "b7bfabd6-bc95-445a-965d-513922afbcdd",
+    "account": "account-id",
+    "region": "UNKNOWN",
+    "parentId": "parent-id",
+    "info": {"tracer": {"version": "1.1.230"}, "traceId": {"Root": ""}},
+    "requestCommand": '["SET", "GET"]',
+    "token": "t_token",
+    "ended": ENDED,
+    "is_metadata": True,
+}
+PYMONGO_SPAN = {
+    "id": "6c86ff87-07b4-4663-9e2b-15acb75a81f0",
+    "mongoOperationId": "oid",
+    "type": MONGO_SPAN,
+    "mongoConnectionId": "cid",
+    "databaseName": "dname",
+    "mongoRequestId": "rid",
+    "lambda_container_id": "7fa30d38-3aed-4e15-96a7-b53116e2b5fa",
+    "account": "account",
+    "request": '"cmd"',
+    "started": STARTED,
+    "transactionId": "transaction-id",
+    "region": "UNKNOWN",
+    "parentId": "parent-id",
+    "info": {"tracer": {"version": "1.1.230"}, "traceId": {"Root": ""}},
+    "token": "token",
+    "commandName": "cname",
+    "ended": ENDED,
+    "response": '{"code": 200}',
+}
+PYMONGO_SPAN_METADATA = {
+    "id": "6c86ff87-07b4-4663-9e2b-15acb75a81f0",
+    "mongoOperationId": "oid",
+    "type": MONGO_SPAN,
+    "mongoConnectionId": "cid",
+    "databaseName": "dname",
+    "mongoRequestId": "rid",
+    "lambda_container_id": "7fa30d38-3aed-4e15-96a7-b53116e2b5fa",
+    "account": "account",
+    "started": STARTED,
+    "transactionId": "transaction-id",
+    "region": "UNKNOWN",
+    "parentId": "parent-id",
+    "info": {"tracer": {"version": "1.1.230"}, "traceId": {"Root": ""}},
+    "token": "token",
+    "commandName": "cname",
+    "ended": ENDED,
+    "is_metadata": True,
+}
+SQL_SPAN = {
+    "parentId": "1234",
+    "transactionId": "",
+    "values": '["saart"]',
+    "region": "UNKNOWN",
+    "account": "",
+    "query": '"INSERT INTO users (name) VALUES (?)"',
+    "info": {"tracer": {"version": "1.1.230"}, "traceId": {"Root": ""}},
+    "token": "t_10faa5e13e7844aaa1234",
+    "type": "mySql",
+    "started": STARTED,
+    "connectionParameters": {
+        "host": "/private/var/folders/qv/w6y030t978518rzpnk1kt0_80000gn/T/pytest-of-nadavgihasi/pytest-29/test_happy_flow0/file.db",
+        "port": 1234,
+        "database": "/private/var/folders/qv/w6y030t978518rzpnk1kt0_80000gn/T/pytest-of-nadavgihasi/pytest-29/test_happy_flow0/file.db",
+        "user": "ng",
+    },
+    "lambda_container_id": "8e86b65e-45b7-46ac-b924-be89113964b7",
+    "id": "e3cac203-50db-43e8-bb6e-07add431edf2",
+    "ended": ENDED,
+    "response": "very-long-response",
+}
+SQL_SPAN_METADATA = {
+    "parentId": "1234",
+    "transactionId": "",
+    "region": "UNKNOWN",
+    "account": "",
+    "info": {"tracer": {"version": "1.1.230"}, "traceId": {"Root": ""}},
+    "token": "t_10faa5e13e7844aaa1234",
+    "type": "mySql",
+    "started": STARTED,
+    "connectionParameters": {
+        "host": "/private/var/folders/qv/w6y030t978518rzpnk1kt0_80000gn/T/pytest-of-nadavgihasi/pytest-29/test_happy_flow0/file.db",
+        "port": 1234,
+        "database": "/private/var/folders/qv/w6y030t978518rzpnk1kt0_80000gn/T/pytest-of-nadavgihasi/pytest-29/test_happy_flow0/file.db",
+        "user": "ng",
+    },
+    "lambda_container_id": "8e86b65e-45b7-46ac-b924-be89113964b7",
+    "id": "e3cac203-50db-43e8-bb6e-07add431edf2",
+    "ended": ENDED,
+    "is_metadata": True,
+}
 
-@pytest.fixture
-def dummy_span():
-    return {"dummy": "dummy"}
+
+def test_create_request_body_default():
+    assert _create_request_body([DUMMY_SPAN], False) == json.dumps([DUMMY_SPAN])
 
 
-@pytest.fixture
-def function_end_span():
-    return {"dummy_end": "dummy_end"}
+def test_create_request_body_not_effecting_small_events():
+    assert _create_request_body([DUMMY_SPAN], True, 1_000_000) == json.dumps([DUMMY_SPAN])
 
 
-@pytest.fixture
-def error_span():
-    return {"dummy": "dummy", "error": "Error"}
+def test_create_request_body_keep_function_span_and_filter_other_spans():
+    input_spans = [DUMMY_SPAN, DUMMY_SPAN, DUMMY_SPAN, FUNCTION_END_SPAN, FUNCTION_END_SPAN]
+    expected_result = [FUNCTION_END_SPAN_METADATA, FUNCTION_END_SPAN_METADATA]
+    size = get_event_base64_size(expected_result)
+
+    result = _create_request_body(input_spans, True, size)
+
+    assert result == json.dumps(expected_result)
 
 
-def test_create_request_body_default(dummy_span):
-    assert _create_request_body([dummy_span], False) == json.dumps([dummy_span])
-
-
-def test_create_request_body_not_effecting_small_events(dummy_span):
-    assert _create_request_body([dummy_span], True, 1_000_000) == json.dumps([dummy_span])
-
-
-def test_create_request_body_keep_function_span_and_filter_other_spans(
-    dummy_span, function_end_span
-):
-    expected_result = [dummy_span, dummy_span, dummy_span, function_end_span]
-    size = _get_event_base64_size(expected_result)
-    assert _create_request_body(expected_result * 2, True, size) == json.dumps(
-        [function_end_span, dummy_span, dummy_span, dummy_span]
-    )
-
-
-def test_create_request_body_take_error_first(dummy_span, error_span, function_end_span):
-    expected_result = [function_end_span, error_span, dummy_span, dummy_span]
-    input = [
-        dummy_span,
-        dummy_span,
-        dummy_span,
-        dummy_span,
-        dummy_span,
-        error_span,
-        function_end_span,
+def test_create_request_body_take_error_first():
+    expected_result = [FUNCTION_END_SPAN_METADATA, ERROR_HTTP_SPAN_METADATA]
+    input_spans = [
+        DUMMY_SPAN,
+        DUMMY_SPAN,
+        DUMMY_SPAN,
+        ERROR_HTTP_SPAN,
+        FUNCTION_END_SPAN,
     ]
-    size = _get_event_base64_size(expected_result)
-    assert _create_request_body(input, True, size) == json.dumps(expected_result)
+    size = get_event_base64_size(expected_result)
+
+    result = _create_request_body(input_spans, True, max_size=size, max_error_size=size)
+    assert result == json.dumps(expected_result)
+
+
+def test_create_request_body_take_only_metadata_function_span(caplog):
+    expected_result = [FUNCTION_END_SPAN_METADATA]
+    input_spans = [FUNCTION_END_SPAN]
+    size = get_event_base64_size(expected_result)
+
+    result = _create_request_body(input_spans, True, max_size=size, max_error_size=size)
+
+    assert caplog.records[0].message == "Starting smart span selection"
+    assert result == json.dumps(expected_result)
+
+
+@pytest.mark.parametrize(
+    ["test_case", "wrapper_span", "wrapper_span_metadata"],
+    [
+        ["test redis span", REDIS_SPAN, REDIS_SPAN_METADATA],
+        ["test http span", HTTP_SPAN, HTTP_SPAN_METADATA],
+        ["test pymongo span", PYMONGO_SPAN, PYMONGO_SPAN_METADATA],
+        ["test sql span", SQL_SPAN, SQL_SPAN_METADATA],
+    ],
+)
+def test_create_request_body(
+    test_case: str, wrapper_span: dict, wrapper_span_metadata: dict, caplog
+) -> None:
+    expected_result = [FUNCTION_END_SPAN, wrapper_span_metadata]
+    input_spans = [wrapper_span, FUNCTION_END_SPAN]
+    size = get_event_base64_size(expected_result)
+
+    result = _create_request_body(input_spans, True, max_size=size, max_error_size=size)
+
+    assert caplog.records[0].message == "Starting smart span selection"
+    assert result == json.dumps(expected_result)
+
+
+def test_with_many_spans():
+    expected_result = [FUNCTION_END_SPAN] + [HTTP_SPAN] * 50 + [HTTP_SPAN_METADATA] * 50
+    input_spans = [FUNCTION_END_SPAN] + [HTTP_SPAN] * 100
+    size = get_event_base64_size(expected_result)
+
+    result = _create_request_body(input_spans, True, max_size=size, max_error_size=size)
+
+    assert result == json.dumps(expected_result)
 
 
 @pytest.mark.parametrize(
@@ -142,7 +402,7 @@ def test_report_json_fast_failure_after_timeout(monkeypatch, reporter_mock, capl
     assert report_json(None, [{"a": "b"}]) == 0
     assert caplog.records[-1].msg == "Skip sending messages due to previous timeout"
 
-    InternalState.timeout_on_connection = datetime.datetime(2016, 1, 1)
+    InternalState.timeout_on_connection = datetime(2016, 1, 1)
     assert report_json(None, [{"a": "b"}]) == 0
     assert caplog.records[-1].msg == "Timeout while connecting to host"
 

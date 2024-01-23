@@ -13,11 +13,12 @@ from lumigo_core.parsing_utils import (
     recursive_json_join,
     safe_split_get,
 )
-from lumigo_core.scrubbing import EXECUTION_TAGS_KEY, MANUAL_TRACES_KEY
+from lumigo_core.scrubbing import EXECUTION_TAGS_KEY, MANUAL_TRACES_KEY, TRUNCATE_SUFFIX
 from lumigo_core.triggers.event_trigger import parse_triggers
 
 from lumigo_tracer.event.event_dumper import EventDumper
 from lumigo_tracer.lambda_tracer import lambda_reporter
+from lumigo_tracer.lambda_tracer.lambda_reporter import ENRICHMENT_TYPE, FUNCTION_TYPE
 from lumigo_tracer.lumigo_utils import (
     LUMIGO_EVENT_KEY,
     STEP_FUNCTION_UID_KEY,
@@ -41,8 +42,6 @@ from lumigo_tracer.w3c_context import add_w3c_trace_propagator
 
 _VERSION_PATH = os.path.join(os.path.dirname(__file__), "../VERSION")
 MAX_LAMBDA_TIME = 15 * 60 * 1000
-FUNCTION_TYPE = "function"
-ENRICHMENT_TYPE = "enrichment"
 MALFORMED_TXID = "000000000000000000000000"
 
 
@@ -244,6 +243,8 @@ class SpansContainer:
         message = exception.args[0] if exception.args else None
         if not isinstance(message, str):
             message = str(message)
+        if len(message) >= CoreConfiguration.get_max_entry_size():
+            message = message[: CoreConfiguration.get_max_entry_size()] + TRUNCATE_SUFFIX
         span["error"] = SpansContainer._create_exception_event(
             exc_type=exception.__class__.__name__,
             message=message,
