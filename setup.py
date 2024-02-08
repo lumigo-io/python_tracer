@@ -14,7 +14,7 @@ setuptools.setup(
     url="https://github.com/lumigo-io/python_tracer.git",
     package_dir={"": "src"},
     packages=setuptools.find_packages("src"),
-    install_requires=["lumigo_core==0.0.7"],
+    install_requires=["lumigo_core==0.0.9"],
     license="Apache License 2.0",
     classifiers=["Programming Language :: Python :: 3", "Operating System :: OS Independent"],
     long_description=open("README.md").read(),
