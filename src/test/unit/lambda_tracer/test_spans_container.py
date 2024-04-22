@@ -128,6 +128,15 @@ def test_spans_container_end_function_send_only_on_errors_mode_false_not_effecti
     assert reported_ttl is not None
 
 
+def test_spans_container_add_span_span_count_updated(monkeypatch, dummy_span):
+    SpansContainer.create_span()
+    SpansContainer.get_span().start()
+
+    SpansContainer.get_span().add_span(dummy_span)
+
+    assert SpansContainer.get_span().function_span["totalSpans"] == 2
+
+
 def test_spans_container_end_function_with_error_double_size_limit(monkeypatch, dummy_span):
     long_string = "v" * int(CoreConfiguration.get_max_entry_size() * 1.5)
     monkeypatch.setenv("LONG_STRING", long_string)
