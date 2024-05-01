@@ -39,7 +39,7 @@ FUNCTION_END_SPAN = {
     "type": FUNCTION_TYPE,
     "envs": {"var_name": "very_long_env_var_value"},
 }
-FUNCTION_END_SPAN_METADATA = {"dummy_end": "dummy_end", "type": FUNCTION_TYPE, "is_metadata": True}
+FUNCTION_END_SPAN_METADATA = {"dummy_end": "dummy_end", "type": FUNCTION_TYPE, "isMetadata": True}
 HTTP_SPAN = {
     "transactionId": "transaction-id",
     "id": "8b32c4b4-e483-4741-9eef-b8f8f6c72f66",
@@ -89,7 +89,7 @@ HTTP_SPAN_METADATA = {
     "lambda_container_id": "4062b9eb-5f2d-4dde-9983-3f4404f30b5a",
     "token": "t_10faa5e13e7844aaa1234",
     "ended": ENDED,
-    "is_metadata": True,
+    "isMetadata": True,
 }
 ERROR_HTTP_SPAN = {
     "transactionId": "transaction-id",
@@ -142,7 +142,7 @@ ERROR_HTTP_SPAN_METADATA = {
     "token": "t_10faa5e13e7844aaa1234",
     "error": "ERROR",
     "ended": ENDED,
-    "is_metadata": True,
+    "isMetadata": True,
 }
 REDIS_SPAN = {
     "type": "redis",
@@ -175,7 +175,7 @@ REDIS_SPAN_METADATA = {
     "requestCommand": '["SET", "GET"]',
     "token": "t_token",
     "ended": ENDED,
-    "is_metadata": True,
+    "isMetadata": True,
 }
 PYMONGO_SPAN = {
     "id": "6c86ff87-07b4-4663-9e2b-15acb75a81f0",
@@ -214,7 +214,7 @@ PYMONGO_SPAN_METADATA = {
     "token": "token",
     "commandName": "cname",
     "ended": ENDED,
-    "is_metadata": True,
+    "isMetadata": True,
 }
 SQL_SPAN = {
     "parentId": "1234",
@@ -256,7 +256,7 @@ SQL_SPAN_METADATA = {
     "lambda_container_id": "8e86b65e-45b7-46ac-b924-be89113964b7",
     "id": "e3cac203-50db-43e8-bb6e-07add431edf2",
     "ended": ENDED,
-    "is_metadata": True,
+    "isMetadata": True,
 }
 
 
