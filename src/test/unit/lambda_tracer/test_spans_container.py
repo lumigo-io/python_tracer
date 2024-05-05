@@ -18,6 +18,7 @@ from lumigo_tracer.lambda_tracer.spans_container import (
     ENRICHMENT_TYPE,
     FUNCTION_TYPE,
     MALFORMED_TXID,
+    TOTAL_SPANS_KEY,
     SpansContainer,
     TimeoutMechanism,
 )
@@ -134,7 +135,7 @@ def test_spans_container_add_span_span_count_updated(monkeypatch, dummy_span):
 
     SpansContainer.get_span().add_span(dummy_span)
 
-    assert SpansContainer.get_span().function_span["totalSpans"] == 2
+    assert SpansContainer.get_span().function_span[TOTAL_SPANS_KEY] == 2
 
 
 def test_spans_container_end_function_with_error_double_size_limit(monkeypatch, dummy_span):
