@@ -196,7 +196,7 @@ def get_span_metadata(span: Dict[Any, Any]) -> Dict[Any, Any]:
     with lumigo_safe_execute("get_span_metadata"):
         span_type = span.get("type")
         span_copy = copy.deepcopy(span)
-        span_copy["is_metadata"] = True
+        span_copy["isMetadata"] = True
 
         if span_type == FUNCTION_TYPE:
             span_copy.pop("envs", None)
