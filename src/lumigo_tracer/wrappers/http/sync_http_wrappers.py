@@ -355,7 +355,7 @@ def _putheader_wrapper(func, instance, args, kwargs):  # type: ignore[no-untyped
     This is the wrapper of the function that called after that the http request was sent.
     Note that we don't examine the response data because it may change the original behaviour (ret_val.peek()).
     """
-    if SpansContainer.get_span().can_path_root():
+    if SpansContainer.get_span().can_path_root() and "headers" in kwargs:
         kwargs["headers"]["X-Amzn-Trace-Id"] = SpansContainer.get_span().get_patched_root()
     ret_val = func(*args, **kwargs)
     return ret_val
