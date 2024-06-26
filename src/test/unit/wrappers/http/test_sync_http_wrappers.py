@@ -636,7 +636,11 @@ def test_wrapping_boto3_core_aws_request(monkeypatch):
 
 def test_wrapping_boto3_core_aws_request_fail_safe(monkeypatch):
     monkeypatch.setattr(SpansContainer, "can_path_root", lambda *args, **kwargs: True)
-    monkeypatch.setattr(SpansContainer, "get_patched_root", lambda *args, **kwargs: "123")
+
+    def mock_get_patched_root(*args, **kwargs):
+        raise Exception("mock exception")
+
+    monkeypatch.setattr(SpansContainer, "get_patched_root", mock_get_patched_root)
 
     def func(arg1, arg2, kwarg3=None, kwarg4=None, headers=None):
         assert arg1 == 1
