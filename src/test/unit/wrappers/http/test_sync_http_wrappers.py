@@ -22,6 +22,7 @@ from lumigo_tracer.lumigo_utils import TRUNCATE_SUFFIX, Configuration
 from lumigo_tracer.wrappers.http.http_data_classes import HttpRequest
 from lumigo_tracer.wrappers.http.http_parser import Parser
 from lumigo_tracer.wrappers.http.sync_http_wrappers import (
+    _putheader_wrapper,
     add_request_event,
     is_lumigo_edge,
     update_event_response,
@@ -612,3 +613,69 @@ def test_same_connection_id_for_same_connection(context, token):
     instance_id_1 = http_spans[0]["info"]["httpInfo"]["request"].get("instance_id")
     instance_id_2 = http_spans[1]["info"]["httpInfo"]["request"].get("instance_id")
     assert instance_id_1 == instance_id_2
+
+
+def test_wrapping_boto3_core_aws_request(monkeypatch):
+    monkeypatch.setattr(SpansContainer, "can_path_root", lambda *args, **kwargs: True)
+    monkeypatch.setattr(SpansContainer, "get_patched_root", lambda *args, **kwargs: "123")
+
+    def func(arg1, arg2, kwarg3=None, kwarg4=None, headers=None):
+        assert arg1 == 1
+        assert arg2 == 2
+        assert kwarg3 == 3
+        assert kwarg4 == 4
+        assert headers == {"X-Amzn-Trace-Id": "123"}
+        return 5
+
+    response = _putheader_wrapper(
+        func=func, instance=None, args=(1, 2), kwargs={"kwarg3": 3, "kwarg4": 4, "headers": {}}
+    )
+
+    assert response == 5
+
+
+def test_wrapping_boto3_core_aws_request_fail_safe(monkeypatch):
+    monkeypatch.setattr(SpansContainer, "can_path_root", lambda *args, **kwargs: True)
+    monkeypatch.setattr(SpansContainer, "get_patched_root", lambda *args, **kwargs: "123")
+
+    def func(arg1, arg2, kwarg3=None, kwarg4=None, headers=None):
+        assert arg1 == 1
+        assert arg2 == 2
+        assert kwarg3 == 3
+        assert kwarg4 == 4
+        assert headers == {"original": "header"}
+        return 5
+
+    response = _putheader_wrapper(
+        func=func,
+        instance=None,
+        args=(1, 2),
+        kwargs={"kwarg3": 3, "kwarg4": 4, "headers": {"original": "header"}},
+    )
+
+    assert response == 5
+
+
+def test_wrapping_boto3_core_aws_request_no_headers_kwargs(monkeypatch):
+    monkeypatch.setattr(SpansContainer, "can_path_root", lambda *args, **kwargs: True)
+    monkeypatch.setattr(SpansContainer, "get_patched_root", lambda *args, **kwargs: "123")
+
+    def func(arg1, arg2, kwarg3=None, kwarg4=None, headers=None):
+        assert arg1 == 1
+        assert arg2 == 2
+        assert kwarg3 == 3
+        assert kwarg4 == 4
+        assert headers is None
+        return 5
+
+    response = _putheader_wrapper(
+        func=func,
+        instance=None,
+        args=(1, 2),
+        kwargs={
+            "kwarg3": 3,
+            "kwarg4": 4,
+        },
+    )
+
+    assert response == 5

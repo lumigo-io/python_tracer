@@ -356,6 +356,8 @@ def _putheader_wrapper(func, instance, args, kwargs):  # type: ignore[no-untyped
     Note that we don't examine the response data because it may change the original behaviour (ret_val.peek()).
     """
     with lumigo_safe_execute("add x-amzn-trace-id to request headers"):
+        # Note: we currently do not support injecting the trace id header if no headers were passed / they were passed
+        # as positional arguments.
         if SpansContainer.get_span().can_path_root() and "headers" in kwargs:
             kwargs["headers"]["X-Amzn-Trace-Id"] = SpansContainer.get_span().get_patched_root()
 
