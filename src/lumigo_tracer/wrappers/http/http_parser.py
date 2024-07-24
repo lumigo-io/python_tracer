@@ -165,7 +165,11 @@ class DynamoParser(ServerlessAWSParser):
     @staticmethod
     def _extract_table_name(body: dict, method: str) -> Optional[str]:  # type: ignore[type-arg]
         name = body.get("TableName")
-        if not name and method == "BatchWriteItem" and isinstance(body.get("RequestItems"), dict):
+        if (
+            not name
+            and method in ["BatchWriteItem", "BatchGetItem"]
+            and isinstance(body.get("RequestItems"), dict)
+        ):
             return next(iter(body["RequestItems"]))  # type: ignore[no-any-return]
         return name
 

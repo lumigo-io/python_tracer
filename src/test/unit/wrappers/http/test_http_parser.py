@@ -366,6 +366,17 @@ def test_sqs_json_parse_resource_name_body_not_a_json():
             },
             "1ad3dccc8064a706957c2c06ce3796bb",
         ),
+        (
+            "BatchGetItem",
+            {
+                "RequestItems": {
+                    "resourceName": [
+                        {"Keys": {"Key": {"key": {"S": "value"}}}, "ConsistentRead": False}
+                    ]
+                }
+            },
+            None,
+        ),
     ],
 )
 def test_dynamodb_parser_happy_flow(method, body, message_id):
