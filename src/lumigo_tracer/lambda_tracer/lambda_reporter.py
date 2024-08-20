@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
 from lumigo_core.configuration import CoreConfiguration
+from lumigo_core.scrubbing import EXECUTION_TAGS_KEY
 
 from lumigo_tracer.lumigo_utils import (
     EDGE_HOST,
@@ -208,7 +209,8 @@ def get_span_metadata(span: Dict[Any, Any]) -> Dict[Any, Any]:
             span_copy.pop("envs", None)
             return span_copy
         if span_type == ENRICHMENT_TYPE:
-            return {}
+            span_copy.pop(EXECUTION_TAGS_KEY, None)
+            return span_copy
         if span_type == HTTP_TYPE:
             span_copy.get("info", {}).get("httpInfo", {}).get("request", {}).pop("headers", None)
             span_copy.get("info", {}).get("httpInfo", {}).get("request", {}).pop("body", None)
@@ -308,8 +310,8 @@ def _get_prioritized_spans(
             else:
                 enrichment_spans_index = enrichment_spans_indexes[0]
                 enrichment_span_size_before = get_event_base64_size(msgs[enrichment_spans_index])
-                dropped_spans_reasons = (
-                    spans_to_send_dict[enrichment_spans_index][DROPPED_SPANS_REASONS_KEY] or {}
+                dropped_spans_reasons = spans_to_send_dict[enrichment_spans_index].get(
+                    DROPPED_SPANS_REASONS_KEY, {}
                 )
                 dropped_spans_reasons[DroppedSpansReasons.SPANS_SENT_SIZE_LIMIT.value] = {
                     "drops": len(msgs) - len(spans_to_send_dict),

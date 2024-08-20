@@ -169,7 +169,7 @@ def test_spans_container_timeout_mechanism_send_only_on_errors_mode(
     assert len(messages) == 3
     assert [m for m in messages if m["type"] == FUNCTION_TYPE and m["id"].endswith("_started")]
     assert [m for m in messages if m["type"] == HTTP_TYPE]
-    assert [m for m in messages if m["type"] == ENRICHMENT_TYPE and m['totalSpans'] == 3]
+    assert [m for m in messages if m["type"] == ENRICHMENT_TYPE and m["totalSpans"] == 3]
 
 
 def test_timeout_mechanism_disabled_by_configuration(monkeypatch, context):
