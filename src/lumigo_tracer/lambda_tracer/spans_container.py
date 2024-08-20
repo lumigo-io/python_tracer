@@ -45,7 +45,6 @@ _VERSION_PATH = os.path.join(os.path.dirname(__file__), "../VERSION")
 MAX_LAMBDA_TIME = 15 * 60 * 1000
 MALFORMED_TXID = "000000000000000000000000"
 TOTAL_SPANS_KEY = "totalSpans"
-DROPPED_SPANS_REASONS_KEY = "droppedSpansReasons"
 
 
 class SpansContainer:

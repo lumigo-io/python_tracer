@@ -13,10 +13,7 @@ from typing import Any, Dict, List, Optional, Union
 
 from lumigo_core.configuration import CoreConfiguration
 
-from lumigo_tracer.lambda_tracer.spans_container import (
-    DROPPED_SPANS_REASONS_KEY,
-    DroppedSpansReasons,
-)
+from lumigo_tracer.lambda_tracer.spans_container import DroppedSpansReasons
 from lumigo_tracer.lumigo_utils import (
     EDGE_HOST,
     Configuration,
@@ -61,6 +58,7 @@ HTTP_TYPE = "http"
 MONGO_SPAN = "mongoDb"
 REDIS_SPAN = "redis"
 SQL_SPAN = "mySql"
+DROPPED_SPANS_REASONS_KEY = "droppedSpansReasons"
 
 
 edge_kinesis_boto_client = None
