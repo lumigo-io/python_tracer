@@ -1,5 +1,4 @@
 import copy
-import enum
 import inspect
 import os
 import signal
@@ -427,10 +426,6 @@ class TimeoutMechanism:
     @staticmethod
     def is_activated():  # type: ignore[no-untyped-def]
         return Configuration.timeout_timer and signal.getsignal(signal.SIGALRM) != signal.SIG_DFL
-
-
-class DroppedSpansReasons(enum.Enum):
-    SPANS_SENT_SIZE_LIMIT = "SPANS_SENT_SIZE_LIMIT"
 
 
 def _get_envs_for_span(has_error: bool = False) -> str:

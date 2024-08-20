@@ -1,5 +1,6 @@
 import copy
 import datetime
+import enum
 import http.client
 import os
 import random
@@ -13,7 +14,6 @@ from typing import Any, Dict, List, Optional, Union
 
 from lumigo_core.configuration import CoreConfiguration
 
-from lumigo_tracer.lambda_tracer.spans_container import DroppedSpansReasons
 from lumigo_tracer.lumigo_utils import (
     EDGE_HOST,
     Configuration,
@@ -63,6 +63,10 @@ DROPPED_SPANS_REASONS_KEY = "droppedSpansReasons"
 
 edge_kinesis_boto_client = None
 edge_connection = None
+
+
+class DroppedSpansReasons(enum.Enum):
+    SPANS_SENT_SIZE_LIMIT = "SPANS_SENT_SIZE_LIMIT"
 
 
 def establish_connection_global() -> None:
