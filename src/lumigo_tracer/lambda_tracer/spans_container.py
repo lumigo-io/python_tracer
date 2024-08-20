@@ -1,4 +1,5 @@
 import copy
+import enum
 import inspect
 import os
 import signal
@@ -44,6 +45,7 @@ _VERSION_PATH = os.path.join(os.path.dirname(__file__), "../VERSION")
 MAX_LAMBDA_TIME = 15 * 60 * 1000
 MALFORMED_TXID = "000000000000000000000000"
 TOTAL_SPANS_KEY = "totalSpans"
+DROPPED_SPANS_REASONS_KEY = "droppedSpansReasons"
 
 
 class SpansContainer:
@@ -125,6 +127,7 @@ class SpansContainer:
         self.span_ids_to_send: Set[str] = set()
         self.spans: Dict[str, Dict] = {}  # type: ignore[type-arg]
         self.manual_trace_start_times: Dict[str, int] = {}
+        self.total_spans = 2  # Enrichment span + function span
         if is_new_invocation:
             SpansContainer.is_cold = False
 
@@ -135,11 +138,13 @@ class SpansContainer:
         to_send["maxFinishTime"] = self.max_finish_time
         return to_send  # type: ignore[no-any-return]
 
-    def generate_enrichment_span(self) -> Optional[Dict[str, Union[str, int]]]:
-        if not self.execution_tags:
-            return None
+    def generate_enrichment_span(self) -> Dict[str, Union[str, int]]:
         return recursive_json_join(  # type: ignore[no-any-return]
-            {"sending_time": get_current_ms_time(), EXECUTION_TAGS_KEY: self.execution_tags.copy()},
+            {
+                "sending_time": get_current_ms_time(),
+                EXECUTION_TAGS_KEY: self.execution_tags.copy(),
+                TOTAL_SPANS_KEY: self.total_spans,
+            },
             self.base_enrichment_span,
         )
 
@@ -158,10 +163,9 @@ class SpansContainer:
         with lumigo_safe_execute("spans container: handle_timeout"):
             get_logger().info("The tracer reached the end of the timeout timer")
             spans_id_copy = self.span_ids_to_send.copy()
-            to_send = [self.spans[span_id] for span_id in spans_id_copy]
-            enrichment_span = self.generate_enrichment_span()
-            if enrichment_span:
-                to_send.insert(0, enrichment_span)
+            to_send = [self.generate_enrichment_span()] + [
+                self.spans[span_id] for span_id in spans_id_copy
+            ]
             self.span_ids_to_send.clear()
             if Configuration.send_only_if_error:
                 to_send.append(self._generate_start_span())
@@ -185,6 +189,8 @@ class SpansContainer:
         """
         new_span = recursive_json_join(span, self.base_msg)
         span_id = new_span["id"]
+        if span_id not in self.spans:
+            self.total_spans += 1
         self.spans[span_id] = new_span
         self.span_ids_to_send.add(span_id)
         self.function_span[TOTAL_SPANS_KEY] = self.function_span.get(TOTAL_SPANS_KEY, 0) + 1
@@ -322,12 +328,11 @@ class SpansContainer:
         ) or is_span_has_error(self.function_span)
 
         if (not Configuration.send_only_if_error) or spans_contain_errors:
-            to_send = [self.function_span] + [
-                span for span_id, span in self.spans.items() if span_id in self.span_ids_to_send
-            ]
-            enrichment_span = self.generate_enrichment_span()
-            if enrichment_span:
-                to_send.append(enrichment_span)
+            to_send = (
+                [self.function_span]
+                + [self.generate_enrichment_span()]
+                + [span for span_id, span in self.spans.items() if span_id in self.span_ids_to_send]
+            )
             reported_rtt = lambda_reporter.report_json(region=self.region, msgs=to_send)
         else:
             get_logger().debug(
@@ -423,6 +428,10 @@ class TimeoutMechanism:
     @staticmethod
     def is_activated():  # type: ignore[no-untyped-def]
         return Configuration.timeout_timer and signal.getsignal(signal.SIGALRM) != signal.SIG_DFL
+
+
+class DroppedSpansReasons(enum.Enum):
+    SPANS_SENT_SIZE_LIMIT = "SPANS_SENT_SIZE_LIMIT"
 
 
 def _get_envs_for_span(has_error: bool = False) -> str:

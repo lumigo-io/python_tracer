@@ -13,6 +13,10 @@ from typing import Any, Dict, List, Optional, Union
 
 from lumigo_core.configuration import CoreConfiguration
 
+from lumigo_tracer.lambda_tracer.spans_container import (
+    DROPPED_SPANS_REASONS_KEY,
+    DroppedSpansReasons,
+)
 from lumigo_tracer.lumigo_utils import (
     EDGE_HOST,
     Configuration,
@@ -248,6 +252,9 @@ def _get_prioritized_spans(
         spans_to_send_sizes = {}
         spans_to_send_dict = {}
 
+        # TODO: Write buffering value to global const variable, no magic numbers
+        buffered_max_size = request_max_size - 200
+
         # Take only spans metadata
         for index, span in enumerate(ordered_spans):
             spans_to_send_sizes[index] = 0
@@ -257,7 +264,7 @@ def _get_prioritized_spans(
             span_metadata_size = get_event_base64_size(span_metadata)
 
             if (
-                current_size + span_metadata_size < request_max_size
+                current_size + span_metadata_size < buffered_max_size
                 or span.get("type") == FUNCTION_TYPE
             ):
                 # We always want to at least send the function span
@@ -275,7 +282,7 @@ def _get_prioritized_spans(
             span_metadata_size = spans_to_send_sizes[index]
             span_size = get_event_base64_size(span)
 
-            if current_size + span_size - span_metadata_size < request_max_size:
+            if current_size + span_size - span_metadata_size < buffered_max_size:
                 spans_to_send_dict[index] = span
                 current_size += span_size - span_metadata_size
             else:
@@ -283,6 +290,43 @@ def _get_prioritized_spans(
                 too_big_spans += 1
                 if too_big_spans >= too_big_spans_threshold:
                     break
+
+        # If we dropped spans we need to update the enrichment spans dropped spans reasons
+        if len(spans_to_send_dict) != len(msgs):
+            enrichment_spans_indexes = [
+                index
+                for index, span in spans_to_send_dict.items()
+                if span.get("type") == ENRICHMENT_TYPE
+            ]
+            if not enrichment_spans_indexes or len(enrichment_spans_indexes) != 1:
+                # We should never get here, if we did it probably means a bug in the tracer code.
+                get_logger().warning(
+                    f"Got unsupported number of enrichment spans: {len(enrichment_spans_indexes)}"
+                )
+            else:
+                enrichment_spans_index = enrichment_spans_indexes[0]
+                enrichment_span_size_before = get_event_base64_size(msgs[enrichment_spans_index])
+                dropped_spans_reasons = (
+                    spans_to_send_dict[enrichment_spans_index][DROPPED_SPANS_REASONS_KEY] or {}
+                )
+                dropped_spans_reasons[DroppedSpansReasons.SPANS_SENT_SIZE_LIMIT.value] = {
+                    "drops": len(msgs) - len(spans_to_send_dict),
+                }
+                spans_to_send_dict[enrichment_spans_index][
+                    DROPPED_SPANS_REASONS_KEY
+                ] = dropped_spans_reasons
+                enrichment_span_size_after = get_event_base64_size(
+                    spans_to_send_dict[enrichment_spans_index]
+                )
+                size_increase = enrichment_span_size_after - enrichment_span_size_before
+                current_size += size_increase
+                if current_size > buffered_max_size:
+                    # TODO: Remove more spans based on the order until we are within the limit
+                    get_logger().warning(
+                        f"Enrichment span size increased by {size_increase} bytes, "
+                        f"making the total size too big: {current_size} bytes (max: {buffered_max_size} bytes)"
+                    )
+
     return list(spans_to_send_dict.values())
 
 
