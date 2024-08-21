@@ -124,7 +124,6 @@ class SpansContainer:
         self.span_ids_to_send: Set[str] = set()
         self.spans: Dict[str, Dict] = {}  # type: ignore[type-arg]
         self.manual_trace_start_times: Dict[str, int] = {}
-        self.total_spans = 2  # Enrichment span + function span
         if is_new_invocation:
             SpansContainer.is_cold = False
 
@@ -140,7 +139,8 @@ class SpansContainer:
             {
                 "sending_time": get_current_ms_time(),
                 EXECUTION_TAGS_KEY: self.execution_tags.copy(),
-                TOTAL_SPANS_KEY: self.total_spans,
+                TOTAL_SPANS_KEY: len(self.span_ids_to_send)
+                + 2,  # 1 function span + 1 enrichment span
             },
             self.base_enrichment_span,
         )
@@ -186,9 +186,6 @@ class SpansContainer:
         """
         new_span = recursive_json_join(span, self.base_msg)
         span_id = new_span["id"]
-        if span_id not in self.spans:
-            self.total_spans += 1
-            get_logger().debug(f"Adding span with id: {span_id}")
         self.spans[span_id] = new_span
         self.span_ids_to_send.add(span_id)
         return new_span  # type: ignore[no-any-return]
