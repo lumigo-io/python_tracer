@@ -48,6 +48,9 @@ MAX_SIZE_FOR_REQUEST_ON_ERROR: int = min(
     int(os.environ.get("LUMIGO_MAX_SIZE_FOR_REQUEST_ON_ERROR", 1024 * 990)), REQUEST_MAX_SIZE
 )
 MAX_NUMBER_OF_SPANS: int = int(os.environ.get("LUMIGO_MAX_NUMBER_OF_SPANS", 2000))
+
+# Size of spans sent that is kept for the enrichment span additional info added during sending
+SPANS_SEND_SIZE_ENRICHMENT_SPAN_BUFFER = 200
 TOO_BIG_SPANS_THRESHOLD = 5
 NUMBER_OF_SPANS_IN_REPORT_OPTIMIZATION = 200
 COOLDOWN_AFTER_TIMEOUT_DURATION = datetime.timedelta(seconds=10)
@@ -256,8 +259,7 @@ def _get_prioritized_spans(
         spans_to_send_sizes = {}
         spans_to_send_dict = {}
 
-        # TODO: Write buffering value to global const variable, no magic numbers
-        buffered_max_size = request_max_size - 200
+        buffered_max_size = request_max_size - SPANS_SEND_SIZE_ENRICHMENT_SPAN_BUFFER
 
         # Take only spans metadata
         for index, span in enumerate(ordered_spans):

@@ -111,7 +111,6 @@ class SpansContainer:
                 },
                 "isMalformedTransactionId": malformed_txid,
                 MANUAL_TRACES_KEY: [],
-                TOTAL_SPANS_KEY: 1,
             },
             self.base_msg,
         )
@@ -189,9 +188,9 @@ class SpansContainer:
         span_id = new_span["id"]
         if span_id not in self.spans:
             self.total_spans += 1
+            get_logger().debug(f"Adding span with id: {span_id}")
         self.spans[span_id] = new_span
         self.span_ids_to_send.add(span_id)
-        self.function_span[TOTAL_SPANS_KEY] = self.function_span.get(TOTAL_SPANS_KEY, 0) + 1
         return new_span  # type: ignore[no-any-return]
 
     def get_span_by_id(self, span_id: Optional[str]) -> Optional[dict]:  # type: ignore[type-arg]

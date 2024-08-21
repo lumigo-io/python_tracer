@@ -11,6 +11,7 @@ from unittest.mock import Mock
 import boto3
 import pytest
 from lumigo_core.configuration import CoreConfiguration
+from lumigo_core.scrubbing import EXECUTION_TAGS_KEY
 from mock import MagicMock
 
 from lumigo_tracer import lumigo_utils
@@ -18,9 +19,11 @@ from lumigo_tracer.lambda_tracer import lambda_reporter
 from lumigo_tracer.lambda_tracer.lambda_reporter import (
     CHINA_REGION,
     EDGE_PATH,
+    ENRICHMENT_TYPE,
     FUNCTION_TYPE,
     HTTP_TYPE,
     MONGO_SPAN,
+    SPANS_SEND_SIZE_ENRICHMENT_SPAN_BUFFER,
     _create_request_body,
     establish_connection,
     get_edge_host,
@@ -28,6 +31,7 @@ from lumigo_tracer.lambda_tracer.lambda_reporter import (
     get_extension_dir,
     report_json,
 )
+from lumigo_tracer.lambda_tracer.spans_container import TOTAL_SPANS_KEY
 from lumigo_tracer.lumigo_utils import Configuration, InternalState
 
 NOW = datetime.now()
@@ -40,6 +44,35 @@ FUNCTION_END_SPAN = {
     "envs": {"var_name": "very_long_env_var_value"},
 }
 FUNCTION_END_SPAN_METADATA = {"dummy_end": "dummy_end", "type": FUNCTION_TYPE, "isMetadata": True}
+ENRICHMENT_SPAN = {
+    "type": ENRICHMENT_TYPE,
+    "token": "token",
+    "invocation_id": "request_id",
+    "transaction_id": "transaction_id",
+    "sending_time": "",
+    EXECUTION_TAGS_KEY: [
+        {"key": "exec_tag1", "value": "value1"},
+        {"key": "exec_tag2", "value": "value2"},
+        {"key": "exec_tag3", "value": "value3"},
+        {"key": "exec_tag4", "value": "value4"},
+        {"key": "exec_tag5", "value": "value5"},
+        {"key": "exec_tag6", "value": "value6"},
+        {"key": "exec_tag7", "value": "value7"},
+        {"key": "exec_tag8", "value": "value8"},
+        {"key": "exec_tag9", "value": "value9"},
+        {"key": "exec_tag10", "value": "value10"},
+    ],
+    TOTAL_SPANS_KEY: 2,
+}
+ENRICHMENT_SPAN_METADATA = {
+    "type": ENRICHMENT_TYPE,
+    "token": "token",
+    "invocation_id": "request_id",
+    "transaction_id": "transaction_id",
+    "sending_time": "",
+    TOTAL_SPANS_KEY: 2,
+    "isMetadata": True,
+}
 HTTP_SPAN = {
     "transactionId": "transaction-id",
     "id": "8b32c4b4-e483-4741-9eef-b8f8f6c72f66",
@@ -287,7 +320,7 @@ def test_create_request_body_take_error_first():
         ERROR_HTTP_SPAN,
         FUNCTION_END_SPAN,
     ]
-    size = get_event_base64_size(expected_result)
+    size = get_event_base64_size(expected_result) + SPANS_SEND_SIZE_ENRICHMENT_SPAN_BUFFER
 
     result = _create_request_body(input_spans, True, max_size=size, max_error_size=size)
     assert result == json.dumps(expected_result)
@@ -316,9 +349,13 @@ def test_create_request_body_take_only_metadata_function_span(caplog):
 def test_create_request_body(
     test_case: str, wrapper_span: dict, wrapper_span_metadata: dict, caplog
 ) -> None:
-    expected_result = [FUNCTION_END_SPAN, wrapper_span_metadata]
-    input_spans = [wrapper_span, FUNCTION_END_SPAN]
-    size = get_event_base64_size(expected_result)
+    expected_result = [
+        FUNCTION_END_SPAN,
+        {**ENRICHMENT_SPAN_METADATA, "totalSpans": 3},
+        wrapper_span_metadata,
+    ]
+    input_spans = [wrapper_span, {**ENRICHMENT_SPAN, "totalSpans": 3}, FUNCTION_END_SPAN]
+    size = get_event_base64_size(expected_result) + SPANS_SEND_SIZE_ENRICHMENT_SPAN_BUFFER
 
     result = _create_request_body(input_spans, True, max_size=size, max_error_size=size)
 
@@ -329,7 +366,7 @@ def test_create_request_body(
 def test_with_many_spans():
     expected_result = [FUNCTION_END_SPAN] + [HTTP_SPAN] * 50 + [HTTP_SPAN_METADATA] * 50
     input_spans = [FUNCTION_END_SPAN] + [HTTP_SPAN] * 100
-    size = get_event_base64_size(expected_result)
+    size = get_event_base64_size(expected_result) + SPANS_SEND_SIZE_ENRICHMENT_SPAN_BUFFER
 
     result = _create_request_body(input_spans, True, max_size=size, max_error_size=size)
 
