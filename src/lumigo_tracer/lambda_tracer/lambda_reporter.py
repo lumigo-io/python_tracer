@@ -1,5 +1,6 @@
 import copy
 import datetime
+import gzip
 import http.client
 import os
 import random
@@ -46,6 +47,7 @@ MAX_SIZE_FOR_REQUEST_ON_ERROR: int = min(
     int(os.environ.get("LUMIGO_MAX_SIZE_FOR_REQUEST_ON_ERROR", 1024 * 990)), REQUEST_MAX_SIZE
 )
 MAX_NUMBER_OF_SPANS: int = int(os.environ.get("LUMIGO_MAX_NUMBER_OF_SPANS", 2000))
+LUMIGO_COMPRESSED_SPANS: bool = bool(os.environ.get("LUMIGO_COMPRESSED_SPANS", "false").lower() == "true")
 TOO_BIG_SPANS_THRESHOLD = 5
 NUMBER_OF_SPANS_IN_REPORT_OPTIMIZATION = 200
 COOLDOWN_AFTER_TIMEOUT_DURATION = datetime.timedelta(seconds=10)
@@ -305,25 +307,23 @@ def _create_request_body(
     """
     request_size_limit = max_error_size if any(map(is_span_has_error, msgs)) else max_size
 
-    if not prune_size_flag or (
-        len(msgs) < NUMBER_OF_SPANS_IN_REPORT_OPTIMIZATION
-        and get_event_base64_size(msgs) < request_size_limit  # noqa
-    ):
+    if not prune_size_flag:
         return aws_dump(msgs)[:request_size_limit]
 
-    current_size = 0
-    spans_to_send: List[dict] = []  # type: ignore[type-arg]
-    for index, span in enumerate(msgs):
-        span_size = get_event_base64_size(span)
-        if current_size + span_size > request_size_limit:
-            break
+    # Try to send all the spans without compression
+    raw_spans = aws_dump(msgs)
+    if len(raw_spans) < request_size_limit:
+        return raw_spans
 
-        spans_to_send.append(span)
-        current_size += span_size
+    # Try to send all the spans with compression
+    # if LUMIGO_COMPRESSED_SPANS:
+    compressed_spans = b64encode(gzip.compress(raw_spans.encode("utf-8"))).decode("utf-8")
+    if len(compressed_spans) < request_size_limit:
+        return compressed_spans
 
-    if len(spans_to_send) < len(msgs):
-        selected_spans = _get_prioritized_spans(msgs, request_size_limit, too_big_spans_threshold)
-        spans_to_send = sorted(selected_spans, key=get_span_priority)
+    # Send the spans by priority
+    selected_spans = _get_prioritized_spans(msgs, request_size_limit, too_big_spans_threshold)
+    spans_to_send = sorted(selected_spans, key=get_span_priority)
 
     return aws_dump(spans_to_send)[:request_size_limit]
 
