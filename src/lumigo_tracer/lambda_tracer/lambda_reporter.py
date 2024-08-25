@@ -349,7 +349,6 @@ def _update_enrichment_span_about_prioritized_spans(
         size_increase = enrichment_span_size_after - enrichment_span_size_before
         updated_size = current_size + size_increase
         if updated_size > max_size:
-            # TODO: Remove more spans based on the order until we are within the limit
             get_logger().warning(
                 f"Enrichment span size increased by {size_increase} bytes, "
                 f"making the total size too big: {current_size} bytes (max: {max_size} bytes)"
