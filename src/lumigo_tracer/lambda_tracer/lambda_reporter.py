@@ -344,7 +344,7 @@ def _update_enrichment_span_about_prioritized_spans(
         return list(spans_dict.values())
 
     dropped_spans_due_to_size_limit = len(msgs) - len(spans_dict)
-    if not dropped_spans_due_to_size_limit:
+    if dropped_spans_due_to_size_limit == 0:
         return list(spans_dict.values())
 
     # We have drops, we need to update the enrichment span about them
