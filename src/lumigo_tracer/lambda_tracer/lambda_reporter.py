@@ -338,7 +338,7 @@ def _update_enrichment_span_about_prioritized_spans(
         else:
             spans.append(span)
 
-    if not not enrichment_spans or len(enrichment_spans) > 1:
+    if not enrichment_spans or len(enrichment_spans) > 1:
         # We should never get here, if we did it probably means a bug in the tracer code.
         get_logger().warning(f"Got unsupported number of enrichment spans: {len(enrichment_spans)}")
         return list(spans_dict.values())
