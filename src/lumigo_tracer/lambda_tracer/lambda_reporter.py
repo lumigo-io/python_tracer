@@ -298,16 +298,15 @@ def _get_prioritized_spans(
                 if too_big_spans >= too_big_spans_threshold:
                     break
 
-            # If we dropped spans we need to update the enrichment spans dropped spans reasons
-            if len(spans_to_send_dict) != len(msgs):
-                with lumigo_safe_execute(
-                    "create_request_body: smart span selection: updating enrichment span"
-                ):
-                    final_spans_list = _update_enrichment_span_about_prioritized_spans(
-                        spans_to_send_dict, msgs, current_size, request_max_size
-                    )
-            else:
-                final_spans_list = list(spans_to_send_dict.values())
+        # If we dropped spans we need to update the enrichment spans dropped spans reasons
+        final_spans_list = list(spans_to_send_dict.values())
+        if len(spans_to_send_dict) != len(msgs):
+            with lumigo_safe_execute(
+                "create_request_body: smart span selection: updating enrichment span"
+            ):
+                final_spans_list = _update_enrichment_span_about_prioritized_spans(
+                    spans_to_send_dict, msgs, current_size, request_max_size
+                )
 
     return final_spans_list
 
