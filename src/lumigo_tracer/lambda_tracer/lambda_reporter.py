@@ -311,8 +311,11 @@ def _get_prioritized_spans(
 
 
 def _update_enrichment_span_about_prioritized_spans(
-    spans_dict: Dict[int, dict], msgs: List[dict], current_size: int, max_size: int
-) -> Dict[int, dict]:
+    spans_dict: Dict[int, Dict[str, Any]],
+    msgs: List[Dict[str, Any]],
+    current_size: int,
+    max_size: int,
+) -> Dict[int, Dict[str, Any]]:
     """
     Looks at the given spans about to be sent + the total number of messages,
     and updates the enrichment spans about any dropped spans
