@@ -25,6 +25,7 @@ from lumigo_tracer.lambda_tracer.lambda_reporter import (
     MONGO_SPAN,
     SPANS_SEND_SIZE_ENRICHMENT_SPAN_BUFFER,
     _create_request_body,
+    _update_enrichment_span_about_prioritized_spans,
     establish_connection,
     get_edge_host,
     get_event_base64_size,
@@ -527,3 +528,68 @@ def test_china_reuse_boto3_connection(monkeypatch):
     report_json(CHINA_REGION, [{"a": "b"}])
 
     boto3.client.assert_called_once()
+
+
+def test_update_enrichment_span_about_prioritized_spans_no_drops():
+    enrichment_span = {"type": ENRICHMENT_TYPE, "id": "enrich"}
+    span1 = {"type": HTTP_TYPE, "id": "1"}
+    span2 = {"type": HTTP_TYPE, "id": "2"}
+    spans_dict = {1: enrichment_span, 2: span1, 3: span2}
+    msgs = [enrichment_span, span1, span2]
+    current_size = sum([get_event_base64_size(s) for s in msgs])
+    max_size = current_size
+    result = _update_enrichment_span_about_prioritized_spans(
+        spans_dict, msgs, current_size, max_size
+    )
+    assert result == msgs
+
+
+def test_update_enrichment_span_about_prioritized_spans_with_drops():
+    enrichment_span = {"type": ENRICHMENT_TYPE, "id": "enrich"}
+    span1 = {"type": HTTP_TYPE, "id": "1"}
+    span2 = {"type": HTTP_TYPE, "id": "2"}
+    spans_dict = {
+        1: enrichment_span,
+        2: span1,
+        # Dropped span2
+    }
+    msgs = [enrichment_span, span1, span2]
+    current_size = sum([get_event_base64_size(s) for s in spans_dict.values()])
+    max_size = current_size * 100
+    result = _update_enrichment_span_about_prioritized_spans(
+        spans_dict, msgs, current_size, max_size
+    )
+    assert [s for s in result if s["type"] == HTTP_TYPE and s["id"] == "1"]
+    assert [s for s in result if s["type"] == HTTP_TYPE and s["id"] == "2"] == []
+    enrichment_spans = [s for s in result if s["type"] == ENRICHMENT_TYPE and s["id"] == "enrich"]
+    assert len(enrichment_spans) == 1
+    resulting_enrichment_span = enrichment_spans[0]
+    assert resulting_enrichment_span == {
+        "type": ENRICHMENT_TYPE,
+        "id": "enrich",
+        "droppedSpansReasons": {"SPANS_SENT_SIZE_LIMIT": {"drops": 1}},
+    }
+
+
+def test_update_enrichment_span_about_prioritized_spans_with_drops_no_size_left_for_dropped_report():
+    enrichment_span = {"type": ENRICHMENT_TYPE, "id": "enrich"}
+    span1 = {"type": HTTP_TYPE, "id": "1"}
+    span2 = {"type": HTTP_TYPE, "id": "2"}
+    spans_dict = {
+        1: enrichment_span,
+        2: span1,
+        # Dropped span2
+    }
+    msgs = [enrichment_span, span1, span2]
+    current_size = sum([get_event_base64_size(s) for s in spans_dict.values()])
+    max_size = current_size
+    result = _update_enrichment_span_about_prioritized_spans(
+        spans_dict, msgs, current_size, max_size
+    )
+    assert [s for s in result if s["type"] == HTTP_TYPE and s["id"] == "1"]
+    assert [s for s in result if s["type"] == HTTP_TYPE and s["id"] == "2"] == []
+    enrichment_spans = [s for s in result if s["type"] == ENRICHMENT_TYPE and s["id"] == "enrich"]
+    assert len(enrichment_spans) == 1
+    resulting_enrichment_span = enrichment_spans[0]
+    assert resulting_enrichment_span == {"type": ENRICHMENT_TYPE, "id": "enrich"}
+    assert sum([get_event_base64_size(s) for s in result]) <= max_size
