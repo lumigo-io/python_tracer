@@ -1,5 +1,6 @@
 import copy
 import datetime
+import enum
 import http.client
 import os
 import random
@@ -12,6 +13,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
 from lumigo_core.configuration import CoreConfiguration
+from lumigo_core.scrubbing import EXECUTION_TAGS_KEY
 
 from lumigo_tracer.lumigo_utils import (
     EDGE_HOST,
@@ -46,6 +48,10 @@ MAX_SIZE_FOR_REQUEST_ON_ERROR: int = min(
     int(os.environ.get("LUMIGO_MAX_SIZE_FOR_REQUEST_ON_ERROR", 1024 * 990)), REQUEST_MAX_SIZE
 )
 MAX_NUMBER_OF_SPANS: int = int(os.environ.get("LUMIGO_MAX_NUMBER_OF_SPANS", 2000))
+
+# Size of spans sent that is kept for the enrichment span additional info added during sending.
+# Static value is enough for the amount of data we add.
+SPANS_SEND_SIZE_ENRICHMENT_SPAN_BUFFER = 200
 TOO_BIG_SPANS_THRESHOLD = 5
 NUMBER_OF_SPANS_IN_REPORT_OPTIMIZATION = 200
 COOLDOWN_AFTER_TIMEOUT_DURATION = datetime.timedelta(seconds=10)
@@ -57,10 +63,15 @@ HTTP_TYPE = "http"
 MONGO_SPAN = "mongoDb"
 REDIS_SPAN = "redis"
 SQL_SPAN = "mySql"
+DROPPED_SPANS_REASONS_KEY = "droppedSpansReasons"
 
 
 edge_kinesis_boto_client = None
 edge_connection = None
+
+
+class DroppedSpansReasons(enum.Enum):
+    SPANS_SENT_SIZE_LIMIT = "SPANS_SENT_SIZE_LIMIT"
 
 
 def establish_connection_global() -> None:
@@ -202,7 +213,8 @@ def get_span_metadata(span: Dict[Any, Any]) -> Dict[Any, Any]:
             span_copy.pop("envs", None)
             return span_copy
         if span_type == ENRICHMENT_TYPE:
-            return {}
+            span_copy.pop(EXECUTION_TAGS_KEY, None)
+            return span_copy
         if span_type == HTTP_TYPE:
             span_copy.get("info", {}).get("httpInfo", {}).get("request", {}).pop("headers", None)
             span_copy.get("info", {}).get("httpInfo", {}).get("request", {}).pop("body", None)
@@ -248,6 +260,8 @@ def _get_prioritized_spans(
         spans_to_send_sizes = {}
         spans_to_send_dict = {}
 
+        buffered_max_size = request_max_size - SPANS_SEND_SIZE_ENRICHMENT_SPAN_BUFFER
+
         # Take only spans metadata
         for index, span in enumerate(ordered_spans):
             spans_to_send_sizes[index] = 0
@@ -257,7 +271,7 @@ def _get_prioritized_spans(
             span_metadata_size = get_event_base64_size(span_metadata)
 
             if (
-                current_size + span_metadata_size < request_max_size
+                current_size + span_metadata_size < buffered_max_size
                 or span.get("type") == FUNCTION_TYPE
             ):
                 # We always want to at least send the function span
@@ -275,7 +289,7 @@ def _get_prioritized_spans(
             span_metadata_size = spans_to_send_sizes[index]
             span_size = get_event_base64_size(span)
 
-            if current_size + span_size - span_metadata_size < request_max_size:
+            if current_size + span_size - span_metadata_size < buffered_max_size:
                 spans_to_send_dict[index] = span
                 current_size += span_size - span_metadata_size
             else:
@@ -283,7 +297,76 @@ def _get_prioritized_spans(
                 too_big_spans += 1
                 if too_big_spans >= too_big_spans_threshold:
                     break
-    return list(spans_to_send_dict.values())
+
+        # If we dropped spans we need to update the enrichment spans dropped spans reasons
+        final_spans_list = list(spans_to_send_dict.values())
+        if len(spans_to_send_dict) != len(msgs):
+            with lumigo_safe_execute(
+                "create_request_body: smart span selection: updating enrichment span"
+            ):
+                final_spans_list = _update_enrichment_span_about_prioritized_spans(
+                    spans_to_send_dict, msgs, current_size, request_max_size
+                )
+
+    return final_spans_list
+
+
+def _update_enrichment_span_about_prioritized_spans(
+    spans_dict: Dict[int, Dict[str, Any]],
+    msgs: List[Dict[str, Any]],
+    current_size: int,
+    max_size: int,
+) -> List[Dict[str, Any]]:
+    """
+    Looks at the given spans about to be sent + the total number of messages,
+    and updates the enrichment spans about any dropped spans
+    @param spans_dict: The mapping of spans about to be sent
+    @param msgs: The complete list of spans created
+    @param current_size: The current size of all the spans in spans_dict
+    @param max_size: The maximum size of all spans together
+    @return: An updated list of spans, including the updated enrichment span
+    """
+    # Split spans into enrichment span and all other spans
+    enrichment_spans = []
+    spans = []
+    spans_size = current_size
+    for span in spans_dict.values():
+        if span.get("type") == ENRICHMENT_TYPE:
+            enrichment_spans.append(span)
+            current_span_size = get_event_base64_size(span)
+            spans_size -= current_span_size
+        else:
+            spans.append(span)
+
+    if not enrichment_spans or len(enrichment_spans) > 1:
+        # We should never get here, if we did it probably means a bug in the tracer code.
+        get_logger().warning(f"Got unsupported number of enrichment spans: {len(enrichment_spans)}")
+        return list(spans_dict.values())
+
+    dropped_spans_due_to_size_limit = len(msgs) - len(spans_dict)
+    if dropped_spans_due_to_size_limit == 0:
+        return list(spans_dict.values())
+
+    # We have drops, we need to update the enrichment span about them
+    enrichment_span = dict(enrichment_spans[0])
+    dropped_spans_reasons = {
+        **enrichment_span.get(DROPPED_SPANS_REASONS_KEY, {}),
+        DroppedSpansReasons.SPANS_SENT_SIZE_LIMIT.value: {
+            "drops": dropped_spans_due_to_size_limit,
+        },
+    }
+    enrichment_span[DROPPED_SPANS_REASONS_KEY] = dropped_spans_reasons
+
+    # Check if the enrichment span size increased too much
+    enrichment_span_size = get_event_base64_size(enrichment_span)
+    if enrichment_span_size + spans_size > max_size:
+        get_logger().warning(
+            f"Enrichment span size increased (enrichment span size {enrichment_span_size} bytes), "
+            f"making the total size too big: {spans_size + enrichment_span_size} bytes (max: {max_size} bytes)"
+        )
+        return list(spans_dict.values())
+
+    return spans + [enrichment_span]
 
 
 def _create_request_body(

@@ -111,7 +111,6 @@ class SpansContainer:
                 },
                 "isMalformedTransactionId": malformed_txid,
                 MANUAL_TRACES_KEY: [],
-                TOTAL_SPANS_KEY: 1,
             },
             self.base_msg,
         )
@@ -135,11 +134,14 @@ class SpansContainer:
         to_send["maxFinishTime"] = self.max_finish_time
         return to_send  # type: ignore[no-any-return]
 
-    def generate_enrichment_span(self) -> Optional[Dict[str, Union[str, int]]]:
-        if not self.execution_tags:
-            return None
+    def generate_enrichment_span(self) -> Dict[str, Union[str, int]]:
         return recursive_json_join(  # type: ignore[no-any-return]
-            {"sending_time": get_current_ms_time(), EXECUTION_TAGS_KEY: self.execution_tags.copy()},
+            {
+                "sending_time": get_current_ms_time(),
+                EXECUTION_TAGS_KEY: self.execution_tags.copy(),
+                TOTAL_SPANS_KEY: len(self.span_ids_to_send)
+                + 2,  # 1 function span + 1 enrichment span
+            },
             self.base_enrichment_span,
         )
 
@@ -158,10 +160,9 @@ class SpansContainer:
         with lumigo_safe_execute("spans container: handle_timeout"):
             get_logger().info("The tracer reached the end of the timeout timer")
             spans_id_copy = self.span_ids_to_send.copy()
-            to_send = [self.spans[span_id] for span_id in spans_id_copy]
-            enrichment_span = self.generate_enrichment_span()
-            if enrichment_span:
-                to_send.insert(0, enrichment_span)
+            to_send = [self.generate_enrichment_span()] + [
+                self.spans[span_id] for span_id in spans_id_copy
+            ]
             self.span_ids_to_send.clear()
             if Configuration.send_only_if_error:
                 to_send.append(self._generate_start_span())
@@ -187,7 +188,6 @@ class SpansContainer:
         span_id = new_span["id"]
         self.spans[span_id] = new_span
         self.span_ids_to_send.add(span_id)
-        self.function_span[TOTAL_SPANS_KEY] = self.function_span.get(TOTAL_SPANS_KEY, 0) + 1
         return new_span  # type: ignore[no-any-return]
 
     def get_span_by_id(self, span_id: Optional[str]) -> Optional[dict]:  # type: ignore[type-arg]
@@ -322,12 +322,11 @@ class SpansContainer:
         ) or is_span_has_error(self.function_span)
 
         if (not Configuration.send_only_if_error) or spans_contain_errors:
-            to_send = [self.function_span] + [
-                span for span_id, span in self.spans.items() if span_id in self.span_ids_to_send
-            ]
-            enrichment_span = self.generate_enrichment_span()
-            if enrichment_span:
-                to_send.append(enrichment_span)
+            to_send = (
+                [self.function_span]
+                + [self.generate_enrichment_span()]
+                + [span for span_id, span in self.spans.items() if span_id in self.span_ids_to_send]
+            )
             reported_rtt = lambda_reporter.report_json(region=self.region, msgs=to_send)
         else:
             get_logger().debug(

@@ -11,6 +11,7 @@ from unittest.mock import Mock
 import boto3
 import pytest
 from lumigo_core.configuration import CoreConfiguration
+from lumigo_core.scrubbing import EXECUTION_TAGS_KEY
 from mock import MagicMock
 
 from lumigo_tracer import lumigo_utils
@@ -18,16 +19,20 @@ from lumigo_tracer.lambda_tracer import lambda_reporter
 from lumigo_tracer.lambda_tracer.lambda_reporter import (
     CHINA_REGION,
     EDGE_PATH,
+    ENRICHMENT_TYPE,
     FUNCTION_TYPE,
     HTTP_TYPE,
     MONGO_SPAN,
+    SPANS_SEND_SIZE_ENRICHMENT_SPAN_BUFFER,
     _create_request_body,
+    _update_enrichment_span_about_prioritized_spans,
     establish_connection,
     get_edge_host,
     get_event_base64_size,
     get_extension_dir,
     report_json,
 )
+from lumigo_tracer.lambda_tracer.spans_container import TOTAL_SPANS_KEY
 from lumigo_tracer.lumigo_utils import Configuration, InternalState
 
 NOW = datetime.now()
@@ -40,6 +45,35 @@ FUNCTION_END_SPAN = {
     "envs": {"var_name": "very_long_env_var_value"},
 }
 FUNCTION_END_SPAN_METADATA = {"dummy_end": "dummy_end", "type": FUNCTION_TYPE, "isMetadata": True}
+ENRICHMENT_SPAN = {
+    "type": ENRICHMENT_TYPE,
+    "token": "token",
+    "invocation_id": "request_id",
+    "transaction_id": "transaction_id",
+    "sending_time": "",
+    EXECUTION_TAGS_KEY: [
+        {"key": "exec_tag1", "value": "value1"},
+        {"key": "exec_tag2", "value": "value2"},
+        {"key": "exec_tag3", "value": "value3"},
+        {"key": "exec_tag4", "value": "value4"},
+        {"key": "exec_tag5", "value": "value5"},
+        {"key": "exec_tag6", "value": "value6"},
+        {"key": "exec_tag7", "value": "value7"},
+        {"key": "exec_tag8", "value": "value8"},
+        {"key": "exec_tag9", "value": "value9"},
+        {"key": "exec_tag10", "value": "value10"},
+    ],
+    TOTAL_SPANS_KEY: 2,
+}
+ENRICHMENT_SPAN_METADATA = {
+    "type": ENRICHMENT_TYPE,
+    "token": "token",
+    "invocation_id": "request_id",
+    "transaction_id": "transaction_id",
+    "sending_time": "",
+    TOTAL_SPANS_KEY: 2,
+    "isMetadata": True,
+}
 HTTP_SPAN = {
     "transactionId": "transaction-id",
     "id": "8b32c4b4-e483-4741-9eef-b8f8f6c72f66",
@@ -287,7 +321,7 @@ def test_create_request_body_take_error_first():
         ERROR_HTTP_SPAN,
         FUNCTION_END_SPAN,
     ]
-    size = get_event_base64_size(expected_result)
+    size = get_event_base64_size(expected_result) + SPANS_SEND_SIZE_ENRICHMENT_SPAN_BUFFER
 
     result = _create_request_body(input_spans, True, max_size=size, max_error_size=size)
     assert result == json.dumps(expected_result)
@@ -316,9 +350,13 @@ def test_create_request_body_take_only_metadata_function_span(caplog):
 def test_create_request_body(
     test_case: str, wrapper_span: dict, wrapper_span_metadata: dict, caplog
 ) -> None:
-    expected_result = [FUNCTION_END_SPAN, wrapper_span_metadata]
-    input_spans = [wrapper_span, FUNCTION_END_SPAN]
-    size = get_event_base64_size(expected_result)
+    expected_result = [
+        FUNCTION_END_SPAN,
+        {**ENRICHMENT_SPAN_METADATA, "totalSpans": 3},
+        wrapper_span_metadata,
+    ]
+    input_spans = [wrapper_span, {**ENRICHMENT_SPAN, "totalSpans": 3}, FUNCTION_END_SPAN]
+    size = get_event_base64_size(expected_result) + SPANS_SEND_SIZE_ENRICHMENT_SPAN_BUFFER
 
     result = _create_request_body(input_spans, True, max_size=size, max_error_size=size)
 
@@ -329,7 +367,7 @@ def test_create_request_body(
 def test_with_many_spans():
     expected_result = [FUNCTION_END_SPAN] + [HTTP_SPAN] * 50 + [HTTP_SPAN_METADATA] * 50
     input_spans = [FUNCTION_END_SPAN] + [HTTP_SPAN] * 100
-    size = get_event_base64_size(expected_result)
+    size = get_event_base64_size(expected_result) + SPANS_SEND_SIZE_ENRICHMENT_SPAN_BUFFER
 
     result = _create_request_body(input_spans, True, max_size=size, max_error_size=size)
 
@@ -490,3 +528,68 @@ def test_china_reuse_boto3_connection(monkeypatch):
     report_json(CHINA_REGION, [{"a": "b"}])
 
     boto3.client.assert_called_once()
+
+
+def test_update_enrichment_span_about_prioritized_spans_no_drops():
+    enrichment_span = {"type": ENRICHMENT_TYPE, "id": "enrich"}
+    span1 = {"type": HTTP_TYPE, "id": "1"}
+    span2 = {"type": HTTP_TYPE, "id": "2"}
+    spans_dict = {1: enrichment_span, 2: span1, 3: span2}
+    msgs = [enrichment_span, span1, span2]
+    current_size = sum([get_event_base64_size(s) for s in msgs])
+    max_size = current_size
+    result = _update_enrichment_span_about_prioritized_spans(
+        spans_dict, msgs, current_size, max_size
+    )
+    assert result == msgs
+
+
+def test_update_enrichment_span_about_prioritized_spans_with_drops():
+    enrichment_span = {"type": ENRICHMENT_TYPE, "id": "enrich"}
+    span1 = {"type": HTTP_TYPE, "id": "1"}
+    span2 = {"type": HTTP_TYPE, "id": "2"}
+    spans_dict = {
+        1: enrichment_span,
+        2: span1,
+        # Dropped span2
+    }
+    msgs = [enrichment_span, span1, span2]
+    current_size = sum([get_event_base64_size(s) for s in spans_dict.values()])
+    max_size = current_size * 100
+    result = _update_enrichment_span_about_prioritized_spans(
+        spans_dict, msgs, current_size, max_size
+    )
+    assert [s for s in result if s["type"] == HTTP_TYPE and s["id"] == "1"]
+    assert [s for s in result if s["type"] == HTTP_TYPE and s["id"] == "2"] == []
+    enrichment_spans = [s for s in result if s["type"] == ENRICHMENT_TYPE and s["id"] == "enrich"]
+    assert len(enrichment_spans) == 1
+    resulting_enrichment_span = enrichment_spans[0]
+    assert resulting_enrichment_span == {
+        "type": ENRICHMENT_TYPE,
+        "id": "enrich",
+        "droppedSpansReasons": {"SPANS_SENT_SIZE_LIMIT": {"drops": 1}},
+    }
+
+
+def test_update_enrichment_span_about_prioritized_spans_with_drops_no_size_left_for_dropped_report():
+    enrichment_span = {"type": ENRICHMENT_TYPE, "id": "enrich"}
+    span1 = {"type": HTTP_TYPE, "id": "1"}
+    span2 = {"type": HTTP_TYPE, "id": "2"}
+    spans_dict = {
+        1: enrichment_span,
+        2: span1,
+        # Dropped span2
+    }
+    msgs = [enrichment_span, span1, span2]
+    current_size = sum([get_event_base64_size(s) for s in spans_dict.values()])
+    max_size = current_size
+    result = _update_enrichment_span_about_prioritized_spans(
+        spans_dict, msgs, current_size, max_size
+    )
+    assert [s for s in result if s["type"] == HTTP_TYPE and s["id"] == "1"]
+    assert [s for s in result if s["type"] == HTTP_TYPE and s["id"] == "2"] == []
+    enrichment_spans = [s for s in result if s["type"] == ENRICHMENT_TYPE and s["id"] == "enrich"]
+    assert len(enrichment_spans) == 1
+    resulting_enrichment_span = enrichment_spans[0]
+    assert resulting_enrichment_span == {"type": ENRICHMENT_TYPE, "id": "enrich"}
+    assert sum([get_event_base64_size(s) for s in result]) <= max_size
