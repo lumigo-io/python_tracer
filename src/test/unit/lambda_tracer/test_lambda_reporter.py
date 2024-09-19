@@ -297,15 +297,19 @@ SQL_SPAN_METADATA = {
 }
 
 
-def test_create_request_body_default():
-    assert _create_request_body([DUMMY_SPAN], False, False) == json.dumps([DUMMY_SPAN])
+@pytest.mark.parametrize("should_try_zip", [True, False])
+def test_create_request_body_default(should_try_zip):
+    assert _create_request_body([DUMMY_SPAN], False, should_try_zip) == json.dumps([DUMMY_SPAN])
 
 
-def test_create_request_body_not_effecting_small_events():
-    assert _create_request_body([DUMMY_SPAN], True, False, 1_000_000) == json.dumps([DUMMY_SPAN])
+@pytest.mark.parametrize("should_try_zip", [True, False])
+def test_create_request_body_not_effecting_small_events(should_try_zip):
+    assert _create_request_body([DUMMY_SPAN], True, should_try_zip, 1_000_000) == json.dumps(
+        [DUMMY_SPAN]
+    )
 
 
-def test_create_request_body_keep_function_span_and_filter_other_spans():
+def test_create_request_body_keep_function_span_and_filter_other_spans(unzip_zipped_spans):
     input_spans = [DUMMY_SPAN, DUMMY_SPAN, DUMMY_SPAN, FUNCTION_END_SPAN, FUNCTION_END_SPAN]
     expected_result = [FUNCTION_END_SPAN_METADATA, FUNCTION_END_SPAN_METADATA]
     size = get_event_base64_size(expected_result)
@@ -314,8 +318,15 @@ def test_create_request_body_keep_function_span_and_filter_other_spans():
 
     assert result == json.dumps(expected_result)
 
+    # With Zipping enabled, we are able to consume all spans
+    result = _create_request_body(input_spans, True, True, size)
+    assert isinstance(result, list)
+    assert len(result) > 0
+    # unzip the result
+    assert unzip_zipped_spans(result[0]) == json.dumps(input_spans)
 
-def test_create_request_body_take_error_first():
+
+def test_create_request_body_take_error_first(unzip_zipped_spans):
     expected_result = [FUNCTION_END_SPAN_METADATA, ERROR_HTTP_SPAN_METADATA]
     input_spans = [
         DUMMY_SPAN,
@@ -328,6 +339,14 @@ def test_create_request_body_take_error_first():
 
     result = _create_request_body(input_spans, True, False, max_size=size, max_error_size=size)
     assert result == json.dumps(expected_result)
+
+    # With Zipping enabled, we are able to consume all spans
+    result = _create_request_body(input_spans, True, True, max_size=size, max_error_size=size)
+    print(result)
+    assert isinstance(result, list)
+    assert len(result) > 0
+    # unzip the result
+    assert unzip_zipped_spans(result[0]) == json.dumps(input_spans)
 
 
 def test_create_request_body_take_only_metadata_function_span(caplog):
@@ -374,6 +393,7 @@ def test_with_many_spans():
 
     # Without zipping
     result = _create_request_body(input_spans, True, False, max_size=size, max_error_size=size)
+    print(result)
 
     assert result == json.dumps(expected_result)
 
@@ -387,6 +407,14 @@ def test_with_many_spans():
     assert len(result_with_zip) > 0
     # assert zip result is smaller than the original result
     assert len(result_with_zip[0]) < len(result)
+
+    # because size is small, zipping does not help
+    result_with_zip = _create_request_body(
+        input_spans, True, True, max_size=size // 100, max_error_size=size // 100
+    )
+    print(result_with_zip)
+    assert isinstance(result_with_zip, str)
+    assert len(result_with_zip) <= size // 100
 
 
 @pytest.mark.parametrize(
@@ -630,3 +658,11 @@ def test_split_and_zip_spans_successfully():
 
     # Check that unzipped spans match the original spans
     assert unzipped_spans == spans
+
+    # Create spans list with size MAX_SPANS_BULK_SIZE / 3
+    spans = [{} for _ in range(MAX_SPANS_BULK_SIZE // 3)]
+
+    # Call split_and_zip_spans
+    zipped_spans_bulks = _split_and_zip_spans(spans)
+
+    assert len(zipped_spans_bulks) == 1

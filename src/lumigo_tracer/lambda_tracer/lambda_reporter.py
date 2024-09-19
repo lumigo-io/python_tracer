@@ -125,7 +125,6 @@ def get_edge_host(region: Optional[str] = None) -> str:
 def report_json(
     region: Optional[str],
     msgs: List[Dict[Any, Any]],
-    should_retry: bool = True,
     is_start_span: bool = False,
 ) -> int:
     """
@@ -133,7 +132,6 @@ def report_json(
 
     :param region: The region to use as default if not configured otherwise.
     :param msgs: the message to send.
-    :param should_retry: False to disable the default retry on unsuccessful sending
     :param is_start_span: a flag to indicate if this is the start_span
      of spans that will be written
     :return: The duration of reporting (in milliseconds),
