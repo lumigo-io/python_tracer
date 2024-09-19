@@ -1,3 +1,4 @@
+import gzip
 import http.client
 import importlib.util
 import json
@@ -5,6 +6,7 @@ import logging
 import os
 import socket
 import uuid
+from base64 import b64decode
 from datetime import datetime, timedelta
 from unittest.mock import Mock
 
@@ -25,6 +27,7 @@ from lumigo_tracer.lambda_tracer.lambda_reporter import (
     MONGO_SPAN,
     SPANS_SEND_SIZE_ENRICHMENT_SPAN_BUFFER,
     _create_request_body,
+    _split_and_zip_spans,
     _update_enrichment_span_about_prioritized_spans,
     establish_connection,
     get_edge_host,
@@ -295,11 +298,11 @@ SQL_SPAN_METADATA = {
 
 
 def test_create_request_body_default():
-    assert _create_request_body([DUMMY_SPAN], False) == json.dumps([DUMMY_SPAN])
+    assert _create_request_body([DUMMY_SPAN], False, False) == json.dumps([DUMMY_SPAN])
 
 
 def test_create_request_body_not_effecting_small_events():
-    assert _create_request_body([DUMMY_SPAN], True, 1_000_000) == json.dumps([DUMMY_SPAN])
+    assert _create_request_body([DUMMY_SPAN], True, False, 1_000_000) == json.dumps([DUMMY_SPAN])
 
 
 def test_create_request_body_keep_function_span_and_filter_other_spans():
@@ -307,7 +310,7 @@ def test_create_request_body_keep_function_span_and_filter_other_spans():
     expected_result = [FUNCTION_END_SPAN_METADATA, FUNCTION_END_SPAN_METADATA]
     size = get_event_base64_size(expected_result)
 
-    result = _create_request_body(input_spans, True, size)
+    result = _create_request_body(input_spans, True, False, size)
 
     assert result == json.dumps(expected_result)
 
@@ -323,7 +326,7 @@ def test_create_request_body_take_error_first():
     ]
     size = get_event_base64_size(expected_result) + SPANS_SEND_SIZE_ENRICHMENT_SPAN_BUFFER
 
-    result = _create_request_body(input_spans, True, max_size=size, max_error_size=size)
+    result = _create_request_body(input_spans, True, False, max_size=size, max_error_size=size)
     assert result == json.dumps(expected_result)
 
 
@@ -332,7 +335,7 @@ def test_create_request_body_take_only_metadata_function_span(caplog):
     input_spans = [FUNCTION_END_SPAN]
     size = get_event_base64_size(expected_result)
 
-    result = _create_request_body(input_spans, True, max_size=size, max_error_size=size)
+    result = _create_request_body(input_spans, True, False, max_size=size, max_error_size=size)
 
     assert caplog.records[0].message == "Starting smart span selection"
     assert result == json.dumps(expected_result)
@@ -358,7 +361,7 @@ def test_create_request_body(
     input_spans = [wrapper_span, {**ENRICHMENT_SPAN, "totalSpans": 3}, FUNCTION_END_SPAN]
     size = get_event_base64_size(expected_result) + SPANS_SEND_SIZE_ENRICHMENT_SPAN_BUFFER
 
-    result = _create_request_body(input_spans, True, max_size=size, max_error_size=size)
+    result = _create_request_body(input_spans, True, False, max_size=size, max_error_size=size)
 
     assert caplog.records[0].message == "Starting smart span selection"
     assert result == json.dumps(expected_result)
@@ -369,9 +372,21 @@ def test_with_many_spans():
     input_spans = [FUNCTION_END_SPAN] + [HTTP_SPAN] * 100
     size = get_event_base64_size(expected_result) + SPANS_SEND_SIZE_ENRICHMENT_SPAN_BUFFER
 
-    result = _create_request_body(input_spans, True, max_size=size, max_error_size=size)
+    # Without zipping
+    result = _create_request_body(input_spans, True, False, max_size=size, max_error_size=size)
 
     assert result == json.dumps(expected_result)
+
+    # With zipping
+    result_with_zip = _create_request_body(
+        input_spans, True, True, max_size=size, max_error_size=size
+    )
+    # assert zip result is an array
+    assert isinstance(result_with_zip, list)
+    # assert zip result is not empty
+    assert len(result_with_zip) > 0
+    # assert zip result is smaller than the original result
+    assert len(result_with_zip[0]) < len(result)
 
 
 @pytest.mark.parametrize(
@@ -434,7 +449,7 @@ def test_report_json_fast_failure_after_timeout(monkeypatch, reporter_mock, capl
     monkeypatch.setattr(http.client, "HTTPSConnection", Mock())
     http.client.HTTPSConnection("force_reconnect").getresponse.side_effect = socket.timeout
 
-    assert report_json(None, [{"a": "b"}]) == 0
+    assert report_json(None, [{"a": "b"}]) >= 0  # some duration is expected
     assert caplog.records[-1].msg == "Timeout while connecting to host"
 
     assert report_json(None, [{"a": "b"}]) == 0
@@ -593,3 +608,25 @@ def test_update_enrichment_span_about_prioritized_spans_with_drops_no_size_left_
     resulting_enrichment_span = enrichment_spans[0]
     assert resulting_enrichment_span == {"type": ENRICHMENT_TYPE, "id": "enrich"}
     assert sum([get_event_base64_size(s) for s in result]) <= max_size
+
+
+def test_split_and_zip_spans_successfully():
+    MAX_SPANS_BULK_SIZE = 200
+    # Create spans list with size 2 * MAX_SPANS_BULK_SIZE
+    spans = [{} for _ in range(MAX_SPANS_BULK_SIZE * 2)]
+
+    # Call split_and_zip_spans
+    zipped_spans_bulks = _split_and_zip_spans(spans)
+
+    # Test that it splits into the correct number of bulks
+    assert len(zipped_spans_bulks) == (MAX_SPANS_BULK_SIZE * 2) // MAX_SPANS_BULK_SIZE
+
+    # Test unzipping and verify that it equals the original spans
+    unzipped_spans = []
+    for zipped_span in zipped_spans_bulks:
+        # Decode base64 and unzip
+        unzipped = gzip.decompress(b64decode(zipped_span)).decode("utf-8")
+        unzipped_spans.extend(json.loads(unzipped))
+
+    # Check that unzipped spans match the original spans
+    assert unzipped_spans == spans

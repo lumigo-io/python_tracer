@@ -128,7 +128,7 @@ def test_lambda_wrapper_exception(exc, context):
     assert "reporter_rtt" in function_span
     assert "maxFinishTime" not in function_span
     # Test that we can create an output message out of this span
-    assert _create_request_body([function_span], prune_size_flag=False)
+    assert _create_request_body([function_span], prune_size_flag=False, should_try_zip=False)
 
 
 def test_lambda_wrapper_return_decimal(context):
@@ -405,7 +405,7 @@ def test_omitting_keys(wrap_all_libraries, context):
     assert span.function_span["return_value"] == '{"secret_password": "****"}'
     assert span.function_span["event"] == '{"key": "****"}'
     http_spans = list(SpansContainer.get_span().spans.values())
-    spans = json.loads(_create_request_body(http_spans, True))
+    spans = json.loads(_create_request_body(http_spans, True, False))
     assert spans[0]["info"]["httpInfo"]["request"]["body"] == json.dumps(
         {"a": "b", "myPassword": "****"}
     )

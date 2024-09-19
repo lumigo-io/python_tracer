@@ -1,10 +1,13 @@
+import concurrent.futures
 import copy
 import datetime
 import enum
+import gzip
 import http.client
 import os
 import random
 import socket
+import threading
 import time
 import uuid
 from base64 import b64encode
@@ -65,6 +68,7 @@ REDIS_SPAN = "redis"
 SQL_SPAN = "mySql"
 DROPPED_SPANS_REASONS_KEY = "droppedSpansReasons"
 
+MAX_SPANS_BULK_SIZE = 200
 
 edge_kinesis_boto_client = None
 edge_connection = None
@@ -143,7 +147,8 @@ def report_json(
     get_logger().info(f"reporting the messages: {msgs[:10]}")
     try:
         prune_trace: bool = not os.environ.get("LUMIGO_PRUNE_TRACE_OFF", "").lower() == "true"
-        to_send = _create_request_body(msgs, prune_trace).encode()
+        should_try_zip: bool = _should_try_zip()
+        to_send: str | List[str] = _create_request_body(msgs, prune_trace, should_try_zip)
     except Exception as e:
         get_logger().exception("Failed to create request: A span was lost.", exc_info=e)
         return 0
@@ -151,8 +156,8 @@ def report_json(
         with lumigo_safe_execute("report json file: writing spans to file"):
             write_spans_to_files(spans=msgs, is_start_span=is_start_span)
         return 0
-    if region == CHINA_REGION:
-        return _publish_spans_to_kinesis(to_send, CHINA_REGION)
+    if region == CHINA_REGION and isinstance(to_send, str):
+        return _publish_spans_to_kinesis(to_send.encode(), CHINA_REGION)
     host = None
     global edge_connection
     with lumigo_safe_execute("report json: establish connection"):
@@ -163,33 +168,61 @@ def report_json(
             if not edge_connection:
                 get_logger().warning("Can not establish connection. Skip sending span.")
                 return duration
+
+    lock = threading.Lock()
+
+    def send_single_span(data: str, retry: bool = True) -> None:
+        """
+        Helper function to send a single span request and handle retries,
+        including re-establishing connection if necessary.
+        """
+        global edge_connection
+        if edge_connection is None:
+            raise ValueError("Connection is not established")
+
+        try:
+            edge_connection.request(
+                "POST",
+                EDGE_PATH,
+                data,
+                headers={
+                    "Content-Type": "application/json",
+                    "Authorization": Configuration.token or "",
+                },
+            )
+            response = edge_connection.getresponse()
+            response.read()  # We must read the response to keep the connection available
+            get_logger().info(f"Successful reporting, code: {getattr(response, 'code', 'unknown')}")
+        except socket.timeout:
+            get_logger().exception(f"Timeout while connecting to {host}")
+            InternalState.mark_timeout_to_edge()
+            internal_analytics_message("report: socket.timeout")
+        except Exception as e:
+            if retry:
+                get_logger().info(f"Could not report to {host}: ({str(e)}). Retrying.")
+                # time.sleep(1)  # TODO Introduce a backoff delay before retrying
+                with lock:
+                    edge_connection = establish_connection(host)  # Re-establish connection safely
+                send_single_span(data, retry=False)
+            else:
+                get_logger().exception("Could not report: A span was lost.", exc_info=e)
+                internal_analytics_message(f"report: {type(e)}")
+
     try:
         start_time = time.time()
-        edge_connection.request(
-            "POST",
-            EDGE_PATH,
-            to_send,
-            headers={
-                "Content-Type": "application/json",
-                "Authorization": Configuration.token or "",
-            },
-        )
-        response = edge_connection.getresponse()
-        response.read()  # We must read the response to keep the connection available
+
+        to_send_list: List[str] = to_send if isinstance(to_send, list) else [to_send]
+        # Send all the spans concurrently using a thread pool
+        # TODO Limit the number of threads, e.g., to N max_workers=N
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            futures = [executor.submit(send_single_span, span_data) for span_data in to_send_list]
+            # Wait for all the futures to complete
+            concurrent.futures.wait(futures)
+
         duration = int((time.time() - start_time) * 1000)
-        get_logger().info(f"successful reporting, code: {getattr(response, 'code', 'unknown')}")
-    except socket.timeout:
-        get_logger().exception(f"Timeout while connecting to {host}")
-        InternalState.mark_timeout_to_edge()
-        internal_analytics_message("report: socket.timeout")
     except Exception as e:
-        if should_retry:
-            get_logger().info(f"Could not report to {host}: ({str(e)}). Retrying.")
-            edge_connection = establish_connection(host)
-            report_json(region, msgs, should_retry=False)
-        else:
-            get_logger().exception("Could not report: A span was lost.", exc_info=e)
-            internal_analytics_message(f"report: {type(e)}")
+        get_logger().exception("Unexpected failure during span reporting", exc_info=e)
+
     return duration
 
 
@@ -372,10 +405,11 @@ def _update_enrichment_span_about_prioritized_spans(
 def _create_request_body(
     msgs: List[dict],  # type: ignore[type-arg]
     prune_size_flag: bool,
+    should_try_zip: bool,
     max_size: int = MAX_SIZE_FOR_REQUEST,
     max_error_size: int = MAX_SIZE_FOR_REQUEST_ON_ERROR,
     too_big_spans_threshold: int = TOO_BIG_SPANS_THRESHOLD,
-) -> str:
+) -> str | List[str]:
     """
     This function creates the request body from the given spans.
     If there is an error we limit the size of the request to max_error_size otherwise to max_size.
@@ -388,11 +422,32 @@ def _create_request_body(
     """
     request_size_limit = max_error_size if any(map(is_span_has_error, msgs)) else max_size
 
+    size: int = get_event_base64_size(msgs)
     if not prune_size_flag or (
-        len(msgs) < NUMBER_OF_SPANS_IN_REPORT_OPTIMIZATION
-        and get_event_base64_size(msgs) < request_size_limit  # noqa
+        len(msgs) < NUMBER_OF_SPANS_IN_REPORT_OPTIMIZATION and size < request_size_limit  # noqa
     ):
         return aws_dump(msgs)[:request_size_limit]
+
+    """
+    Process spans: if should_try_zip is True, split and zip the spans, check their size,
+    and either return the zipped bulks or continue processing.
+    """
+    if should_try_zip:
+        get_logger().debug(
+            f"Spans are too big, size [{size}], [{len(msgs)}] spans, bigger than: [{request_size_limit}], trying to split and zip"
+        )
+        zipped_spans_bulks = _split_and_zip_spans(msgs)
+        are_all_spans_small_enough = all(
+            len(zipped_span) <= request_size_limit for zipped_span in zipped_spans_bulks
+        )
+
+        if are_all_spans_small_enough:
+            get_logger().debug(f"Created {len(zipped_spans_bulks)} bulks of zipped spans")
+            return zipped_spans_bulks
+        else:
+            # Continue trimming spans logic goes here
+            get_logger().debug("Some spans are still too large, further trimming may be needed.")
+            pass
 
     current_size = 0
     spans_to_send: List[dict] = []  # type: ignore[type-arg]
@@ -500,6 +555,25 @@ def _get_edge_kinesis_boto_client(region: str, aws_access_key_id: str, aws_secre
 
 def _is_edge_kinesis_connection_cache_disabled() -> bool:
     return os.environ.get("LUMIGO_KINESIS_SHOULD_REUSE_CONNECTION", "").lower() == "false"
+
+
+def _should_try_zip() -> bool:
+    return os.environ.get("LUMIGO_SUPPORT_LARGE_INVOCATIONS", "").lower() == "true"
+
+
+def _split_and_zip_spans(spans: List[Dict[Any, Any]]) -> List[str]:
+    """
+    Split spans into bulks and gzip each bulk.
+    """
+    get_logger().debug(f"Splitting the spans into bulks of {MAX_SPANS_BULK_SIZE} spans")
+    spans_bulks = []
+    for i in range(0, len(spans), MAX_SPANS_BULK_SIZE):
+        start_index = i
+        end_index = i + MAX_SPANS_BULK_SIZE
+        bulk = spans[start_index:end_index]
+        zipped_spans = b64encode(gzip.compress(aws_dump(bulk).encode("utf-8"))).decode("utf-8")
+        spans_bulks.append(zipped_spans)
+    return spans_bulks
 
 
 def get_event_base64_size(event: Union[Dict[Any, Any], List[Dict[Any, Any]]]) -> int:
