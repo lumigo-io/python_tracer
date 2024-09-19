@@ -148,7 +148,7 @@ def report_json(
     try:
         prune_trace: bool = not os.environ.get("LUMIGO_PRUNE_TRACE_OFF", "").lower() == "true"
         should_try_zip: bool = _should_try_zip()
-        to_send: str | List[str] = _create_request_body(msgs, prune_trace, should_try_zip)
+        to_send: Union[str, List[str]] = _create_request_body(msgs, prune_trace, should_try_zip)
     except Exception as e:
         get_logger().exception("Failed to create request: A span was lost.", exc_info=e)
         return 0
@@ -409,7 +409,7 @@ def _create_request_body(
     max_size: int = MAX_SIZE_FOR_REQUEST,
     max_error_size: int = MAX_SIZE_FOR_REQUEST_ON_ERROR,
     too_big_spans_threshold: int = TOO_BIG_SPANS_THRESHOLD,
-) -> str | List[str]:
+) -> Union[str, List[str]]:
     """
     This function creates the request body from the given spans.
     If there is an error we limit the size of the request to max_error_size otherwise to max_size.
