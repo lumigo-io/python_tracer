@@ -179,6 +179,7 @@ def report_json(
             raise ValueError("Connection is not established")
 
         try:
+            get_logger().debug(f"Sending data to {host}/{EDGE_PATH}: {data}")
             edge_connection.request(
                 "POST",
                 EDGE_PATH,
@@ -570,7 +571,7 @@ def _split_and_zip_spans(spans: List[Dict[Any, Any]]) -> List[str]:
         end_index = i + MAX_SPANS_BULK_SIZE
         bulk = spans[start_index:end_index]
         zipped_spans = b64encode(gzip.compress(aws_dump(bulk).encode("utf-8"))).decode("utf-8")
-        spans_bulks.append(zipped_spans)
+        spans_bulks.append(aws_dump(zipped_spans))
     return spans_bulks
 
 

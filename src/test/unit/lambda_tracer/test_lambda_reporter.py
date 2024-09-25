@@ -652,8 +652,9 @@ def test_split_and_zip_spans_successfully():
     # Test unzipping and verify that it equals the original spans
     unzipped_spans = []
     for zipped_span in zipped_spans_bulks:
+        zipped_span_unload = json.loads(zipped_span)
         # Decode base64 and unzip
-        unzipped = gzip.decompress(b64decode(zipped_span)).decode("utf-8")
+        unzipped: str = gzip.decompress(b64decode(zipped_span_unload)).decode("utf-8")
         unzipped_spans.extend(json.loads(unzipped))
 
     # Check that unzipped spans match the original spans
