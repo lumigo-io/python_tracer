@@ -1,4 +1,3 @@
-import concurrent.futures
 import copy
 import datetime
 import enum
@@ -7,7 +6,6 @@ import http.client
 import os
 import random
 import socket
-import threading
 import time
 import uuid
 from base64 import b64encode
@@ -156,7 +154,7 @@ def report_json(
         return 0
     if region == CHINA_REGION and isinstance(to_send, str):
         return _publish_spans_to_kinesis(to_send.encode(), CHINA_REGION)
-    host = None
+
     global edge_connection
     with lumigo_safe_execute("report json: establish connection"):
         host = get_edge_host(region)
@@ -164,65 +162,59 @@ def report_json(
         if not edge_connection or edge_connection.host != host:
             edge_connection = establish_connection(host)
             if not edge_connection:
-                get_logger().warning("Can not establish connection. Skip sending span.")
+                get_logger().warning("Cannot establish connection. Skip sending span.")
                 return duration
-
-    lock = threading.Lock()
-
-    def send_single_span(data: str, retry: bool = True) -> None:
-        """
-        Helper function to send a single span request and handle retries,
-        including re-establishing connection if necessary.
-        """
-        global edge_connection
-        if edge_connection is None:
-            raise ValueError("Connection is not established")
-
-        try:
-            get_logger().debug(f"Sending data to {host}/{EDGE_PATH}: {data}")
-            edge_connection.request(
-                "POST",
-                EDGE_PATH,
-                data,
-                headers={
-                    "Content-Type": "application/json",
-                    "Authorization": Configuration.token or "",
-                },
-            )
-            response = edge_connection.getresponse()
-            response.read()  # We must read the response to keep the connection available
-            get_logger().info(f"Successful reporting, code: {getattr(response, 'code', 'unknown')}")
-        except socket.timeout:
-            get_logger().exception(f"Timeout while connecting to {host}")
-            InternalState.mark_timeout_to_edge()
-            internal_analytics_message("report: socket.timeout")
-        except Exception as e:
-            if retry:
-                get_logger().info(f"Could not report to {host}: ({str(e)}). Retrying.")
-                # time.sleep(1)  # TODO Introduce a backoff delay before retrying
-                with lock:
-                    edge_connection = establish_connection(host)  # Re-establish connection safely
-                send_single_span(data, retry=False)
-            else:
-                get_logger().exception("Could not report: A span was lost.", exc_info=e)
-                internal_analytics_message(f"report: {type(e)}")
 
     try:
         start_time = time.time()
 
         to_send_list: List[str] = to_send if isinstance(to_send, list) else [to_send]
-        # Send all the spans concurrently using a thread pool
-        # TODO Limit the number of threads, e.g., to N max_workers=N
-        with concurrent.futures.ThreadPoolExecutor() as executor:
-            futures = [executor.submit(send_single_span, span_data) for span_data in to_send_list]
-            # Wait for all the futures to complete
-            concurrent.futures.wait(futures)
+        # Process each span one by one
+        for span_data in to_send_list:
+            send_single_span(host, span_data)
 
         duration = int((time.time() - start_time) * 1000)
     except Exception as e:
         get_logger().exception("Unexpected failure during span reporting", exc_info=e)
 
     return duration
+
+
+def send_single_span(host: str, data: str, retry: bool = True) -> None:
+    """
+    Helper function to send a single span request and handle retries,
+    including re-establishing connection if necessary.
+    """
+    global edge_connection
+    if edge_connection is None:
+        raise ValueError("Connection is not established")
+
+    try:
+        get_logger().debug(f"Sending data to {host}/{EDGE_PATH}: {data}")
+        edge_connection.request(
+            "POST",
+            EDGE_PATH,
+            data,
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": Configuration.token or "",
+            },
+        )
+        response = edge_connection.getresponse()
+        response.read()  # We must read the response to keep the connection available
+        get_logger().info(f"Successful reporting, code: {getattr(response, 'code', 'unknown')}")
+    except socket.timeout:
+        get_logger().exception(f"Timeout while connecting to {host}")
+        InternalState.mark_timeout_to_edge()
+        internal_analytics_message("report: socket.timeout")
+    except Exception as e:
+        if retry:
+            get_logger().info(f"Could not report to {host}: ({str(e)}). Retrying.")
+            edge_connection = establish_connection(host)  # Re-establish connection safely
+            send_single_span(host, data, retry=False)
+        else:
+            get_logger().exception("Could not report: A span was lost.", exc_info=e)
+            internal_analytics_message(f"report: {type(e)}")
 
 
 def get_span_priority(span: Dict[Any, Any]) -> int:
@@ -427,10 +419,8 @@ def _create_request_body(
     ):
         return aws_dump(msgs)[:request_size_limit]
 
-    """
-    Process spans: if should_try_zip is True, split and zip the spans, check their size,
-    and either return the zipped bulks or continue processing.
-    """
+    # Process spans: if should_try_zip is True, split and zip the spans, check their size,
+    # and either return the zipped bulks or continue processing.
     if should_try_zip:
         get_logger().debug(
             f"Spans are too big, size [{size}], [{len(msgs)}] spans, bigger than: [{request_size_limit}], trying to split and zip"
