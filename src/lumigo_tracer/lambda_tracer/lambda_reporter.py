@@ -1,7 +1,6 @@
 import copy
 import datetime
 import enum
-import gzip
 import http.client
 import os
 import random
@@ -10,6 +9,7 @@ import time
 import uuid
 from base64 import b64encode
 from functools import lru_cache
+from gzip import compress as gzip_compress
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
@@ -144,7 +144,9 @@ def report_json(
     try:
         prune_trace: bool = not os.environ.get("LUMIGO_PRUNE_TRACE_OFF", "").lower() == "true"
         should_try_zip: bool = _should_try_zip()
-        to_send: Union[str, List[str]] = _create_request_body(msgs, prune_trace, should_try_zip)
+        to_send: Union[str, List[str]] = _create_request_body(
+            region, msgs, prune_trace, should_try_zip
+        )
     except Exception as e:
         get_logger().exception("Failed to create request: A span was lost.", exc_info=e)
         return 0
@@ -168,12 +170,15 @@ def report_json(
     try:
         start_time = time.time()
 
+        get_logger().debug(f"Going to send {len(to_send)} spans...")
         to_send_list: List[str] = to_send if isinstance(to_send, list) else [to_send]
         # Process each span one by one
         for span_data in to_send_list:
             send_single_span(host, span_data)
 
         duration = int((time.time() - start_time) * 1000)
+        # Log the execution time
+        get_logger().debug(f"sending all spans took {duration:.4f} seconds to execute")
     except Exception as e:
         get_logger().exception("Unexpected failure during span reporting", exc_info=e)
 
@@ -394,6 +399,7 @@ def _update_enrichment_span_about_prioritized_spans(
 
 
 def _create_request_body(
+    region: Optional[str],
     msgs: List[dict],  # type: ignore[type-arg]
     prune_size_flag: bool,
     should_try_zip: bool,
@@ -421,7 +427,8 @@ def _create_request_body(
 
     # Process spans: if should_try_zip is True, split and zip the spans, check their size,
     # and either return the zipped bulks or continue processing.
-    if should_try_zip:
+    # Also we do not do zip for China region.
+    if should_try_zip and region != CHINA_REGION:
         get_logger().debug(
             f"Spans are too big, size [{size}], [{len(msgs)}] spans, bigger than: [{request_size_limit}], trying to split and zip"
         )
@@ -554,14 +561,22 @@ def _split_and_zip_spans(spans: List[Dict[Any, Any]]) -> List[str]:
     """
     Split spans into bulks and gzip each bulk.
     """
+    # Start time
+    start_time = time.time()
     get_logger().debug(f"Splitting the spans into bulks of {MAX_SPANS_BULK_SIZE} spans")
     spans_bulks = []
     for i in range(0, len(spans), MAX_SPANS_BULK_SIZE):
         start_index = i
         end_index = i + MAX_SPANS_BULK_SIZE
         bulk = spans[start_index:end_index]
-        zipped_spans = b64encode(gzip.compress(aws_dump(bulk).encode("utf-8"))).decode("utf-8")
+        zipped_spans = b64encode(gzip_compress(aws_dump(bulk).encode("utf-8"))).decode("utf-8")
         spans_bulks.append(aws_dump(zipped_spans))
+    # End time and calculate duration
+    end_time = time.time()
+    duration = end_time - start_time
+
+    # Log the execution time
+    get_logger().debug(f"_split_and_zip_spans took {duration:.4f} seconds to execute")
     return spans_bulks
 
 

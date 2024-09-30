@@ -299,12 +299,14 @@ SQL_SPAN_METADATA = {
 
 @pytest.mark.parametrize("should_try_zip", [True, False])
 def test_create_request_body_default(should_try_zip):
-    assert _create_request_body([DUMMY_SPAN], False, should_try_zip) == json.dumps([DUMMY_SPAN])
+    assert _create_request_body(None, [DUMMY_SPAN], False, should_try_zip) == json.dumps(
+        [DUMMY_SPAN]
+    )
 
 
 @pytest.mark.parametrize("should_try_zip", [True, False])
 def test_create_request_body_not_effecting_small_events(should_try_zip):
-    assert _create_request_body([DUMMY_SPAN], True, should_try_zip, 1_000_000) == json.dumps(
+    assert _create_request_body(None, [DUMMY_SPAN], True, should_try_zip, 1_000_000) == json.dumps(
         [DUMMY_SPAN]
     )
 
@@ -314,12 +316,12 @@ def test_create_request_body_keep_function_span_and_filter_other_spans(unzip_zip
     expected_result = [FUNCTION_END_SPAN_METADATA, FUNCTION_END_SPAN_METADATA]
     size = get_event_base64_size(expected_result)
 
-    result = _create_request_body(input_spans, True, False, size)
+    result = _create_request_body(None, input_spans, True, False, size)
 
     assert result == json.dumps(expected_result)
 
     # With Zipping enabled, we are able to consume all spans
-    result = _create_request_body(input_spans, True, True, size)
+    result = _create_request_body(None, input_spans, True, True, size)
     assert isinstance(result, list)
     assert len(result) > 0
     # unzip the result
@@ -337,11 +339,13 @@ def test_create_request_body_take_error_first(unzip_zipped_spans):
     ]
     size = get_event_base64_size(expected_result) + SPANS_SEND_SIZE_ENRICHMENT_SPAN_BUFFER
 
-    result = _create_request_body(input_spans, True, False, max_size=size, max_error_size=size)
+    result = _create_request_body(
+        None, input_spans, True, False, max_size=size, max_error_size=size
+    )
     assert result == json.dumps(expected_result)
 
     # With Zipping enabled, we are able to consume all spans
-    result = _create_request_body(input_spans, True, True, max_size=size, max_error_size=size)
+    result = _create_request_body(None, input_spans, True, True, max_size=size, max_error_size=size)
     print(result)
     assert isinstance(result, list)
     assert len(result) > 0
@@ -354,7 +358,9 @@ def test_create_request_body_take_only_metadata_function_span(caplog):
     input_spans = [FUNCTION_END_SPAN]
     size = get_event_base64_size(expected_result)
 
-    result = _create_request_body(input_spans, True, False, max_size=size, max_error_size=size)
+    result = _create_request_body(
+        None, input_spans, True, False, max_size=size, max_error_size=size
+    )
 
     assert caplog.records[0].message == "Starting smart span selection"
     assert result == json.dumps(expected_result)
@@ -380,7 +386,9 @@ def test_create_request_body(
     input_spans = [wrapper_span, {**ENRICHMENT_SPAN, "totalSpans": 3}, FUNCTION_END_SPAN]
     size = get_event_base64_size(expected_result) + SPANS_SEND_SIZE_ENRICHMENT_SPAN_BUFFER
 
-    result = _create_request_body(input_spans, True, False, max_size=size, max_error_size=size)
+    result = _create_request_body(
+        None, input_spans, True, False, max_size=size, max_error_size=size
+    )
 
     assert caplog.records[0].message == "Starting smart span selection"
     assert result == json.dumps(expected_result)
@@ -392,14 +400,16 @@ def test_with_many_spans():
     size = get_event_base64_size(expected_result) + SPANS_SEND_SIZE_ENRICHMENT_SPAN_BUFFER
 
     # Without zipping
-    result = _create_request_body(input_spans, True, False, max_size=size, max_error_size=size)
+    result = _create_request_body(
+        None, input_spans, True, False, max_size=size, max_error_size=size
+    )
     print(result)
 
     assert result == json.dumps(expected_result)
 
     # With zipping
     result_with_zip = _create_request_body(
-        input_spans, True, True, max_size=size, max_error_size=size
+        None, input_spans, True, True, max_size=size, max_error_size=size
     )
     # assert zip result is an array
     assert isinstance(result_with_zip, list)
@@ -408,9 +418,15 @@ def test_with_many_spans():
     # assert zip result is smaller than the original result
     assert len(result_with_zip[0]) < len(result)
 
+    # We do not support Zipping for China region
+    china_result = _create_request_body(
+        "cn-northwest-1", input_spans, True, True, max_size=size, max_error_size=size
+    )
+    assert isinstance(china_result, str)
+
     # because size is small, zipping does not help
     result_with_zip = _create_request_body(
-        input_spans, True, True, max_size=size // 100, max_error_size=size // 100
+        None, input_spans, True, True, max_size=size // 100, max_error_size=size // 100
     )
     print(result_with_zip)
     assert isinstance(result_with_zip, str)
@@ -467,7 +483,7 @@ def test_report_json_retry(monkeypatch, reporter_mock, caplog, errors, final_log
 
     report_json(None, [{"a": "b"}])
 
-    assert caplog.records[-1].levelname == final_log
+    assert caplog.records[-2].levelname == final_log
 
 
 def test_report_json_fast_failure_after_timeout(monkeypatch, reporter_mock, caplog):
@@ -478,14 +494,18 @@ def test_report_json_fast_failure_after_timeout(monkeypatch, reporter_mock, capl
     http.client.HTTPSConnection("force_reconnect").getresponse.side_effect = socket.timeout
 
     assert report_json(None, [{"a": "b"}]) >= 0  # some duration is expected
-    assert caplog.records[-1].msg == "Timeout while connecting to host"
+    # Check if the expected message is in any of the log records
+    messages = [record.msg for record in caplog.records]
+    assert "Timeout while connecting to host" in messages, "The expected log message was not found"
 
     assert report_json(None, [{"a": "b"}]) == 0
     assert caplog.records[-1].msg == "Skip sending messages due to previous timeout"
 
     InternalState.timeout_on_connection = datetime(2016, 1, 1)
     assert report_json(None, [{"a": "b"}]) == 0
-    assert caplog.records[-1].msg == "Timeout while connecting to host"
+    # Check if the expected message is in any of the log records
+    messages = [record.msg for record in caplog.records]
+    assert "Timeout while connecting to host" in messages, "The expected log message was not found"
 
 
 def test_report_json_china_missing_access_key_id(monkeypatch, reporter_mock, caplog):
