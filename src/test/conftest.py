@@ -1,4 +1,6 @@
+import base64
 import builtins
+import gzip
 import logging
 import os
 import shutil
@@ -134,3 +136,22 @@ def lambda_traced(monkeypatch, aws_environment):
 @pytest.fixture
 def wrap_all_libraries(lambda_traced):
     wrappers.wrap()
+
+
+@pytest.fixture
+def unzip_zipped_spans():
+    """
+    Pytest fixture that provides a function to unzip and decode zipped spans.
+    """
+
+    def _unzip(zipped_spans: str) -> str:
+        # Step 1: Decode the base64 encoded string back to bytes
+        compressed_data = base64.b64decode(zipped_spans)
+
+        # Step 2: Decompress the gzip data
+        decompressed_data = gzip.decompress(compressed_data)
+
+        # Step 3: Decode the bytes back to a string
+        return decompressed_data.decode("utf-8")
+
+    return _unzip
