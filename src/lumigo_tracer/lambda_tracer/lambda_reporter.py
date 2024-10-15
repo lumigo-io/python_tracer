@@ -195,7 +195,6 @@ def send_single_span(host: str, data: str, retry: bool = True) -> None:
         raise ValueError("Connection is not established")
 
     try:
-        get_logger().debug(f"Sending data to {host}/{EDGE_PATH}: {data}")
         edge_connection.request(
             "POST",
             EDGE_PATH,
