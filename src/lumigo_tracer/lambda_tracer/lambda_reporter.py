@@ -170,8 +170,8 @@ def report_json(
     try:
         start_time = time.time()
 
-        get_logger().debug(f"Going to send {len(to_send)} spans...")
         to_send_list: List[str] = to_send if isinstance(to_send, list) else [to_send]
+        get_logger().debug(f"Going to send a list of {len(to_send_list)} spans...")
         # Process each span one by one
         for span_data in to_send_list:
             send_single_span(host, span_data)
