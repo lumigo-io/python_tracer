@@ -172,9 +172,10 @@ def report_json(
 
         to_send = to_send if isinstance(to_send, list) else [to_send]
         get_logger().debug(f"Going to send a list of {len(to_send)} spans...")
-        # Process each span one by one
+        # When not zipping the to_send contains one request with all the spans to send,
+        # and when zipping it can be a list of requests to send.
         for span_data in to_send:
-            send_single_span(host, span_data)
+            send_single_request(host, span_data)
 
         duration = int((time.time() - start_time) * 1000)
         # Log the execution time
@@ -185,9 +186,9 @@ def report_json(
     return duration
 
 
-def send_single_span(host: str, data: str, retry: bool = True) -> None:
+def send_single_request(host: str, data: str, retry: bool = True) -> None:
     """
-    Helper function to send a single span request and handle retries,
+    Helper function to send a single request and handle retries,
     including re-establishing connection if necessary.
     """
     global edge_connection
@@ -215,7 +216,7 @@ def send_single_span(host: str, data: str, retry: bool = True) -> None:
         if retry:
             get_logger().info(f"Could not report to {host}: ({str(e)}). Retrying.")
             edge_connection = establish_connection(host)  # Re-establish connection safely
-            send_single_span(host, data, retry=False)
+            send_single_request(host, data, retry=False)
         else:
             get_logger().exception("Could not report: A span was lost.", exc_info=e)
             internal_analytics_message(f"report: {type(e)}")
@@ -431,18 +432,25 @@ def _create_request_body(
         get_logger().debug(
             f"Spans are too big, size [{size}], [{len(msgs)}] spans, bigger than: [{request_size_limit}], trying to split and zip"
         )
-        zipped_spans_bulks = _split_and_zip_spans(msgs)
-        are_all_spans_small_enough = all(
-            len(zipped_span) <= request_size_limit for zipped_span in zipped_spans_bulks
-        )
+        try:
+            zipped_spans_bulks = _split_and_zip_spans(msgs)
+            are_all_spans_small_enough = all(
+                len(zipped_span) <= request_size_limit for zipped_span in zipped_spans_bulks
+            )
 
-        if are_all_spans_small_enough:
-            get_logger().debug(f"Created {len(zipped_spans_bulks)} bulks of zipped spans")
-            return zipped_spans_bulks
-        else:
-            # Continue trimming spans logic goes here
-            get_logger().debug("Some spans are still too large, further trimming may be needed.")
-            pass
+            if are_all_spans_small_enough:
+                get_logger().debug(f"Created {len(zipped_spans_bulks)} bulks of zipped spans")
+                return zipped_spans_bulks
+            else:
+                # Continue trimming spans logic goes here
+                get_logger().debug(
+                    "Some spans are still too large, further trimming may be needed."
+                )
+                pass
+        except Exception as err:
+            get_logger().exception(
+                "Failed to split and zip spans, further trimming may be needed. ", exc_info=err
+            )
 
     current_size = 0
     spans_to_send: List[dict] = []  # type: ignore[type-arg]
@@ -575,7 +583,9 @@ def _split_and_zip_spans(spans: List[Dict[Any, Any]]) -> List[str]:
     duration = end_time - start_time
 
     # Log the execution time
-    get_logger().debug(f"_split_and_zip_spans took {duration:.4f} seconds to execute")
+    get_logger().debug(
+        f"Zipping {len(spans)} spans into {len(spans_bulks)} bulks took {duration:.4f} seconds to execute"
+    )
     return spans_bulks
 
 
