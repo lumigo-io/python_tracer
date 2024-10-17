@@ -419,9 +419,9 @@ def _create_request_body(
     """
     request_size_limit = max_error_size if any(map(is_span_has_error, msgs)) else max_size
 
-    size: int = get_event_base64_size(msgs)
     if not prune_size_flag or (
-        len(msgs) < NUMBER_OF_SPANS_IN_REPORT_OPTIMIZATION and size < request_size_limit  # noqa
+        len(msgs) < NUMBER_OF_SPANS_IN_REPORT_OPTIMIZATION
+        and get_event_base64_size(msgs) < request_size_limit  # noqa
     ):
         return aws_dump(msgs)[:request_size_limit]
 
@@ -430,9 +430,9 @@ def _create_request_body(
     # Also we do not do zip for China region.
     if should_try_zip and region != CHINA_REGION:
         get_logger().debug(
-            f"Spans are too big, size [{size}], [{len(msgs)}] spans, bigger than: [{request_size_limit}], trying to split and zip"
+            f"Spans are too big, [{len(msgs)}] spans, bigger than: [{request_size_limit}], trying to split and zip"
         )
-        try:
+        with lumigo_safe_execute("create_request_body: split and zip spans"):
             zipped_spans_bulks = _split_and_zip_spans(msgs)
             are_all_spans_small_enough = all(
                 len(zipped_span) <= request_size_limit for zipped_span in zipped_spans_bulks
@@ -447,10 +447,6 @@ def _create_request_body(
                     "Some spans are still too large, further trimming may be needed."
                 )
                 pass
-        except Exception as err:
-            get_logger().exception(
-                "Failed to split and zip spans, further trimming may be needed. ", exc_info=err
-            )
 
     current_size = 0
     spans_to_send: List[dict] = []  # type: ignore[type-arg]
