@@ -37,7 +37,7 @@ except Exception:
     botocore = None
     boto3 = None
 
-EDGE_PATH = "/api/spans"
+EDGE_PATH = os.environ.get("LUMIGO_EDGE_PATH", "/api/spans")
 HTTPS_PREFIX = "https://"
 SECONDS_TO_TIMEOUT = 0.5
 EDGE_TIMEOUT = float(os.environ.get("LUMIGO_EDGE_TIMEOUT", SECONDS_TO_TIMEOUT))
