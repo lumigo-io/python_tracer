@@ -53,6 +53,7 @@ def _lumigo_tracer(func):  # type: ignore[no-untyped-def]
         if _is_context_already_wrapped(*args):
             return func(*args, **kwargs)
         if is_skip_warmup_on() and is_warmup_invocation(*args):
+            get_logger().info("skipping warmup invocation")
             return func(*args, **kwargs)
         _add_wrap_flag_to_context(*args)
         executed = False
