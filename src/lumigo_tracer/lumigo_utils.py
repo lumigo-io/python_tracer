@@ -53,6 +53,7 @@ DEFAULT_KEY_DEPTH = 4
 LUMIGO_TOKEN_KEY = "LUMIGO_TRACER_TOKEN"
 LUMIGO_USE_TRACER_EXTENSION = "LUMIGO_USE_TRACER_EXTENSION"
 KILL_SWITCH = "LUMIGO_SWITCH_OFF"
+SKIP_WARMUP_INVOCATIONS = "SKIP_WARMUP_INVOCATIONS"
 EDGE_KINESIS_STREAM_NAME = "prod_trc-inges-edge_edge-kinesis-stream"
 STACKTRACE_LINE_TO_DROP = "lumigo_tracer/lambda_tracer/tracer.py"
 Container = TypeVar("Container", dict, list)  # type: ignore[type-arg,type-arg]
@@ -351,6 +352,10 @@ def concat_old_body_to_new(context: str, old_body: Optional[str], new_body: byte
 
 def is_kill_switch_on():  # type: ignore[no-untyped-def]
     return str(os.environ.get(KILL_SWITCH, "")).lower() == "true"
+
+
+def is_skip_warmup_on():  # type: ignore[no-untyped-def]
+    return str(os.environ.get(SKIP_WARMUP_INVOCATIONS, "")).lower() == "true"
 
 
 def get_size_upper_bound() -> int:
