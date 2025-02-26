@@ -9,6 +9,7 @@ from lumigo_tracer.lumigo_utils import (
     config,
     is_aws_environment,
     is_kill_switch_on,
+    is_skip_warmup_on,
     lumigo_safe_execute,
 )
 
@@ -21,6 +22,15 @@ def _is_context_already_wrapped(*args) -> bool:  # type: ignore[no-untyped-def]
         (using the sls plugin / auto instrumentation / etc.)
     """
     return len(args) >= 2 and hasattr(args[1], CONTEXT_WRAPPED_BY_LUMIGO_KEY)
+
+
+def is_warmup_invocation(*args) -> bool:  # type: ignore[no-untyped-def]
+    """
+    This function is here in order to detect the serverless framework warmup plugin invocations.
+    """
+    if len(args) > 0 and args[0] == "warmup":
+        return True
+    return False
 
 
 def _add_wrap_flag_to_context(*args):  # type: ignore[no-untyped-def]
@@ -41,6 +51,8 @@ def _lumigo_tracer(func):  # type: ignore[no-untyped-def]
     @wraps(func)
     def lambda_wrapper(*args, **kwargs):  # type: ignore[no-untyped-def]
         if _is_context_already_wrapped(*args):
+            return func(*args, **kwargs)
+        if is_skip_warmup_on() and is_warmup_invocation(*args):
             return func(*args, **kwargs)
         _add_wrap_flag_to_context(*args)
         executed = False
