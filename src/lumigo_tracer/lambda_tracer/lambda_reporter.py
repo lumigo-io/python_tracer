@@ -64,6 +64,7 @@ HTTP_TYPE = "http"
 MONGO_SPAN = "mongoDb"
 REDIS_SPAN = "redis"
 SQL_SPAN = "mySql"
+VERTEXAI_SPAN = "vertexai"
 DROPPED_SPANS_REASONS_KEY = "droppedSpansReasons"
 
 MAX_SPANS_BULK_SIZE = 200
