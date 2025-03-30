@@ -1,7 +1,7 @@
 import importlib
 import uuid
 from functools import partial
-from typing import Optional
+from typing import Any, Callable, Optional
 
 from lumigo_core.logger import get_logger
 from lumigo_core.lumigo_utils import get_current_ms_time
@@ -99,7 +99,9 @@ WRAPPED_METHODS = [
 ]
 
 
-def wrap_vertexai_func(func, instance, args, kwargs, func_name: Optional[str] = None):
+def wrap_vertexai_func(
+    func: Callable, instance: Any, args, kwargs, func_name: Optional[str] = None
+) -> Any:
     span_id = None
     with lumigo_safe_execute("wrap vertexai func"):
         get_logger().debug("Vertex AI func called")
@@ -144,7 +146,7 @@ def wrap_vertexai_func(func, instance, args, kwargs, func_name: Optional[str] = 
         raise
 
 
-def wrap_vertexai():
+def wrap_vertexai() -> None:
     with lumigo_safe_execute("wrap vertexai"):
         get_logger().debug("trying to wrap vertexai")
         if importlib.util.find_spec("vertexai"):
