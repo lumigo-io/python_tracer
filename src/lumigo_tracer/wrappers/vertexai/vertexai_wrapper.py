@@ -1,7 +1,9 @@
 import importlib
 import uuid
-from multiprocessing.util import get_logger
+from functools import partial
+from typing import Optional
 
+from lumigo_core.logger import get_logger
 from lumigo_core.lumigo_utils import get_current_ms_time
 
 from lumigo_tracer.lambda_tracer.lambda_reporter import VERTEXAI_SPAN
@@ -96,25 +98,28 @@ WRAPPED_METHODS = [
     },
 ]
 
-def wrap_vertexai_func(func, instance, args, kwargs):
+
+def wrap_vertexai_func(func, instance, args, kwargs, func_name: Optional[str] = None):
     span_id = None
     with lumigo_safe_execute("wrap vertexai func"):
+        get_logger().debug("Vertex AI func called")
         llm_model = "unknown"
         if hasattr(instance, "_model_id"):
             llm_model = instance._model_id
         if hasattr(instance, "_model_name"):
             llm_model = instance._model_name.replace("publishers/google/models/", "")
 
-        # TODO: Add details about the request: prompt size, truncated prompt etc...
         span_id = str(uuid.uuid4())
         SpansContainer.get_span().add_span(
             {
                 "id": span_id,
                 "type": VERTEXAI_SPAN,
                 "started": get_current_ms_time(),
-                "llm_model": llm_model
+                "llmModel": llm_model,
+                "requestCommand": func_name or "unknown",
             }
         )
+        get_logger().debug(f"Vertex AI span started: {span_id}")
 
     try:
         ret_val = func(*args, **kwargs)
@@ -123,17 +128,25 @@ def wrap_vertexai_func(func, instance, args, kwargs):
             if not span:
                 get_logger().warning("VertexAI span ended without a record on its start")
             else:
-                span.update(
-                    {"ended": get_current_ms_time()}
-                )
-                # TODO: Parse the return value
+                span.update({"ended": get_current_ms_time()})
+                get_logger().debug(f"Vertex AI span ended: {span_id}")
         return ret_val
     except Exception as e:
-        # TODO: Do we need to close the span?
+        with lumigo_safe_execute("wrap vertexai func failed"):
+            get_logger().debug("Vertex AI span ended with exception")
+            span = SpansContainer.get_span().get_span_by_id(span_id)
+            if not span:
+                get_logger().warning("VertexAI span ended without a record on its start")
+            else:
+                span.update(
+                    {"ended": get_current_ms_time(), "error": e.args[0] if e.args else None}
+                )
         raise
+
 
 def wrap_vertexai():
     with lumigo_safe_execute("wrap vertexai"):
+        get_logger().debug("trying to wrap vertexai")
         if importlib.util.find_spec("vertexai"):
             get_logger().debug("wrapping vertexai")
             for wrapped_method in WRAPPED_METHODS:
@@ -143,6 +156,8 @@ def wrap_vertexai():
                 span_name = wrapped_method.get("span_name")
                 is_async = wrapped_method.get("is_async")
                 if not is_async:
-                    wrap_function_wrapper(module=wrap_package,
-                                          name=f"{wrap_object}.{wrap_method}",
-                                          wrapper=wrap_vertexai_func)
+                    wrap_function_wrapper(
+                        module=wrap_package,
+                        name=f"{wrap_object}.{wrap_method}",
+                        wrapper=partial(wrap_vertexai_func, func_name=span_name),
+                    )
