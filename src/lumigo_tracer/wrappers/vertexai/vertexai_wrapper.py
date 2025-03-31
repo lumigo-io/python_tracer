@@ -1,7 +1,7 @@
 import importlib
 import uuid
 from functools import partial
-from typing import Any, Callable, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 from lumigo_core.logger import get_logger
 from lumigo_core.lumigo_utils import get_current_ms_time
@@ -100,7 +100,11 @@ WRAPPED_METHODS = [
 
 
 def wrap_vertexai_func(
-    func: Callable, instance: Any, args, kwargs, func_name: Optional[str] = None
+    func: Callable[..., Any],
+    instance: Any,
+    args: List[Any],
+    kwargs: Dict[str, Any],
+    func_name: Optional[str] = None,
 ) -> Any:
     span_id = None
     with lumigo_safe_execute("wrap vertexai func"):
