@@ -21,6 +21,7 @@ repos:
                   types-simplejson==3.17.7,
                   types-boto==2.49.17,
                   types-requests==2.28.10,
+              ]
 
     - repo: https://github.com/pre-commit/pre-commit-hooks
       rev: v2.4.0
@@ -36,15 +37,15 @@ repos:
             exclude: ^src/test|^src/test_utils|^src/component_test
             args: [ "-lll" ]
 
-  - repo: https://github.com/Yelp/detect-secrets
-    rev: v1.2.0
-    hooks:
-        - id: detect-secrets
-          args: [ "--baseline", ".secrets.baseline" ]
+    - repo: https://github.com/Yelp/detect-secrets
+      rev: v1.2.0
+      hooks:
+          - id: detect-secrets
+            args: [ "--baseline", ".secrets.baseline" ]
 
--   repo: https://github.com/pycqa/isort
-    rev: 5.11.5
-    hooks:
-        - id: isort
-          args: ["--profile", "black"]
-          exclude: ^src/lumigo_tracer/libs/
+    - repo: https://github.com/pycqa/isort
+      rev: 5.11.5
+      hooks:
+          - id: isort
+            args: ["--profile", "black"]
+            exclude: ^src/lumigo_tracer/libs/
