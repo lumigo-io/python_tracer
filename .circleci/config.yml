@@ -18,10 +18,16 @@ workflows:
     - lumigo-orb/print_orb_versions:
         lumigo_orb_version: *lumigo_orb_version
 
-    - lumigo-orb/test:
+    - test:
         context: common
-        name: lumigo-orb/test/3.9
-        docker_image: lumigo/python-39-ci:latest
+        filters:
+          branches:
+            ignore: master
+        docker:
+          -image: lumigo/python-39-ci:latest
+          auth:
+            username: lumigo
+            password: $DOCKERHUB_PASSWORD
 
     - lumigo-orb/is_environment_available:
         context: common
@@ -72,7 +78,7 @@ workflows:
     - lumigo-orb/workflow-completed-successfully:
         context: common
         requires:
-          - lumigo-orb/test/3.9
+          - test
           - lumigo-orb/integration-test-parallel
           - lumigo-orb/e2e-test
 
@@ -85,4 +91,19 @@ workflows:
             only: master
         docker_image: lumigo/python-39-ci:latest
         requires:
-          - lumigo-orb/test/3.9
+          - test
+
+
+jobs:
+  test:
+    <<: *defaults
+    steps:
+      - lumigo-orb/checkout_code
+      - lumigo-orb/checkout_utils
+      # run tests!
+      - run: echo "export AWS_DEFAULT_REGION=us-west-2" >> $BASH_ENV
+      - run: mkdir -p ~/.aws
+      - run: echo ${KEY} | gpg --batch -d --passphrase-fd 0 ../common-resources/encrypted_files/credentials_integration.enc > ~/.aws/credentials
+      - run: . venv/bin/activate && pip uninstall lumigo_tracer -y && python setup.py develop
+      - run: . venv/bin/activate && ./scripts/checks.sh
+      - run: ../utils/common_bash/defaults/code_cov.sh
