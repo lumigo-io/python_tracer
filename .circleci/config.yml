@@ -4,6 +4,14 @@ orbs:
   lumigo-orb: &lumigo_orb_version lumigo/lumigo-orb@volatile
   codecov: codecov/codecov@3.2.4
 
+defaults: &defaults
+  working_directory: ~/python_tracer
+  docker:
+  - image: lumigo/ci:latest
+    auth:
+      username: lumigo
+      password: $DOCKERHUB_PASSWORD
+
 workflows:
   test-deploy:
     jobs:
@@ -29,6 +37,7 @@ workflows:
 
     - lumigo-orb/prep-it-resources:
         context: common
+        venv_python_version: "3.9"
         requires:
           - lumigo-orb/is_environment_available
 
