@@ -86,10 +86,10 @@ workflows:
           - test
 
     - update-layers:
-      context: common
-      filters:
-        branches:
-          only: master
+        context: common
+        filters:
+          branches:
+            only: master
 
 
 
