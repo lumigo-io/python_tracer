@@ -77,16 +77,13 @@ workflows:
           - lumigo-orb/integration-test-parallel
           - lumigo-orb/e2e-test
 
-    - lumigo-orb/deploy:
+    - deploy:
         context:
           - common
           - twine
         filters:
           branches:
             only: master
-        docker_image: lumigo/python-39-ci:latest
-        requires:
-          - test
 
 
 jobs:
@@ -103,3 +100,12 @@ jobs:
       - run: . venv/bin/activate && pip uninstall lumigo_tracer -y && python setup.py develop
       - run: . venv/bin/activate && ./scripts/checks.sh
       - run: ../utils/common_bash/defaults/code_cov.sh
+
+  deploy:
+    <<: *defaults
+    steps:
+      - lumigo-orb/checkout_code:
+        venv_python_version: "3.9"
+      - lumigo-orb/checkout_utils
+      - run: cd .. && git clone git@github.com:lumigo-io/larn.git
+      - run: ./scripts/bd_to_prod.sh
