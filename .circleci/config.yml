@@ -90,6 +90,8 @@ workflows:
         filters:
           branches:
             only: master
+        requires:
+          - lumigo-orb/deploy
 
 
 
