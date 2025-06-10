@@ -59,7 +59,8 @@ commit_version="$(git describe --abbrev=0 --tags)"
     --version "$commit_version" \
     --runtimes "python3.6 python3.7 python3.8 python3.9 python3.10 python3.11 python3.12 python3.13"
 
-cd ../larn && npm i -g
+cd .. && git clone git@github.com:lumigo-io/larn.git
+cd larn && npm i -g
 larn -r python3.6 -n layers/LAYERS36 --filter lumigo-python-tracer -p ~/python_tracer
 larn -r python3.7 -n layers/LAYERS37 --filter lumigo-python-tracer -p ~/python_tracer
 cd ../python_tracer
