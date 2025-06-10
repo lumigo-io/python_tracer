@@ -13,8 +13,7 @@ def _get_handler(handler):
         (modname, fname) = handler.rsplit(".", 1)
     except ValueError as e:
         fault = FaultException(
-            FaultException.MALFORMED_HANDLER_NAME,
-            "Bad handler '{}': {}".format(handler, str(e)),
+            FaultException.MALFORMED_HANDLER_NAME, "Bad handler '{}': {}".format(handler, str(e)),
         )
         return make_fault_handler(fault)
 

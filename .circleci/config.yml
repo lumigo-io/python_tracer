@@ -1,4 +1,9 @@
 version: 2.1
+
+orbs:
+  lumigo-orb: &lumigo_orb_version lumigo/lumigo-orb@volatile
+  codecov: codecov/codecov@3.2.4
+
 defaults: &defaults
   working_directory: ~/python_tracer
   docker:
@@ -6,10 +11,6 @@ defaults: &defaults
     auth:
       username: lumigo
       password: $DOCKERHUB_PASSWORD
-
-orbs:
-  lumigo-orb: &lumigo_orb_version lumigo/lumigo-orb@volatile
-
 
 workflows:
   test-deploy:
@@ -37,6 +38,7 @@ workflows:
 
     - lumigo-orb/prep-it-resources:
         context: common
+        venv_python_version: "3.9"
         requires:
           - lumigo-orb/is_environment_available
 
@@ -75,19 +77,24 @@ workflows:
           - lumigo-orb/integration-test-parallel
           - lumigo-orb/e2e-test
 
-    - deploy:
+    - lumigo-orb/deploy:
         context:
           - common
           - twine
         filters:
           branches:
             only: master
+        docker_image: lumigo/python-39-ci:latest
+        requires:
+          - test
+
 
 jobs:
   test:
     <<: *defaults
     steps:
-      - lumigo-orb/checkout_code
+      - lumigo-orb/checkout_code:
+          venv_python_version: "3.9"
       - lumigo-orb/checkout_utils
       # run tests!
       - run: echo "export AWS_DEFAULT_REGION=us-west-2" >> $BASH_ENV
@@ -96,12 +103,3 @@ jobs:
       - run: . venv/bin/activate && pip uninstall lumigo_tracer -y && python setup.py develop
       - run: . venv/bin/activate && ./scripts/checks.sh
       - run: ../utils/common_bash/defaults/code_cov.sh
-
-
-  deploy:
-    <<: *defaults
-    steps:
-      - lumigo-orb/checkout_code
-      - lumigo-orb/checkout_utils
-      - run: cd .. && git clone git@github.com:lumigo-io/larn.git
-      - run: ./scripts/bd_to_prod.sh

@@ -122,9 +122,7 @@ def get_edge_host(region: Optional[str] = None) -> str:
 
 
 def report_json(
-    region: Optional[str],
-    msgs: List[Dict[Any, Any]],
-    is_start_span: bool = False,
+    region: Optional[str], msgs: List[Dict[Any, Any]], is_start_span: bool = False,
 ) -> int:
     """
     This function sends the information back to the edge.

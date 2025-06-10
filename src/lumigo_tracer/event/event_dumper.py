@@ -267,9 +267,7 @@ class EventDumper:
             try:
                 if handler.is_supported(event_obj):
                     return lumigo_dumps(
-                        handler.parse(event),
-                        max_size,
-                        omit_skip_path=handler.get_omit_skip_path(),
+                        handler.parse(event), max_size, omit_skip_path=handler.get_omit_skip_path(),
                     )
             except Exception as e:
                 get_logger().debug(

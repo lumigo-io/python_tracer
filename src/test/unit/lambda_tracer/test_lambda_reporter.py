@@ -112,11 +112,7 @@ HTTP_SPAN_METADATA = {
         "traceId": {"Root": ""},
         "httpInfo": {
             "host": "www.google.com",
-            "request": {
-                "method": "POST",
-                "uri": "www.google.com/",
-                "instance_id": 4380969952,
-            },
+            "request": {"method": "POST", "uri": "www.google.com/", "instance_id": 4380969952},
         },
     },
     "type": HTTP_TYPE,
@@ -164,11 +160,7 @@ ERROR_HTTP_SPAN_METADATA = {
         "traceId": {"Root": ""},
         "httpInfo": {
             "host": "www.google.com",
-            "request": {
-                "method": "POST",
-                "uri": "www.google.com/",
-                "instance_id": 4380969952,
-            },
+            "request": {"method": "POST", "uri": "www.google.com/", "instance_id": 4380969952},
         },
     },
     "type": HTTP_TYPE,
@@ -457,11 +449,7 @@ def test_report_json_extension_spans_mode(monkeypatch, reporter_mock, tmpdir):
     spans = []
     size_factor = 100
     for i in range(size_factor):
-        spans.append(
-            {
-                i: "a" * size_factor,
-            }
-        )
+        spans.append({i: "a" * size_factor})
     report_json(region=None, msgs=spans, is_start_span=False)
     start_path_path = f"{get_extension_dir()}/span_name_span"
     end_path_path = f"{get_extension_dir()}/span_name_end"

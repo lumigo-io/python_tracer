@@ -204,13 +204,7 @@ class SnsParser(ServerlessAWSParser):
             parse_params.body, "TargetArn"
         )
         return recursive_json_join(  # type: ignore[no-any-return]
-            {
-                "info": {
-                    "resourceName": arn,
-                    "targetArn": arn,
-                }
-            },
-            super().parse_request(parse_params),
+            {"info": {"resourceName": arn, "targetArn": arn}}, super().parse_request(parse_params),
         )
 
     def parse_response(
@@ -358,8 +352,7 @@ class S3Parser(Parser):
         if resource_name == "s3":
             resource_name = safe_split_get(parse_params.uri, "/", 1)
         return recursive_json_join(  # type: ignore[no-any-return]
-            {"info": {"resourceName": resource_name}},
-            super().parse_request(parse_params),
+            {"info": {"resourceName": resource_name}}, super().parse_request(parse_params),
         )
 
     def parse_response(
