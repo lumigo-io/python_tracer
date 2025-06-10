@@ -85,6 +85,13 @@ workflows:
         requires:
           - test
 
+    - update-layers:
+      context: common
+      filters:
+        branches:
+          only: master
+
+
 
 jobs:
   test:
@@ -100,3 +107,11 @@ jobs:
       - run: . venv/bin/activate && pip uninstall lumigo_tracer -y && python setup.py develop
       - run: . venv/bin/activate && ./scripts/checks.sh
       - run: ../utils/common_bash/defaults/code_cov.sh
+
+  update-layers:
+    <<: *defaults
+    steps:
+      - lumigo-orb/checkout_code:
+          venv_python_version: "3.9"
+      - lumigo-orb/checkout_utils
+      - run: ./scripts/create_layers.sh
