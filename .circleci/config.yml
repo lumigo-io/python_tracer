@@ -23,11 +23,6 @@ workflows:
         filters:
           branches:
             ignore: master
-        docker:
-          -image: lumigo/python-39-ci:latest
-          auth:
-            username: lumigo
-            password: $DOCKERHUB_PASSWORD
 
     - lumigo-orb/is_environment_available:
         context: common
