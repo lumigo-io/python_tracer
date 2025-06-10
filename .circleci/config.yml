@@ -20,9 +20,6 @@ workflows:
 
     - test:
         context: common
-        filters:
-          branches:
-            ignore: master
 
     - lumigo-orb/is_environment_available:
         context: common
