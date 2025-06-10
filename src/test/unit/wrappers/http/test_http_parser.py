@@ -512,13 +512,7 @@ def test_event_bridge_parser_request_sad_flow():
 )
 def test_s3_parser_resource_name(uri, resource_name, host):
     parser = S3Parser()
-    params = HttpRequest(
-        host=host,
-        method="PUT",
-        uri=uri,
-        headers={},
-        body="",
-    )
+    params = HttpRequest(host=host, method="PUT", uri=uri, headers={}, body="",)
     response = parser.parse_request(params)
     assert response["info"]["resourceName"] == resource_name
 
@@ -628,13 +622,7 @@ def test_scrub_query_params(monkeypatch, input_uri, configs, expected_uri):
         monkeypatch.setattr(CoreConfiguration, attr, value)
 
     response = Parser().parse_request(
-        HttpRequest(
-            host="host",
-            method="PUT",
-            uri=input_uri,
-            headers={},
-            body=b"body",
-        )
+        HttpRequest(host="host", method="PUT", uri=input_uri, headers={}, body=b"body",)
     )
     assert response["info"]["httpInfo"]["request"]["uri"] == expected_uri
 

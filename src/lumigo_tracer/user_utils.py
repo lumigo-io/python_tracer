@@ -68,8 +68,7 @@ def error(  # type: ignore[no-untyped-def]
 def log(level: int, msg: str, error_type: str, extra: Optional[Dict[str, str]]):  # type: ignore[no-untyped-def]
     filtered_extra = list(
         filter(
-            lambda element: validate_tag(element[0], element[1], 0, True),
-            (extra or {}).items(),
+            lambda element: validate_tag(element[0], element[1], 0, True), (extra or {}).items(),
         )
     )
     extra = {key: str(value) for key, value in filtered_extra[:MAX_ELEMENTS_IN_EXTRA]}

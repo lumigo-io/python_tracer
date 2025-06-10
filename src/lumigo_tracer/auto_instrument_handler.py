@@ -23,9 +23,7 @@ except Exception:
 
         # Import a snapshot of _get_handler from the lambda runtime interface client (awslambdaric),
         # in the unlikely case that the bootstrap module is not available
-        from lumigo_tracer.libs.awslambdaric.bootstrap import (
-            _get_handler as aws_get_handler,
-        )
+        from lumigo_tracer.libs.awslambdaric.bootstrap import _get_handler as aws_get_handler
 
 from lumigo_tracer import lumigo_tracer
 

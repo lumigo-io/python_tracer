@@ -317,11 +317,7 @@ def test_lumigo_safe_execute_with_level(severity, caplog):
 
 
 @pytest.mark.parametrize(
-    "env_value, expected",
-    [
-        ("AWS_Lambda_python3.8", False),
-        ("AWS_Lambda_python3.7", True),
-    ],
+    "env_value, expected", [("AWS_Lambda_python3.8", False), ("AWS_Lambda_python3.7", True)],
 )
 def test_is_python_37(monkeypatch, env_value, expected):
     monkeypatch.setenv("AWS_EXECUTION_ENV", env_value)

@@ -81,9 +81,7 @@ def test_err_with_type_and_exception(capsys):
 
 def test_err_with_no_type_and_no_exception(capsys):
     msg = '{"message": "This is error message", "type": "ProgrammaticError", "level": 40}'
-    error(
-        msg="This is error message",
-    )
+    error(msg="This is error message",)
     captured = capsys.readouterr().out.split("\n")
     assert captured[0] == f"{LUMIGO_REPORT_ERROR_STRING} {msg}"
 

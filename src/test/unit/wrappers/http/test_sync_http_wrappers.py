@@ -673,13 +673,7 @@ def test_wrapping_boto3_core_aws_request_no_headers_kwargs(monkeypatch):
         return 5
 
     response = _putheader_wrapper(
-        func=func,
-        instance=None,
-        args=(1, 2),
-        kwargs={
-            "kwarg3": 3,
-            "kwarg4": 4,
-        },
+        func=func, instance=None, args=(1, 2), kwargs={"kwarg3": 3, "kwarg4": 4},
     )
 
     assert response == 5

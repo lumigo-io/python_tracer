@@ -290,11 +290,7 @@ def set_header_key(monkeypatch, header: str):
 
 @pytest.mark.parametrize(
     "config, event, expected",
-    [
-        (["key1"], {"key1": "value1"}, True),
-        (["key1"], {"key2": "value2"}, False),
-        ([], {}, False),
-    ],
+    [(["key1"], {"key1": "value1"}, True), (["key1"], {"key2": "value2"}, False), ([], {}, False)],
 )
 def test_configuration_handler_is_supported(config, event, expected):
     Configuration.auto_tag = config
@@ -341,11 +337,7 @@ def test_configuration_handler_auto_tag_failure(capsys, lambda_traced):
 
 
 @pytest.mark.parametrize(
-    "value, expected",
-    [
-        (1, "1"),  # int
-        ({"a": "b"}, "{'a': 'b'}"),  # dict
-    ],
+    "value, expected", [(1, "1"), ({"a": "b"}, "{'a': 'b'}")],  # int  # dict
 )
 def test_configuration_handler_auto_tag_non_string(value, expected, lambda_traced):
     Configuration.auto_tag = ["key1"]

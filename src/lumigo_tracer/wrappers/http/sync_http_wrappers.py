@@ -133,9 +133,7 @@ def _update_request_data_increased_size_limit(http_info: dict, max_size: int) ->
     http_info["request"].update(
         {
             "body": lumigo_dumps(
-                HttpState.previous_request.body,
-                max_size,
-                omit_skip_path=HttpState.omit_skip_path,
+                HttpState.previous_request.body, max_size, omit_skip_path=HttpState.omit_skip_path,
             )
             if HttpState.previous_request.body and not Configuration.skip_collecting_http_body
             else "",
@@ -254,9 +252,7 @@ def _headers_reminder_wrapper(func, instance, args, kwargs):  # type: ignore[no-
             kwargs["headers"] = headers
             args = args[:HEADERS_ARG_INDEX_REQUEST]
         setattr(
-            instance,
-            LUMIGO_HEADERS_HOOK_KEY,
-            HookedData(headers=headers, path=args[1]),
+            instance, LUMIGO_HEADERS_HOOK_KEY, HookedData(headers=headers, path=args[1]),
         )
     return func(*args, **kwargs)
 
