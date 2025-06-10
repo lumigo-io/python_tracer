@@ -20,6 +20,7 @@ workflows:
 
     - test:
         context: common
+        venv_python_version: "3.9"
         filters:
           branches:
             ignore: master
