@@ -20,7 +20,6 @@ workflows:
 
     - test:
         context: common
-        venv_python_version: "3.9"
         filters:
           branches:
             ignore: master
@@ -94,7 +93,8 @@ jobs:
   test:
     <<: *defaults
     steps:
-      - lumigo-orb/checkout_code
+      - lumigo-orb/checkout_code:
+          venv_python_version: "3.9"
       - lumigo-orb/checkout_utils
       # run tests!
       - run: echo "export AWS_DEFAULT_REGION=us-west-2" >> $BASH_ENV
