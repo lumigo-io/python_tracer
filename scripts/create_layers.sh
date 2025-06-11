@@ -21,6 +21,18 @@ echo "Update Python Tracer Layers"
 
 setup_git
 
+echo "Creating lumigo-python-tracer layer"
+./scripts/prepare_layer_files.sh
+
+echo "Creating layer latest version arn table md file (LAYERS.md)"
+commit_version="$(git describe --abbrev=0 --tags)"
+../utils/common_bash/create_layer.sh \
+    --layer-name lumigo-python-tracer \
+    --region ALL \
+    --package-folder python \
+    --version "$commit_version" \
+    --runtimes "python3.6 python3.7 python3.8 python3.9 python3.10 python3.11 python3.12 python3.13"
+
 cd .. && git clone git@github.com:lumigo-io/larn.git
 cd larn && npm i -g
 larn -r python3.6 -n layers/LAYERS36 --filter lumigo-python-tracer -p ~/python_tracer
