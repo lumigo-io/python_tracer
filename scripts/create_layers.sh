@@ -1,6 +1,14 @@
 #!/usr/bin/env bash
 set -Eeo pipefail
 
+setup_git() {
+    git config --global user.email "no-reply@build.com"
+    git config --global user.name "CircleCI"
+    git checkout master
+    # Avoid version failure
+    git stash
+}
+
 echo ".____                  .__                  .__        ";
 echo "|    |    __ __  _____ |__| ____   ____     |__| ____  ";
 echo "|    |   |  |  \/     \|  |/ ___\ /  _ \    |  |/  _ \ ";
