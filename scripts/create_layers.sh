@@ -7,6 +7,7 @@ setup_git() {
     git checkout master
     # Avoid version failure
     git stash
+    git pull origin master
 }
 
 echo ".____                  .__                  .__        ";
