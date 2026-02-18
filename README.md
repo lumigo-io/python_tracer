@@ -4,7 +4,7 @@
 
 This is lumigo/python_tracer, Lumigo's Python agent for distributed tracing and performance monitoring.
 
-Supported Python Runtimes: 3.6, 3.7, 3.8, 3.9, 3.10, 3.11, 3.12 and 3.13
+Supported Python Runtimes: 3.6, 3.7, 3.8, 3.9, 3.10, 3.11, 3.12, 3.13 and 3.14
 
 # Usage
 

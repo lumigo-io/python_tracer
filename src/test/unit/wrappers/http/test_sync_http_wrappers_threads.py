@@ -13,7 +13,11 @@ COUNT = 5
 
 def test_lambda_with_threads(context, token):
     def to_exec(index):
-        urllib.request.urlopen(f"https://postman-echo.com/get?my_index={index}").read()
+        req = urllib.request.Request(
+            f"https://postman-echo.com/get?my_index={index}",
+            headers={"User-Agent": "LumigoTracerTest/1.0"},
+        )
+        urllib.request.urlopen(req).read()
 
     @lumigo_tracer.lumigo_tracer(token=token)
     def lambda_test_function(event, context):

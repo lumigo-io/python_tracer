@@ -35,7 +35,7 @@ workflows:
 
     - lumigo-orb/prep-it-resources:
         context: common
-        venv_python_version: "3.9"
+        venv_python_version: "3.11"
         requires:
           - lumigo-orb/is_environment_available
 
@@ -81,7 +81,7 @@ workflows:
         filters:
           branches:
             only: master
-        docker_image: lumigo/python-39-ci:latest
+        docker_image: lumigo/python-311-ci:latest
         requires:
           - test
 
@@ -100,12 +100,12 @@ jobs:
     <<: *defaults
     steps:
       - lumigo-orb/checkout_code:
-          venv_python_version: "3.9"
+          venv_python_version: "3.11"
       - lumigo-orb/checkout_utils
       # run tests!
       - run: echo "export AWS_DEFAULT_REGION=us-west-2" >> $BASH_ENV
       - run: mkdir -p ~/.aws
-      - run: echo ${KEY} | gpg --batch -d --passphrase-fd 0 ../common-resources/encrypted_files/credentials_integration.enc > ~/.aws/credentials
+      - run: echo ${KEY} | gpg --batch -d --passphrase-fd 0 ../common-resources/encrypted_files/credentials_integration2.enc > ~/.aws/credentials
       - run: . venv/bin/activate && pip uninstall lumigo_tracer -y && python setup.py develop
       - run: . venv/bin/activate && ./scripts/checks.sh
       - run: ../utils/common_bash/defaults/code_cov.sh
@@ -114,6 +114,6 @@ jobs:
     <<: *defaults
     steps:
       - lumigo-orb/checkout_code:
-          venv_python_version: "3.9"
+          venv_python_version: "3.11"
       - lumigo-orb/checkout_utils
       - run: ./scripts/create_layers.sh
