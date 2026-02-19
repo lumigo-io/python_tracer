@@ -4,7 +4,7 @@ mock
 boto3
 pytest-cov==2.6.1
 attrs==19.1.0
-requests==2.31.0
+requests==2.32.4
 pymongo==3.11.0
 redispy==3.0.0
 sqlalchemy==1.4.3
