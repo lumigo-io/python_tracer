@@ -58,6 +58,7 @@ def my_lambda(event, context):
 * `LUMIGO_DOMAINS_SCRUBBER=[".*secret.*"]` - Prevents Lumigo from collecting both request and response details from a list of domains. This accepts a comma-separated list of regular expressions that is JSON-formatted. By default, the tracer uses `["secretsmanager\..*\.amazonaws\.com", "ssm\..*\.amazonaws\.com", "kms\..*\.amazonaws\.com"]`. **Note** - These defaults are overridden when you define a different list of regular expressions.
 * `LUMIGO_PROPAGATE_W3C=TRUE` - Add W3C TraceContext headers to outgoing HTTP requests. This enables uninterrupted transactions with applications traced with OpenTelemetry.
 * `LUMIGO_SWITCH_OFF=TRUE` - In the event a critical issue arises, this turns off all actions that Lumigo takes in response to your code. This happens without a deployment, and is picked up on the next function run once the environment variable is present.
+* `SKIP_WARMUP_INVOCATIONS=TRUE` - Prevents Lumigo from sending data during invocations from the serverless framework warmup plugin.
 
 ### Step Functions
 
