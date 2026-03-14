@@ -137,3 +137,7 @@ We've provided an easy way to run the unit test suite:
 * To deploy services for component tests, run `sls deploy` from the root test directory. This only needs to take place when the resources change.
 * To run component tests, add the `--all` flag: `py.test --all`
 
+---
+
+> **DO NOT MERGE** - This is a dummy PR to test CI behavior. Will be closed without merging.
+
