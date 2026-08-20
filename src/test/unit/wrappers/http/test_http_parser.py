@@ -55,6 +55,9 @@ def test_serverless_aws_parser_fallback_doesnt_change():
         ("kinesis.us-west-2.amazonaws.com", {}, KinesisParser),
         ("events.us-west-2.amazonaws.com", {}, EventBridgeParser),
         ("sns.us-west-2.amazonaws.com", {}, SnsParser),
+        ("dynamodb.us-west-2.amazonaws.com", {}, DynamoParser),
+        # Account-based DynamoDB endpoint, used by default by current AWS SDKs
+        ("291070810472.ddb.us-west-2.amazonaws.com", {}, DynamoParser),
         # Non AWS Service
         ("events.other.service", {}, Parser),
         # If this header exists it should be detected as a ServerlessAWSParser
