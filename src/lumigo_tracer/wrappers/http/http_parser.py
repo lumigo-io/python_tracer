@@ -430,7 +430,11 @@ def get_parser(host: str, headers: Optional[dict] = None) -> Type[Parser]:  # ty
     if "amazonaws.com" not in host and not _headers.get("x-amzn-requestid"):
         return Parser
     service = safe_split_get(host, ".", 0)
-    if service == "dynamodb":
+    # Account-based DynamoDB endpoints put the account id in the first label:
+    # <account-id>.ddb.<region>.amazonaws.com. Current AWS SDKs route DynamoDB there
+    # by default (botocore's account_id_endpoint_mode defaults to "preferred"), so
+    # matching only the first label would fall through to the generic AWS parser.
+    if service in ("dynamodb", "dynamodb-fips") or safe_split_get(host, ".", 1) == "ddb":
         return DynamoParser
     elif service == "sns":
         return SnsParser

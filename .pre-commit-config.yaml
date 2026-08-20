@@ -39,6 +39,10 @@ repos:
               - setuptools
             exclude: ^src/test|^src/test_utils|^src/component_test
             args: [ "-lll" ]
+            # bandit 1.7.0 imports pbr.version at runtime but does not declare pbr
+            # in its wheel metadata, so the hook env resolves without it and every
+            # invocation dies with ModuleNotFoundError: No module named 'pbr'.
+            additional_dependencies: ["pbr==7.0.3"]
 
     - repo: https://github.com/Yelp/detect-secrets
       rev: v1.2.0
