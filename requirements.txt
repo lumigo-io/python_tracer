@@ -11,6 +11,11 @@ sqlalchemy==1.4.3
 moto==4.2.13
 urllib3==1.26.17
 aiohttp==3.8.5
+# Transitive via aiohttp, pinned because 1.4.0 retyped aiosignal.Signal so that
+# TraceConfig's 3-arg callbacks no longer match Signal.append, failing the mypy
+# hook on aiohttp_wrapper.py. aiohttp 3.8.5 predates that change. Unpin when
+# aiohttp is upgraded to a release typed against aiosignal >= 1.4.
+aiosignal==1.3.1
 mypy==0.971
 pytest-httpserver==1.0.6
 Werkzeug==2.2.3
