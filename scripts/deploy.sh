@@ -21,4 +21,4 @@ commit_version="$(git describe --abbrev=0 --tags)"
     --region us-west-2 \
     --package-folder python \
     --version "$commit_version" \
-    --runtimes "python3.6 python3.7 python3.8 python3.9 python3.10 python3.11"
+    --runtimes "python3.6 python3.7 python3.8 python3.9 python3.10 python3.11 python3.12 python3.13 python3.14"

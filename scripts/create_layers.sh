@@ -41,7 +41,7 @@ commit_version="$(git describe --abbrev=0 --tags)"
     --region ALL \
     --package-folder python \
     --version "$commit_version" \
-    --runtimes "python3.6 python3.7 python3.8 python3.9 python3.10 python3.11 python3.12 python3.13"
+    --runtimes "python3.6 python3.7 python3.8 python3.9 python3.10 python3.11 python3.12 python3.13 python3.14"
 
 cd .. && git clone git@github.com:lumigo-io/larn.git
 cd larn && npm i -g

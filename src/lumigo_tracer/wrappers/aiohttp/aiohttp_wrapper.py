@@ -17,6 +17,14 @@ except Exception:
 LUMIGO_SPAN_ID_KEY = "_lumigo_span_id"
 
 
+def _register_trace_callbacks(trace_config):  # type: ignore[no-untyped-def]
+    trace_config.on_request_start.append(on_request_start)
+    trace_config.on_request_chunk_sent.append(on_request_chunk_sent)
+    trace_config.on_request_end.append(on_request_end)
+    trace_config.on_response_chunk_received.append(on_response_chunk_received)
+    trace_config.on_request_exception.append(on_request_exception)
+
+
 def aiohttp_trace_configs_wrapper(trace_config):  # type: ignore[no-untyped-def]
     def aiohttp_session_init_wrapper(func, instance, args, kwargs):  # type: ignore[no-untyped-def]
         with lumigo_safe_execute("aiohttp aiohttp_session_init_wrapper"):
@@ -84,11 +92,7 @@ def wrap_aiohttp():  # type: ignore[no-untyped-def]
         get_logger().debug("wrapping http requests")
         if aiohttp:
             trace_config = aiohttp.TraceConfig()
-            trace_config.on_request_start.append(on_request_start)
-            trace_config.on_request_chunk_sent.append(on_request_chunk_sent)
-            trace_config.on_request_end.append(on_request_end)
-            trace_config.on_response_chunk_received.append(on_response_chunk_received)
-            trace_config.on_request_exception.append(on_request_exception)
+            _register_trace_callbacks(trace_config)
             wrap_function_wrapper(
                 "aiohttp.client",
                 "ClientSession.__init__",
